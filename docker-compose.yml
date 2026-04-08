@@ -1,0 +1,81 @@
+networks:
+  dev:
+    driver: bridge
+
+volumes:
+  db-data: {}
+  redis-data: {}
+
+services:
+  api:
+    image: ${DOCKER_REGISTRY-}api
+    container_name: SPCRM-API
+    build:
+      context: .
+      dockerfile: Api/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=User ID=${DB_USER};Password=${DB_PASSWORD};Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_LOGGING_LEVEL=${ASPNETCORE_LOGGING_LEVEL:-Information}
+      - Redis__HOST=${REDIS_HOST}
+      - Redis__PORT=${REDIS_PORT}
+    ports:
+      - "${ASPNETCORE_PORT:-8080}:8080"
+    depends_on:
+      postgis:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dev
+
+  postgis:
+    image: postgis/postgis:18-3.6
+    container_name: spcrm-postgis
+    volumes:
+      - db-data:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    restart: unless-stopped
+    networks:
+      - dev
+
+  redis:
+    image: redis:8.6.1-alpine
+    container_name: spcrm-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - dev
+
+  mailpit:
+    image: axllent/mailpit:v1.29.4
+    container_name: spcrm-mailpit
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "${MAILPIT_SEND_PORT:-63854}:1025"
+    restart: unless-stopped
+    networks:
+      - dev
