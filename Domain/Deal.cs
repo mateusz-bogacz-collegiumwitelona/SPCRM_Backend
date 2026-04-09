@@ -1,0 +1,29 @@
+﻿using Domain.Common;
+using Domain.Enum;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Domain
+{
+    public class Deal : BaseEntity
+    {
+        public string Name { get; set; }
+        public long Value { get; set; } // x10000
+        public DealsStatusEnum Status { get; set; }
+        public DateTime CloseDate { get; set; }
+
+        public Guid CurrencyId { get; set; }
+        public Currency Currency { get; set; } = null!;
+
+        public Guid OwnerId { get; set; }
+        public ApplicationUser Owner { get; set; } = null!;
+
+        public Guid CompanyId { get; set; }
+        public Company Company { get; set; } = null!;
+
+        public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
+        public ICollection<Task> Tasks { get; set; } = new List<Task>();
+        public ICollection<Note> Notes { get; set; } = new List<Note>();
+    }
+}

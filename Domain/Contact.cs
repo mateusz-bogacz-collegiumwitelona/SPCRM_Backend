@@ -1,0 +1,24 @@
+﻿using Domain.Common;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Domain
+{
+    public class Contact : BaseEntity
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Token { get; set; }
+
+        public Guid CompanyId { get; set; }
+        public Company Company { get; set; } = null!;
+
+        public Guid? OwnerId { get; set; }
+        public ApplicationUser Owner { get; set; }
+
+        public ICollection<ContactDetail> ContactDetails { get; set; } = new List<ContactDetail>();
+        public ICollection<Note> Notes { get; set; } = new List<Note>();
+        public ICollection<Task> Tasks { get; set; } = new List<Task>();
+    }
+}
