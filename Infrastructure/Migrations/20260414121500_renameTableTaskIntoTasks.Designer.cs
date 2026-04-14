@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260414121500_renameTableTaskIntoTasks")]
+    partial class renameTableTaskIntoTasks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -84,6 +87,10 @@ namespace Infrastructure.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -102,6 +109,9 @@ namespace Infrastructure.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
 
                     b.ToTable("User", (string)null);
                 });
@@ -129,12 +139,19 @@ namespace Infrastructure.Migrations
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("UpdateAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
 
                     b.ToTable("Companies");
                 });
@@ -208,6 +225,10 @@ namespace Infrastructure.Migrations
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("UpdateAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -216,6 +237,9 @@ namespace Infrastructure.Migrations
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("OwnerId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
 
                     b.ToTable("Contacts");
                 });
@@ -575,6 +599,10 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("UpdateAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -587,6 +615,9 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("DealId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
 
                     b.ToTable("Tasks");
                 });

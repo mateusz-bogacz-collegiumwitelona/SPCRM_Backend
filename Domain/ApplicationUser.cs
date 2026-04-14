@@ -10,8 +10,6 @@ namespace Domain
         public string FirstName { get; set; }
         public string LastName { get; set; }
 
-        public string Token { get; set; }
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdateAt { get; set; }
@@ -20,7 +18,7 @@ namespace Domain
 
         public ICollection<Contact> Contacts { get; set; } = new List<Contact>();
         public ICollection<Deal> Deals { get; set; } = new List<Deal>();
-        public ICollection<Task> Tasks { get; set; } = new List<Task>();
+        public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();
         public ICollection<Note> Notes { get; set; } = new List<Note>();
         public ICollection<Company> Companies { get; set; } = new List<Company>();
     }

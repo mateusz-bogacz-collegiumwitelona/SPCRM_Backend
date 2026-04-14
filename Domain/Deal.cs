@@ -23,7 +23,7 @@ namespace Domain
         public Company Company { get; set; } = null!;
 
         public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
-        public ICollection<Task> Tasks { get; set; } = new List<Task>();
+        public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();
         public ICollection<Note> Notes { get; set; } = new List<Note>();
     }
 }

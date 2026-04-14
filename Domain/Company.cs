@@ -9,7 +9,6 @@ namespace Domain
     {
         public String Name { get; set; }
         public String NIP { get; set; }
-        public string Token { get; set; }
 
         public Guid OwnerId { get; set; }
         public ApplicationUser Owner { get; set; } = null!;
@@ -17,6 +16,6 @@ namespace Domain
         public ICollection<Contact> Contacts { get; set; } = new List<Contact>();
         public ICollection<Deal> Deals { get; set; } = new List<Deal>();
         public ICollection<CompanyAdress> CompanyAdresses { get; set; } = new List<CompanyAdress>();
-        public ICollection<Task> Tasks { get; set; } = new List<Task>();
+        public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();
     }
 }

@@ -1,5 +1,6 @@
 using Domain;
 using Infrastructure;
+using Infrastructure.Seeders;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +26,9 @@ using (var scope = app.Services.CreateScope())
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
 
     await dbContext.Database.MigrateAsync();
+
+    var seeder = new DataSeeder(roleManager, userManager, dbContext);
+    await seeder.InitAsync();
 }
 
 // Configure the HTTP request pipeline.

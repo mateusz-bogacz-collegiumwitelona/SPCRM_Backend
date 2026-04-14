@@ -26,7 +26,7 @@ namespace Infrastructure
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductCategory> ProductCategories { get; set; }
         public DbSet<ProductType> ProductTypes { get; set; }
-        public DbSet<Domain.Task> Tasks { get; set; }
+        public DbSet<Domain.Tasks> Tasks { get; set; }
         public DbSet<UnitOfMeasure> UnitsOfMeasure { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -39,11 +39,6 @@ namespace Infrastructure
                 .Property(sa => sa.Location)
                 .HasColumnType("geometry(Point, 4326)");
 
-            builder.Entity<Company>().HasIndex(c => c.Token).IsUnique();
-            builder.Entity<Contact>().HasIndex(c => c.Token).IsUnique();
-            builder.Entity<Domain.Task>().HasIndex(c => c.Token).IsUnique();
-            builder.Entity<Domain.ApplicationUser>().HasIndex(c => c.Token).IsUnique();
-
             builder.Entity<ApplicationUser>()
                 .ToTable("User");
 
@@ -53,7 +48,7 @@ namespace Infrastructure
                 .HasForeignKey(d => d.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<Domain.Task>()
+            builder.Entity<Domain.Tasks>()
                 .HasOne(t => t.AssignedTo)
                 .WithMany(u => u.Tasks)
                 .HasForeignKey(t => t.AssignedToId)
@@ -63,7 +58,7 @@ namespace Infrastructure
             builder.Entity<Company>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Contact>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Deal>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Domain.Task>().HasQueryFilter(x => !x.IsDeleted);
+            builder.Entity<Domain.Tasks>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Product>().HasQueryFilter(x => !x.IsDeleted);
         }
     }

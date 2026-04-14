@@ -6,12 +6,11 @@ using System.Text;
 
 namespace Domain
 {
-    public class Task : BaseEntity 
+    public class Tasks : BaseEntity 
     {
         public string Title { get; set; }
         public string Description { get; set; }
         public DateTime DueAt { get; set; }
-        public string Token { get; set; }
 
         public Guid AssignedToId { get; set; }
         public ApplicationUser AssignedTo { get; set; } = null!;
