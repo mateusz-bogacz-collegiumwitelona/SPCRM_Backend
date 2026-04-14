@@ -42,7 +42,7 @@ namespace Infrastructure
             })
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
-
+            
             return services;
         }
     }

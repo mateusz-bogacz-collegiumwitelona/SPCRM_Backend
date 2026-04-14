@@ -21,6 +21,10 @@ services:
       - ASPNETCORE_LOGGING_LEVEL=${ASPNETCORE_LOGGING_LEVEL:-Information}
       - Redis__HOST=${REDIS_HOST}
       - Redis__PORT=${REDIS_PORT}
+      - JWT__KEY=${ASPNETCORE_JWT_KEY}
+      - JWT__ISSUER=${ASPNETCORE_JWT_ISSUER}
+      - JWT__AUDIENCE=${ASPNETCORE_JWT_AUDIENCE}
+      - TZ=UTC
     ports:
       - "${ASPNETCORE_PORT:-8080}:8080"
     depends_on:
@@ -40,7 +44,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
-      TZ: ${TZ:-UTC}
+      TZ: UTC
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
