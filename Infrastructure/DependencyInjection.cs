@@ -14,8 +14,8 @@ namespace Infrastructure
     public static class DependencyInjection
     {
         public static IServiceCollection AddInfrastructure(
-            this IServiceCollection services, 
-            IConfiguration configuration )
+            this IServiceCollection services,
+            IConfiguration configuration)
         {
             // database config
             var connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -42,7 +42,7 @@ namespace Infrastructure
             })
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
-            
+
             return services;
         }
     }

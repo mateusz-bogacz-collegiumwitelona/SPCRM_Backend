@@ -13,6 +13,18 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
+builder.Services.AddCors(options =>
+{
+    String frontendUrl = builder.Configuration["FRONTEND:URL"] ?? "http://localhost:5173";
+    options.AddPolicy("AllowSPCRMFrontend", policy =>
+    {
+        policy.WithOrigins(frontendUrl)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Add configs
 builder.Services.AddSwaggerConfiguration();
 builder.Services.AddJwtAuthentication(builder.Configuration);
@@ -42,6 +54,9 @@ app.UseSwaggerUIConfiguration();
 
 app.UseHttpsRedirection();
 app.UseExceptionHandler();
+
+app.UseRouting();
+app.UseCors("AllowSPCRMFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
