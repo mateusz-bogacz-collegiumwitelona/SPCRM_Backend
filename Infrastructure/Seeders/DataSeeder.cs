@@ -64,9 +64,9 @@ namespace Infrastructure.Seeders
                     await SeedRoleAsync();
                 }
 
-                await CreateUserAsync("Admin", "admin@example.pl", "Admin123!", "Admin");
-                await CreateUserAsync("User", "user@example.pl", "User123!", "User");
-                await CreateUserAsync("Manager", "manager@example.pl", "Manager123!", "Manager");
+                await CreateUserAsync("Admin", "admin@example.pl", "Admin123!", "Admin", "Adam", "Kowalki");
+                await CreateUserAsync("User", "user@example.pl", "User123!", "User", "Cezary", "Kowalki");
+                await CreateUserAsync("Manager", "manager@example.pl", "Manager123!", "Manager", "Antoni", "Kowalki");
 
                 Console.WriteLine("All users seeded successfully.");
             }
@@ -76,7 +76,14 @@ namespace Infrastructure.Seeders
             }
         }
 
-        private async Task CreateUserAsync(string userName, string email, string password, string role)
+        private async Task CreateUserAsync(
+            string userName, 
+            string email, 
+            string password, 
+            string role, 
+            string firstName, 
+            string lastName
+            )
         {
             var isUserExist = await _userManager.FindByEmailAsync(email);
 
@@ -88,8 +95,8 @@ namespace Infrastructure.Seeders
                     NormalizedEmail = email.ToUpper(),
                     UserName = userName,
                     NormalizedUserName = userName.ToUpper(),
-                    FirstName = Guid.NewGuid().ToString(),
-                    LastName = Guid.NewGuid().ToString(),
+                    FirstName = firstName,
+                    LastName = lastName,
                     EmailConfirmed = true,
                     ConcurrencyStamp = Guid.NewGuid().ToString(),
                     SecurityStamp = Guid.NewGuid().ToString(),

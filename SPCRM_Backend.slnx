@@ -5,6 +5,7 @@
   </Project>
   <Project Path="Domain/Domain.csproj" Id="cfd6a561-04bd-45f1-8e95-cb4c244fac5b" />
   <Project Path="DTO/DTO.csproj" Id="72837ac1-548e-4989-897f-ff76f5afa4a1" />
+  <Project Path="Email/Email.csproj" Id="4b24cc88-ac6c-435b-bac2-a8d7ac669f8b" />
   <Project Path="Infrastructure/Infrastructure.csproj" Id="3d42fb4a-471f-4831-afd2-eb65cd5b7620" />
   <Project Path="Services/Services.csproj" Id="d08974e4-78d6-45ea-b743-5e7426656bd0" />
 </Solution>

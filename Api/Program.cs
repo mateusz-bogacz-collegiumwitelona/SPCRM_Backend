@@ -2,6 +2,7 @@ using Api.Configuration;
 using Api.Middlewares;
 using Api.Transformers;
 using Domain;
+using Email;
 using Infrastructure;
 using Infrastructure.Seeders;
 using Microsoft.AspNetCore.Identity;
@@ -30,6 +31,7 @@ builder.Services.AddSwaggerConfiguration();
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplicationServices();
+builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 

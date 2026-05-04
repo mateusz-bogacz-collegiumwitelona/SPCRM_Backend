@@ -26,6 +26,14 @@ services:
       - JWT__AUDIENCE=${ASPNETCORE_JWT_AUDIENCE}
       - FRONTEND__URL=${ASPNETCORE_FRONTEND_URL}
       - TZ=UTC
+      - SUPPORT_EMAIL=${ASPNETCORE_SUPPORT_EMAIL} 
+      - Mail__Host=${MAIL_HOST}
+      - Mail__Port=${MAIL_PORT}
+      - Mail__EnableSsl=${MAIL_ENABLE_SSL}
+      - Mail__Username=${MAIL_USERNAME}
+      - Mail__Password=${MAIL_PASSWORD}
+      - Mail__From=${MAIL_FROM}
+      - Mail__DisplayName=${MAIL_DISPLAY_NAME} 
     ports:
       - "${ASPNETCORE_PORT:-8080}:8080"
     depends_on:

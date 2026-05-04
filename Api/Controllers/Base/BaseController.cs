@@ -13,10 +13,11 @@ namespace Api.Controllers.Base
             if (result == null)
             {
                 return StatusCode(
-                    500, 
-                    new { 
-                        success = false, 
-                        message = "Result cannot be null." 
+                    500,
+                    new
+                    {
+                        success = false,
+                        message = "Result cannot be null."
                     }
                 );
             }
@@ -28,6 +29,37 @@ namespace Api.Controllers.Base
                     success = result.IsSuccess,
                     message = result.Message,
                     data = result.Data
+                });
+            }
+
+            return StatusCode(result.StatusCode, new
+            {
+                success = result.IsSuccess,
+                message = result.Message,
+                errors = result.Errors
+            });
+        }
+
+        protected IActionResult HandleResult(Result result)
+        {
+            if (result == null)
+            {
+                return StatusCode(
+                    500,
+                    new
+                    {
+                        success = false,
+                        message = "Result cannot be null."
+                    }
+                );
+            }
+
+            if (result.IsSuccess)
+            {
+                return StatusCode(result.StatusCode, new
+                {
+                    success = result.IsSuccess,
+                    message = result.Message
                 });
             }
 

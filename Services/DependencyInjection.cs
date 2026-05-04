@@ -12,8 +12,8 @@ namespace Services
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
             services.AddScoped<TokenServices>();
-            services.AddScoped<IAuthServices,AuthServices>();
-
+            services.AddScoped<IAuthServices, AuthServices>();
+            services.AddScoped<ISupportServices, SupportServices>();
             return services;
         }
     }
