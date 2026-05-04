@@ -1,10 +1,5 @@
 ﻿using Api.Transformers;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Api.Configuration
 {

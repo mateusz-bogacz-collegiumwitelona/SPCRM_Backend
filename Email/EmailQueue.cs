@@ -1,9 +1,5 @@
 ﻿using DTO.Domain;
 using Email.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Net.Mail;
-using System.Text;
 using System.Threading.Channels;
 
 namespace Email

@@ -3,7 +3,6 @@ using Domain.Common;
 using DTO.Request;
 using DTO.Response;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
 
@@ -22,7 +21,7 @@ namespace Api.Controllers
             _auth = auth;
         }
 
-        
+
         [EndpointSummary("Authenticate user (Login Step 1)")]
         [EndpointDescription("Authenticates a user using their email and password. " +
             "If credentials are valid, a final JWT token is returned.")]

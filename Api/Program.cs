@@ -1,6 +1,5 @@
 using Api.Configuration;
 using Api.Middlewares;
-using Api.Transformers;
 using Domain;
 using Email;
 using Infrastructure;

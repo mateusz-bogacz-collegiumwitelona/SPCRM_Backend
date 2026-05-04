@@ -1,9 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Services.Interfaces;
 using Services.Services;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Services
 {

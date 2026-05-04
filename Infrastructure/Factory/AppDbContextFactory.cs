@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Npgsql;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Infrastructure.Factory
 {

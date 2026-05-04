@@ -1,7 +1,4 @@
 ﻿using Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Domain
 {
@@ -9,7 +6,7 @@ namespace Domain
     {
         public String Title { get; set; }
         public String Content { get; set; }
-        
+
         public Guid AuthorId { get; set; }
         public ApplicationUser Author { get; set; }
 

@@ -1,7 +1,4 @@
 ﻿using Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Domain
 {
@@ -16,7 +13,7 @@ namespace Domain
         public int Weight { get; set; }
         public Guid UnitId { get; set; }
         public UnitOfMeasure Unit { get; set; } = null!;
-        
+
         public long PricePerUnit { get; set; }
         public int StockQuantity { get; set; }
 

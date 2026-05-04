@@ -80,13 +80,13 @@ namespace Services.Services
                 "Login successful.",
                 StatusCodes.Status200OK,
                 new AuthResponse
-                    {
-                        Token = token,
-                        UserId = user.Id,
-                        Email = user.Email,
-                        UserName = user.UserName,
-                        Roles = roles
-                    }
+                {
+                    Token = token,
+                    UserId = user.Id,
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    Roles = roles
+                }
                 );
         }
     }

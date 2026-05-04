@@ -7,6 +7,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.7" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\DTO\DTO.csproj" />
 		<ProjectReference Include="..\Services\Services.csproj" />
 	</ItemGroup>

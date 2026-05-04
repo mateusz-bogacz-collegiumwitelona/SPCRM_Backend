@@ -2,9 +2,6 @@
 using Email.Interfaces;
 using Microsoft.Extensions.Logging;
 using Services.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Email
 {

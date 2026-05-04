@@ -10,7 +10,7 @@ namespace Infrastructure.Seeders
         private readonly UserManager<ApplicationUser> _userManager;
         private AppDbContext _context;
 
-        public DataSeeder (
+        public DataSeeder(
             RoleManager<IdentityRole<Guid>> roleManager,
             UserManager<ApplicationUser> userManager,
             AppDbContext context
@@ -77,17 +77,17 @@ namespace Infrastructure.Seeders
         }
 
         private async Task CreateUserAsync(
-            string userName, 
-            string email, 
-            string password, 
-            string role, 
-            string firstName, 
+            string userName,
+            string email,
+            string password,
+            string role,
+            string firstName,
             string lastName
             )
         {
             var isUserExist = await _userManager.FindByEmailAsync(email);
 
-            if (isUserExist == null )
+            if (isUserExist == null)
             {
                 ApplicationUser newUser = new ApplicationUser
                 {
@@ -116,5 +116,5 @@ namespace Infrastructure.Seeders
                 }
             }
         }
-    } 
+    }
 }

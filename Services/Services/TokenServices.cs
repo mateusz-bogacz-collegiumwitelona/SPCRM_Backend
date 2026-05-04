@@ -1,12 +1,10 @@
 ﻿using Domain;
+using Domain.Constans;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Domain.Constans;
 
 namespace Services.Services
 {
@@ -34,13 +32,13 @@ namespace Services.Services
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            string keyString = _config["JWT:KEY"] 
+            string keyString = _config["JWT:KEY"]
                 ?? throw new InvalidOperationException("JWT key is not configured.");
-            
-            string issuer = _config["JWT:ISSUER"] 
+
+            string issuer = _config["JWT:ISSUER"]
                 ?? throw new InvalidOperationException("JWT issuer is not configured.");
-            
-            string audience = _config["JWT:AUDIENCE"] 
+
+            string audience = _config["JWT:AUDIENCE"]
                 ?? throw new InvalidOperationException("JWT audience is not configured.");
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));

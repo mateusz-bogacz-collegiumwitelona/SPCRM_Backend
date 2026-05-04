@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Domain.Constans
+﻿namespace Domain.Constans
 {
     // zapisujemy tu wszystko w minutach
     public static class TokenExpire

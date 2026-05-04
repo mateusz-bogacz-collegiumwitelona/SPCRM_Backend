@@ -1,18 +1,12 @@
-﻿using Domain;
-using Domain.Common;
+﻿using Domain.Common;
 using DTO.Domain;
 using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Services.Interfaces;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
-using System.Timers;
 
 namespace Services.Services
 {

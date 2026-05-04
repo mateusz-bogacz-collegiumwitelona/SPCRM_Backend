@@ -1,5 +1,4 @@
 ﻿using Domain.Common;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers.Base
