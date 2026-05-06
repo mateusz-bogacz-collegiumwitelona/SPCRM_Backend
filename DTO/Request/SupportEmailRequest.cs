@@ -14,7 +14,7 @@ namespace DTO.Request
 
 
         [Required(ErrorMessage = "Message is required")]
-        [Length(5, 255, ErrorMessage = "Message must be between 5 and 255 characters")]
+        [Length(5, 5000, ErrorMessage = "Message must be between 5 and 255 characters")]
         public string Message { get; set; }
     }
 }

@@ -7,7 +7,7 @@ using Services.Interfaces;
 
 namespace Api.Controllers
 {
-    [Route("api/suport")]
+    [Route("api/support")]
     [ApiController]
     [AllowAnonymous]
     public class SuportController : BaseController
