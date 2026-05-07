@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Constants;
 using DTO.Domain;
 using DTO.Request;
 using Infrastructure;
@@ -36,7 +37,11 @@ namespace Services.Services
 
                 if (user == null)
                 {
-                    return Result.Failure("User with the provided email does not exist.", StatusCodes.Status404NotFound);
+                    return Result.Failure(
+                        "User with the provided email does not exist.",
+                        ErrorCodes.UserNotFound,
+                        StatusCodes.Status404NotFound
+                        );
                 }
 
                 string date = DateTime.UtcNow.ToString(
@@ -63,6 +68,7 @@ namespace Services.Services
             {
                 return Result.Failure(
                     "An error occurred while sending the email to support.",
+                    ErrorCodes.InternalError,
                     StatusCodes.Status500InternalServerError,
                     new List<string> { ex.Message }
                     );

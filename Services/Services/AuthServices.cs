@@ -1,5 +1,6 @@
 ﻿using Domain;
 using Domain.Common;
+using Domain.Constants;
 using DTO.Request;
 using DTO.Response;
 using Microsoft.AspNetCore.Http;
@@ -28,66 +29,83 @@ namespace Services.Services
 
         public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request)
         {
-            var user = await _userManager.Users.FirstOrDefaultAsync(u =>
-                u.Email == request.Name ||
-                u.NormalizedUserName == request.Name.Trim().ToUpper()
-            );
-
-            if (user == null)
+            try
             {
-                return Result<AuthResponse>.Failure(
-                    "User not found.",
-                    StatusCodes.Status404NotFound
-                    );
-            }
 
-            if (!user.EmailConfirmed)
-            {
-                return Result<AuthResponse>.Failure(
-                    "Email is not confirmed.",
-                    StatusCodes.Status403Forbidden
-                    );
-            }
 
-            var result = await _signInManager.PasswordSignInAsync(
-                user,
-                request.Password,
-                false,
-                true
-            );
-
-            if (!result.Succeeded)
-            {
-                return Result<AuthResponse>.Failure(
-                    "Invalid credentials.",
-                    StatusCodes.Status401Unauthorized
-                    );
-            }
-
-            var roles = await _userManager.GetRolesAsync(user);
-
-            if (roles == null || !roles.Any())
-            {
-                return Result<AuthResponse>.Failure(
-                    "User has no roles assigned.",
-                    StatusCodes.Status403Forbidden
-                    );
-            }
-
-            string token = _token.CreateJwtToken(user, roles);
-
-            return Result<AuthResponse>.Success(
-                "Login successful.",
-                StatusCodes.Status200OK,
-                new AuthResponse
-                {
-                    Token = token,
-                    UserId = user.Id,
-                    Email = user.Email,
-                    UserName = user.UserName,
-                    Roles = roles
-                }
+                var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+                    u.Email == request.Name ||
+                    u.NormalizedUserName == request.Name.Trim().ToUpper()
                 );
+
+
+                bool isPasswordValidate = false;
+
+
+                if (user != null)
+                {
+                    isPasswordValidate = await _userManager.CheckPasswordAsync(user, request.Password);
+                }
+
+                if (user == null || !isPasswordValidate)
+                {
+                    return Result<AuthResponse>.Failure(
+                        "Invalid username or password.",
+                        ErrorCodes.InvalidCredentials,
+                        StatusCodes.Status401Unauthorized
+                        );
+                }
+
+                if (!user.EmailConfirmed)
+                {
+                    return Result<AuthResponse>.Failure(
+                        "Email is not confirmed.",
+                        ErrorCodes.EmailNotConfirmed,
+                        StatusCodes.Status403Forbidden
+                        );
+                }
+
+                await _signInManager.PasswordSignInAsync(
+                    user,
+                    request.Password,
+                    false,
+                    true
+                );
+
+                var roles = await _userManager.GetRolesAsync(user);
+
+                if (roles == null || !roles.Any())
+                {
+                    return Result<AuthResponse>.Failure(
+                        "User has no roles assigned.",
+                        ErrorCodes.NoRolesAssigned,
+                        StatusCodes.Status403Forbidden
+                        );
+                }
+
+                string token = _token.CreateJwtToken(user, roles);
+
+                return Result<AuthResponse>.Success(
+                    "Login successful.",
+                    StatusCodes.Status200OK,
+                    new AuthResponse
+                    {
+                        Token = token,
+                        UserId = user.Id,
+                        Email = user.Email ?? "",
+                        UserName = user.UserName ?? "",
+                        Roles = roles
+                    }
+                    );
+            }
+            catch (Exception)
+            {
+                return Result<AuthResponse>.Failure(
+                    "An error occurred during login.",
+                    ErrorCodes.InternalError,
+                    StatusCodes.Status500InternalServerError
+                );
+            }
         }
     }
 }

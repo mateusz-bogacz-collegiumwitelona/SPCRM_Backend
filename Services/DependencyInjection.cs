@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using Services.Interfaces;
 using Services.Services;
 
@@ -11,6 +12,7 @@ namespace Services
             services.AddScoped<TokenServices>();
             services.AddScoped<IAuthServices, AuthServices>();
             services.AddScoped<ISupportServices, SupportServices>();
+            services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
             return services;
         }
     }

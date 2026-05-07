@@ -35,6 +35,7 @@ namespace Api.Controllers.Base
             {
                 success = result.IsSuccess,
                 message = result.Message,
+                errorCode = result.ErrorCode,
                 errors = result.Errors
             });
         }
@@ -66,6 +67,7 @@ namespace Api.Controllers.Base
             {
                 success = result.IsSuccess,
                 message = result.Message,
+                errorCode = result.ErrorCode,
                 errors = result.Errors
             });
         }
