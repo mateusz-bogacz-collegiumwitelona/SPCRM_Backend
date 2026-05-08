@@ -1,11 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace DTO.Request
+﻿namespace DTO.Request
 {
-    public class SupportEmailRequest
+    public record SupportEmailRequest
     {
-        public string Email { get; set; }
-        public string Title { get; set; }
-        public string Message { get; set; }
+        public required string Email { get; init; }
+        public required string Title { get; init; }
+        public required string Message { get; init; }
     }
 }

@@ -1,11 +1,11 @@
 ﻿namespace DTO.Response
 {
-    public class AuthResponse
+    public record AuthResponse
     {
-        public required string Token { get; set; }
-        public Guid UserId { get; set; }
-        public string Email { get; set; }
-        public string UserName { get; set; }
-        public IList<string> Roles { get; set; }
+        public required string Token { get; init; }
+        public required Guid UserId { get; init; }
+        public required string Email { get; init; }
+        public required string UserName { get; init; }
+        public required IList<string> Roles { get; init; }
     }
 }

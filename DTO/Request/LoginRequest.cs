@@ -1,8 +1,8 @@
 ﻿namespace DTO.Request
 {
-    public class LoginRequest
+    public record LoginRequest
     {
-        public required string Name { get; set; }
-        public required string Password { get; set; }
+        public required string Name { get; init; }
+        public required string Password { get; init; }
     }
 }
