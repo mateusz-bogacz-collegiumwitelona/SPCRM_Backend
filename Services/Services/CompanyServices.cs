@@ -66,5 +66,66 @@ namespace Services.Services
                    );
             }
         }
+
+        public async Task<Result<CompanyDetailResponse>> Details(string id)
+        {
+            try
+            {
+                if (!Guid.TryParse(id, out Guid parsedId))
+                {
+                    return Result<CompanyDetailResponse>.Failure(
+                        message: "Invalid ID format",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.BadRequest
+                    );
+                }
+
+
+                var company = await _context.Companies
+                    .Include(c => c.CompanyAdresses)
+                    .FirstAsync(c => c.Id.ToString() == id);
+
+                if (company == null || company.IsDeleted)
+                {
+                    return Result<CompanyDetailResponse>.Failure(
+                        message: "Company not found",
+                        statusCode: StatusCodes.Status404NotFound,
+                        errorCode: ErrorCodes.CompanyNotFound
+                        );
+                }
+
+                var response = new CompanyDetailResponse
+                {
+                    Id = company.Id,
+                    Name = company.Name,
+                    Nip = company.NIP,
+                    Addresses = company.CompanyAdresses?.Select(a => new AddressDetailResponse
+                    {
+                        Street = a.Street,
+                        City = a.City,
+                        ZipCode = a.ZipCode,
+                        Latitude = a.Location?.Y,
+                        Longitude = a.Location?.X,
+                        Type = a.AddressType.ToString()
+                    }).ToList() ?? new List<AddressDetailResponse>()
+                };
+
+                return Result<CompanyDetailResponse>.Success(
+                    message: "Company details fetched successfully.",
+                    statusCode: StatusCodes.Status200OK,
+                    data: response
+                );
+            }
+            catch (Exception ex)
+            {
+                return Result<CompanyDetailResponse>.Failure(
+                   "An error occurred while get data for map",
+                   ErrorCodes.InternalError,
+                   StatusCodes.Status500InternalServerError,
+                   new List<string> { ex.Message }
+                   );
+            }
+        }
+
     }
 }

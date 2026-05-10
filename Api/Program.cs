@@ -59,7 +59,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwaggerUIConfiguration();
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseExceptionHandler();
 
 app.UseRouting();

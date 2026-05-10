@@ -24,8 +24,8 @@ namespace Api.Configuration
                         ValidateAudience = true,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
-                        ValidIssuer = configuration["JWT:AUDIENCE"],
-                        ValidAudience = configuration["Jwt:Audience"],
+                        ValidIssuer = configuration["JWT:ISSUER"],
+                        ValidAudience = configuration["JWT:AUDIENCE"],
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:KEY"]!))
                     };
                 });

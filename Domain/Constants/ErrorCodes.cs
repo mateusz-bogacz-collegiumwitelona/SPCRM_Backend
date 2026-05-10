@@ -22,5 +22,8 @@
         public const string EmailNotConfirmed = "AUTH_002";
         public const string InvalidCredentials = "AUTH_003";
         public const string NoRolesAssigned = "AUTH_004";
+
+        // Błędy dotyczące firm
+        public const string CompanyNotFound = "COM_001";
     }
 }
