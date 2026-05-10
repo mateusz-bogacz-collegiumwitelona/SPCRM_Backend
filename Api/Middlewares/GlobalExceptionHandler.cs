@@ -16,7 +16,7 @@ namespace Api.Middlewares
             {
                 KeyNotFoundException => (StatusCodes.Status404NotFound, "Resource not found.", ErrorCodes.NotFound),
                 ArgumentException argEx => (StatusCodes.Status400BadRequest, argEx.Message, ErrorCodes.BadRequest),
-                InvalidOperationException invEx => (StatusCodes.Status400BadRequest, invEx.Message, ErrorCodes.BadRequest),
+                InvalidOperationException invEx => (StatusCodes.Status500InternalServerError, invEx.Message, ErrorCodes.InternalError),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred. Please contact support.", ErrorCodes.InternalError)
             };
 

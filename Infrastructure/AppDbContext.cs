@@ -56,6 +56,23 @@ namespace Infrastructure
             builder.Entity<Deal>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Domain.Tasks>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Product>().HasQueryFilter(x => !x.IsDeleted);
+
+            builder.Entity<CompanyAdress>()
+                .Property(a => a.AddressType)
+                .HasConversion<string>();
+
+            builder.Entity<Deal>()
+                .Property(d => d.Status)
+                .HasConversion<string>();
+
+            builder.Entity<Tasks>()
+                .Property(t => t.Priority)
+                .HasConversion<string>();
+
+            builder.Entity<Tasks>()
+                .Property(t => t.Status)
+                .HasConversion<string>();
+
         }
     }
 }

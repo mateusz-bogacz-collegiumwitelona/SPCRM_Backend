@@ -13,6 +13,7 @@ namespace Services
             services.AddScoped<IAuthServices, AuthServices>();
             services.AddScoped<ISupportServices, SupportServices>();
             services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+            services.AddScoped<ICompanyServices, CompanyServices>();
             return services;
         }
     }

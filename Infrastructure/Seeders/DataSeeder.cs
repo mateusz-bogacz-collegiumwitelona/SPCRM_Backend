@@ -2,6 +2,7 @@
 using Domain.Enum;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 
 namespace Infrastructure.Seeders
 {
@@ -180,33 +181,85 @@ namespace Infrastructure.Seeders
 
         private async Task SeedCompaniesAndContactsAsync()
         {
-            var admin = await _userManager.FindByEmailAsync("admin@example.pl");
+            var user = await _userManager.FindByEmailAsync("user@example.pl");
+            var manager = await _userManager.FindByEmailAsync("manager@example.pl");
 
             var companies = new List<Company>
             {
                 new() {
                     Name = "Stal-Met Sp. z o.o.",
                     NIP = "1234567890",
-                    Owner = admin ,
+                    Owner = user,
                     CompanyAdresses = new List<CompanyAdress> {
                         new() {
                             Street = "Przemysłowa 10",
                             City = "Katowice",
                             ZipCode = "40-001",
-                            AddressType = AddressTypeEnum.Headquarters
+                            AddressType = AddressTypeEnum.Headquarters,
+                            Location = GenerateRandomPoint()
                         }
                     }
                 },
                 new() {
                     Name = "BudowaX S.A.",
                     NIP = "9876543210",
-                    Owner = admin,
+                    Owner = manager,
                     CompanyAdresses = new List<CompanyAdress> {
                         new() {
                             Street = "Budowlanych 5",
                             City = "Wrocław",
                             ZipCode = "50-002",
-                            AddressType = AddressTypeEnum.Branch
+                            AddressType = AddressTypeEnum.Branch,
+                            Location = GenerateRandomPoint()
+                        }
+                    }
+                },
+                new() {
+                    Name = "Huta Żelaza 'Odra' S.A.",
+                    NIP = "1112223334",
+                    Owner = user,
+                    CompanyAdresses = new List<CompanyAdress> {
+                        new() {
+                            Street = "Hutnicza 1",
+                            City = "Szczecin",
+                            ZipCode = "70-001",
+                            AddressType = AddressTypeEnum.Headquarters,
+                            Location = GenerateRandomPoint()
+                        },
+                        new() {
+                            Street = "Magazynowa 4",
+                            City = "Szczecin",
+                            ZipCode = "70-005",
+                            AddressType = AddressTypeEnum.Shipping,
+                            Location = GenerateRandomPoint()
+                        }
+                    }
+                },
+                new() {
+                    Name = "P.H.U. Konstrukcje Stalowe",
+                    NIP = "5556667778",
+                    Owner = manager,
+                    CompanyAdresses = new List<CompanyAdress> {
+                        new() {
+                            Street = "Polna 12",
+                            City = "Rzeszów",
+                            ZipCode = "35-001",
+                            AddressType = AddressTypeEnum.Headquarters,
+                            Location = GenerateRandomPoint()
+                        }
+                    }
+                },
+                new() {
+                    Name = "Mega-Stal s.c.",
+                    NIP = "9998887776",
+                    Owner = user,
+                    CompanyAdresses = new List<CompanyAdress> {
+                        new() {
+                            Street = "Główna 45",
+                            City = "Poznań",
+                            ZipCode = "60-001",
+                            AddressType = AddressTypeEnum.Headquarters,
+                            Location = GenerateRandomPoint()
                         }
                     }
                 }
@@ -215,17 +268,32 @@ namespace Infrastructure.Seeders
             await _context.Companies.AddRangeAsync(companies);
             await _context.SaveChangesAsync();
 
-            var contact = new Contact
+            var contacts = new List<Contact>
             {
-                FirstName = "Andrzej",
-                LastName = "Nowak",
-                Company = companies[0],
-                Owner = admin,
-                ContactDetails = new List<ContactDetail> {
-                    new() { Type = "Email", Value = "a.nowak@stalmet.pl", IsPrimary = true }
+                new()
+                {
+                    FirstName = "Andrzej",
+                    LastName = "Nowak",
+                    Company = companies[0],
+                    Owner = user,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "a.nowak@stalmet.pl", IsPrimary = true },
+                        new() { Type = "Phone", Value = "+48 111 222 333", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Katarzyna",
+                    LastName = "Kowal",
+                    Company = companies[2],
+                    Owner = manager,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "k.kowal@hutaodra.pl", IsPrimary = true }
+                    }
                 }
             };
-            await _context.Contacts.AddAsync(contact);
+
+            await _context.Contacts.AddRangeAsync(contacts);
             await _context.SaveChangesAsync();
         }
 
@@ -264,7 +332,6 @@ namespace Infrastructure.Seeders
                 },
                 new()
                 {
-                    Id = Guid.NewGuid(),
                     Name = "Rura 108x4.0 S235JR",
                     SteelGrade = "S235JR",
                     Diameter = 108,
@@ -279,7 +346,6 @@ namespace Infrastructure.Seeders
                 },
                 new()
                 {
-                    Id = Guid.NewGuid(),
                     Name = "Rura 219.1x6.3 S355J2",
                     SteelGrade = "S355J2",
                     Diameter = 219,
@@ -330,6 +396,21 @@ namespace Infrastructure.Seeders
 
             await _context.Tasks.AddAsync(task);
             await _context.SaveChangesAsync();
+        }
+
+        private Point GenerateRandomPoint()
+        {
+            var random = new Random();
+
+            double minLng = 14.1;
+            double maxLng = 24.1;
+            double minLat = 49.0;
+            double maxLat = 54.8;
+
+            double lng = minLng + (random.NextDouble() * (maxLng - minLng));
+            double lat = minLat + (random.NextDouble() * (maxLat - minLat));
+
+            return new Point(lng, lat) { SRID = 4326 };
         }
     }
 }
