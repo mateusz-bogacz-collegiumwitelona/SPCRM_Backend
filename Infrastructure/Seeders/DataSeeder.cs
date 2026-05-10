@@ -1,4 +1,5 @@
 ﻿using Domain;
+using Domain.Enum;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +26,15 @@ namespace Infrastructure.Seeders
         {
             if (!await _roleManager.Roles.AnyAsync()) await SeedRoleAsync();
             if (!await _userManager.Users.AnyAsync()) await SeedUserAsync();
+
+            if (!await _context.Currencies.AnyAsync()) await SeedCurrenciesAsync();
+            if (!await _context.UnitsOfMeasure.AnyAsync()) await SeedUnitsAsync();
+            if (!await _context.ProductCategories.AnyAsync()) await SeedProductCatalogAsync();
+
+            if (!await _context.Companies.AnyAsync()) await SeedCompaniesAndContactsAsync();
+            if (!await _context.Products.AnyAsync()) await SeedProductsAsync();
+
+            if (!await _context.Deals.AnyAsync()) await SeedDealsAndTasksAsync();
         }
 
         private async Task SeedRoleAsync()
@@ -115,6 +125,211 @@ namespace Infrastructure.Seeders
                     throw new Exception($"Failed to create {userName}");
                 }
             }
+        }
+
+
+        private async Task SeedCurrenciesAsync()
+        {
+            var currencies = new List<Currency>
+            {
+                new() { Name = "US Dollar", Code = "USD", DecimalPlaces = 2 },
+                new() { Name = "Euro", Code = "EUR", DecimalPlaces = 2 },
+                new() { Name = "Polski złoty", Code = "PLN", DecimalPlaces = 2 },
+            };
+
+            await _context.Currencies.AddRangeAsync(currencies);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedUnitsAsync()
+        {
+            var units = new List<UnitOfMeasure>
+            {
+                new() { Name = "Tona", Symbol = "t", BaseMultiplier = 1 },
+                new() { Name = "Kilogram", Symbol = "kg", BaseMultiplier = 1 },
+                new() { Name = "Sztuka", Symbol = "szt", BaseMultiplier = 1 },
+                new() { Name = "Metr bieżący", Symbol = "mb", BaseMultiplier = 1 }
+            };
+
+            await _context.UnitsOfMeasure.AddRangeAsync(units);
+            await _context.SaveChangesAsync();
+
+        }
+
+        private async Task SeedProductCatalogAsync()
+        {
+            var catPlaskie = new ProductCategory { Name = "Wyroby Płaskie", Description = "Blachy zimno i gorącowalcowane" };
+            var catDlugie = new ProductCategory { Name = "Wyroby Długie", Description = "Pręty, profile, kątowniki" };
+            var catRury = new ProductCategory { Name = "Rury", Description = "Rury stalowe bez szwu i spawane" };
+
+            await _context.ProductCategories.AddRangeAsync(catPlaskie, catDlugie, catRury);
+
+            var types = new List<ProductType>
+            {
+                new() { Name = "Blacha Zimnowalcowana", Description = "Podstawowa blacha zimnowalcowana", Category = catPlaskie },
+                new() { Name = "Blacha Ocynkowana", Description = "Blacha pokryta warstwą cynku", Category = catPlaskie },
+                new() { Name = "Pręt Żebrowany", Description = "Pręt zbrojeniowy", Category = catDlugie },
+                new() { Name = "Profil Zamknięty", Description = "Stalowy profil konstrukcyjny", Category = catDlugie },
+                new() { Name = "Rura Stalowa Bezszwowa", Description = "Rura do zastosowań ciśnieniowych", Category = catRury },
+                new() { Name = "Rura Stalowa Spawana", Description = "Standardowa rura spawana", Category = catRury }
+            };
+
+            await _context.ProductTypes.AddRangeAsync(types);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedCompaniesAndContactsAsync()
+        {
+            var admin = await _userManager.FindByEmailAsync("admin@example.pl");
+
+            var companies = new List<Company>
+            {
+                new() {
+                    Name = "Stal-Met Sp. z o.o.",
+                    NIP = "1234567890",
+                    Owner = admin ,
+                    CompanyAdresses = new List<CompanyAdress> {
+                        new() {
+                            Street = "Przemysłowa 10",
+                            City = "Katowice",
+                            ZipCode = "40-001",
+                            AddressType = AddressTypeEnum.Headquarters
+                        }
+                    }
+                },
+                new() {
+                    Name = "BudowaX S.A.",
+                    NIP = "9876543210",
+                    Owner = admin,
+                    CompanyAdresses = new List<CompanyAdress> {
+                        new() {
+                            Street = "Budowlanych 5",
+                            City = "Wrocław",
+                            ZipCode = "50-002",
+                            AddressType = AddressTypeEnum.Branch
+                        }
+                    }
+                }
+            };
+
+            await _context.Companies.AddRangeAsync(companies);
+            await _context.SaveChangesAsync();
+
+            var contact = new Contact
+            {
+                FirstName = "Andrzej",
+                LastName = "Nowak",
+                Company = companies[0],
+                Owner = admin,
+                ContactDetails = new List<ContactDetail> {
+                    new() { Type = "Email", Value = "a.nowak@stalmet.pl", IsPrimary = true }
+                }
+            };
+            await _context.Contacts.AddAsync(contact);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedProductsAsync()
+        {
+            var typeBlacha = await _context.ProductTypes.FirstAsync(t => t.Name == "Blacha Zimnowalcowana");
+            var typeRura = await _context.ProductTypes.FirstAsync(t => t.Name == "Rura Stalowa Bezszwowa");
+            var unitTona = await _context.UnitsOfMeasure.FirstAsync(u => u.Symbol == "t");
+            var unitSzt = await _context.UnitsOfMeasure.FirstAsync(u => u.Symbol == "szt");
+
+            var products = new List<Product>
+            {
+                new() {
+                    Name = "Blacha DC01 1.0x1000x2000",
+                    SteelGrade = "DC01",
+                    Thickness = 100,
+                    Width = 1000,
+                    Length = 2000,
+                    Weight = 16,
+                    Unit = unitTona,
+                    PricePerUnit = 38000000,
+                    StockQuantity = 50,
+                    ProductType = typeBlacha
+                },
+                new() {
+                    Name = "Blacha DC01 2.0x1250x2500",
+                    SteelGrade = "DC01",
+                    Thickness = 200,
+                    Width = 1250,
+                    Length = 2500,
+                    Weight = 50,
+                    Unit = unitTona,
+                    PricePerUnit = 37500000,
+                    StockQuantity = 30,
+                    ProductType = typeBlacha
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Rura 108x4.0 S235JR",
+                    SteelGrade = "S235JR",
+                    Diameter = 108,
+                    Thickness = 400,
+                    Length = 6000,
+                    Width = 0,
+                    Weight = 61,
+                    Unit = unitSzt,
+                    PricePerUnit = 2500000,
+                    StockQuantity = 100,
+                    ProductType = typeRura
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Rura 219.1x6.3 S355J2",
+                    SteelGrade = "S355J2",
+                    Diameter = 219,
+                    Thickness = 630,
+                    Length = 12000,
+                    Width = 0,
+                    Weight = 396,
+                    Unit = unitTona,
+                    PricePerUnit = 52000000,
+                    StockQuantity = 15,
+                    ProductType = typeRura
+                }
+            };
+
+            await _context.Products.AddRangeAsync(products);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedDealsAndTasksAsync()
+        {
+            var admin = await _userManager.FindByEmailAsync("admin@example.pl");
+            var company = await _context.Companies.FirstAsync();
+            var currency = await _context.Currencies.FirstAsync(c => c.Code == "PLN");
+
+            var deal = new Deal
+            {
+                Name = "Negocjacje - Dostawa Jesień",
+                Value = 1500000000, // 150,000.0000
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddMonths(1),
+                Currency = currency,
+                Company = company,
+                Owner = admin
+            };
+
+            await _context.Deals.AddAsync(deal);
+
+            var task = new Domain.Tasks
+            {
+                Title = "Telefon ofertowy",
+                Description = "Zadzwonić i potwierdzić dostępność stanów magazynowych",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                AssignedTo = admin,
+                Deal = deal,
+                Status = TaskStatusEnum.ToDo,
+                Priority = TaskPriorityEnum.Medium
+            };
+
+            await _context.Tasks.AddAsync(task);
+            await _context.SaveChangesAsync();
         }
     }
 }
