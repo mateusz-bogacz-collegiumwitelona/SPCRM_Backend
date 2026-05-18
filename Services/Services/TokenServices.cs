@@ -20,13 +20,12 @@ namespace Services.Services
         public string CreateJwtToken(ApplicationUser user, IList<string> roles)
         {
             var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim(ClaimTypes.Email, user.Email ?? ""),
-                    new Claim(ClaimTypes.Name, user.UserName ?? ""),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString() ?? ""),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                };
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email ?? ""),
+                new Claim(ClaimTypes.Name, user.UserName ?? ""),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
 
             foreach (var role in roles)
             {

@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Domain.Constants;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
 
 namespace Api.Configuration
 {
@@ -27,6 +29,27 @@ namespace Api.Configuration
                         ValidIssuer = configuration["JWT:ISSUER"],
                         ValidAudience = configuration["JWT:AUDIENCE"],
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:KEY"]!))
+                    };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnChallenge = async context =>
+                        {
+                            context.HandleResponse();
+
+                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                            context.Response.ContentType = "application/json";
+
+                            var result = JsonSerializer.Serialize(new
+                            {
+                                success = false,
+                                message = "Unauthorized",
+                                errorCode = ErrorCodes.UnauthorizedAccess,
+                                errors = new[] { "You are not authorized to access this resource." }
+                            });
+
+                            await context.Response.WriteAsync(result);
+                        }
                     };
                 });
 

@@ -14,7 +14,6 @@ namespace Api.Configuration
                 options.AddDocumentTransformer(static (document, context, cancellationToken) =>
                 {
                     document.Components ??= new OpenApiComponents();
-
                     document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
 
                     var jwtScheme = new OpenApiSecurityScheme
@@ -22,16 +21,21 @@ namespace Api.Configuration
                         Type = SecuritySchemeType.Http,
                         Scheme = "bearer",
                         BearerFormat = "JWT",
-                        Description = "Wklej tutaj swój wygenerowany token JWT."
+                        Description = "Wklej tutaj swój wygenerowany token JWT (sam ciąg znaków)."
                     };
 
                     document.Components.SecuritySchemes.Add("Bearer", jwtScheme);
+
                     document.Security ??= new List<OpenApiSecurityRequirement>();
 
-                    document.Security.Add(new OpenApiSecurityRequirement
+                    var schemeReference = new OpenApiSecuritySchemeReference("Bearer", document);
+
+                    var securityRequirement = new OpenApiSecurityRequirement
                     {
-                        [new OpenApiSecuritySchemeReference("Bearer")] = new List<string>()
-                    });
+                        [schemeReference] = new List<string>()
+                    };
+
+                    document.Security.Add(securityRequirement);
 
                     return Task.CompletedTask;
                 });

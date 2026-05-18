@@ -10,7 +10,7 @@ namespace Infrastructure.Seeders
     {
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly UserManager<ApplicationUser> _userManager;
-        private AppDbContext _context;
+        private readonly AppDbContext _context;
 
         public DataSeeder(
             RoleManager<IdentityRole<Guid>> roleManager,
@@ -53,6 +53,8 @@ namespace Infrastructure.Seeders
                             Name = roleName,
                             NormalizedName = roleName.ToUpper()
                         });
+
+                        Console.WriteLine($"Role '{roleName}' created successfully.");
                     }
                 }
             }
@@ -120,6 +122,7 @@ namespace Infrastructure.Seeders
                 if (result.Succeeded)
                 {
                     await _userManager.AddToRoleAsync(newUser, role);
+                    Console.WriteLine($"User '{userName}' created successfully with role '{role}'.");
                 }
                 else
                 {
@@ -140,6 +143,7 @@ namespace Infrastructure.Seeders
 
             await _context.Currencies.AddRangeAsync(currencies);
             await _context.SaveChangesAsync();
+            Console.WriteLine("All currencies seeded successfully.");
         }
 
         private async Task SeedUnitsAsync()
@@ -154,7 +158,7 @@ namespace Infrastructure.Seeders
 
             await _context.UnitsOfMeasure.AddRangeAsync(units);
             await _context.SaveChangesAsync();
-
+            Console.WriteLine("All units of measure seeded successfully.");
         }
 
         private async Task SeedProductCatalogAsync()
@@ -177,6 +181,7 @@ namespace Infrastructure.Seeders
 
             await _context.ProductTypes.AddRangeAsync(types);
             await _context.SaveChangesAsync();
+            Console.WriteLine("Product categories and types seeded successfully.");
         }
 
         private async Task SeedCompaniesAndContactsAsync()
@@ -267,6 +272,7 @@ namespace Infrastructure.Seeders
 
             await _context.Companies.AddRangeAsync(companies);
             await _context.SaveChangesAsync();
+            Console.WriteLine("All companies seeded successfully.");
 
             var contacts = new List<Contact>
             {
@@ -295,107 +301,119 @@ namespace Infrastructure.Seeders
 
             await _context.Contacts.AddRangeAsync(contacts);
             await _context.SaveChangesAsync();
+            Console.WriteLine("All contacts seeded successfully.");
         }
 
         private async Task SeedProductsAsync()
         {
-            var typeBlacha = await _context.ProductTypes.FirstAsync(t => t.Name == "Blacha Zimnowalcowana");
-            var typeRura = await _context.ProductTypes.FirstAsync(t => t.Name == "Rura Stalowa Bezszwowa");
-            var unitTona = await _context.UnitsOfMeasure.FirstAsync(u => u.Symbol == "t");
-            var unitSzt = await _context.UnitsOfMeasure.FirstAsync(u => u.Symbol == "szt");
+            var types = await _context.ProductTypes.ToListAsync();
+            var units = await _context.UnitsOfMeasure.ToListAsync();
+            var random = new Random();
+            var products = new List<Product>();
 
-            var products = new List<Product>
+            var grades = new[] { "S235JR", "S355J2", "DC01", "DX51D", "304L" };
+
+            for (int i = 1; i <= 50; i++)
             {
-                new() {
-                    Name = "Blacha DC01 1.0x1000x2000",
-                    SteelGrade = "DC01",
-                    Thickness = 100,
-                    Width = 1000,
-                    Length = 2000,
-                    Weight = 16,
-                    Unit = unitTona,
-                    PricePerUnit = 38000000,
-                    StockQuantity = 50,
-                    ProductType = typeBlacha
-                },
-                new() {
-                    Name = "Blacha DC01 2.0x1250x2500",
-                    SteelGrade = "DC01",
-                    Thickness = 200,
-                    Width = 1250,
-                    Length = 2500,
-                    Weight = 50,
-                    Unit = unitTona,
-                    PricePerUnit = 37500000,
-                    StockQuantity = 30,
-                    ProductType = typeBlacha
-                },
-                new()
+                var type = types[random.Next(types.Count)];
+                var unit = units[random.Next(units.Count)];
+                var grade = grades[random.Next(grades.Length)];
+
+                products.Add(new Product
                 {
-                    Name = "Rura 108x4.0 S235JR",
-                    SteelGrade = "S235JR",
-                    Diameter = 108,
-                    Thickness = 400,
-                    Length = 6000,
-                    Width = 0,
-                    Weight = 61,
-                    Unit = unitSzt,
-                    PricePerUnit = 2500000,
-                    StockQuantity = 100,
-                    ProductType = typeRura
-                },
-                new()
-                {
-                    Name = "Rura 219.1x6.3 S355J2",
-                    SteelGrade = "S355J2",
-                    Diameter = 219,
-                    Thickness = 630,
-                    Length = 12000,
-                    Width = 0,
-                    Weight = 396,
-                    Unit = unitTona,
-                    PricePerUnit = 52000000,
-                    StockQuantity = 15,
-                    ProductType = typeRura
-                }
-            };
+                    Name = $"{type.Name} {grade} Wymiar {random.Next(10, 200)}x{random.Next(10, 200)}",
+                    SteelGrade = grade,
+                    Thickness = random.Next(10, 500),
+                    Width = random.Next(100, 2000),
+                    Length = random.Next(1000, 12000),
+                    Weight = random.Next(10, 5000),
+                    Unit = unit,
+                    PricePerUnit = random.Next(1000, 10000) * 10000,
+                    StockQuantity = random.Next(0, 500),
+                    ProductType = type
+                });
+
+                Console.WriteLine($"Prepared product {i}: {products.Last().Name}");
+            }
 
             await _context.Products.AddRangeAsync(products);
             await _context.SaveChangesAsync();
+            Console.WriteLine("All products seeded successfully.");
         }
 
         private async Task SeedDealsAndTasksAsync()
         {
-            var admin = await _userManager.FindByEmailAsync("admin@example.pl");
-            var company = await _context.Companies.FirstAsync();
-            var currency = await _context.Currencies.FirstAsync(c => c.Code == "PLN");
+            var users = await _userManager.Users.ToListAsync();
+            var companies = await _context.Companies.ToListAsync();
+            var currencies = await _context.Currencies.ToListAsync();
+            var products = await _context.Products.ToListAsync();
+            var random = new Random();
 
-            var deal = new Deal
+            var deals = new List<Deal>();
+            var dealProducts = new List<DealProduct>();
+            var tasks = new List<Domain.Tasks>();
+
+            var dealStatuses = Enum.GetValues(typeof(DealsStatusEnum)).Cast<DealsStatusEnum>().ToArray();
+            var taskStatuses = Enum.GetValues(typeof(TaskStatusEnum)).Cast<TaskStatusEnum>().ToArray();
+            var taskPriorities = Enum.GetValues(typeof(TaskPriorityEnum)).Cast<TaskPriorityEnum>().ToArray();
+
+            for (int i = 1; i <= 100; i++)
             {
-                Name = "Negocjacje - Dostawa Jesień",
-                Value = 1500000000, // 150,000.0000
-                Status = DealsStatusEnum.ToDo,
-                CloseDate = DateTime.UtcNow.AddMonths(1),
-                Currency = currency,
-                Company = company,
-                Owner = admin
-            };
+                var owner = users[random.Next(users.Count)];
+                var company = companies[random.Next(companies.Count)];
+                var currency = currencies[random.Next(currencies.Count)];
+                var status = dealStatuses[random.Next(dealStatuses.Length)];
 
-            await _context.Deals.AddAsync(deal);
+                var deal = new Deal
+                {
+                    Name = $"Zamówienie hurtowe nr {i}/{DateTime.Now.Year}",
+                    Value = random.Next(10000, 500000) * 10000L,
+                    Status = status,
+                    CloseDate = DateTime.UtcNow.AddDays(random.Next(-30, 90)),
+                    Currency = currency,
+                    Company = company,
+                    Owner = owner
+                };
+                deals.Add(deal);
+                Console.WriteLine($"Prepared deal {i}: {deal.Name}");
 
-            var task = new Domain.Tasks
-            {
-                Title = "Telefon ofertowy",
-                Description = "Zadzwonić i potwierdzić dostępność stanów magazynowych",
-                DueAt = DateTime.UtcNow.AddDays(2),
-                AssignedTo = admin,
-                Deal = deal,
-                Status = TaskStatusEnum.ToDo,
-                Priority = TaskPriorityEnum.Medium
-            };
+                int itemsCount = random.Next(1, 5);
+                for (int j = 0; j < itemsCount; j++)
+                {
+                    var product = products[random.Next(products.Count)];
+                    dealProducts.Add(new DealProduct
+                    {
+                        Deal = deal,
+                        Product = product,
+                        Quantity = random.Next(1, 50),
+                        UnitPrice = product.PricePerUnit
+                    });
 
-            await _context.Tasks.AddAsync(task);
+                    Console.WriteLine("  - Added product to deal: " + product.Name);
+                }
+
+                for (int t = 1; t <= 2; t++)
+                {
+                    tasks.Add(new Domain.Tasks
+                    {
+                        Title = $"Zadanie {t} - Zamówienie nr {i}",
+                        Description = t == 1 ? "Przygotować dokumentację wstępną." : "Skontaktować się w celu potwierdzenia warunków.",
+                        DueAt = DateTime.UtcNow.AddDays(random.Next(1, 14)),
+                        AssignedTo = owner,
+                        Deal = deal,
+                        Status = taskStatuses[random.Next(taskStatuses.Length)],
+                        Priority = taskPriorities[random.Next(taskPriorities.Length)]
+                    });
+
+                    Console.WriteLine($"  - Added task {t} to deal: {deal.Name}");
+                }
+            }
+
+            await _context.Deals.AddRangeAsync(deals);
+            await _context.DealProducts.AddRangeAsync(dealProducts);
+            await _context.Tasks.AddRangeAsync(tasks);
             await _context.SaveChangesAsync();
+            Console.WriteLine("All deals and tasks seeded successfully.");
         }
 
         private Point GenerateRandomPoint()
@@ -409,6 +427,9 @@ namespace Infrastructure.Seeders
 
             double lng = minLng + (random.NextDouble() * (maxLng - minLng));
             double lat = minLat + (random.NextDouble() * (maxLat - minLat));
+
+
+            Console.WriteLine($"Generated random point: ({lat}, {lng})");
 
             return new Point(lng, lat) { SRID = 4326 };
         }

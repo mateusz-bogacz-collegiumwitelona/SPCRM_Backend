@@ -33,8 +33,8 @@ builder.Services.AddCors(options =>
 
 // Add configs
 builder.Services.AddSwaggerConfiguration();
-builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

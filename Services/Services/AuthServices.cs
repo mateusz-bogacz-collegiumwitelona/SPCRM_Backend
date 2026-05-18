@@ -13,17 +13,14 @@ namespace Services.Services
     public class AuthServices : IAuthServices
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly TokenServices _token;
 
         public AuthServices(
             UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager,
             TokenServices token
             )
         {
             _userManager = userManager;
-            _signInManager = signInManager;
             _token = token;
         }
 
@@ -64,13 +61,6 @@ namespace Services.Services
                         StatusCodes.Status403Forbidden
                         );
                 }
-
-                await _signInManager.PasswordSignInAsync(
-                    user,
-                    request.Password,
-                    false,
-                    true
-                );
 
                 var roles = await _userManager.GetRolesAsync(user);
 
