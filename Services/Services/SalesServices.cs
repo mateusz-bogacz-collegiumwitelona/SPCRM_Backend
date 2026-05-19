@@ -25,25 +25,27 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(Guid userId, PaggedRequest pagged)
+        public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(Guid userId, PaggedRequest pagged, CompanyFilterRequest filter)
         {
             try
             {
                 var query = _context.Deals
                     .Where(d => d.OwnerId == userId)
+                    .ApplyFilter(filter, pagged.SearchTerm)
                     .Select(d => new UserSalesResponse
                     {
                         Id = d.Id,
                         Name = d.Name,
+                        Nip = d.Company.NIP,
                         CloseDate = d.CloseDate,
                         Value = (decimal)d.Value / 10000m,
                         DecimalPlace = d.Currency.DecimalPlaces,
-                        Currency = d.Currency.Code,
+                        Currency = d.Currency.Name,
                         CompanyName = d.Company.Name
                     })
-                    .ToListAsync();
+                    .ApplySorting(pagged);
 
-                var result = await query.ToPagedResultAsync(pagged, _logger, "sales");
+                var result = await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "sales");
 
                 return result;
             }

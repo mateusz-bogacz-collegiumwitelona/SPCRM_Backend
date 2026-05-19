@@ -24,9 +24,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("")]
-        public async Task<IActionResult> GetUserSales([FromQuery] PaggedRequest pagged)
+        public async Task<IActionResult> GetUserSales(
+            [FromQuery] PaggedRequest pagged,
+            [FromQuery] CompanyFilterRequest filter)
         {
-            var result = await _sales.GetUserSales(CurrentUserId, pagged);
+            var result = await _sales.GetUserSales(CurrentUserId, pagged, filter);
 
             return HandleResult(result);
         }
