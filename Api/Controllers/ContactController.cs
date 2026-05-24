@@ -35,5 +35,16 @@ namespace Api.Controllers
 
             return HandleResult(result);
         }
+
+        [HttpGet("/companies")]
+        [EndpointSummary("Get companies")]
+        [EndpointDescription("Show all companies in contact list.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetCompanies()
+        {
+            var result = await _contact.GetCompanies();
+            return HandleResult(result);
+        }
     }
 }

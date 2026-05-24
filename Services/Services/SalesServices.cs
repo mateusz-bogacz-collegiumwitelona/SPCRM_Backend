@@ -71,6 +71,7 @@ namespace Services.Services
             try
             {
                 var statuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
+                
                 return Result<List<string>>.Success(
                     message: "Sales statuses retrieved successfully",
                     statusCode: StatusCodes.Status200OK,

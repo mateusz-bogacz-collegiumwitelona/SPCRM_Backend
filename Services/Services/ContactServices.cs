@@ -56,5 +56,31 @@ namespace Services.Services
                      );
             }
         }
+
+        public async Task<Result<List<string>>> GetCompanies()
+        {
+            try
+            {
+                var companies = await _context.Contacts
+                    .Select(c => c.Company.Name)
+                    .Distinct()
+                    .ToListAsync();
+
+                return Result<List<string>>.Success(
+                    message: "Companies retrieved successfully",
+                    statusCode: StatusCodes.Status200OK,
+                    data: companies
+                    );
+            } 
+            catch (Exception ex)
+            {
+                return Result<List<string>>.Failure(
+                    message: "An error occurred while retrieving companies",
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    errorCode: ErrorCodes.InternalError,
+                    errors: new List<string> { ex.Message }
+                    );
+            }
+        }
     }
 }
