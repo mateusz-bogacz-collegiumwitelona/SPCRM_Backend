@@ -31,6 +31,12 @@ namespace Services.Helpers
                 query = query.Where(d => d.Value == dbValue);
             }
 
+            if (!string.IsNullOrWhiteSpace(filter.StatusType))
+            {
+                string status = filter.StatusType.ToLower().ToString();
+                query = query.Where(d => d.Status.ToString().ToLower() == status);
+            }
+
             if (filter.DateFrom.HasValue)
                 query = query.Where(d => d.CloseDate >= filter.DateFrom.Value.ToUniversalTime());
 

@@ -9,11 +9,11 @@ namespace Services.Validators
         public PaggedRequestValidator()
         {
             RuleFor(x => x.PageSize)
-                .LessThanOrEqualTo(0)
+                .GreaterThan(0)
                 .WithErrorCode(ErrorCodes.ValidationError);
 
             RuleFor(x => x.PageNumber)
-                .LessThanOrEqualTo(0)
+                .GreaterThan(0)
                 .WithErrorCode(ErrorCodes.ValidationError);
         }
     }

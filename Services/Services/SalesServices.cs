@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Enum;
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
@@ -41,7 +42,8 @@ namespace Services.Services
                         Value = (decimal)d.Value / 10000m,
                         DecimalPlace = d.Currency.DecimalPlaces,
                         Currency = d.Currency.Name,
-                        CompanyName = d.Company.Name
+                        CompanyName = d.Company.Name,
+                        Status = d.Status.ToString()
                     })
                     .ApplySorting(pagged);
 
@@ -53,6 +55,29 @@ namespace Services.Services
             {
                 return Result<PagedResult<UserSalesResponse>>.Failure(
                     message: "An error occurred while retrieving user sales",
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    errorCode: ErrorCodes.InternalError,
+                    errors: new List<string> { ex.Message }
+                    );
+            }
+        }
+
+        public async Task<Result<List<String>>> GetSalesStatus()
+        {
+            try
+            {
+                var statuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
+                return Result<List<string>>.Success(
+                    message: "Sales statuses retrieved successfully",
+                    statusCode: StatusCodes.Status200OK,
+                    data: statuses
+                    );
+
+            }
+            catch (Exception ex)
+            {
+                return Result<List<string>>.Failure(
+                    message: "An error occurred while retrieving sales statuses",
                     statusCode: StatusCodes.Status500InternalServerError,
                     errorCode: ErrorCodes.InternalError,
                     errors: new List<string> { ex.Message }

@@ -7,7 +7,6 @@ using Services.Interfaces;
 
 namespace Api.Controllers
 {
-    [Authorize]
     [Route("api/sales")]
     [ApiController]
     public class SalesController : AuthControllerBase
@@ -24,12 +23,25 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("")]
+        [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetUserSales(
             [FromQuery] PaggedRequest pagged,
             [FromQuery] CompanyFilterRequest filter)
         {
             var result = await _sales.GetUserSales(CurrentUserId, pagged, filter);
 
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get sales statuses")]
+        [EndpointDescription("Show available sales statuses.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("statuses")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetSalesStatuses()
+        {
+            var result = await _sales.GetSalesStatus();
             return HandleResult(result);
         }
     }
