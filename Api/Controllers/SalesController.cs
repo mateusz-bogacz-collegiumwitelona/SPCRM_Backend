@@ -26,9 +26,15 @@ namespace Api.Controllers
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetUserSales(
             [FromQuery] PaggedRequest pagged,
+            [FromQuery] SearchRequest search,
             [FromQuery] CompanyFilterRequest filter)
         {
-            var result = await _sales.GetUserSales(CurrentUserId, pagged, filter);
+            var result = await _sales.GetUserSales(
+                CurrentUserId, 
+                pagged, 
+                search, 
+                filter
+                );
 
             return HandleResult(result);
         }

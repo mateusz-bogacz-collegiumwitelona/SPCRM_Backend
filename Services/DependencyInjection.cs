@@ -15,6 +15,7 @@ namespace Services
             services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
             services.AddScoped<ICompanyServices, CompanyServices>();
             services.AddScoped<ISalesServices, SalesServices>();
+            services.AddScoped<IContactServices, ContactServices>();
             return services;
         }
     }

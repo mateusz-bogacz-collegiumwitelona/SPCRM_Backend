@@ -46,7 +46,7 @@ namespace Services.Helpers
             return query;
         }
 
-        internal static IQueryable<UserSalesResponse> ApplySorting(this IQueryable<UserSalesResponse> query, PaggedRequest request)
+        internal static IQueryable<UserSalesResponse> ApplySorting(this IQueryable<UserSalesResponse> query, SearchRequest request)
         {
             return request.SortBy?.ToLower() switch
             {

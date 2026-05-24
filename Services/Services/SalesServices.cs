@@ -14,7 +14,7 @@ namespace Services.Services
 {
     public class SalesServices : ISalesServices
     {
-        public readonly AppDbContext _context;
+        private readonly AppDbContext _context;
         private readonly ILogger<SalesServices> _logger;
 
         public SalesServices(
@@ -26,13 +26,18 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(Guid userId, PaggedRequest pagged, CompanyFilterRequest filter)
+        public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(
+            Guid userId, 
+            PaggedRequest pagged, 
+            SearchRequest search,
+            CompanyFilterRequest filter
+            )
         {
             try
             {
                 var query = _context.Deals
                     .Where(d => d.OwnerId == userId)
-                    .ApplyFilter(filter, pagged.SearchTerm)
+                    .ApplyFilter(filter, search.SearchTerm ?? string.Empty)
                     .Select(d => new UserSalesResponse
                     {
                         Id = d.Id,
@@ -45,11 +50,10 @@ namespace Services.Services
                         CompanyName = d.Company.Name,
                         Status = d.Status.ToString()
                     })
-                    .ApplySorting(pagged);
+                    .ApplySorting(search);
 
-                var result = await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "sales");
-
-                return result;
+                
+                return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "sales");
             }
             catch (Exception ex)
             {

@@ -296,6 +296,107 @@ namespace Infrastructure.Seeders
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = "Email", Value = "k.kowal@hutaodra.pl", IsPrimary = true }
                     }
+                },
+                new()
+                {
+                    FirstName = "Jan",
+                    LastName = "Kowalski",
+                    Company = companies[1],
+                    Owner = user,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "j.kowalski@budowax.pl", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Anna",
+                    LastName = "Wiśniewska",
+                    Company = companies[0],
+                    Owner = manager,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "a.wisniewska@stalmet.pl", IsPrimary = true },
+                        new() { Type = "Phone", Value = "+48 555 666 777", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Piotr",
+                    LastName = "Wójcik",
+                    Company = companies[3],
+                    Owner = user,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "p.wojcik@konstrukcje.pl", IsPrimary = true }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Maria",
+                    LastName = "Kamińska",
+                    Company = companies[4],
+                    Owner = manager,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Phone", Value = "+48 999 888 777", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Krzysztof",
+                    LastName = "Lewandowski",
+                    Company = companies[1],
+                    Owner = user,
+                    ContactDetails = new List<ContactDetail>()
+                },
+                new()
+                {
+                    FirstName = "Agnieszka",
+                    LastName = "Zielińska",
+                    Company = companies[2],
+                    Owner = manager,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "a.zielinska@hutaodra.pl", IsPrimary = false },
+                        new() { Type = "Phone", Value = "+48 222 333 444", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Tomasz",
+                    LastName = "Woźniak",
+                    Company = companies[3],
+                    Owner = user,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Phone", Value = "+48 444 555 666", IsPrimary = true },
+                        new() { Type = "Email", Value = "t.wozniak@konstrukcje.pl", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Barbara",
+                    LastName = "Szymańska",
+                    Company = companies[4],
+                    Owner = manager,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "b.szymanska@megastal.pl", IsPrimary = true }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Marcin",
+                    LastName = "Zieliński",
+                    Company = companies[0],
+                    Owner = user,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Phone", Value = "+48 777 888 999", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Magdalena",
+                    LastName = "Dąbrowska",
+                    Company = companies[2],
+                    Owner = manager,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = "Email", Value = "m.dabrowska@hutaodra.pl", IsPrimary = false }
+                    }
                 }
             };
 
