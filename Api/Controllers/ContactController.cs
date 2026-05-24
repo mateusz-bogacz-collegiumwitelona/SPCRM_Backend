@@ -36,7 +36,7 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpGet("/companies")]
+        [HttpGet("companies")]
         [EndpointSummary("Get companies")]
         [EndpointDescription("Show all companies in contact list.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]

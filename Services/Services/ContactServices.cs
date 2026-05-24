@@ -37,7 +37,7 @@ namespace Services.Services
                         Id = c.Id,
                         FirstName = c.FirstName,
                         LastName = c.LastName,
-                        ComapnyName = c.Company.Name,
+                        CompanyName = c.Company.Name,
                         OwnerFirstName = c.Owner.FirstName,
                         OwnerLastName = c.Owner.LastName,
                         IsPrimary = c.ContactDetails.Any(cd => cd.IsPrimary)

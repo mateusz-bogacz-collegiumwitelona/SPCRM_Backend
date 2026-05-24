@@ -1,5 +1,6 @@
 ﻿using Api.Controllers.Base;
 using Domain.Common;
+using DTO.Request;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -8,7 +9,7 @@ namespace Api.Controllers
 {
     [Route("api/company")]
     [ApiController]
-    public class CompanyController : BaseController
+    public class CompanyController : AuthControllerBase
     {
         private readonly ICompanyServices _companyServices;
 
@@ -39,7 +40,24 @@ namespace Api.Controllers
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> Details([FromQuery] string id)
         {
-            var result = await _companyServices.Details(id);
+            var result = await _companyServices.Details(id, CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get all company adresses")]
+        [EndpointDescription("Show all company adresses. This endpoint return only city, street, zip-code, lat and log")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("addresses")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetCompanyAddresses(
+            [FromQuery] Guid companyId,
+            [FromQuery] PaggedRequest pagged
+            )
+        {
+            var result = await _companyServices.GetCompanyAddresses(companyId, pagged);
             return HandleResult(result);
         }
     }

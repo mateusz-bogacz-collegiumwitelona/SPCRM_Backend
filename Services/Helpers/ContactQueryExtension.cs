@@ -13,10 +13,10 @@ namespace Services.Helpers
             {
                 "firstname" => request.SortDescending ? query.OrderByDescending(x => x.FirstName) : query.OrderBy(x => x.FirstName),
                 "lastname" => request.SortDescending ? query.OrderByDescending(x => x.LastName) : query.OrderBy(x => x.LastName),
-                "company" => request.SortDescending ? query.OrderByDescending(x => x.ComapnyName) : query.OrderBy(x => x.ComapnyName),
+                "company" => request.SortDescending ? query.OrderByDescending(x => x.CompanyName) : query.OrderBy(x => x.CompanyName),
                 "ownerfirstname" => request.SortDescending ? query.OrderByDescending(x => x.OwnerFirstName) : query.OrderBy(x => x.OwnerFirstName),
                 "ownerlastname" => request.SortDescending ? query.OrderByDescending(x => x.OwnerLastName) : query.OrderBy(x => x.OwnerLastName),
-                _ => query.OrderByDescending(x => x.ComapnyName)
+                _ => query.OrderByDescending(x => x.CompanyName)
             };
         }
 
