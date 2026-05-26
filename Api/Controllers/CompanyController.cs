@@ -13,13 +13,15 @@ namespace Api.Controllers
     {
         private readonly ICompanyServices _companyServices;
         private readonly IContactServices _contactServices;
-
+        private readonly ISalesServices _salesServices;
         public CompanyController(
             ICompanyServices companyServices,
-            IContactServices contactServices)
+            IContactServices contactServices,
+            ISalesServices salesServices)
         {
             _companyServices = companyServices;
             _contactServices = contactServices;
+            _salesServices = salesServices;
         }
 
         [EndpointSummary("Get data to global map")]
@@ -79,6 +81,22 @@ namespace Api.Controllers
             )
         {
             var result = await _contactServices.GetCompanyContactsAsync(companyId, pagged);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get company sales")]
+        [EndpointDescription("Show all company sales. This endpoint return only name, value, close date and status")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("sales")]
+        public async Task<IActionResult> GetComapanySalesAsync(
+            [FromQuery] Guid comapnyId, 
+            [FromQuery] PaggedRequest pagged
+            )
+        {
+            var result = await _salesServices.GetComapanySalesAsync(comapnyId, pagged);
             return HandleResult(result);
         }
     }

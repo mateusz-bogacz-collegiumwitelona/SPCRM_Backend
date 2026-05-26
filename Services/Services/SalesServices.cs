@@ -89,5 +89,39 @@ namespace Services.Services
                     );
             }
         }
+
+        public async Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(Guid comapnyId, PaggedRequest pagged)
+        {
+            try
+            {
+                var query = _context.Deals
+                    .Where(d => d.CompanyId == comapnyId)
+                    .Select(d => new CompanySalesResponse
+                    {
+                        Id = d.Id,
+                        SalesmanFirstName = d.Owner.FirstName,
+                        SalesmanLastName = d.Owner.LastName,
+                        Name = d.Name,
+                        Value = (decimal)d.Value / 10000m,
+                        Code = d.Currency.Code,
+                        DecimalPlaces = d.Currency.DecimalPlaces,
+                        Status = d.Status.ToString(),
+                        CloseDate = d.CloseDate,
+                        CreatedAt = d.CreatedAt
+                    });
+
+
+                return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_sales");
+            }
+            catch (Exception ex) 
+            {
+                return Result<PagedResult<CompanySalesResponse>>.Failure(
+                    message: "An error occurred while retrieving company sales",
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    errorCode: ErrorCodes.InternalError,
+                    errors: new List<string> { ex.Message }
+                    );
+            }
+        }
     }
 }
