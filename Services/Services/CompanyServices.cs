@@ -122,8 +122,10 @@ namespace Services.Services
             }
         }
 
-
-        public async Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(Guid companyId, PaggedRequest pagged)
+        public async Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(
+            Guid companyId, 
+            PaggedRequest pagged
+            )
         {
             try
             {

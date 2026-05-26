@@ -39,7 +39,7 @@ namespace Services.Helpers
                 query = query.Where(c => c.Company.Name.ToLower().Contains(filter.ComapnyName.ToLower()));
 
             if (filter.IsPrimary.HasValue)
-                query = query.Where(c => c.ContactDetails.Any(cd => cd.IsPrimary) == filter.IsPrimary.Value);
+                query = query.Where(c => c.IsPrimary== filter.IsPrimary.Value);
 
             return query;
         }

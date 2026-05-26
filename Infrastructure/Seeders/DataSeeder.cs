@@ -280,91 +280,122 @@ namespace Infrastructure.Seeders
                 {
                     FirstName = "Andrzej",
                     LastName = "Nowak",
-                    Company = companies[0],
-                    Owner = user,
+                    IsPrimary = true,
+                    JobTitle = "Dyrektor ds. Zakupów",
+                    Company = companies[0], // Stal-Met
+                    Owner = user!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.nowak@stalmet.pl", IsPrimary = true },
-                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 111 222 333", IsPrimary = false }
-                    }
-                },
-                new()
-                {
-                    FirstName = "Katarzyna",
-                    LastName = "Kowal",
-                    Company = companies[2],
-                    Owner = manager,
-                    ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "k.kowal@hutaodra.pl", IsPrimary = true }
-                    }
-                },
-                new()
-                {
-                    FirstName = "Jan",
-                    LastName = "Kowalski",
-                    Company = companies[1],
-                    Owner = user,
-                    ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "j.kowalski@budowax.pl", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 111 222 333", IsPrimary = false }
                     }
                 },
                 new()
                 {
                     FirstName = "Anna",
                     LastName = "Wiśniewska",
-                    Company = companies[0],
-                    Owner = manager,
+                    IsPrimary = false,
+                    JobTitle = "Główna Księgowa",
+                    Company = companies[0], // Stal-Met
+                    Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.wisniewska@stalmet.pl", IsPrimary = true },
-                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 555 666 777", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 555 666 777", IsPrimary = false }
                     }
                 },
                 new()
                 {
-                    FirstName = "Piotr",
-                    LastName = "Wójcik",
-                    Company = companies[3],
-                    Owner = user,
+                    FirstName = "Marcin",
+                    LastName = "Zieliński",
+                    IsPrimary = false,
+                    JobTitle = "Kierownik Magazynu",
+                    Company = companies[0], // Stal-Met
+                    Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "p.wojcik@konstrukcje.pl", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 777 888 999", IsPrimary = true }
                     }
                 },
                 new()
                 {
-                    FirstName = "Maria",
-                    LastName = "Kamińska",
-                    Company = companies[4],
-                    Owner = manager,
+                    FirstName = "Jan",
+                    LastName = "Kowalski",
+                    IsPrimary = true,
+                    JobTitle = "Kierownik Budowy",
+                    Company = companies[1], // BudowaX S.A.
+                    Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 999 888 777", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 600 700 800", IsPrimary = true },
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "j.kowalski@budowax.pl", IsPrimary = false }
                     }
                 },
                 new()
                 {
                     FirstName = "Krzysztof",
                     LastName = "Lewandowski",
-                    Company = companies[1],
-                    Owner = user,
+                    IsPrimary = false,
+                    JobTitle = "Inżynier Budowy",
+                    Company = companies[1], // BudowaX S.A.
+                    Owner = user!,
                     ContactDetails = new List<ContactDetail>()
+                },
+                new()
+                {
+                    FirstName = "Katarzyna",
+                    LastName = "Kowal",
+                    IsPrimary = true,
+                    JobTitle = "Dyrektor Handlowy",
+                    Company = companies[2], // Huta Żelaza 'Odra'
+                    Owner = manager!,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "k.kowal@hutaodra.pl", IsPrimary = true },
+                    }
                 },
                 new()
                 {
                     FirstName = "Agnieszka",
                     LastName = "Zielińska",
-                    Company = companies[2],
-                    Owner = manager,
+                    IsPrimary = false,
+                    JobTitle = "Specjalista ds. Logistyki",
+                    Company = companies[2], // Huta Żelaza 'Odra'
+                    Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.zielinska@hutaodra.pl", IsPrimary = false },
-                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 222 333 444", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.zielinska@hutaodra.pl", IsPrimary = true },
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 222 333 444", IsPrimary = false }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Magdalena",
+                    LastName = "Dąbrowska",
+                    IsPrimary = false,
+                    JobTitle = "Dział Kontroli Jakości",
+                    Company = companies[2], // Huta Żelaza 'Odra'
+                    Owner = manager!,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "m.dabrowska@hutaodra.pl", IsPrimary = true }
+                    }
+                },
+                new()
+                {
+                    FirstName = "Piotr",
+                    LastName = "Wójcik",
+                    IsPrimary = true,
+                    JobTitle = "Właściciel",
+                    Company = companies[3], // P.H.U. Konstrukcje Stalowe
+                    Owner = user!,
+                    ContactDetails = new List<ContactDetail> {
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "p.wojcik@konstrukcje.pl", IsPrimary = true }
                     }
                 },
                 new()
                 {
                     FirstName = "Tomasz",
                     LastName = "Woźniak",
-                    Company = companies[3],
-                    Owner = user,
+                    IsPrimary = false,
+                    JobTitle = "Kosztorysant",
+                    Company = companies[3], // P.H.U. Konstrukcje Stalowe
+                    Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 444 555 666", IsPrimary = true },
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 444 555 666", IsPrimary = true },
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "t.wozniak@konstrukcje.pl", IsPrimary = false }
                     }
                 },
@@ -372,30 +403,25 @@ namespace Infrastructure.Seeders
                 {
                     FirstName = "Barbara",
                     LastName = "Szymańska",
-                    Company = companies[4],
-                    Owner = manager,
+                    IsPrimary = true,
+                    JobTitle = "Zaopatrzeniowiec",
+                    Company = companies[4], // Mega-Stal s.c.
+                    Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "b.szymanska@megastal.pl", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "b.szymanska@megastal.pl", IsPrimary = false },
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 555 111 222", IsPrimary = true }
                     }
                 },
                 new()
                 {
-                    FirstName = "Marcin",
-                    LastName = "Zieliński",
-                    Company = companies[0],
-                    Owner = user,
+                    FirstName = "Maria",
+                    LastName = "Kamińska",
+                    IsPrimary = false,
+                    JobTitle = "Asystentka Zarządu",
+                    Company = companies[4], // Mega-Stal s.c.
+                    Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 777 888 999", IsPrimary = false }
-                    }
-                },
-                new()
-                {
-                    FirstName = "Magdalena",
-                    LastName = "Dąbrowska",
-                    Company = companies[2],
-                    Owner = manager,
-                    ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "m.dabrowska@hutaodra.pl", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 999 888 777", IsPrimary = true }
                     }
                 }
             };

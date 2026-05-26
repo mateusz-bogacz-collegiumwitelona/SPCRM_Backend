@@ -22,7 +22,7 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<PagedResult<ContactsResponse>>>  GetContacts(
+        public async Task<Result<PagedResult<ContactsResponse>>>  GetContactsAsync(
             PaggedRequest pagged, 
             ContactFilterRequest filter, 
             SearchRequest search
@@ -32,15 +32,17 @@ namespace Services.Services
             {
                 var query = _context.Contacts
                     .ApplyFilter(filter,search.SearchTerm ?? string.Empty)
+                    .Distinct()
                     .Select(c => new ContactsResponse
                     {
                         Id = c.Id,
                         FirstName = c.FirstName,
                         LastName = c.LastName,
+                        JobTitle = c.JobTitle ?? "",
                         CompanyName = c.Company.Name,
                         OwnerFirstName = c.Owner.FirstName,
                         OwnerLastName = c.Owner.LastName,
-                        IsPrimary = c.ContactDetails.Any(cd => cd.IsPrimary)
+                        IsPrimary = c.IsPrimary
                     })
                     .ApplySorting(search);
 
@@ -57,7 +59,7 @@ namespace Services.Services
             }
         }
 
-        public async Task<Result<List<string>>> GetCompanies()
+        public async Task<Result<List<string>>> GetCompaniesAsync()
         {
             try
             {

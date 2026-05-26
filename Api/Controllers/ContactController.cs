@@ -25,13 +25,13 @@ namespace Api.Controllers
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
 
-        public async Task<IActionResult> GetContacts(
+        public async Task<IActionResult> GetContactsAsync(
             [FromQuery] PaggedRequest pagged,
             [FromQuery] ContactFilterRequest filter,
             [FromQuery] SearchRequest search
             )
         {
-            var result = await _contact.GetContacts(pagged, filter, search);
+            var result = await _contact.GetContactsAsync(pagged, filter, search);
 
             return HandleResult(result);
         }
@@ -41,9 +41,9 @@ namespace Api.Controllers
         [EndpointDescription("Show all companies in contact list.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetCompanies()
+        public async Task<IActionResult> GetCompaniesAsync()
         {
-            var result = await _contact.GetCompanies();
+            var result = await _contact.GetCompaniesAsync();
             return HandleResult(result);
         }
     }

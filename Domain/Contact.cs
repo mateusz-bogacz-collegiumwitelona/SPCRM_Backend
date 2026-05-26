@@ -6,6 +6,8 @@ namespace Domain
     {
         public required string FirstName { get; set; }
         public required string LastName { get; set; }
+        public required bool IsPrimary { get; init; }
+        public string? JobTitle { get; set; }
 
         public Guid CompanyId { get; set; }
         public Company Company { get; set; } = null!;
