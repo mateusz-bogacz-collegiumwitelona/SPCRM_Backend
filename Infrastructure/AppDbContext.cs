@@ -73,6 +73,9 @@ namespace Infrastructure
                 .Property(t => t.Status)
                 .HasConversion<string>();
 
+            builder.Entity<ContactDetail>()
+                .Property(t => t.Type)
+                .HasConversion<string>();
         }
     }
 }

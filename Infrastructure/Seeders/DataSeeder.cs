@@ -283,8 +283,8 @@ namespace Infrastructure.Seeders
                     Company = companies[0],
                     Owner = user,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "a.nowak@stalmet.pl", IsPrimary = true },
-                        new() { Type = "Phone", Value = "+48 111 222 333", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.nowak@stalmet.pl", IsPrimary = true },
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 111 222 333", IsPrimary = false }
                     }
                 },
                 new()
@@ -294,7 +294,7 @@ namespace Infrastructure.Seeders
                     Company = companies[2],
                     Owner = manager,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "k.kowal@hutaodra.pl", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "k.kowal@hutaodra.pl", IsPrimary = true }
                     }
                 },
                 new()
@@ -304,7 +304,7 @@ namespace Infrastructure.Seeders
                     Company = companies[1],
                     Owner = user,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "j.kowalski@budowax.pl", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "j.kowalski@budowax.pl", IsPrimary = false }
                     }
                 },
                 new()
@@ -314,8 +314,8 @@ namespace Infrastructure.Seeders
                     Company = companies[0],
                     Owner = manager,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "a.wisniewska@stalmet.pl", IsPrimary = true },
-                        new() { Type = "Phone", Value = "+48 555 666 777", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.wisniewska@stalmet.pl", IsPrimary = true },
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 555 666 777", IsPrimary = false }
                     }
                 },
                 new()
@@ -325,7 +325,7 @@ namespace Infrastructure.Seeders
                     Company = companies[3],
                     Owner = user,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "p.wojcik@konstrukcje.pl", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "p.wojcik@konstrukcje.pl", IsPrimary = true }
                     }
                 },
                 new()
@@ -335,7 +335,7 @@ namespace Infrastructure.Seeders
                     Company = companies[4],
                     Owner = manager,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Phone", Value = "+48 999 888 777", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 999 888 777", IsPrimary = false }
                     }
                 },
                 new()
@@ -353,8 +353,8 @@ namespace Infrastructure.Seeders
                     Company = companies[2],
                     Owner = manager,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "a.zielinska@hutaodra.pl", IsPrimary = false },
-                        new() { Type = "Phone", Value = "+48 222 333 444", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.zielinska@hutaodra.pl", IsPrimary = false },
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 222 333 444", IsPrimary = false }
                     }
                 },
                 new()
@@ -364,8 +364,8 @@ namespace Infrastructure.Seeders
                     Company = companies[3],
                     Owner = user,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Phone", Value = "+48 444 555 666", IsPrimary = true },
-                        new() { Type = "Email", Value = "t.wozniak@konstrukcje.pl", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 444 555 666", IsPrimary = true },
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "t.wozniak@konstrukcje.pl", IsPrimary = false }
                     }
                 },
                 new()
@@ -375,7 +375,7 @@ namespace Infrastructure.Seeders
                     Company = companies[4],
                     Owner = manager,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "b.szymanska@megastal.pl", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "b.szymanska@megastal.pl", IsPrimary = true }
                     }
                 },
                 new()
@@ -385,7 +385,7 @@ namespace Infrastructure.Seeders
                     Company = companies[0],
                     Owner = user,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Phone", Value = "+48 777 888 999", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 777 888 999", IsPrimary = false }
                     }
                 },
                 new()
@@ -395,7 +395,7 @@ namespace Infrastructure.Seeders
                     Company = companies[2],
                     Owner = manager,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = "Email", Value = "m.dabrowska@hutaodra.pl", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "m.dabrowska@hutaodra.pl", IsPrimary = false }
                     }
                 }
             };
@@ -452,7 +452,7 @@ namespace Infrastructure.Seeders
 
             var deals = new List<Deal>();
             var dealProducts = new List<DealProduct>();
-            var tasks = new List<Domain.Tasks>();
+            var tasks = new List<Tasks>();
 
             var dealStatuses = Enum.GetValues(typeof(DealsStatusEnum)).Cast<DealsStatusEnum>().ToArray();
             var taskStatuses = Enum.GetValues(typeof(TaskStatusEnum)).Cast<TaskStatusEnum>().ToArray();
@@ -495,7 +495,7 @@ namespace Infrastructure.Seeders
 
                 for (int t = 1; t <= 2; t++)
                 {
-                    tasks.Add(new Domain.Tasks
+                    tasks.Add(new Tasks
                     {
                         Title = $"Zadanie {t} - Zamówienie nr {i}",
                         Description = t == 1 ? "Przygotować dokumentację wstępną." : "Skontaktować się w celu potwierdzenia warunków.",

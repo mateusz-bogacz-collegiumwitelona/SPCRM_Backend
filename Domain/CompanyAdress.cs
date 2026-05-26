@@ -6,9 +6,9 @@ namespace Domain
 {
     public class CompanyAdress : BaseEntity
     {
-        public string Street { get; set; }
-        public string City { get; set; }
-        public string ZipCode { get; set; }
+        public required string Street { get; set; }
+        public required string City { get; set; }
+        public required string ZipCode { get; set; }
 
         public Point? Location { get; set; }
 

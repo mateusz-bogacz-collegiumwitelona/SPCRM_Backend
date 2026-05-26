@@ -4,8 +4,8 @@ namespace Domain
 {
     public class ProductType : BaseEntity
     {
-        public String Name { get; set; }
-        public String Description { get; set; }
+        public required String Name { get; set; }
+        public required String Description { get; set; }
 
         public Guid CategoryId { get; set; }
         public ProductCategory Category { get; set; } = null!;

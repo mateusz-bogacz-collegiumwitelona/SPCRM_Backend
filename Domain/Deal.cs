@@ -5,7 +5,7 @@ namespace Domain
 {
     public class Deal : BaseEntity
     {
-        public string Name { get; set; }
+        public required string Name { get; set; }
         public long Value { get; set; } // x10000
         public DealsStatusEnum Status { get; set; }
         public DateTime CloseDate { get; set; }

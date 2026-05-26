@@ -4,8 +4,8 @@ namespace Domain
 {
     public class Product : BaseEntity
     {
-        public string Name { get; set; }
-        public string SteelGrade { get; set; }
+        public required string Name { get; set; }
+        public required string SteelGrade { get; set; }
         public int Thickness { get; set; }
         public int Width { get; set; }
         public int Length { get; set; }

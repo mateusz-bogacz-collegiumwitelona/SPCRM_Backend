@@ -4,16 +4,16 @@ namespace Domain
 {
     public class Note : BaseEntity
     {
-        public String Title { get; set; }
-        public String Content { get; set; }
+        public required String Title { get; set; }
+        public required String Content { get; set; }
 
         public Guid AuthorId { get; set; }
-        public ApplicationUser Author { get; set; }
+        public required ApplicationUser Author { get; set; }
 
         public Guid? ContactId { get; set; }
-        public Contact Contact { get; set; }
+        public required Contact Contact { get; set; }
 
         public Guid? DealId { get; set; }
-        public Deal Deal { get; set; }
+        public required Deal Deal { get; set; }
     }
 }

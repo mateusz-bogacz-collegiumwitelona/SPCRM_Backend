@@ -147,7 +147,8 @@ namespace Services.Services
                 return Result<PagedResult<AddressDetailResponse>>.Failure(
                     message: "An error occurred while fetching company addresses.",
                     errorCode: ErrorCodes.InternalError,
-                    statusCode: StatusCodes.Status500InternalServerError
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    errors: new List<string> { ex.Message }
                 );
             }
         }
