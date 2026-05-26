@@ -12,10 +12,14 @@ namespace Api.Controllers
     public class CompanyController : AuthControllerBase
     {
         private readonly ICompanyServices _companyServices;
+        private readonly IContactServices _contactServices;
 
-        public CompanyController(ICompanyServices companyServices)
+        public CompanyController(
+            ICompanyServices companyServices,
+            IContactServices contactServices)
         {
             _companyServices = companyServices;
+            _contactServices = contactServices;
         }
 
         [EndpointSummary("Get data to global map")]
@@ -58,6 +62,23 @@ namespace Api.Controllers
             )
         {
             var result = await _companyServices.GetCompanyAddresses(companyId, pagged);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get company contacts")]
+        [EndpointDescription("Show all company contacts. This endpoint return only first name, last name, job title and if contact is primary")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("contacts")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetCompanyContacts(
+            [FromQuery] Guid companyId,
+            [FromQuery] PaggedRequest pagged
+            )
+        {
+            var result = await _contactServices.GetCompanyContactsAsync(companyId, pagged);
             return HandleResult(result);
         }
     }

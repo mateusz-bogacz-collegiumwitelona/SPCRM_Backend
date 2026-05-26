@@ -84,5 +84,36 @@ namespace Services.Services
                     );
             }
         }
+
+        public async Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(Guid comapnyId, PaggedRequest pagged)
+        {
+            try
+            {
+                var query = _context.Contacts
+                    .Where(c => c.CompanyId == comapnyId)
+                    .Distinct()
+                    .Select(c => new CompanyContactResponse
+                    {
+                        Id = c.Id,
+                        FirstName = c.FirstName,
+                        LastName = c.LastName,
+                        JobTitle = c.JobTitle ?? "",
+                        IsPrimary = c.IsPrimary,
+                        OwnerFirstName = c.Owner.FirstName ?? "",
+                        OwnerLastName = c.Owner.LastName ?? ""
+                    });
+
+                return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_contacts");
+            } 
+            catch (Exception ex)
+            {
+                return Result<PagedResult<CompanyContactResponse>>.Failure(
+                    message: "An error occurred while retrieving company contacts",
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    errorCode: ErrorCodes.InternalError,
+                    errors: new List<string> { ex.Message }
+                    );
+            }
+        }
     }
 }

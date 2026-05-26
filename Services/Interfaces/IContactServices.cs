@@ -8,5 +8,6 @@ namespace Services.Interfaces
     {
         Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(PaggedRequest pagged, ContactFilterRequest filter, SearchRequest search);
         Task<Result<List<string>>> GetCompaniesAsync();
+        Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(Guid comapnyId, PaggedRequest pagged);
     }
 }
