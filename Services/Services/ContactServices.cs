@@ -1,5 +1,4 @@
 ﻿using Domain.Common;
-using Domain.Constants;
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
@@ -22,98 +21,62 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<PagedResult<ContactsResponse>>>  GetContactsAsync(
-            PaggedRequest pagged, 
-            ContactFilterRequest filter, 
+        public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(
+            PaggedRequest pagged,
+            ContactFilterRequest filter,
             SearchRequest search
             )
         {
-            try
-            {
-                var query = _context.Contacts
-                    .ApplyFilter(filter,search.SearchTerm ?? string.Empty)
-                    .Distinct()
-                    .Select(c => new ContactsResponse
-                    {
-                        Id = c.Id,
-                        FirstName = c.FirstName,
-                        LastName = c.LastName,
-                        JobTitle = c.JobTitle ?? "",
-                        CompanyName = c.Company.Name,
-                        OwnerFirstName = c.Owner.FirstName,
-                        OwnerLastName = c.Owner.LastName,
-                        IsPrimary = c.IsPrimary
-                    })
-                    .ApplySorting(search);
+            var query = _context.Contacts
+                .ApplyFilter(filter, search.SearchTerm ?? string.Empty)
+                .Distinct()
+                .Select(c => new ContactsResponse
+                {
+                    Id = c.Id,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName,
+                    JobTitle = c.JobTitle ?? "",
+                    CompanyName = c.Company.Name,
+                    OwnerFirstName = c.Owner.FirstName,
+                    OwnerLastName = c.Owner.LastName,
+                    IsPrimary = c.IsPrimary
+                })
+                .ApplySorting(search);
 
-                return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "contacts");
-            }
-            catch (Exception ex)
-            {
-                return Result<PagedResult<ContactsResponse>>.Failure(
-                     message: "An error occurred while retrieving contact details",
-                     statusCode: StatusCodes.Status500InternalServerError,
-                     errorCode: ErrorCodes.InternalError,
-                     errors: new List<string> { ex.Message }
-                     );
-            }
+            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "contacts");
         }
 
         public async Task<Result<List<string>>> GetCompaniesAsync()
         {
-            try
-            {
-                var companies = await _context.Contacts
-                    .Select(c => c.Company.Name)
-                    .Distinct()
-                    .ToListAsync();
+            var companies = await _context.Contacts
+                .Select(c => c.Company.Name)
+                .Distinct()
+                .ToListAsync();
 
-                return Result<List<string>>.Success(
-                    message: "Companies retrieved successfully",
-                    statusCode: StatusCodes.Status200OK,
-                    data: companies
-                    );
-            } 
-            catch (Exception ex)
-            {
-                return Result<List<string>>.Failure(
-                    message: "An error occurred while retrieving companies",
-                    statusCode: StatusCodes.Status500InternalServerError,
-                    errorCode: ErrorCodes.InternalError,
-                    errors: new List<string> { ex.Message }
-                    );
-            }
+            return Result<List<string>>.Success(
+                message: "Companies retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: companies
+                );
         }
 
         public async Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(Guid comapnyId, PaggedRequest pagged)
         {
-            try
-            {
-                var query = _context.Contacts
-                    .Where(c => c.CompanyId == comapnyId)
-                    .Distinct()
-                    .Select(c => new CompanyContactResponse
-                    {
-                        Id = c.Id,
-                        FirstName = c.FirstName,
-                        LastName = c.LastName,
-                        JobTitle = c.JobTitle ?? "",
-                        IsPrimary = c.IsPrimary,
-                        OwnerFirstName = c.Owner.FirstName ?? "",
-                        OwnerLastName = c.Owner.LastName ?? ""
-                    });
+            var query = _context.Contacts
+                .Where(c => c.CompanyId == comapnyId)
+                .Distinct()
+                .Select(c => new CompanyContactResponse
+                {
+                    Id = c.Id,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName,
+                    JobTitle = c.JobTitle ?? "",
+                    IsPrimary = c.IsPrimary,
+                    OwnerFirstName = c.Owner.FirstName ?? "",
+                    OwnerLastName = c.Owner.LastName ?? ""
+                });
 
-                return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_contacts");
-            } 
-            catch (Exception ex)
-            {
-                return Result<PagedResult<CompanyContactResponse>>.Failure(
-                    message: "An error occurred while retrieving company contacts",
-                    statusCode: StatusCodes.Status500InternalServerError,
-                    errorCode: ErrorCodes.InternalError,
-                    errors: new List<string> { ex.Message }
-                    );
-            }
+            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_contacts");
         }
     }
 }
