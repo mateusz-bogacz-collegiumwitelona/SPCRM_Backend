@@ -116,5 +116,21 @@ namespace Api.Controllers
             var result = await _debtServices.GetCompanyDebtSummaryAsync(request.CompanyId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get company debts details")]
+        [EndpointDescription("Show all unpaid invoices for a specific company with pagination.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("debts")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetCompanyDebts(
+            [FromQuery] Guid companyId,
+            [FromQuery] PaggedRequest pagged
+        )
+        {
+            var result = await _debtServices.GetCompanyDebtsAsync(companyId, pagged);
+            return HandleResult(result);
+        }
     }
 }

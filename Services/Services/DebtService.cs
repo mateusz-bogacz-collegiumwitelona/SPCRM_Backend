@@ -1,9 +1,11 @@
 ﻿using Domain.Common;
+using DTO.Request;
 using DTO.Response;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Helpers;
 using Services.Interfaces;
 
 namespace Services.Services
@@ -41,6 +43,27 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK,
                 data: summary
                 );
+        }
+
+        public async Task<Result<PagedResult<CompanyDebtDetailResponse>>> GetCompanyDebtsAsync(Guid companyId, PaggedRequest pagged)
+        {
+            DateTime now = DateTime.UtcNow;
+
+            var query = _context.Invoices
+                .Where(i => i.CompanyId == companyId && i.PaidAmount < i.TotalAmount)
+                .OrderBy(i => i.DueDate)
+                .Select(i => new CompanyDebtDetailResponse
+                {
+                    Id = i.Id,
+                    InvoiceNumber = i.InvoiceNumber,
+                    AmountLeft = (decimal)(i.TotalAmount - i.PaidAmount) / 10000m,
+                    CurrencyCode = i.Currency.Code,
+                    DecimalPlaces = i.Currency.DecimalPlaces,
+                    DueDate = i.DueDate,
+                    DaysOverdue = i.DueDate < now ? (int)(now - i.DueDate).TotalDays : 0
+                });
+
+            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_debt");
         }
     }
 }
