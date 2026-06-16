@@ -6,6 +6,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Services.Interfaces;
 using System.Globalization;
 
@@ -17,9 +18,12 @@ namespace Services.Services
         private readonly IConfiguration _config;
         private readonly string _supportEmail;
         private readonly IEmailSender _emailSender;
+        private readonly ILogger<SupportServices> _logger;
+
         public SupportServices(AppDbContext context,
             IConfiguration config,
-            IEmailSender emailSender
+            IEmailSender emailSender,
+            ILogger<SupportServices> logger
             )
         {
             _context = context;
@@ -27,52 +31,43 @@ namespace Services.Services
             _supportEmail = _config["SUPPORT_EMAIL"]
                 ?? throw new InvalidOperationException("Support email is not configured.");
             _emailSender = emailSender;
+
+            _logger = logger;
         }
 
         public async Task<Result> SendEmailToSupport(SupportEmailRequest request)
         {
-            try
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
+            if (user == null)
             {
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-
-                if (user == null)
-                {
-                    return Result.Failure(
-                        "User with the provided email does not exist.",
-                        ErrorCodes.UserNotFound,
-                        StatusCodes.Status404NotFound
-                        );
-                }
-
-                string date = DateTime.UtcNow.ToString(
-                    "dddd, dd MMMM yyyy HH:mm",
-                    new CultureInfo("pl-PL")
-                    );
-
-                var domain = new ReportDomain
-                {
-                    SupportEmail = _supportEmail,
-                    UserName = user.FirstName,
-                    UserSurname = user.LastName,
-                    UserEmail = request.Email,
-                    Time = date,
-                    Title = request.Title,
-                    Message = request.Message,
-                };
-
-                await _emailSender.SendReportEmailAsync(domain);
-
-                return Result.Success("Email sent to support successfully.", StatusCodes.Status200OK);
-            }
-            catch (Exception ex)
-            {
+                _logger.LogError("User with email {email} doesn't exist.", request.Email);
                 return Result.Failure(
-                    "An error occurred while sending the email to support.",
-                    ErrorCodes.InternalError,
-                    StatusCodes.Status500InternalServerError,
-                    new List<string> { ex.Message }
+                    "User with the provided email does not exist.",
+                    ErrorCodes.UserNotFound,
+                    StatusCodes.Status404NotFound
                     );
             }
+
+            string date = DateTime.UtcNow.ToString(
+                "dddd, dd MMMM yyyy HH:mm",
+                new CultureInfo("pl-PL")
+                );
+
+            var domain = new ReportDomain
+            {
+                SupportEmail = _supportEmail,
+                UserName = user.FirstName,
+                UserSurname = user.LastName,
+                UserEmail = request.Email,
+                Time = date,
+                Title = request.Title,
+                Message = request.Message,
+            };
+
+            await _emailSender.SendReportEmailAsync(domain);
+
+            return Result.Success("Email sent to support successfully.", StatusCodes.Status200OK);
         }
     }
 }
