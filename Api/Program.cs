@@ -8,66 +8,88 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Services;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.Console()
+    .CreateLogger();
 
-// Add services to the container.
-builder.Services.AddControllers();
-
-builder.Services.AddFluentValidationAutoValidation(configuration =>
+try
 {
-    configuration.OverrideDefaultResultFactoryWith<ValidationResultFactory>();
-});
+    Log.Information("Starting up the application...");
 
-builder.Services.AddCors(options =>
-{
-    String frontendUrl = builder.Configuration["FRONTEND:URL"] ?? "http://localhost:5173";
-    options.AddPolicy("AllowSPCRMFrontend", policy =>
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Host.UseSerilog();
+
+    // Add services to the container.
+    builder.Services.AddControllers();
+
+    builder.Services.AddFluentValidationAutoValidation(configuration =>
     {
-        policy.WithOrigins(frontendUrl)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        configuration.OverrideDefaultResultFactoryWith<ValidationResultFactory>();
     });
-});
 
-// Add configs
-builder.Services.AddSwaggerConfiguration();
-builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddJwtAuthentication(builder.Configuration);
-builder.Services.AddApplicationServices();
-builder.Services.AddEmailModule(builder.Configuration);
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
+    builder.Services.AddCors(options =>
+    {
+        String frontendUrl = builder.Configuration["FRONTEND:URL"] ?? "http://localhost:5173";
+        options.AddPolicy("AllowSPCRMFrontend", policy =>
+        {
+            policy.WithOrigins(frontendUrl)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+    });
 
-var app = builder.Build();
+    // Add configs
+    builder.Services.AddSwaggerConfiguration();
+    builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddJwtAuthentication(builder.Configuration);
+    builder.Services.AddApplicationServices();
+    builder.Services.AddEmailModule(builder.Configuration);
+    builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+    builder.Services.AddProblemDetails();
 
-// Auto-migrate database on startup
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
+    var app = builder.Build();
 
-    var dbContext = services.GetRequiredService<AppDbContext>();
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    // Auto-migrate database on startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
 
-    await dbContext.Database.MigrateAsync();
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
 
-    var seeder = new DataSeeder(roleManager, userManager, dbContext);
-    await seeder.InitAsync();
+        await dbContext.Database.MigrateAsync();
+
+        var seeder = new DataSeeder(roleManager, userManager, dbContext);
+        await seeder.InitAsync();
+    }
+
+    app.UseSwaggerUIConfiguration();
+
+    //app.UseHttpsRedirection();
+    app.UseExceptionHandler();
+
+    app.UseRouting();
+    app.UseCors("AllowSPCRMFrontend");
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers().RequireAuthorization();
+
+    app.Run();
 }
-
-app.UseSwaggerUIConfiguration();
-
-//app.UseHttpsRedirection();
-app.UseExceptionHandler();
-
-app.UseRouting();
-app.UseCors("AllowSPCRMFrontend");
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers().RequireAuthorization();
-
-app.Run();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application start-up failed");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

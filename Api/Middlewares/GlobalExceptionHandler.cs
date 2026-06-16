@@ -6,12 +6,21 @@ namespace Api.Middlewares
 {
     public class GlobalExceptionHandler : IExceptionHandler
     {
+        private readonly ILogger<GlobalExceptionHandler> _logger;
+
+        public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
+        {
+            _logger = logger;
+        }
+
         public async ValueTask<Boolean> TryHandleAsync(
             HttpContext httpContext,
             Exception exception,
             CancellationToken cancellation
             )
         {
+            _logger.LogError(exception, "An unexpected application error occurred: {Message}", exception.Message);
+
             var (statusCode, message, errorCode) = exception switch
             {
                 KeyNotFoundException => (StatusCodes.Status404NotFound, "Resource not found.", ErrorCodes.NotFound),
@@ -23,8 +32,7 @@ namespace Api.Middlewares
             var result = Result<object>.Failure(
                 message: message,
                 statusCode: statusCode,
-                errorCode: errorCode,
-                errors: new List<string> { exception.Message }
+                errorCode: errorCode
                 );
 
             httpContext.Response.StatusCode = statusCode;
