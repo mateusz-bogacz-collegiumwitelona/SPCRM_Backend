@@ -48,9 +48,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> Details([FromQuery] string id)
+        public async Task<IActionResult> Details([FromQuery] GetCompanyIdRequest request)
         {
-            var result = await _companyServices.Details(id, CurrentUserId);
+            var result = await _companyServices.Details(request.CompanyId, CurrentUserId);
             return HandleResult(result);
         }
 
@@ -63,11 +63,11 @@ namespace Api.Controllers
         [HttpGet("addresses")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyAddresses(
-            [FromQuery] Guid companyId,
+            [FromQuery] GetCompanyIdRequest request,
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await _companyServices.GetCompanyAddresses(companyId, pagged);
+            var result = await _companyServices.GetCompanyAddresses(request.CompanyId, pagged);
             return HandleResult(result);
         }
 
@@ -80,11 +80,11 @@ namespace Api.Controllers
         [HttpGet("contacts")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyContacts(
-            [FromQuery] Guid companyId,
+            [FromQuery] GetCompanyIdRequest request,
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await _contactServices.GetCompanyContactsAsync(companyId, pagged);
+            var result = await _contactServices.GetCompanyContactsAsync(request.CompanyId, pagged);
             return HandleResult(result);
         }
 
@@ -96,11 +96,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
-            [FromQuery] Guid companyId,
+            [FromQuery] GetCompanyIdRequest request,
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await _salesServices.GetComapanySalesAsync(companyId, pagged);
+            var result = await _salesServices.GetComapanySalesAsync(request.CompanyId, pagged);
             return HandleResult(result);
         }
 
@@ -111,11 +111,10 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("debts/summary")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> GetCompanyDebtSummaryAsync([FromQuery] Guid comapnyId)
+        public async Task<IActionResult> GetCompanyDebtSummaryAsync([FromQuery] GetCompanyIdRequest request)
         {
-            var result = await _debtServices.GetCompanyDebtSummaryAsync(comapnyId);
+            var result = await _debtServices.GetCompanyDebtSummaryAsync(request.CompanyId);
             return HandleResult(result);
         }
-
     }
 }

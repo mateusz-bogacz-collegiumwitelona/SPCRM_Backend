@@ -60,20 +60,11 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<CompanyDetailResponse>> Details(string id, Guid userId)
+        public async Task<Result<CompanyDetailResponse>> Details(Guid id, Guid userId)
         {
-            if (!Guid.TryParse(id, out Guid parsedId))
-            {
-                _logger.LogInformation("User with id: {userId} want see comapny with id {companyID} (invalid format).", userId, id);
-                return Result<CompanyDetailResponse>.Failure(
-                    message: "Invalid ID format",
-                    statusCode: StatusCodes.Status400BadRequest,
-                    errorCode: ErrorCodes.BadRequest
-                );
-            }
 
             var company = await _context.Companies
-                .FirstAsync(c => c.Id.ToString() == id);
+                .FirstAsync(c => c.Id == id);
 
             if (company == null || company.IsDeleted)
             {
