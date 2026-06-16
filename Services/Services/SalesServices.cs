@@ -1,5 +1,4 @@
 ﻿using Domain.Common;
-using Domain.Constants;
 using Domain.Enum;
 using DTO.Request;
 using DTO.Response;
@@ -27,101 +26,64 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(
-            Guid userId, 
-            PaggedRequest pagged, 
+            Guid userId,
+            PaggedRequest pagged,
             SearchRequest search,
             CompanyFilterRequest filter
             )
         {
-            try
-            {
-                var query = _context.Deals
-                    .Where(d => d.OwnerId == userId)
-                    .ApplyFilter(filter, search.SearchTerm ?? string.Empty)
-                    .Select(d => new UserSalesResponse
-                    {
-                        Id = d.Id,
-                        Name = d.Name,
-                        Nip = d.Company.NIP,
-                        CloseDate = d.CloseDate,
-                        Value = (decimal)d.Value / 10000m,
-                        DecimalPlace = d.Currency.DecimalPlaces,
-                        Currency = d.Currency.Name,
-                        CompanyName = d.Company.Name,
-                        Status = d.Status.ToString()
-                    })
-                    .ApplySorting(search);
+            var query = _context.Deals
+                .Where(d => d.OwnerId == userId)
+                .ApplyFilter(filter, search.SearchTerm ?? string.Empty)
+                .Select(d => new UserSalesResponse
+                {
+                    Id = d.Id,
+                    Name = d.Name,
+                    Nip = d.Company.NIP,
+                    CloseDate = d.CloseDate,
+                    Value = (decimal)d.Value / 10000m,
+                    DecimalPlace = d.Currency.DecimalPlaces,
+                    Currency = d.Currency.Name,
+                    CompanyName = d.Company.Name,
+                    Status = d.Status.ToString()
+                })
+                .ApplySorting(search);
 
-                
-                return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "sales");
-            }
-            catch (Exception ex)
-            {
-                return Result<PagedResult<UserSalesResponse>>.Failure(
-                    message: "An error occurred while retrieving user sales",
-                    statusCode: StatusCodes.Status500InternalServerError,
-                    errorCode: ErrorCodes.InternalError,
-                    errors: new List<string> { ex.Message }
-                    );
-            }
+
+            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "sales");
         }
 
         public async Task<Result<List<String>>> GetSalesStatus()
         {
-            try
-            {
-                var statuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
-                
-                return Result<List<string>>.Success(
-                    message: "Sales statuses retrieved successfully",
-                    statusCode: StatusCodes.Status200OK,
-                    data: statuses
-                    );
+            var statuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
 
-            }
-            catch (Exception ex)
-            {
-                return Result<List<string>>.Failure(
-                    message: "An error occurred while retrieving sales statuses",
-                    statusCode: StatusCodes.Status500InternalServerError,
-                    errorCode: ErrorCodes.InternalError,
-                    errors: new List<string> { ex.Message }
-                    );
-            }
+            return Result<List<string>>.Success(
+                message: "Sales statuses retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: statuses
+                );
         }
 
         public async Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(Guid comapnyId, PaggedRequest pagged)
         {
-            try
-            {
-                var query = _context.Deals
-                    .Where(d => d.CompanyId == comapnyId)
-                    .Select(d => new CompanySalesResponse
-                    {
-                        Id = d.Id,
-                        SalesmanFirstName = d.Owner.FirstName,
-                        SalesmanLastName = d.Owner.LastName,
-                        Name = d.Name,
-                        Value = (decimal)d.Value / 10000m,
-                        Code = d.Currency.Code,
-                        DecimalPlaces = d.Currency.DecimalPlaces,
-                        Status = d.Status.ToString(),
-                        CloseDate = d.CloseDate,
-                        CreatedAt = d.CreatedAt
-                    });
+            var query = _context.Deals
+                .Where(d => d.CompanyId == comapnyId)
+                .Select(d => new CompanySalesResponse
+                {
+                    Id = d.Id,
+                    SalesmanFirstName = d.Owner.FirstName,
+                    SalesmanLastName = d.Owner.LastName,
+                    Name = d.Name,
+                    Value = (decimal)d.Value / 10000m,
+                    Code = d.Currency.Code,
+                    DecimalPlaces = d.Currency.DecimalPlaces,
+                    Status = d.Status.ToString(),
+                    CloseDate = d.CloseDate,
+                    CreatedAt = d.CreatedAt
+                });
 
 
-                return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_sales");
-            }
-            catch (Exception ex) 
-            {
-                return Result<PagedResult<CompanySalesResponse>>.Failure(
-                    message: "An error occurred while retrieving company sales",
-                    statusCode: StatusCodes.Status500InternalServerError,
-                    errorCode: ErrorCodes.InternalError,
-                    errors: new List<string> { ex.Message }
-                    );
-            }
+            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_sales");
         }
     }
 }
