@@ -1,6 +1,6 @@
 using Api.Configuration;
 using Api.Middlewares;
-using Domain;
+using Domain.Models;
 using Email;
 using Infrastructure;
 using Infrastructure.Seeders;

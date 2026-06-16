@@ -1,7 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Enum;
 
-namespace Domain
+namespace Domain.Models
 {
     public class Deal : BaseEntity
     {
@@ -22,5 +22,7 @@ namespace Domain
         public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
         public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();
         public ICollection<Note> Notes { get; set; } = new List<Note>();
+
+        public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
     }
 }

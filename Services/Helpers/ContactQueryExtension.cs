@@ -1,4 +1,4 @@
-﻿using Domain;
+﻿using Domain.Models;
 using DTO.Request;
 using DTO.Response;
 

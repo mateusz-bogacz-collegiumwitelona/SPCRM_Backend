@@ -2,7 +2,7 @@
 using Domain.Enum;
 using NetTopologySuite.Geometries;
 
-namespace Domain
+namespace Domain.Models
 {
     public class CompanyAdress : BaseEntity
     {

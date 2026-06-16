@@ -92,11 +92,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
-            [FromQuery] Guid comapnyId, 
+            [FromQuery] Guid companyId, 
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await _salesServices.GetComapanySalesAsync(comapnyId, pagged);
+            var result = await _salesServices.GetComapanySalesAsync(companyId, pagged);
             return HandleResult(result);
         }
     }

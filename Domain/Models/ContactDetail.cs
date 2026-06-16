@@ -1,7 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Enum;
 
-namespace Domain
+namespace Domain.Models
 {
     public class ContactDetail : BaseEntity
     {

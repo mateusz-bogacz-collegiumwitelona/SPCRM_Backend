@@ -1,4 +1,4 @@
-﻿using Domain;
+﻿using Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -22,9 +22,9 @@ namespace Infrastructure
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductCategory> ProductCategories { get; set; }
         public DbSet<ProductType> ProductTypes { get; set; }
-        public DbSet<Domain.Tasks> Tasks { get; set; }
+        public DbSet<Tasks> Tasks { get; set; }
         public DbSet<UnitOfMeasure> UnitsOfMeasure { get; set; }
-
+        public DbSet<Invoice> Invoices { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -44,7 +44,7 @@ namespace Infrastructure
                 .HasForeignKey(d => d.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<Domain.Tasks>()
+            builder.Entity<Tasks>()
                 .HasOne(t => t.AssignedTo)
                 .WithMany(u => u.Tasks)
                 .HasForeignKey(t => t.AssignedToId)
@@ -54,7 +54,7 @@ namespace Infrastructure
             builder.Entity<Company>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Contact>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Deal>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Domain.Tasks>().HasQueryFilter(x => !x.IsDeleted);
+            builder.Entity<Tasks>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Product>().HasQueryFilter(x => !x.IsDeleted);
 
             builder.Entity<CompanyAdress>()

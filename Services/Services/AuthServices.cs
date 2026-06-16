@@ -1,6 +1,6 @@
-﻿using Domain;
-using Domain.Common;
+﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Models;
 using DTO.Request;
 using DTO.Response;
 using Microsoft.AspNetCore.Http;

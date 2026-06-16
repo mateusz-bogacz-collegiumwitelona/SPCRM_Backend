@@ -1,5 +1,5 @@
-﻿using Domain;
-using Domain.Enum;
+﻿using Domain.Enum;
+using Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
@@ -503,6 +503,26 @@ namespace Infrastructure.Seeders
                 };
                 deals.Add(deal);
                 Console.WriteLine($"Prepared deal {i}: {deal.Name}");
+
+                if (random.Next(100) < 30)
+                {
+                    bool isPaid = random.Next(100) < 50;
+
+                    var invoice = new Invoice
+                    {
+                        InvoiceNumber = $"FV/{DateTime.Now.Year}/{DateTime.Now.Month:D2}/{i:D3}",
+                        TotalAmount = deal.Value,
+                        PaidAmount = isPaid ? deal.Value : 0,
+                        IssueDate = deal.CloseDate.AddDays(-14), 
+                        DueDate = deal.CloseDate, 
+                        PaymentDate = isPaid ? deal.CloseDate.AddDays(-2) : null,
+                        Currency = deal.Currency,
+                        Company = deal.Company,
+                        Deal = deal
+                    };
+
+                    await _context.Invoices.AddAsync(invoice);
+                }
 
                 int itemsCount = random.Next(1, 5);
                 for (int j = 0; j < itemsCount; j++)

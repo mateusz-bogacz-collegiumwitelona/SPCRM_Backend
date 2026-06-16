@@ -1,6 +1,6 @@
 ﻿using Domain.Common;
 
-namespace Domain
+namespace Domain.Models
 {
     public class Note : BaseEntity
     {

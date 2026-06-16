@@ -1,6 +1,6 @@
 ﻿using Domain.Common;
 
-namespace Domain
+namespace Domain.Models
 {
     public class Company : BaseEntity
     {
@@ -14,5 +14,6 @@ namespace Domain
         public ICollection<Deal> Deals { get; set; } = new List<Deal>();
         public ICollection<CompanyAdress> CompanyAdresses { get; set; } = new List<CompanyAdress>();
         public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();
+        public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
     }
 }
