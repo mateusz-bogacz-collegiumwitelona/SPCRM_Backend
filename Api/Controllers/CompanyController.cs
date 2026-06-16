@@ -14,14 +14,18 @@ namespace Api.Controllers
         private readonly ICompanyServices _companyServices;
         private readonly IContactServices _contactServices;
         private readonly ISalesServices _salesServices;
+        private readonly IDebtService _debtServices;
+
         public CompanyController(
             ICompanyServices companyServices,
             IContactServices contactServices,
-            ISalesServices salesServices)
+            ISalesServices salesServices,
+            IDebtService debtService)
         {
             _companyServices = companyServices;
             _contactServices = contactServices;
             _salesServices = salesServices;
+            _debtServices = debtService;
         }
 
         [EndpointSummary("Get data to global map")]
@@ -92,12 +96,26 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
-            [FromQuery] Guid companyId, 
+            [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged
             )
         {
             var result = await _salesServices.GetComapanySalesAsync(companyId, pagged);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get company debt summary")]
+        [EndpointDescription("Show total unpaid amount grouped by currency for a specific company.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("debts/summary")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetCompanyDebtSummaryAsync([FromQuery] Guid comapnyId)
+        {
+            var result = await _debtServices.GetCompanyDebtSummaryAsync(comapnyId);
+            return HandleResult(result);
+        }
+
     }
 }

@@ -16,6 +16,7 @@ namespace Services
             services.AddScoped<ICompanyServices, CompanyServices>();
             services.AddScoped<ISalesServices, SalesServices>();
             services.AddScoped<IContactServices, ContactServices>();
+            services.AddScoped<IDebtService, DebtService>();
             return services;
         }
     }
