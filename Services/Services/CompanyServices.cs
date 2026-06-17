@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Enum;
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
@@ -113,22 +114,45 @@ namespace Services.Services
         }
 
 
-        public async Task<Result<PagedResult<GetCompanyResponse>>> GetCompanyListAsync(Guid userId, PaggedRequest pagged) 
+        public async Task<Result<PagedResult<GetCompanyResponse>>> GetCompanyListAsync(Guid userId,
+            PaggedRequest pagged, CompanyFilerRequest filer, SearchRequest search
+            )
         {
             var query = _context.Companies
+                .ApplyFiler(filer, search.SearchTerm ?? string.Empty, userId)
                 .Where(c => !c.IsDeleted)
+                .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
                 .Select(c => new GetCompanyResponse
                 {
                     Id = c.Id,
                     Name = c.Name,
                     Nip = c.NIP,
+                   
                     LastDealDate = c.Deals
                         .OrderByDescending(d => d.CreatedAt)
                         .Select(d => (DateTime?)d.CreatedAt)
                         .FirstOrDefault(),
+                    
                     IsYour = c.OwnerId == userId,
                     OwnerFirstName = c.OwnerId == userId ? null : c.Owner.FirstName,
-                    OwnerLastName = c.OwnerId == userId ? null : c.Owner.LastName
+                    OwnerLastName = c.OwnerId == userId ? null : c.Owner.LastName,
+                   
+                    City = c.CompanyAdresses
+                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                        .Select(ca => ca.City)
+                        .FirstOrDefault() ?? string.Empty,
+
+                    Street = c.CompanyAdresses
+                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                        .Select(ca => ca.Street)
+                        .FirstOrDefault() ?? string.Empty,
+
+                    ZipCode = c.CompanyAdresses
+                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                        .Select(ca => ca.ZipCode)
+                        .FirstOrDefault() ?? string.Empty,
+
+                    CreatedAt = c.CreatedAt,
                 });
             
             return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "companies");

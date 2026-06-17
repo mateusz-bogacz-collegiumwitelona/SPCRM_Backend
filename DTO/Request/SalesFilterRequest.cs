@@ -1,6 +1,6 @@
 ﻿namespace DTO.Request
 {
-    public record CompanyFilterRequest
+    public record SalesFilterRequest
     {
         public string? CompanyName { get; init; }
         public decimal? Value { get; init; }

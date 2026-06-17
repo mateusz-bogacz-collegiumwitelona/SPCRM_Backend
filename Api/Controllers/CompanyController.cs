@@ -134,9 +134,18 @@ namespace Api.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> GetCompanyListAsync([FromQuery]PaggedRequest pagged)
+        public async Task<IActionResult> GetCompanyListAsync(
+           [FromQuery] PaggedRequest pagged,
+           [FromQuery] CompanyFilerRequest filer,
+           [FromQuery] SearchRequest search
+            )
         {
-            var result = await _companyServices.GetCompanyListAsync(CurrentUserId, pagged);
+            var result = await _companyServices.GetCompanyListAsync(
+                CurrentUserId, 
+                pagged, 
+                filer, 
+                search
+            );
             return HandleResult(result);
         }
     }

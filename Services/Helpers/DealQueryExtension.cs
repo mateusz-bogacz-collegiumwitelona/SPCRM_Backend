@@ -6,7 +6,7 @@ namespace Services.Helpers
 {
     internal static class DealQueryExtension
     {
-        internal static IQueryable<Deal> ApplyFilter(this IQueryable<Deal> query, CompanyFilterRequest filter, string searchTerm)
+        internal static IQueryable<Deal> ApplyFilter(this IQueryable<Deal> query, SalesFilterRequest filter, string searchTerm)
         {
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {

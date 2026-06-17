@@ -29,7 +29,7 @@ namespace Services.Services
             Guid userId,
             PaggedRequest pagged,
             SearchRequest search,
-            CompanyFilterRequest filter
+            SalesFilterRequest filter
             )
         {
             var query = _context.Deals

@@ -9,5 +9,9 @@
         public bool IsYour { get; init; }
         public string? OwnerFirstName { get; init; }
         public string? OwnerLastName { get; init; }
+        public required string City { get; init; }
+        public required string Street { get; init; }
+        public required string ZipCode { get; init; }
+        public required DateTime CreatedAt { get; init; }
     }
 }
