@@ -121,6 +121,7 @@ namespace Services.Services
             var query = _context.Companies
                 .ApplyFiler(filer, userId)
                 .ApplySearch(search.SearchTerm ?? string.Empty)
+                .ApplySorting(sorting)
                 .Where(c => !c.IsDeleted)
                 .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
                 .Select(c => new GetCompanyResponse

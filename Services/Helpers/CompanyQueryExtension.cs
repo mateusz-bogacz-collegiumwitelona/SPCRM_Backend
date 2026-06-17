@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Enum;
+using Domain.Models;
 using DTO.Request;
 
 namespace Services.Helpers
@@ -51,6 +52,46 @@ namespace Services.Helpers
             }
 
             return query;
+        }
+
+        internal static IQueryable<Company> ApplySorting(this IQueryable<Company> query, SortingRequest sorting)
+        {
+            return sorting.SortBy?.ToLower() switch
+            {
+                "name" => sorting.SortDescending
+                    ? query.OrderByDescending(x => x.Name)
+                    : query.OrderBy(x => x.Name),
+
+                "nip" => sorting.SortDescending
+                    ? query.OrderByDescending(x => x.NIP)
+                    : query.OrderBy(x => x.NIP),
+
+                "city" => sorting.SortDescending
+                    ? query.OrderByDescending(x => x.CompanyAdresses
+                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                        .Select(ca => ca.City)
+                        .FirstOrDefault())
+                    : query.OrderBy(x => x.CompanyAdresses
+                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                        .Select(ca => ca.City)
+                        .FirstOrDefault()),
+
+                "zipcode" => sorting.SortDescending
+                    ? query.OrderByDescending(x => x.CompanyAdresses
+                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                        .Select(ca => ca.ZipCode) 
+                        .FirstOrDefault())
+                    : query.OrderBy(x => x.CompanyAdresses
+                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                        .Select(ca => ca.ZipCode)
+                        .FirstOrDefault()),
+
+                "createdat" => sorting.SortDescending
+                  ? query.OrderByDescending(x => x.CreatedAt)
+                  : query.OrderBy(x => x.CreatedAt),
+
+                _ => query.OrderBy(x => x.Name)
+            };
         }
     }
 }

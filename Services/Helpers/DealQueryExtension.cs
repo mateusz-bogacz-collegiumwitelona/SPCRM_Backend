@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Enum;
+using Domain.Models;
 using DTO.Request;
 using DTO.Response;
 
@@ -22,8 +23,13 @@ namespace Services.Helpers
 
             if (!string.IsNullOrWhiteSpace(filter.StatusType))
             {
-                string status = filter.StatusType.ToLower().ToString();
-                query = query.Where(d => d.Status.ToString().ToLower() == status);
+                if (!string.IsNullOrWhiteSpace(filter.StatusType))
+                {
+                    if (Enum.TryParse<DealsStatusEnum>(filter.StatusType, true, out var parsedStatus))
+                    {
+                        query = query.Where(d => d.Status == parsedStatus);
+                    }
+                }
             }
 
             if (filter.DateFrom.HasValue)

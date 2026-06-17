@@ -11,7 +11,7 @@ namespace Services.Interfaces
         Task<Result<CompanyDetailResponse>> Details(Guid id, Guid userId);
         Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(Guid companyId, PaggedRequest pagged);
         Task<Result<PagedResult<GetCompanyResponse>>> GetCompanyListAsync(Guid userId,
-            PaggedRequest pagged, CompanyFilerRequest filer, SortingRequest sorting, SearchRequest search
+            PaggedRequest pagged, CompanyFilterRequest filer, SortingRequest sorting, SearchRequest search
             );
     }
 }

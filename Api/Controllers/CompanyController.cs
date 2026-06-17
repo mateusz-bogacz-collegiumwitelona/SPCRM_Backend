@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
 using Domain.Common;
 using DTO.Request;
+using DTO.Response;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -133,7 +134,13 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get paginated list of companies")]
+        [EndpointDescription("Show a paginated list of companies with optional filtering, sorting, and search term. Returns basic company details along with the headquarters address and the date of the last deal.")]
+        [ProducesResponseType(typeof(Result<PagedResult<GetCompanyResponse>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("list")]
+        [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyListAsync(
            [FromQuery] PaggedRequest pagged,
            [FromQuery] CompanyFilerRequest filer,
@@ -142,9 +149,9 @@ namespace Api.Controllers
             )
         {
             var result = await _companyServices.GetCompanyListAsync(
-                CurrentUserId, 
-                pagged, 
-                filer, 
+                CurrentUserId,
+                pagged,
+                filer,
                 sorting,
                 search
             );
