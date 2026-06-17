@@ -64,7 +64,7 @@ namespace Services.Services
         {
 
             var company = await _context.Companies
-                .FirstAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id);
 
             if (company == null || company.IsDeleted)
             {
@@ -110,6 +110,28 @@ namespace Services.Services
                 });
 
             return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "comapny_adresses");
+        }
+
+
+        public async Task<Result<PagedResult<GetCompanyResponse>>> GetCompanyListAsync(Guid userId, PaggedRequest pagged) 
+        {
+            var query = _context.Companies
+                .Where(c => !c.IsDeleted)
+                .Select(c => new GetCompanyResponse
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Nip = c.NIP,
+                    LastDealDate = c.Deals
+                        .OrderByDescending(d => d.CreatedAt)
+                        .Select(d => (DateTime?)d.CreatedAt)
+                        .FirstOrDefault(),
+                    IsYour = c.OwnerId == userId,
+                    OwnerFirstName = c.OwnerId == userId ? null : c.Owner.FirstName,
+                    OwnerLastName = c.OwnerId == userId ? null : c.Owner.LastName
+                });
+            
+            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "companies");
         }
     }
 }

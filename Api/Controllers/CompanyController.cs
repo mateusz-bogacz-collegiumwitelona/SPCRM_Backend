@@ -132,5 +132,12 @@ namespace Api.Controllers
             var result = await _debtServices.GetCompanyDebtsAsync(companyId, pagged);
             return HandleResult(result);
         }
+
+        [HttpGet("list")]
+        public async Task<IActionResult> GetCompanyListAsync([FromQuery]PaggedRequest pagged)
+        {
+            var result = await _companyServices.GetCompanyListAsync(CurrentUserId, pagged);
+            return HandleResult(result);
+        }
     }
 }
