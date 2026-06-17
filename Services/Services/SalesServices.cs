@@ -27,13 +27,14 @@ namespace Services.Services
         public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(
             Guid userId,
             PaggedRequest pagged,
+            SortingRequest sorting,
             SearchRequest search,
             SalesFilterRequest filter
             )
         {
             var query = _context.Deals
                 .Where(d => d.OwnerId == userId)
-                .ApplyFilter(filter, search.SearchTerm ?? string.Empty)
+                .ApplyFilter(filter)
                 .Select(d => new UserSalesResponse
                 {
                     Id = d.Id,
@@ -46,7 +47,8 @@ namespace Services.Services
                     CompanyName = d.Company.Name,
                     Status = d.Status.ToString()
                 })
-                .ApplySorting(search);
+                .ApplySearch(search.SearchTerm ?? string.Empty)
+                .ApplySorting(sorting);
 
 
             return await query.ToPagedResultAsync(pagged, _logger, "sales");
@@ -80,7 +82,6 @@ namespace Services.Services
                     CloseDate = d.CloseDate,
                     CreatedAt = d.CreatedAt
                 });
-
 
             return await query.ToPagedResultAsync(pagged, _logger, "company_sales");
         }

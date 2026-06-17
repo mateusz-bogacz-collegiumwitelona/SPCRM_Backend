@@ -28,10 +28,11 @@ namespace Api.Controllers
         public async Task<IActionResult> GetContactsAsync(
             [FromQuery] PaggedRequest pagged,
             [FromQuery] ContactFilterRequest filter,
+            [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search
             )
         {
-            var result = await _contact.GetContactsAsync(pagged, filter, search);
+            var result = await _contact.GetContactsAsync(pagged, filter, sorting, search);
 
             return HandleResult(result);
         }

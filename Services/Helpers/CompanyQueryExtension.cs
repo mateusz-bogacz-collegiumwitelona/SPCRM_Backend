@@ -5,7 +5,7 @@ namespace Services.Helpers
 {
     internal static class CompanyQueryExtension
     {
-        internal static IQueryable<Company> ApplyFiler(this IQueryable<Company> query, CompanyFilerRequest filter, String searchTerm, Guid userId) 
+        internal static IQueryable<Company> ApplySearch(this IQueryable<Company> query, string searchTerm)
         {
             if (!string.IsNullOrEmpty(searchTerm))
             {
@@ -21,6 +21,11 @@ namespace Services.Helpers
                     c.Owner.LastName.ToLower().Contains(searchTerm)
                 );
             }
+
+            return query;
+        }
+        internal static IQueryable<Company> ApplyFiler(this IQueryable<Company> query, CompanyFilerRequest filter, Guid userId) 
+        {
 
             if (filter.IsYour.HasValue)
             {

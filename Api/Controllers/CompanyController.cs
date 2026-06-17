@@ -137,6 +137,7 @@ namespace Api.Controllers
         public async Task<IActionResult> GetCompanyListAsync(
            [FromQuery] PaggedRequest pagged,
            [FromQuery] CompanyFilerRequest filer,
+           [FromQuery] SortingRequest sorting,
            [FromQuery] SearchRequest search
             )
         {
@@ -144,6 +145,7 @@ namespace Api.Controllers
                 CurrentUserId, 
                 pagged, 
                 filer, 
+                sorting,
                 search
             );
             return HandleResult(result);

@@ -6,19 +6,8 @@ namespace Services.Helpers
 {
     internal static class DealQueryExtension
     {
-        internal static IQueryable<Deal> ApplyFilter(this IQueryable<Deal> query, SalesFilterRequest filter, string searchTerm)
+        internal static IQueryable<Deal> ApplyFilter(this IQueryable<Deal> query, SalesFilterRequest filter)
         {
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                searchTerm = searchTerm.ToLower();
-
-                query = query.Where(d =>
-                    d.Name.ToLower().Contains(searchTerm) ||
-                    d.Company.Name.ToLower().Contains(searchTerm) ||
-                    d.Company.NIP.Contains(searchTerm)
-                );
-            }
-
             if (!string.IsNullOrWhiteSpace(filter.CompanyName))
             {
                 var search = filter.CompanyName.ToLower();
@@ -46,7 +35,7 @@ namespace Services.Helpers
             return query;
         }
 
-        internal static IQueryable<UserSalesResponse> ApplySorting(this IQueryable<UserSalesResponse> query, SearchRequest request)
+        internal static IQueryable<UserSalesResponse> ApplySorting(this IQueryable<UserSalesResponse> query, SortingRequest request)
         {
             return request.SortBy?.ToLower() switch
             {
@@ -57,6 +46,20 @@ namespace Services.Helpers
                 "date" => request.SortDescending ? query.OrderByDescending(x => x.CloseDate) : query.OrderBy(x => x.CloseDate),
                 _ => query.OrderByDescending(x => x.CloseDate)
             };
+        }
+
+        internal static IQueryable<UserSalesResponse> ApplySearch(this IQueryable<UserSalesResponse> query, string searchTerm)
+        {
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                searchTerm = searchTerm.ToLower();
+                query = query.Where(d =>
+                    d.Name.ToLower().Contains(searchTerm) ||
+                    d.CompanyName.ToLower().Contains(searchTerm) ||
+                    d.Currency.ToLower().Contains(searchTerm)
+                );
+            }
+            return query;
         }
     }
 }

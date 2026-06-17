@@ -24,11 +24,13 @@ namespace Services.Services
         public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(
             PaggedRequest pagged,
             ContactFilterRequest filter,
+            SortingRequest sorting,
             SearchRequest search
             )
         {
             var query = _context.Contacts
-                .ApplyFilter(filter, search.SearchTerm ?? string.Empty)
+                .ApplyFilter(filter)
+                .ApplySearch(search.SearchTerm ?? string.Empty)
                 .Distinct()
                 .Select(c => new ContactsResponse
                 {
@@ -41,7 +43,7 @@ namespace Services.Services
                     OwnerLastName = c.Owner.LastName,
                     IsPrimary = c.IsPrimary
                 })
-                .ApplySorting(search);
+                .ApplySorting(sorting);
 
             return await query.ToPagedResultAsync(pagged, _logger, "contacts");
         }
