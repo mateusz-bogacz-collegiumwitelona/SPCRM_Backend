@@ -25,7 +25,7 @@ namespace Services.Helpers
 
             return query;
         }
-        internal static IQueryable<Company> ApplyFiler(this IQueryable<Company> query, CompanyFilerRequest filter, Guid userId) 
+        internal static IQueryable<Company> ApplyFiler(this IQueryable<Company> query, CompanyFilterRequest filter, Guid userId) 
         {
 
             if (filter.IsYour.HasValue)
@@ -43,12 +43,12 @@ namespace Services.Helpers
 
             if (filter.CreatedAtFrom.HasValue)
             {
-                query = query.Where(c => c.CreatedAt >= filter.CreatedAtFrom.Value);
+                query = query.Where(c => c.CreatedAt >= filter.CreatedAtFrom.Value.ToUniversalTime());
             }
 
             if (filter.CreatedAtTo.HasValue)
             {
-                query = query.Where(c => c.CreatedAt <= filter.CreatedAtTo.Value);
+                query = query.Where(c => c.CreatedAt <= filter.CreatedAtTo.Value.ToUniversalTime());
             }
 
             return query;

@@ -143,7 +143,7 @@ namespace Api.Controllers
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyListAsync(
            [FromQuery] PaggedRequest pagged,
-           [FromQuery] CompanyFilerRequest filer,
+           [FromQuery] CompanyFilterRequest filer,
            [FromQuery] SortingRequest sorting,
            [FromQuery] SearchRequest search
             )

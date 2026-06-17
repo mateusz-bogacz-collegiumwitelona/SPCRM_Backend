@@ -115,15 +115,15 @@ namespace Services.Services
 
 
         public async Task<Result<PagedResult<GetCompanyResponse>>> GetCompanyListAsync(Guid userId,
-            PaggedRequest pagged, CompanyFilerRequest filer, SortingRequest sorting, SearchRequest search
+            PaggedRequest pagged, CompanyFilterRequest filer, SortingRequest sorting, SearchRequest search
             )
         {
             var query = _context.Companies
                 .ApplyFiler(filer, userId)
                 .ApplySearch(search.SearchTerm ?? string.Empty)
-                .ApplySorting(sorting)
                 .Where(c => !c.IsDeleted)
                 .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
+                .ApplySorting(sorting)
                 .Select(c => new GetCompanyResponse
                 {
                     Id = c.Id,

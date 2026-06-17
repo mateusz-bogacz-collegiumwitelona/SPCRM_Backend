@@ -1,6 +1,6 @@
 ﻿namespace DTO.Request
 {
-    public record CompanyFilerRequest
+    public record CompanyFilterRequest
     {
         public bool? IsYour { get; init; }
         public DateTime? CreatedAtFrom { get; init; }
