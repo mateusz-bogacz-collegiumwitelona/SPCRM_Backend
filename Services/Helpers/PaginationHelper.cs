@@ -1,37 +1,15 @@
 ﻿using Domain.Common;
 using DTO.Request;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Services.Helpers
 {
     public static class PaginationHelper
     {
-        public static PagedResult<T> ToPagedResult<T>(this IEnumerable<T> source, int pageNumber, int pageSize)
-        {
-            if (source == null) throw new ArgumentNullException(nameof(source));
-
-            var totalCount = source.Count();
-            var items = source
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<T>
-            {
-                Items = items,
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                TotalCount = totalCount,
-                TotalPages = totalCount > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 0
-            };
-        }
-
-        public static PagedResult<T> ToPagedResult<T>(this List<T> source, int pageNumber, int pageSize)
-            => ((IEnumerable<T>)source).ToPagedResult(pageNumber, pageSize);
-
         public static async Task<Result<PagedResult<T>>> ToPagedResultAsync<T>(
-           this Task<List<T>> dataTask,
+           this IQueryable<T> source,
            PaggedRequest pagged,
            ILogger logger,
            string entityName = "item"
@@ -39,9 +17,14 @@ namespace Services.Helpers
         {
             try
             {
-                var result = await dataTask;
+                if (source == null) throw new ArgumentNullException(nameof(source));
 
-                if (result == null || !result.Any())
+                int pageNumber = pagged.PageNumber ?? 1;
+                int pageSize = pagged.PageSize ?? 10;
+
+                int totalCount = await source.CountAsync();
+
+                if (totalCount == 0)
                 {
                     var emptyPage = CreateEmptyPagedResult<T>(pagged);
 
@@ -52,31 +35,47 @@ namespace Services.Helpers
                         );
                 }
 
-                int pageNumber = pagged.PageNumber ?? 1;
-                int pageSize = pagged.PageSize ?? 10;
+                int totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-                var pagedResult = result.ToPagedResult(pageNumber, pageSize);
+                if (pageNumber > totalPages && totalPages > 0)
+                {
+                    pageNumber = totalPages;
+                }
 
-                if (pagedResult.PageNumber > pagedResult.TotalPages && pagedResult.TotalPages > 0)
-                    pagedResult = result.ToPagedResult(pagedResult.TotalPages, pageSize);
+                var items = await source
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var pagedResult = new PagedResult<T>
+                {
+                    Items = items,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = totalPages
+                };
 
                 return Result<PagedResult<T>>.Success(
-                    message: $"{entityName} retrieved successfully",
+                    message: $"{entityName} retrieved successfully.",
                     statusCode: StatusCodes.Status200OK,
                     data: pagedResult
                     );
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, "Error while paginating {EntityName}", entityName);
+
                 return Result<PagedResult<T>>.Failure(
                     "An error occurred while processing your request.",
                     StatusCodes.Status500InternalServerError,
-                    new List<string> { $"{ex.Message} | {ex.InnerException}" });
+                    new List<string> { $"{ex.Message} | {ex.InnerException?.Message}" });
             }
         }
 
         private static PagedResult<T> CreateEmptyPagedResult<T>(PaggedRequest pagged)
-            => new PagedResult<T>
+        {
+            return new PagedResult<T>
             {
                 Items = new List<T>(),
                 PageNumber = pagged.PageNumber ?? 1,
@@ -84,5 +83,7 @@ namespace Services.Helpers
                 TotalCount = 0,
                 TotalPages = 0
             };
+        }
     }
 }
+

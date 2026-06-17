@@ -43,7 +43,7 @@ namespace Services.Services
                 })
                 .ApplySorting(search);
 
-            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "contacts");
+            return await query.ToPagedResultAsync(pagged, _logger, "contacts");
         }
 
         public async Task<Result<List<string>>> GetCompaniesAsync()
@@ -76,7 +76,7 @@ namespace Services.Services
                     OwnerLastName = c.Owner.LastName ?? ""
                 });
 
-            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_contacts");
+            return await query.ToPagedResultAsync(pagged, _logger, "company_contacts");
         }
     }
 }

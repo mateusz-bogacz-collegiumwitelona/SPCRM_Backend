@@ -4,7 +4,6 @@ using DTO.Request;
 using DTO.Response;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Helpers;
 using Services.Interfaces;
@@ -50,7 +49,7 @@ namespace Services.Services
                 .ApplySorting(search);
 
 
-            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "sales");
+            return await query.ToPagedResultAsync(pagged, _logger, "sales");
         }
 
         public async Task<Result<List<String>>> GetSalesStatus()
@@ -83,7 +82,7 @@ namespace Services.Services
                 });
 
 
-            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_sales");
+            return await query.ToPagedResultAsync(pagged, _logger, "company_sales");
         }
     }
 }

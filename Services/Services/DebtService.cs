@@ -63,7 +63,7 @@ namespace Services.Services
                     DaysOverdue = i.DueDate < now ? (int)(now - i.DueDate).TotalDays : 0
                 });
 
-            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "company_debt");
+            return await query.ToPagedResultAsync(pagged, _logger, "company_debt");
         }
     }
 }

@@ -110,7 +110,7 @@ namespace Services.Services
                     Type = a.AddressType.ToString()
                 });
 
-            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "comapny_adresses");
+            return await query.ToPagedResultAsync(pagged, _logger, "comapny_adresses");
         }
 
 
@@ -155,7 +155,7 @@ namespace Services.Services
                     CreatedAt = c.CreatedAt,
                 });
             
-            return await query.ToListAsync().ToPagedResultAsync(pagged, _logger, "companies");
+            return await query.ToPagedResultAsync(pagged, _logger, "companies");
         }
     }
 }
