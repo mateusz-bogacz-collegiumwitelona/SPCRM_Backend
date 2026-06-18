@@ -130,13 +130,14 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<List<ContactNoteResponse>>> GetContactNoteAsync(Guid contatcId)
+        public async Task<Result<PagedResult<ContactNoteResponse>>> GetContactNoteAsync(Guid contatcId, PaggedRequest pagged, SearchRequest search)
         {
-            var query = await _context.Notes
+            var query = _context.Notes
                 .OfType<ContactNote>()
                 .Include(n => n.Author)
                 .Where(n => n.ContactId == contatcId && !n.IsDeleted)
                 .AsNoTracking()
+                .ApplySearch(search.SearchTerm ?? string.Empty)
                 .OrderByDescending(n => n.CreatedAt)
                 .Select(n => new ContactNoteResponse
                 {
@@ -147,15 +148,9 @@ namespace Services.Services
                     AuthorLastName = n.Author.LastName,
                     CreatedAt = n.CreatedAt,
                     UpdateAt = n.UpdateAt
-                })
-                .ToListAsync();
-
-
-            return Result<List<ContactNoteResponse>>.Success(
-                message: "Contact notes retrieved successfully",
-                statusCode: StatusCodes.Status200OK,
-                data: query
-                );
+                });
+                
+           return await query.ToPagedResultAsync(pagged, _logger, "contact_notes");
         }
     }
 }

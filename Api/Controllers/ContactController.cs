@@ -79,9 +79,13 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{contactId}/notes")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetContactNotesAsync([FromRoute] Guid contactId)
+        public async Task<IActionResult> GetContactNotesAsync(
+            [FromRoute] Guid contactId,
+            [FromQuery] PaggedRequest pagged,
+            [FromQuery] SearchRequest search
+            )
         {
-            var result = await _contact.GetContactNoteAsync(contactId);
+            var result = await _contact.GetContactNoteAsync(contactId, pagged, search);
             return HandleResult(result);
         }
     }
