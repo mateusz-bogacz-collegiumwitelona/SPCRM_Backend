@@ -14,5 +14,6 @@ namespace Services.Interfaces
                     );
         Task<Result<List<string>>> GetCompaniesAsync();
         Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(Guid comapnyId, PaggedRequest pagged);
+        Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId);
     }
 }

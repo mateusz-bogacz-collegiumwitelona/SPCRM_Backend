@@ -42,9 +42,18 @@ namespace Api.Controllers
         [EndpointDescription("Show all companies in contact list.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetCompaniesAsync()
         {
             var result = await _contact.GetCompaniesAsync();
+            return HandleResult(result);
+        }
+
+        [HttpGet("{contactId}")]
+        [Authorize(Roles = "User,Manager")] 
+        public async Task<IActionResult> GetContactDetailAsync([FromRoute] Guid contactId)
+        {
+            var result = await _contact.GetContactDetailAsync(contactId);
             return HandleResult(result);
         }
     }

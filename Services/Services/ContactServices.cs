@@ -80,5 +80,29 @@ namespace Services.Services
 
             return await query.ToPagedResultAsync(pagged, _logger, "company_contacts");
         }
+
+        public async Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId)
+        {
+            var response = await _context.Contacts
+                .Where(c => c.Id == contactId)
+                .Select(c => new ContactsResponse
+                {
+                    Id = c.Id,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName,
+                    JobTitle = c.JobTitle ?? "",
+                    CompanyName = c.Company.Name,
+                    OwnerFirstName = c.Owner.FirstName,
+                    OwnerLastName = c.Owner.LastName,
+                    IsPrimary = c.IsPrimary
+                })
+                .FirstOrDefaultAsync();
+
+            return Result<ContactsResponse>.Success(
+                data: response,
+                message: "Contact details retrieved successfully",
+                statusCode: StatusCodes.Status200OK 
+                );
+        }
     }
 }
