@@ -285,8 +285,9 @@ namespace Infrastructure.Seeders
                     Company = companies[0], // Stal-Met
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.nowak@stalmet.pl", IsPrimary = true },
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 111 222 333", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.nowak@stalmet.pl", IsPrimary = true, Label = "Służbowy" },
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 111 222 333", IsPrimary = false, Label = "Komórka bezpośrednia" },
+                        new() { Type = ContactDetailTypeEnum.LINKEDIN, Value = "https://www.linkedin.com/in/andrzej-nowak-stal", IsPrimary = false, Label = "Profil zawodowy" }
                     }
                 },
                 new()
@@ -298,8 +299,8 @@ namespace Infrastructure.Seeders
                     Company = companies[0], // Stal-Met
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.wisniewska@stalmet.pl", IsPrimary = true },
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 555 666 777", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.wisniewska@stalmet.pl", IsPrimary = true, Label = "Do e-faktur" },
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 32 700 88 11", IsPrimary = false, Label = "Stacjonarny (wewn. 204)" }
                     }
                 },
                 new()
@@ -311,7 +312,7 @@ namespace Infrastructure.Seeders
                     Company = companies[0], // Stal-Met
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 777 888 999", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 777 888 999", IsPrimary = true, Label = "Magazyn wysyłkowy" }
                     }
                 },
                 new()
@@ -323,8 +324,8 @@ namespace Infrastructure.Seeders
                     Company = companies[1], // BudowaX S.A.
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 600 700 800", IsPrimary = true },
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "j.kowalski@budowax.pl", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 600 700 800", IsPrimary = true, Label = "Kontener kierownika" },
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "j.kowalski@budowax.pl", IsPrimary = false, Label = "Biuro budowy" }
                     }
                 },
                 new()
@@ -346,7 +347,8 @@ namespace Infrastructure.Seeders
                     Company = companies[2], // Huta Żelaza 'Odra'
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "k.kowal@hutaodra.pl", IsPrimary = true },
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "k.kowal@hutaodra.pl", IsPrimary = true, Label = "Zapytania ofertowe" },
+                        new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 91 400 55 00", IsPrimary = false, Label = "Sekretariat Dyrekcji" }
                     }
                 },
                 new()
@@ -358,8 +360,9 @@ namespace Infrastructure.Seeders
                     Company = companies[2], // Huta Żelaza 'Odra'
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.zielinska@hutaodra.pl", IsPrimary = true },
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 222 333 444", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.zielinska@hutaodra.pl", IsPrimary = true, Label = "Awizacje dostaw" },
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 222 333 444", IsPrimary = false, Label = "Spedycja kolejowa" },
+                        new() { Type = ContactDetailTypeEnum.FAX, Value = "+48 91 400 55 99", IsPrimary = false, Label = "Faks logistyczny" }
                     }
                 },
                 new()
@@ -371,7 +374,7 @@ namespace Infrastructure.Seeders
                     Company = companies[2], // Huta Żelaza 'Odra'
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "m.dabrowska@hutaodra.pl", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "m.dabrowska@hutaodra.pl", IsPrimary = true, Label = "Atesty i reklamacje" }
                     }
                 },
                 new()
@@ -383,7 +386,8 @@ namespace Infrastructure.Seeders
                     Company = companies[3], // P.H.U. Konstrukcje Stalowe
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "p.wojcik@konstrukcje.pl", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "p.wojcik@konstrukcje.pl", IsPrimary = true, Label = "Główny" },
+                        new() { Type = ContactDetailTypeEnum.LINKEDIN, Value = "https://www.linkedin.com/in/piotr-wojcik-konstrukcje", IsPrimary = false, Label = "Profil prywatny" }
                     }
                 },
                 new()
@@ -395,8 +399,9 @@ namespace Infrastructure.Seeders
                     Company = companies[3], // P.H.U. Konstrukcje Stalowe
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 444 555 666", IsPrimary = true },
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "t.wozniak@konstrukcje.pl", IsPrimary = false }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 444 555 666", IsPrimary = true, Label = "Komórka służbowa" },
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "t.wozniak@konstrukcje.pl", IsPrimary = false, Label = "Wyceny" },
+                        new() { Type = ContactDetailTypeEnum.OTHER, Value = "tomasz.wozniak.teams", IsPrimary = false, Label = "MS Teams ID" }
                     }
                 },
                 new()
@@ -408,8 +413,8 @@ namespace Infrastructure.Seeders
                     Company = companies[4], // Mega-Stal s.c.
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "b.szymanska@megastal.pl", IsPrimary = false },
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 555 111 222", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.EMAIL, Value = "b.szymanska@megastal.pl", IsPrimary = false, Label = "Zamówienia huta" },
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 555 111 222", IsPrimary = true, Label = "Służbowy (Pilne)" }
                     }
                 },
                 new()
@@ -421,7 +426,8 @@ namespace Infrastructure.Seeders
                     Company = companies[4], // Mega-Stal s.c.
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
-                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 999 888 777", IsPrimary = true }
+                        new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 999 888 777", IsPrimary = true, Label = "Sekretariat" },
+                        new() { Type = ContactDetailTypeEnum.OTHER, Value = "live:maria.kam_3", IsPrimary = false, Label = "Skype firmowy" }
                     }
                 }
             };

@@ -6,6 +6,7 @@
         PHONE,
         PHONE_MOBILE,
         FAX,
+        LINKEDIN,
         OTHER
     }
 }
