@@ -72,5 +72,17 @@ namespace Api.Controllers
             var result = await _contact.GetContactWayAsync(contactId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get contact notes")]
+        [EndpointDescription("Show all notes for a specific contact.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{contactId}/notes")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetContactNotesAsync([FromRoute] Guid contactId)
+        {
+            var result = await _contact.GetContactNoteAsync(contactId);
+            return HandleResult(result);
+        }
     }
 }

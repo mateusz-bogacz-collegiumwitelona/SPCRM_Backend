@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Models;
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
@@ -124,6 +125,34 @@ namespace Services.Services
 
             return Result<List<ContactWayResponse>>.Success(
                 message: "Contact detail review successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: query
+                );
+        }
+
+        public async Task<Result<List<ContactNoteResponse>>> GetContactNoteAsync(Guid contatcId)
+        {
+            var query = await _context.Notes
+                .OfType<ContactNote>()
+                .Include(n => n.Author)
+                .Where(n => n.ContactId == contatcId && !n.IsDeleted)
+                .AsNoTracking()
+                .OrderByDescending(n => n.CreatedAt)
+                .Select(n => new ContactNoteResponse
+                {
+                    Id = n.Id,
+                    Title = n.Title,
+                    Content = n.Content,
+                    AuthorFirstName = n.Author.FirstName,
+                    AuthorLastName = n.Author.LastName,
+                    CreatedAt = n.CreatedAt,
+                    UpdateAt = n.UpdateAt
+                })
+                .ToListAsync();
+
+
+            return Result<List<ContactNoteResponse>>.Success(
+                message: "Contact notes retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
                 data: query
                 );
