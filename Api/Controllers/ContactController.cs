@@ -37,11 +37,11 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpGet("companies")]
         [EndpointSummary("Get companies")]
         [EndpointDescription("Show all companies in contact list.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("companies")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetCompaniesAsync()
         {
@@ -49,11 +49,27 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get contact detail")]
+        [EndpointDescription("Show detail of a specific contact.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{contactId}")]
         [Authorize(Roles = "User,Manager")] 
         public async Task<IActionResult> GetContactDetailAsync([FromRoute] Guid contactId)
         {
             var result = await _contact.GetContactDetailAsync(contactId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get contact ways")]
+        [EndpointDescription("Show all ways to contact a specific contact.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{contactId}/ways")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetContactWaysAsync([FromRoute] Guid contactId)
+        {
+            var result = await _contact.GetContactWayAsync(contactId);
             return HandleResult(result);
         }
     }

@@ -31,6 +31,7 @@ namespace Services.Services
             var query = _context.Contacts
                 .ApplyFilter(filter)
                 .ApplySearch(search.SearchTerm ?? string.Empty)
+                .AsNoTracking()
                 .Distinct()
                 .Select(c => new ContactsResponse
                 {
@@ -67,6 +68,7 @@ namespace Services.Services
             var query = _context.Contacts
                 .Where(c => c.CompanyId == comapnyId)
                 .Distinct()
+                .AsNoTracking()
                 .Select(c => new CompanyContactResponse
                 {
                     Id = c.Id,
@@ -85,6 +87,7 @@ namespace Services.Services
         {
             var response = await _context.Contacts
                 .Where(c => c.Id == contactId)
+                .AsNoTracking()
                 .Select(c => new ContactsResponse
                 {
                     Id = c.Id,
@@ -102,6 +105,27 @@ namespace Services.Services
                 data: response,
                 message: "Contact details retrieved successfully",
                 statusCode: StatusCodes.Status200OK 
+                );
+        }
+
+        public async Task<Result<List<ContactWayResponse>>> GetContactWayAsync(Guid contactId)
+        {
+            var query = await _context.ContactDetails
+                .Where(c => c.ContactId == contactId)
+                .AsNoTracking()
+                .Select(c => new ContactWayResponse
+                {
+                    Type = c.Type.ToString(),
+                    Value = c.Value,
+                    Label = c.Label ?? "",
+                    IsPrimary = c.IsPrimary
+                })
+                .ToListAsync();
+
+            return Result<List<ContactWayResponse>>.Success(
+                message: "Contact detail review successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: query
                 );
         }
     }
