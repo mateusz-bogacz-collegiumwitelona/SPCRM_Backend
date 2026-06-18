@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Common;
+using Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -76,6 +77,12 @@ namespace Infrastructure
             builder.Entity<ContactDetail>()
                 .Property(t => t.Type)
                 .HasConversion<string>();
+
+            builder.Entity<Note>()
+                .HasDiscriminator<string>("NoteType")
+                .HasValue<ContactNote>("Contact")
+                .HasValue<DealNote>("Deal")
+                .HasValue<TaskNote>("Task");
         }
     }
 }

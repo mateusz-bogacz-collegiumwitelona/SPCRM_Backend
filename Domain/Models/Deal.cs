@@ -21,7 +21,7 @@ namespace Domain.Models
 
         public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
         public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();
-        public ICollection<Note> Notes { get; set; } = new List<Note>();
+        public ICollection<DealNote> Notes { get; set; } = new List<DealNote>();
 
         public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
     }

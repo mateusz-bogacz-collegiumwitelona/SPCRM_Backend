@@ -288,6 +288,11 @@ namespace Infrastructure.Seeders
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.nowak@stalmet.pl", IsPrimary = true, Label = "Służbowy" },
                         new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 111 222 333", IsPrimary = false, Label = "Komórka bezpośrednia" },
                         new() { Type = ContactDetailTypeEnum.LINKEDIN, Value = "https://www.linkedin.com/in/andrzej-nowak-stal", IsPrimary = false, Label = "Profil zawodowy" }
+                    },
+                    Notes = new List<ContactNote>
+                    {
+                        new() { Title = "Uwaga na negocjacje", Content = "Bardzo twardy negocjator. Lubi konkrety, nie znosi lania wody.", Author = manager! },
+                        new() { Title = "Preferencje", Content = "Prosił, żeby dzwonić wyłącznie po godzinie 14:00.", Author = user! }
                     }
                 },
                 new()
@@ -301,6 +306,14 @@ namespace Infrastructure.Seeders
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.wisniewska@stalmet.pl", IsPrimary = true, Label = "Do e-faktur" },
                         new() { Type = ContactDetailTypeEnum.PHONE, Value = "+48 32 700 88 11", IsPrimary = false, Label = "Stacjonarny (wewn. 204)" }
+                    },
+                    Notes = new List<ContactNote>
+                    {
+                        new() { 
+                            Title = "Problemy z płatnościami", 
+                            Content = "Pani Anna ostrzegała, że w tym miesiącu mogą mieć kilkudniowy poślizg z przelewami z powodu audytu.", 
+                            Author = manager! 
+                        }
                     }
                 },
                 new()
@@ -313,6 +326,10 @@ namespace Infrastructure.Seeders
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 777 888 999", IsPrimary = true, Label = "Magazyn wysyłkowy" }
+                    },
+                    Notes = new List<ContactNote>
+                    {
+                        new() { Title = "Buc", Content = "Buc wredny", Author = manager! }
                     }
                 },
                 new()
@@ -375,6 +392,10 @@ namespace Infrastructure.Seeders
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "m.dabrowska@hutaodra.pl", IsPrimary = true, Label = "Atesty i reklamacje" }
+                    },
+                    Notes = new List<ContactNote>
+                    {
+                        new() { Title = "Problemy z płatnościami", Content = "Mają problemy winansowe, wolą brać w kredyt", Author = user! }
                     }
                 },
                 new()
@@ -505,8 +526,22 @@ namespace Infrastructure.Seeders
                     CloseDate = DateTime.UtcNow.AddDays(random.Next(-30, 90)),
                     Currency = currency,
                     Company = company,
-                    Owner = owner
+                    Owner = owner,
+                    Notes = new List<DealNote>()
                 };
+
+                if (random.Next(100) < 40)
+                {
+                    deal.Notes.Add(new DealNote
+                    {
+                        Title = "Wstępne ustalenia",
+                        Content = random.Next(100) < 50
+                            ? "Klient mocno naciska na dodatkowy rabat na transport."
+                            : "Udało się wynegocjować lepszą marżę, w zamian za szybszą dostawę.",
+                        Author = owner
+                    });
+                }
+
                 deals.Add(deal);
                 Console.WriteLine($"Prepared deal {i}: {deal.Name}");
 
@@ -547,7 +582,7 @@ namespace Infrastructure.Seeders
 
                 for (int t = 1; t <= 2; t++)
                 {
-                    tasks.Add(new Tasks
+                    var task = new Tasks
                     {
                         Title = $"Zadanie {t} - Zamówienie nr {i}",
                         Description = t == 1 ? "Przygotować dokumentację wstępną." : "Skontaktować się w celu potwierdzenia warunków.",
@@ -555,8 +590,20 @@ namespace Infrastructure.Seeders
                         AssignedTo = owner,
                         Deal = deal,
                         Status = taskStatuses[random.Next(taskStatuses.Length)],
-                        Priority = taskPriorities[random.Next(taskPriorities.Length)]
-                    });
+                        Priority = taskPriorities[random.Next(taskPriorities.Length)],
+                        Notes = new List<TaskNote>()
+                    };
+
+
+                    if (random.Next(100) < 25)
+                    {
+                        task.Notes.Add(new TaskNote
+                        {
+                            Title = "Komentarz do zadania",
+                            Content = "Czekam na maila zwrotnego od magazynu, żeby móc to ruszyć dalej.",
+                            Author = owner
+                        });
+                    }
 
                     Console.WriteLine($"  - Added task {t} to deal: {deal.Name}");
                 }
