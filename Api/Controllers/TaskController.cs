@@ -88,5 +88,19 @@ namespace Api.Controllers
             var result = await _taskServices.GetTaskDealAsync(taskId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get task notes")]
+        [EndpointDescription("Returns notes associated with a specific task.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{taskId}/notes")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetTaskNotesAsync([FromRoute] Guid taskId)
+        {
+            var result = await _taskServices.GetTaskNotesAsync(taskId);
+            return HandleResult(result);
+        }
     }
 }

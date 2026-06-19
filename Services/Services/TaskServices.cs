@@ -155,6 +155,7 @@ namespace Services.Services
                     DecimalPlaces = t.Deal.Currency.DecimalPlaces
                 })
                 .FirstOrDefaultAsync();
+
             if (query == null)
             {
                 return Result<TaskDealResponse>.Failure(
@@ -162,9 +163,49 @@ namespace Services.Services
                     statusCode: StatusCodes.Status404NotFound
                 );
             }
+
             return Result<TaskDealResponse>.Success(
                 data: query,
                 message: "Task deal card retrieved successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result<List<TaskNoteResponse>>> GetTaskNotesAsync(Guid taskId)
+        {
+            bool isTaskExists = await _context.Tasks
+                .AsNoTracking()
+                .AnyAsync(t => t.Id == taskId);
+
+            if (!isTaskExists)
+            {
+                return Result<List<TaskNoteResponse>>.Failure(
+                    message: "Task for this note not found",
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var query = await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.Id == taskId)
+                .SelectMany(t => t.Notes)
+                .Where(n => !n.IsDeleted)
+                .OrderByDescending(n => n.CreatedAt)
+                .Select(n => new TaskNoteResponse
+                {
+                    NoteId = n.Id,
+                    Title = n.Title,
+                    Content = n.Content,
+                    AuthorFirstName = n.Author.FirstName,
+                    AuthorLastName = n.Author.LastName,
+                    CreatedAt = n.CreatedAt,
+                    UpdatedAt = n.UpdateAt ?? null,
+                })
+                .ToListAsync();
+
+            return Result<List<TaskNoteResponse>>.Success(
+                data: query,
+                message: "Task notes retrieved successfully",
                 statusCode: StatusCodes.Status200OK
             );
         }
