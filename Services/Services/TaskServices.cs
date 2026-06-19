@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Enum;
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
@@ -55,5 +56,64 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
                 );
         }
+
+        public async Task<Result<object>> GetTaskDictionariesAsync()
+        {
+            var statuses = GetStatusDictionary();
+            var priorities = GetPriorityDictionary();
+
+            return Result<object>.Success(
+                message: "Dictionaries retrieved successfully",
+                data: new { Statuses = statuses, Priorities = priorities },
+                statusCode: StatusCodes.Status200OK
+                );
+        }
+
+        public async Task<Result<TaskDetailResponse>> GetTaskDetailResponse(Guid taskId)
+        {
+            var query = await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.Id == taskId)
+                .Select(t => new TaskDetailResponse
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    DueAt = t.DueAt,
+                    Status = t.Status.ToString(),
+                    Priority = t.Priority.ToString()
+                })
+                .FirstOrDefaultAsync();
+
+            if (query == null)
+            {
+                return Result<TaskDetailResponse>.Failure(
+                    message: "Task not found",
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            return Result<TaskDetailResponse>.Success(
+                message: "Tasks detail retrieved successfully",
+                data: query,
+                statusCode: StatusCodes.Status200OK
+                );
+        }
+
+        private List<object> GetStatusDictionary()
+            => new List<object>
+                {
+                    new { Value = TaskStatusEnum.ToDo.ToString(), Label = "Do zrobienia" },
+                    new { Value = TaskStatusEnum.InProgress.ToString(), Label = "W trakcie" },
+                    new { Value = TaskStatusEnum.Complete.ToString(), Label = "Zakończone" },
+                    new { Value = TaskStatusEnum.Break.ToString(), Label = "Wstrzymane" }
+                };
+
+        private List<object> GetPriorityDictionary()
+            => new List<object>
+                {
+                    new { Value = TaskPriorityEnum.Low.ToString(), Label = "Niski" },
+                    new { Value = TaskPriorityEnum.Medium.ToString(), Label = "Średni" },
+                    new { Value = TaskPriorityEnum.High.ToString(), Label = "Wysoki" }
+                };
     }
 }

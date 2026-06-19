@@ -37,6 +37,7 @@ namespace Infrastructure.Seeders
 
             if (!await _context.Deals.AnyAsync()) await SeedDealsAndTasksAsync();
 
+            // Uruchom jeśli nie ma żadnych zadań "nieprzypisanych" do transakcji
             if (!await _context.Tasks.AnyAsync(t => t.DealId == null)) await SeedStandaloneTasksAsync();
         }
 

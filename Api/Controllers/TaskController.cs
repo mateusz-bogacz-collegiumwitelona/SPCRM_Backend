@@ -32,5 +32,34 @@ namespace Api.Controllers
             var result = await _taskServices.GetTasksForCalendarAsync(CurrentUserId, request);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get task dictionaries")]
+        [EndpointDescription("Returns available statuses and priorities for frontend dropdowns.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("dictionaries")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetTaskDictionariesAsync()
+        {
+            var result = await _taskServices.GetTaskDictionariesAsync();
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get task detail")]
+        [EndpointDescription("Returns detailed information about a specific task.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{taskId}")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetTaskDetailResponse([FromRoute] Guid taskId)
+        {
+            var result = await _taskServices.GetTaskDetailResponse(taskId);
+            return HandleResult(result);
+        }
+
     }
 }
