@@ -139,6 +139,36 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result<TaskDealResponse>> GetTaskDealAsync(Guid taskId)
+        {
+            var query = await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.Id == taskId && t.DealId != null)
+                .Select(t => new TaskDealResponse
+                {
+                    DealId = t.Deal!.Id,
+                    Name = t.Deal.Name,
+                    Value = t.Deal.Value,
+                    Status = t.Deal.Status.ToString(),
+                    CloseDate = t.Deal.CloseDate,
+                    CurrencyCode = t.Deal.Currency.Code,
+                    DecimalPlaces = t.Deal.Currency.DecimalPlaces
+                })
+                .FirstOrDefaultAsync();
+            if (query == null)
+            {
+                return Result<TaskDealResponse>.Failure(
+                    message: "Deal for this task not found",
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+            return Result<TaskDealResponse>.Success(
+                data: query,
+                message: "Task deal card retrieved successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
         private List<object> GetStatusDictionary()
             => new List<object>
                 {

@@ -41,7 +41,7 @@
                 Data = data
             };
 
-        public static new Result<T> Failure(string message, string errorCode, int statusCode, List<string>? errors = null, T? data = default)
+        public static Result<T> Failure(string message, string errorCode, int statusCode, List<string>? errors = null, T? data = default)
             => new Result<T>
             {
                 Message = message,
@@ -52,7 +52,7 @@
                 Data = data
             };
 
-        public static new Result<T> Failure(string message, int statusCode, List<string>? errors = null, T? data = default)
+        public static Result<T> Failure(string message, int statusCode, List<string>? errors = null, T? data = default)
             => new Result<T>
             {
                 Message = message,

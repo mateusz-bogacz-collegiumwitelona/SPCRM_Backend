@@ -75,5 +75,18 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get task deal")]
+        [EndpointDescription("Returns deal information associated with a specific task.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{taskId}/deal")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetTaskDealAsync([FromRoute] Guid taskId)
+        {
+            var result = await _taskServices.GetTaskDealAsync(taskId);
+            return HandleResult(result);
+        }
     }
 }

@@ -10,5 +10,6 @@ namespace Services.Interfaces
         Task<Result<object>> GetTaskDictionariesAsync();
         Task<Result<TaskDetailResponse>> GetTaskDetailResponse(Guid taskId);
         Task<Result<TaskContactResponse>> GetTaskContactAsync(Guid taskId);
+        Task<Result<TaskDealResponse>> GetTaskDealAsync(Guid taskId);
     }
 }
