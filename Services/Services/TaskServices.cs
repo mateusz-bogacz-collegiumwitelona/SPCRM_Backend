@@ -99,6 +99,46 @@ namespace Services.Services
                 );
         }
 
+        public async Task<Result<TaskContactResponse>> GetTaskContactAsync(Guid taskId)
+        {
+            var query = await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.Id == taskId && t.ContactId != null)
+                .Select(t => new TaskContactResponse
+                {
+                    ContactId = t.Contact!.Id,
+                    FirstName = t.Contact.FirstName,
+                    LastName = t.Contact.LastName,
+                    JobTitle = t.Contact.JobTitle ?? string.Empty,
+                    CompanyName = t.Contact.Company.Name,
+
+                    ContactWays = t.Contact.ContactDetails
+                        .Where(cd => !cd.IsDeleted)
+                        .Select(cd => new ContactWayResponse
+                        {
+                            Type = cd.Type.ToString(),
+                            Value = cd.Value,
+                            Label = cd.Label ?? string.Empty,
+                            IsPrimary = cd.IsPrimary
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (query == null)
+            {
+                return Result<TaskContactResponse>.Failure(
+                    message: "Contact for this task not found",
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            return Result<TaskContactResponse>.Success(
+                data: query,
+                message: "Task contact card retrieved successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
         private List<object> GetStatusDictionary()
             => new List<object>
                 {

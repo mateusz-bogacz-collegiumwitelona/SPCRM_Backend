@@ -9,5 +9,6 @@ namespace Services.Interfaces
         Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(Guid userId, TaskCalendarRequest request);
         Task<Result<object>> GetTaskDictionariesAsync();
         Task<Result<TaskDetailResponse>> GetTaskDetailResponse(Guid taskId);
+        Task<Result<TaskContactResponse>> GetTaskContactAsync(Guid taskId);
     }
 }

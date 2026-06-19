@@ -61,5 +61,19 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get task contact")]
+        [EndpointDescription("Returns contact information associated with a specific task.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{taskId}/contact")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetTaskContactAsync([FromRoute]Guid taskId)
+        {
+            var result = await _taskServices.GetTaskContactAsync(taskId);
+            return HandleResult(result);
+        }
+
     }
 }
