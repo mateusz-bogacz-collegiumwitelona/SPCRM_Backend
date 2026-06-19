@@ -36,6 +36,8 @@ namespace Infrastructure.Seeders
             if (!await _context.Products.AnyAsync()) await SeedProductsAsync();
 
             if (!await _context.Deals.AnyAsync()) await SeedDealsAndTasksAsync();
+
+            if (!await _context.Tasks.AnyAsync(t => t.DealId == null)) await SeedStandaloneTasksAsync();
         }
 
         private async Task SeedRoleAsync()
@@ -605,6 +607,8 @@ namespace Infrastructure.Seeders
                         });
                     }
 
+                    tasks.Add(task);
+
                     Console.WriteLine($"  - Added task {t} to deal: {deal.Name}");
                 }
             }
@@ -632,6 +636,61 @@ namespace Infrastructure.Seeders
             Console.WriteLine($"Generated random point: ({lat}, {lng})");
 
             return new Point(lng, lat) { SRID = 4326 };
+        }
+
+
+        private async Task SeedStandaloneTasksAsync()
+        {
+            var targetUsers = await _userManager.Users
+                .Where(u => u.Email == "user@example.pl" || u.Email == "manager@example.pl")
+                .ToListAsync();
+
+            var contacts = await _context.Contacts.ToListAsync();
+            var random = new Random();
+            var tasks = new List<Tasks>();
+
+            var taskStatuses = Enum.GetValues(typeof(TaskStatusEnum)).Cast<TaskStatusEnum>().ToArray();
+            var taskPriorities = Enum.GetValues(typeof(TaskPriorityEnum)).Cast<TaskPriorityEnum>().ToArray();
+
+            var taskTitles = new[] {
+                "Zadzwonić do klienta", "Wysłać ofertę", "Spotkanie handlowe",
+                "Przygotować umowę", "Sprawdzić płatności", "Follow-up po spotkaniu",
+                "Wysłać życzenia świąteczne", "Odpisać na maila"
+            };
+
+            foreach (var user in targetUsers)
+            {
+                for (int i = 1; i <= 40; i++)
+                {
+                    var dueAt = DateTime.UtcNow.AddDays(random.Next(-30, 30)).AddHours(random.Next(8, 16));
+
+                    var status = taskStatuses[random.Next(taskStatuses.Length)];
+                    var priority = taskPriorities[random.Next(taskPriorities.Length)];
+                    var title = taskTitles[random.Next(taskTitles.Length)];
+
+                    var contact = random.Next(100) < 50 && contacts.Any() ? contacts[random.Next(contacts.Count)] : null;
+
+                    var task = new Tasks
+                    {
+                        Title = $"{title} (Test #{i})",
+                        Description = "To jest automatycznie wygenerowane zadanie testowe dla kalendarza.",
+                        DueAt = dueAt,
+                        AssignedTo = user,
+                        Status = status,
+                        Priority = priority,
+                        Contact = contact,
+                        Deal = null,
+                        Notes = new List<TaskNote>()
+                    };
+
+                    tasks.Add(task);
+                    Console.WriteLine($"Prepared standalone task for {user.Email}: {task.Title}");
+                }
+            }
+
+            await _context.Tasks.AddRangeAsync(tasks);
+            await _context.SaveChangesAsync();
+            Console.WriteLine("Standalone tasks for User and Manager seeded successfully.");
         }
     }
 }
