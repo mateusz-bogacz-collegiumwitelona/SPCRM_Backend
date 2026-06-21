@@ -78,6 +78,7 @@ namespace Services.Services
                 {
                     Id = t.Id,
                     Title = t.Title,
+                    Description = t.Description,
                     DueAt = t.DueAt,
                     Status = t.Status.ToString(),
                     Priority = t.Priority.ToString()
