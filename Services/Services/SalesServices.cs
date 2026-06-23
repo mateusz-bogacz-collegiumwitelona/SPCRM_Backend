@@ -94,7 +94,7 @@ namespace Services.Services
             var query = await _context.Deals
                 .Where(d => d.Id == dealId)
                 .AsNoTracking()
-                .Select(d => new SaleDetailResponse
+                .Select(d => new 
                 {
                     Id = d.Id,
                     Name = d.Name,
@@ -105,7 +105,13 @@ namespace Services.Services
                     DecimalPlaces = d.Currency.DecimalPlaces,
                     OwnerFirstName = d.Owner.FirstName,
                     OwnerLastName = d.Owner.LastName,
-                    CompanyName = d.Company.Name
+                    CompanyName = d.Company.Name,
+                    InvoicedAmount = d.Invoices.Sum(i => i.TotalAmount),
+                    PaidAmount = d.Invoices.Sum(i => i.PaidAmount),
+                    IsOverduelInvoices = d.Invoices.Any(i => 
+                        (i.TotalAmount - i.PaidAmount) > 0 
+                        && i.DueDate < DateTime.UtcNow
+                    ),
                 })
                 .FirstOrDefaultAsync();
 
@@ -119,10 +125,34 @@ namespace Services.Services
                     );
             }
 
+            var paymentPercentage = query.Value > 0
+                ? (int)Math.Round(
+                    (decimal)query.PaidAmount / (decimal)query.Value * 100m,
+                    MidpointRounding.AwayFromZero)
+                : 0;
+
+            SaleDetailResponse response = new SaleDetailResponse 
+            {
+                Id = query.Id,
+                Name = query.Name,
+                Value = query.Value,
+                Status = query.Status,
+                CloseDate = query.CloseDate,
+                CurrencyCode = query.CurrencyCode,
+                DecimalPlaces = query.DecimalPlaces,
+                OwnerFirstName = query.OwnerFirstName,
+                OwnerLastName = query.OwnerLastName,
+                CompanyName = query.CompanyName,
+                InvoicedAmount = query.InvoicedAmount,
+                PaidAmount = query.PaidAmount,
+                IsOverduelInvoices = query.IsOverduelInvoices,
+                PaymentPercentage = paymentPercentage,
+            };
+
             return Result<SaleDetailResponse>.Success(
                 message: "Sale detail retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
-                data: query
+                data: response
                 );
         }
 
