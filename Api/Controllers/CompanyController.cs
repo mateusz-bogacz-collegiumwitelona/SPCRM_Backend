@@ -32,6 +32,8 @@ namespace Api.Controllers
         [EndpointSummary("Get data to global map")]
         [EndpointDescription("Show data of every company on the global map.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("map")]
         [Authorize(Roles = "Manager,User")]

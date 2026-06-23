@@ -22,6 +22,7 @@ namespace Api.Controllers
         [EndpointSummary("Send email to support")]
         [EndpointDescription("Sends an email to the support team with the provided details.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpPost]

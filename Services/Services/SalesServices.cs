@@ -1,9 +1,11 @@
 ﻿using Domain.Common;
+using Domain.Constants;
 using Domain.Enum;
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Helpers;
 using Services.Interfaces;
@@ -84,6 +86,43 @@ namespace Services.Services
                 });
 
             return await query.ToPagedResultAsync(pagged, _logger, "company_sales");
+        }
+
+        public async Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId)
+        {
+            var query = await _context.Deals
+                .Where(d => d.Id == dealId)
+                .AsNoTracking()
+                .Select(d => new SaleDetailResponse
+                {
+                    Id = d.Id,
+                    Name = d.Name,
+                    Value = d.Value,
+                    Status = d.Status.ToString(),
+                    CloseDate = d.CloseDate,
+                    CurrencyCode = d.Currency.Code,
+                    DecimalPlaces = d.Currency.DecimalPlaces,
+                    OwnerFirstName = d.Owner.FirstName,
+                    OwnerLastName = d.Owner.LastName,
+                    CompanyName = d.Company.Name
+                })
+                .FirstOrDefaultAsync();
+
+            if (query == null)
+            {
+                _logger.LogWarning("Sale with ID {DealId} not found", dealId);
+                return Result<SaleDetailResponse>.Failure(
+                    message: "Sale not found",
+                    errorCode: ErrorCodes.NotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                    );
+            }
+
+            return Result<SaleDetailResponse>.Success(
+                message: "Sale detail retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: query
+                ); 
         }
     }
 }

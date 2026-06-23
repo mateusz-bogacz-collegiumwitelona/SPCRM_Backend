@@ -52,5 +52,19 @@ namespace Api.Controllers
             var result = await _sales.GetSalesStatus();
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get sale detail")]
+        [EndpointDescription("Returns detailed information about a specific sale.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{dealId}")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetSaleDetailAsync([FromRoute] Guid dealId)
+        {
+            var result = await _sales.GetSaleDetailAsync(dealId);
+            return HandleResult(result);
+        }
     }
 }
