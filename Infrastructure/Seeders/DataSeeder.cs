@@ -476,6 +476,8 @@ namespace Infrastructure.Seeders
                 var unit = units[random.Next(units.Count)];
                 var grade = grades[random.Next(grades.Length)];
 
+                bool isPipe = type.Name.Contains("Rura", StringComparison.OrdinalIgnoreCase);
+
                 products.Add(new Product
                 {
                     Name = $"{type.Name} {grade} Wymiar {random.Next(10, 200)}x{random.Next(10, 200)}",
@@ -483,6 +485,9 @@ namespace Infrastructure.Seeders
                     Thickness = random.Next(10, 500),
                     Width = random.Next(100, 2000),
                     Length = random.Next(1000, 12000),
+
+                    Diameter = isPipe ? random.Next(20, 800) : null,
+
                     Weight = random.Next(10, 5000),
                     Unit = unit,
                     PricePerUnit = random.Next(1000, 10000) * 10000,
