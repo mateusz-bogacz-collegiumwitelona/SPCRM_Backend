@@ -23,5 +23,6 @@ namespace Services.Interfaces
             SearchRequest search,
             DealProductFilterRequest filter
         );
+        Task<Result<List<NoteResponse>>> GetDealNotesAsync(Guid dealId);
     }
 }

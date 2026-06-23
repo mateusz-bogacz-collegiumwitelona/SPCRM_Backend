@@ -172,7 +172,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<List<TaskNoteResponse>>> GetTaskNotesAsync(Guid taskId)
+        public async Task<Result<List<NoteResponse>>> GetTaskNotesAsync(Guid taskId)
         {
             bool isTaskExists = await _context.Tasks
                 .AsNoTracking()
@@ -180,7 +180,7 @@ namespace Services.Services
 
             if (!isTaskExists)
             {
-                return Result<List<TaskNoteResponse>>.Failure(
+                return Result<List<NoteResponse>>.Failure(
                     message: "Task for this note not found",
                     statusCode: StatusCodes.Status404NotFound
                 );
@@ -192,7 +192,7 @@ namespace Services.Services
                 .SelectMany(t => t.Notes)
                 .Where(n => !n.IsDeleted)
                 .OrderByDescending(n => n.CreatedAt)
-                .Select(n => new TaskNoteResponse
+                .Select(n => new NoteResponse
                 {
                     NoteId = n.Id,
                     Title = n.Title,
@@ -204,7 +204,7 @@ namespace Services.Services
                 })
                 .ToListAsync();
 
-            return Result<List<TaskNoteResponse>>.Success(
+            return Result<List<NoteResponse>>.Success(
                 data: query,
                 message: "Task notes retrieved successfully",
                 statusCode: StatusCodes.Status200OK

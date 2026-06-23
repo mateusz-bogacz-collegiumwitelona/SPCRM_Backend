@@ -3,6 +3,7 @@ using Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace Infrastructure
 {
@@ -50,14 +51,7 @@ namespace Infrastructure
                 .WithMany(u => u.Tasks)
                 .HasForeignKey(t => t.AssignedToId)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<ApplicationUser>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Company>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Contact>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Deal>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Tasks>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Product>().HasQueryFilter(x => !x.IsDeleted);
-
+           
             builder.Entity<CompanyAdress>()
                 .Property(a => a.AddressType)
                 .HasConversion<string>();
@@ -83,6 +77,24 @@ namespace Infrastructure
                 .HasValue<ContactNote>("Contact")
                 .HasValue<DealNote>("Deal")
                 .HasValue<TaskNote>("Task");
+
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+
+                if (entityType.BaseType != null) continue;
+
+                var isDeletedProperty = entityType.ClrType.GetProperty("IsDeleted");
+
+                if (isDeletedProperty != null && isDeletedProperty.PropertyType == typeof(bool))
+                {
+                    var parameter = Expression.Parameter(entityType.ClrType, "e");
+                    var property = Expression.Property(parameter, isDeletedProperty);
+                    var condition = Expression.Equal(property, Expression.Constant(false));
+                    var lambda = Expression.Lambda(condition, parameter);
+
+                    builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+                }
+            }
         }
     }
 }

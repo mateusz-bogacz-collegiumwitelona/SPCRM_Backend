@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Models;
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
@@ -174,6 +175,32 @@ namespace Services.Services
                 CurrencyCode = dp.Deal.Currency.Code,
                 DecimalPlaces = dp.Deal.Currency.DecimalPlaces
             });
+        }
+
+        public async Task<Result<List<NoteResponse>>> GetDealNotesAsync(Guid dealId)
+        {
+            var query = await _context.Notes
+                .OfType<DealNote>()
+                .AsNoTracking()
+                .Where(n => n.DealId == dealId)
+                .OrderByDescending(n => n.CreatedAt)
+                .Select(n => new NoteResponse
+                {
+                    NoteId = n.Id,
+                    Title = n.Title,
+                    Content = n.Content,
+                    AuthorFirstName = n.Author.FirstName,
+                    AuthorLastName = n.Author.LastName,
+                    CreatedAt = n.CreatedAt,
+                    UpdatedAt = n.UpdateAt ?? null,
+                })
+                .ToListAsync();
+
+            return Result<List<NoteResponse>>.Success(
+                data: query,
+                message: "Deal notes retrieved successfully",
+                statusCode: StatusCodes.Status200OK
+            );
         }
     }
 }

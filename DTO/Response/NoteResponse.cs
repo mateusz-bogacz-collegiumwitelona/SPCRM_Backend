@@ -1,6 +1,6 @@
 ﻿namespace DTO.Response
 {
-    public record TaskNoteResponse
+    public record NoteResponse
     {
         public required Guid NoteId { get; set; }
         public required String Title { get; init; }
