@@ -10,7 +10,7 @@ namespace Services.Interfaces
 
         Task<Result<CompanyDetailResponse>> Details(Guid id, Guid userId);
         Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(Guid companyId, PaggedRequest pagged);
-        Task<Result<PagedResult<GetCompanyResponse>>> GetCompanyListAsync(Guid userId,
+        Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(Guid userId,
             PaggedRequest pagged, CompanyFilterRequest filer, SortingRequest sorting, SearchRequest search
             );
     }

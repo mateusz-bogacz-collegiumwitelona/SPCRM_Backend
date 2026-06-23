@@ -1,6 +1,6 @@
 ﻿namespace DTO.Response
 {
-    public record GetCompanyResponse
+    public record CompanyResponse
     {
         public required Guid Id { get; init; }
         public required string Name { get; init; }

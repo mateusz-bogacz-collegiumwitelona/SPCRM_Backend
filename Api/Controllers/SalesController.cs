@@ -31,9 +31,9 @@ namespace Api.Controllers
             [FromQuery] SalesFilterRequest filter)
         {
             var result = await _sales.GetUserSales(
-                CurrentUserId, 
-                pagged, 
-                sorting, 
+                CurrentUserId,
+                pagged,
+                sorting,
                 search,
                 filter
                 );
@@ -66,5 +66,20 @@ namespace Api.Controllers
             var result = await _sales.GetSaleDetailAsync(dealId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get deal products")]
+        [EndpointDescription("Returns a paginated list of products associated with a specific deal.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("{dealId}/products")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetDealProductAsync([FromRoute] Guid dealId, [FromQuery] PaggedRequest pagged)
+        {
+            var result = await _sales.GetDealProductAsync(dealId, pagged);
+            return HandleResult(result);
+        }
     }
 }
+

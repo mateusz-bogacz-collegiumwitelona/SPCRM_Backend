@@ -114,7 +114,7 @@ namespace Services.Services
         }
 
 
-        public async Task<Result<PagedResult<GetCompanyResponse>>> GetCompanyListAsync(Guid userId,
+        public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(Guid userId,
             PaggedRequest pagged, CompanyFilterRequest filer, SortingRequest sorting, SearchRequest search
             )
         {
@@ -124,7 +124,7 @@ namespace Services.Services
                 .Where(c => !c.IsDeleted)
                 .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
                 .ApplySorting(sorting)
-                .Select(c => new GetCompanyResponse
+                .Select(c => new CompanyResponse
                 {
                     Id = c.Id,
                     Name = c.Name,

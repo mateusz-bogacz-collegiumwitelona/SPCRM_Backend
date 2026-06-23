@@ -138,7 +138,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get paginated list of companies")]
         [EndpointDescription("Show a paginated list of companies with optional filtering, sorting, and search term. Returns basic company details along with the headquarters address and the date of the last deal.")]
-        [ProducesResponseType(typeof(Result<PagedResult<GetCompanyResponse>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("list")]

@@ -122,7 +122,50 @@ namespace Services.Services
                 message: "Sale detail retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
                 data: query
-                ); 
+                );
+        }
+
+        public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
+            Guid dealId,
+            PaggedRequest pagged
+        )
+        {
+            var query = _context.DealProducts
+                .AsNoTracking()
+                .Include(dp => dp.Product)
+                    .ThenInclude(p => p.ProductType)
+                        .ThenInclude(pt => pt.Category)
+                .Include(dp => dp.Product)
+                    .ThenInclude(p => p.Unit)
+                .Include(dp => dp.Deal)
+                    .ThenInclude(d => d.Currency)
+                .Where(dp => dp.DealId == dealId);
+            
+            var pagedEntitiesResult = await query.ToPagedResultAsync(pagged, _logger, "deal_products");
+
+            return pagedEntitiesResult.MapData(dp => new DealProductResponse
+            {
+                ProductId = dp.ProductId,
+                Name = dp.Product.Name,
+                SteelGrade = dp.Product.SteelGrade,
+
+                Dimensions = DimensionsFormatter.Format(
+                    dp.Product.ProductType.Category.Name,
+                    dp.Product.ProductType.Name,
+                    dp.Product.Diameter,
+                    dp.Product.Thickness,
+                    dp.Product.Width,
+                    dp.Product.Length
+                ),
+
+                Quantity = dp.Quantity,
+                UnitSymbol = dp.Product.Unit.Symbol,
+                BaseUnitPrice = dp.Product.PricePerUnit,
+                UnitPrice = dp.UnitPrice,
+                TotalPrice = dp.Quantity * dp.UnitPrice,
+                CurrencyCode = dp.Deal.Currency.Code,
+                DecimalPlaces = dp.Deal.Currency.DecimalPlaces
+            });
         }
     }
 }
