@@ -127,7 +127,10 @@ namespace Services.Services
 
         public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
             Guid dealId,
-            PaggedRequest pagged
+            PaggedRequest pagged,
+            SortingRequest sorting,
+            SearchRequest search,
+            DealProductFilterRequest filter
         )
         {
             var query = _context.DealProducts
@@ -141,6 +144,11 @@ namespace Services.Services
                     .ThenInclude(d => d.Currency)
                 .Where(dp => dp.DealId == dealId);
             
+            query = query
+                .ApplySearch(search.SearchTerm ?? string.Empty)
+                .ApplyFilter(filter)
+                .ApplySorting(sorting);
+
             var pagedEntitiesResult = await query.ToPagedResultAsync(pagged, _logger, "deal_products");
 
             return pagedEntitiesResult.MapData(dp => new DealProductResponse

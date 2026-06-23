@@ -16,6 +16,12 @@ namespace Services.Interfaces
         Task<Result<List<String>>> GetSalesStatus();
         Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(Guid comapnyId, PaggedRequest pagged);
         Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId);
-        Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, PaggedRequest pagged);
+        Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
+            Guid dealId,
+            PaggedRequest pagged,
+            SortingRequest sorting,
+            SearchRequest search,
+            DealProductFilterRequest filter
+        );
     }
 }

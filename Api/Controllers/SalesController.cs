@@ -75,9 +75,14 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{dealId}/products")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetDealProductAsync([FromRoute] Guid dealId, [FromQuery] PaggedRequest pagged)
+        public async Task<IActionResult> GetDealProductAsync(
+            [FromRoute] Guid dealId,
+            [FromQuery] PaggedRequest pagged,
+            [FromQuery] SortingRequest sorting,
+            [FromQuery] SearchRequest search,
+            [FromQuery] DealProductFilterRequest filter)
         {
-            var result = await _sales.GetDealProductAsync(dealId, pagged);
+            var result = await _sales.GetDealProductAsync(dealId, pagged, sorting, search, filter   );
             return HandleResult(result);
         }
     }
