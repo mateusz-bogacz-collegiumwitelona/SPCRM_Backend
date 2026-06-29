@@ -37,5 +37,33 @@ namespace Api.Controllers
 
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get product categories")]
+        [EndpointDescription("Get a list of all product categories.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("categories")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetProductCategoryAsync()
+        {
+            var result = await _productServices.GetProductCategoryAsync();
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get product steel grades")]
+        [EndpointDescription("Get a list of all product steel grades.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [HttpGet("steel-grades")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetSteelGradesAsync()
+        {
+            var result = await _productServices.GetSteelGradesAsync();
+            return HandleResult(result);
+        }
     }
 }

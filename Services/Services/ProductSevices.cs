@@ -2,6 +2,7 @@
 using DTO.Request;
 using DTO.Response;
 using Infrastructure;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Helpers;
@@ -36,6 +37,7 @@ namespace Services.Services
                     Id = p.Id,
                     Name = p.Name,
                     SteelGrade = p.SteelGrade,
+                    Category = p.ProductType.Category.Name,
 
                     Dimensions = DimensionsFormatter.Format(
                          p.ProductType.Category.Name,
@@ -51,6 +53,38 @@ namespace Services.Services
                 });
 
             return await query.ToPagedResultAsync(pagged, _logger, "products");
+        }
+
+        public async Task<Result<IEnumerable<string>>> GetProductCategoryAsync()
+        {
+            var query = await _context.ProductCategories
+                .AsNoTracking()
+                .Select(pc => pc.Name)
+                .Distinct()
+                .OrderBy(pc => pc)
+                .ToListAsync();
+
+            return Result<IEnumerable<string>>.Success(
+                message: "Product categories reviewed successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: query
+                );
+        }
+
+        public async Task<Result<IEnumerable<string>>> GetSteelGradesAsync()
+        {
+            var query = await _context.Products
+                .AsNoTracking()
+                .Select(p => p.SteelGrade)
+                .Distinct()
+                .OrderBy(p => p)
+                .ToListAsync();
+
+            return Result<IEnumerable<string>>.Success(
+                message: "Product categories reviewed successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: query
+                );
         }
     }
 }
