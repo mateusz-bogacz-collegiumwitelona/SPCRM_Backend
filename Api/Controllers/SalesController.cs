@@ -80,7 +80,7 @@ namespace Api.Controllers
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] DealProductFilterRequest filter)
+            [FromQuery] ProductFilterRequest filter)
         {
             var result = await _sales.GetDealProductAsync(dealId, pagged, sorting, search, filter   );
             return HandleResult(result);

@@ -5,51 +5,47 @@ namespace Services.Helpers
 {
     internal static class ProductQueryExtension
     {
-        internal static IQueryable<DealProduct> ApplySearch(this IQueryable<DealProduct> query, string? searchTerm)
+        internal static IQueryable<Product> ApplySearch(this IQueryable<Product> query, string? searchTerm)
         {
             if (string.IsNullOrWhiteSpace(searchTerm)) return query;
 
             searchTerm = searchTerm.ToLower();
 
-            return query.Where(dp =>
-                dp.Product.Name.ToLower().Contains(searchTerm) ||
-                dp.Product.SteelGrade.ToLower().Contains(searchTerm) ||
-                dp.Product.ProductType.Category.Name.ToLower().Contains(searchTerm)
+            return query.Where(p =>
+                p.Name.ToLower().Contains(searchTerm) ||
+                p.SteelGrade.ToLower().Contains(searchTerm) ||
+                p.ProductType.Category.Name.ToLower().Contains(searchTerm)
             );
         }
 
-        internal static IQueryable<DealProduct> ApplyFilter(this IQueryable<DealProduct> query, DealProductFilterRequest filter)
+        internal static IQueryable<Product> ApplyFilter(this IQueryable<Product> query, ProductFilterRequest filter)
         {
             if (!string.IsNullOrWhiteSpace(filter.ProductCategory))
-                query = query.Where(dp => dp.Product.ProductType.Category.Name.ToLower() == filter.ProductCategory.ToLower());
+                query = query.Where(p => p.ProductType.Category.Name.ToLower() == filter.ProductCategory.ToLower());
 
             if (!string.IsNullOrWhiteSpace(filter.SteelGrade))
-                query = query.Where(dp => dp.Product.SteelGrade.ToLower() == filter.SteelGrade.ToLower());
+                query = query.Where(p => p.SteelGrade.ToLower() == filter.SteelGrade.ToLower());
 
             return query;
         }
 
-        internal static IQueryable<DealProduct> ApplySorting(this IQueryable<DealProduct> query, SortingRequest request)
+        internal static IQueryable<Product> ApplySorting(this IQueryable<Product> query, SortingRequest request)
         {
             return request.SortBy?.ToLower() switch
             {
                 "name" => request.SortDescending
-                    ? query.OrderByDescending(dp => dp.Product.Name)
-                    : query.OrderBy(dp => dp.Product.Name),
+                    ? query.OrderByDescending(p => p.Name)
+                    : query.OrderBy(p => p.Name),
 
                 "steelgrade" => request.SortDescending
-                    ? query.OrderByDescending(dp => dp.Product.SteelGrade)
-                    : query.OrderBy(dp => dp.Product.SteelGrade),
+                    ? query.OrderByDescending(p => p.SteelGrade)
+                    : query.OrderBy(p => p.SteelGrade),
 
                 "quantity" => request.SortDescending
-                    ? query.OrderByDescending(dp => dp.Quantity)
-                    : query.OrderBy(dp => dp.Quantity),
+                    ? query.OrderByDescending(p => p.StockQuantity)
+                    : query.OrderBy(p => p.StockQuantity),
 
-                "totalprice" => request.SortDescending
-                    ? query.OrderByDescending(dp => dp.Quantity * dp.UnitPrice)
-                    : query.OrderBy(dp => dp.Quantity * dp.UnitPrice),
-
-                _ => query.OrderBy(dp => dp.Product.Name)
+                _ => query.OrderBy(p => p.Name)
             };
         }
     }

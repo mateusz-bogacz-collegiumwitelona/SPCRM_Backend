@@ -21,7 +21,7 @@ namespace Services.Interfaces
             PaggedRequest pagged,
             SortingRequest sorting,
             SearchRequest search,
-            DealProductFilterRequest filter
+            ProductFilterRequest filter
         );
         Task<Result<List<NoteResponse>>> GetDealNotesAsync(Guid dealId);
     }

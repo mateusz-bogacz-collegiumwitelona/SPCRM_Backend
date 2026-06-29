@@ -161,7 +161,7 @@ namespace Services.Services
             PaggedRequest pagged,
             SortingRequest sorting,
             SearchRequest search,
-            DealProductFilterRequest filter
+            ProductFilterRequest filter
         )
         {
             var query = _context.DealProducts
