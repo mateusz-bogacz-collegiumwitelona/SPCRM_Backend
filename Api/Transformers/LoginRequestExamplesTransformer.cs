@@ -16,8 +16,9 @@ namespace Api.Transformers
             if (context.Description.ActionDescriptor is ControllerActionDescriptor actionDescriptor &&
                 (actionDescriptor.ActionName == "Login" || actionDescriptor.ActionName == "LoginAsync"))
             {
-                if (operation.RequestBody != null &&
-                    operation.RequestBody.Content.TryGetValue("application/json", out var content))
+                if (operation?.RequestBody?.Content != null &&
+                    operation.RequestBody.Content.TryGetValue("application/json", out var content) &&
+                    content != null)
                 {
                     content.Examples = new Dictionary<string, IOpenApiExample>
                     {

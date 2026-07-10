@@ -92,7 +92,7 @@ namespace Services.Helpers
             if (!result.IsSuccess || result.Data == null)
             {
                 return Result<PagedResult<TDestination>>.Failure(
-                    message: result.Message,
+                    message: result.Message ?? "Operation failed",
                     statusCode: result.StatusCode,
                     errors: result.Errors
                     );
@@ -110,7 +110,7 @@ namespace Services.Helpers
             };
 
             return Result<PagedResult<TDestination>>.Success(
-                message: result.Message,
+                message: result.Message ?? "Operation failed",
                 statusCode: result.StatusCode,
                 data: mappedPagedData
                 );

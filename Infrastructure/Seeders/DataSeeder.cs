@@ -189,8 +189,10 @@ namespace Infrastructure.Seeders
 
         private async Task SeedCompaniesAndContactsAsync()
         {
-            var user = await _userManager.FindByEmailAsync("user@example.pl");
-            var manager = await _userManager.FindByEmailAsync("manager@example.pl");
+            var user = await _userManager.FindByEmailAsync("user@example.pl")
+                ?? throw new InvalidOperationException("Seeding failed: Default user not found."); ;
+            var manager = await _userManager.FindByEmailAsync("manager@example.pl")
+                ?? throw new InvalidOperationException("Seeding failed: Default admin not found."); ;
 
             var companies = new List<Company>
             {
