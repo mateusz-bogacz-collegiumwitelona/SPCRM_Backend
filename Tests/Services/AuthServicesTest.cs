@@ -12,11 +12,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
-using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
-using TUnit.Core.Interfaces;
-using static Microsoft.ApplicationInsights.MetricDimensionNames.TelemetryContext;
 
 namespace Tests.Services
 {
@@ -84,7 +81,7 @@ namespace Tests.Services
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseNpgsql(_connectionString, options =>
                 {
-                    options.UseNetTopologySuite(); 
+                    options.UseNetTopologySuite();
                 })
                 .Options;
 
