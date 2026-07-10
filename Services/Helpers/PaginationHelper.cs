@@ -28,7 +28,7 @@ namespace Services.Helpers
                 {
                     var emptyPage = CreateEmptyPagedResult<T>(pagged);
 
-                    return Result<PagedResult<T>>.Failure(
+                    return Result<PagedResult<T>>.Success(
                         message: $"No {entityName} found.",
                         statusCode: StatusCodes.Status200OK,
                         data: emptyPage

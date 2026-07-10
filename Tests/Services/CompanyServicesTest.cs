@@ -85,6 +85,7 @@ namespace Tests.Services
         }
 
         // ─── Map ─────────────────────────────────────────────────
+       
         [Test]
         public async Task Map_WhenSearchTermIsNull_ReturnsCompaniesWithMappedCoordinates()
         {
@@ -205,6 +206,7 @@ namespace Tests.Services
         }
 
         // ─── Details ─────────────────────────────────────────────────
+       
         [Test]
         public async Task Details_WhenCompanyDoesNotExist_Returns404NotFound()
         {
@@ -266,6 +268,7 @@ namespace Tests.Services
         }
 
         // ─── GetCompanyAddresses ─────────────────────────────────────────────────
+        
         [Test]
         public async Task GetCompanyAddresses_WhenCompanyHasAddresses_ReturnsMappedCoordinatesAndFiltersProperly()
         {
@@ -415,6 +418,7 @@ namespace Tests.Services
         }
 
         // ─── GetCompanyListAsync ─────────────────────────────────────────────────
+       
         [Test]
         public async Task GetCompanyListAsync_ValidatesHeadquartersAndOwnerVisibility()
         {
