@@ -22,6 +22,8 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
 
+        private string _currentSchema = null!;
+
         [Before(Class)]
         [Obsolete]
         public static async Task SetupClassAsync()
@@ -57,17 +59,27 @@ namespace Tests.Services
         [Before(Test)]
         public async Task SetupAsync()
         {
+            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
             using var conn = new NpgsqlConnection(_connectionString);
+
             await conn.OpenAsync();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseNpgsql(_connectionString, options =>
                 {
                     options.UseNetTopologySuite();
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
+            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
             await _contextMock.Database.EnsureCreatedAsync();
 
             _loggerMock = new LoggerFactory().CreateLogger<CompanyServices>();
@@ -78,14 +90,17 @@ namespace Tests.Services
         [After(Test)]
         public async Task CleanupAsync()
         {
-            if (_contextMock != null)
-            {
-                await _contextMock.DisposeAsync();
-            }
+            await _contextMock.DisposeAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         // ─── Map ─────────────────────────────────────────────────
-       
+
         [Test]
         public async Task Map_WhenSearchTermIsNull_ReturnsCompaniesWithMappedCoordinates()
         {
@@ -751,7 +766,7 @@ namespace Tests.Services
                 Email = $"f_{uniqueSuffix}@test.pl"
             };
 
-            var now = DateTime.UtcNow;
+            var referenceDate = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
 
             var deletedCompany = new Company
             {
@@ -761,7 +776,7 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 IsDeleted = true,
-                CreatedAt = now
+                CreatedAt = referenceDate
             };
 
             var deletedAddress = new CompanyAdress
@@ -782,7 +797,7 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 IsDeleted = false,
-                CreatedAt = now.AddDays(-10)
+                CreatedAt = referenceDate.AddDays(-10)
             };
 
             var oldAddress = new CompanyAdress
@@ -803,7 +818,7 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 IsDeleted = false,
-                CreatedAt = now.AddDays(-2)
+                CreatedAt = referenceDate.AddDays(-2)
             };
 
             var validAddress = new CompanyAdress
@@ -825,8 +840,8 @@ namespace Tests.Services
 
             var filter = new CompanyFilterRequest
             {
-                CreatedAtFrom = now.AddDays(-5),
-                CreatedAtTo = now
+                CreatedAtFrom = referenceDate.AddDays(-5),
+                CreatedAtTo = referenceDate.AddDays(1)
             };
 
             var sorting = new SortingRequest();

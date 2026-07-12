@@ -10,9 +10,6 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Interfaces;
 using Services.Services;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
@@ -28,6 +25,8 @@ namespace Tests.Services
         protected SupportServices _supportServicesMock = null!;
         protected ILogger<SupportServices> _loggerMock = null!;
         protected FakeEmailSender _fakeEmailSender = null!;
+
+        private string _currentSchema = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -64,19 +63,28 @@ namespace Tests.Services
         [Before(Test)]
         public async Task SetupAsync()
         {
+            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
             using var conn = new NpgsqlConnection(_connectionString);
+
             await conn.OpenAsync();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseNpgsql(_connectionString, options =>
                 {
                     options.UseNetTopologySuite();
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
+            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
             await _contextMock.Database.EnsureCreatedAsync();
-
 
             _loggerMock = new LoggerFactory().CreateLogger<SupportServices>();
             _fakeEmailSender = new FakeEmailSender();
@@ -90,9 +98,9 @@ namespace Tests.Services
                 .Build();
 
             _supportServicesMock = new SupportServices(
-                _contextMock, 
-                configuration, 
-                _fakeEmailSender, 
+                _contextMock,
+                configuration,
+                _fakeEmailSender,
                 _loggerMock
             );
         }
@@ -100,10 +108,13 @@ namespace Tests.Services
         [After(Test)]
         public async Task CleanupAsync()
         {
-            if (_contextMock != null)
-            {
-                await _contextMock.DisposeAsync();
-            }
+            await _contextMock.DisposeAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         // ─── SendEmailToSupport ─────────────────────────────────────────────────

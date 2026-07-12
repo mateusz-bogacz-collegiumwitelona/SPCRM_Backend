@@ -21,6 +21,8 @@ namespace Tests.Services
         protected SalesServices _salesServicesMock = null!;
         protected ILogger<SalesServices> _loggerMock = null!;
 
+        private string _currentSchema = null!;
+
         [Before(Class)]
         [Obsolete]
         public static async Task SetupClassAsync()
@@ -56,17 +58,27 @@ namespace Tests.Services
         [Before(Test)]
         public async Task SetupAsync()
         {
+            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
             using var conn = new NpgsqlConnection(_connectionString);
+
             await conn.OpenAsync();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseNpgsql(_connectionString, options =>
                 {
                     options.UseNetTopologySuite();
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
+            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
             await _contextMock.Database.EnsureCreatedAsync();
 
             _loggerMock = new LoggerFactory().CreateLogger<SalesServices>();
@@ -77,10 +89,13 @@ namespace Tests.Services
         [After(Test)]
         public async Task CleanupAsync()
         {
-            if (_contextMock != null)
-            {
-                await _contextMock.DisposeAsync();
-            }
+            await _contextMock.DisposeAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         // ─── GetUserSales ─────────────────────────────────────────────────

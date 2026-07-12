@@ -23,6 +23,7 @@ namespace Tests.Services
         protected UserManager<ApplicationUser> _userManagerMock = null!;
         protected RoleManager<IdentityRole<Guid>> _roleManagerMock = null!;
         protected ILogger<AuthServices> _loggerMock = null!;
+        private string _currentSchema = null!;
 
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
@@ -65,8 +66,16 @@ namespace Tests.Services
         [Before(Test)]
         public async Task SetupAsync()
         {
+            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
             using var conn = new NpgsqlConnection(_connectionString);
+
             await conn.OpenAsync();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
 
             var configuration = new ConfigurationBuilder()
              .AddInMemoryCollection(new Dictionary<string, string?>
@@ -82,10 +91,12 @@ namespace Tests.Services
                 .UseNpgsql(_connectionString, options =>
                 {
                     options.UseNetTopologySuite();
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
+            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
             await _contextMock.Database.EnsureCreatedAsync();
 
             var userStore = new UserStore<ApplicationUser, IdentityRole<Guid>, AppDbContext, Guid>(_contextMock);
@@ -133,10 +144,13 @@ namespace Tests.Services
         [After(Test)]
         public async Task CleanupAsync()
         {
-            if (_contextMock != null)
-            {
-                await _contextMock.DisposeAsync();
-            }
+            await _contextMock.DisposeAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         [Test]
