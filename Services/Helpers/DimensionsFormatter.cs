@@ -1,13 +1,13 @@
 ﻿namespace Services.Helpers
 {
-    internal static class DimensionsFormatter
+    public static class DimensionsFormatter
     {
-        internal static string Format(string category, string type, int? diameter, int thickness, int width, int length)
+        public static string Format(string category, string type, int? diameter, int thickness, int width, int length)
         {
-            if (category.Contains("Rury", StringComparison.OrdinalIgnoreCase) || diameter.HasValue)
+            if (category.Contains("Rury", StringComparison.OrdinalIgnoreCase))
             {
-                string d = diameter.HasValue 
-                    ? diameter.Value.ToString() 
+                string d = diameter.HasValue
+                    ? diameter.Value.ToString()
                     : (width > 0 ? width.ToString() : "?");
 
                 return $"fi {d} x {thickness} (L={length})";
