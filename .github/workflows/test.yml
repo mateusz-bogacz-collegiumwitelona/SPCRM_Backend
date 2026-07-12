@@ -1,0 +1,29 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ "main", "stage" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore SPCRM_Backend.slnx  
+
+      - name: Build
+        run: dotnet build  SPCRM_Backend.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet run --project Tests/Tests.csproj --no-build --configuration Release --verbosity normal --property:TestingPlatformDotnetTestSupport=true
