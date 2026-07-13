@@ -166,25 +166,17 @@ namespace Infrastructure.Seeders
 
         private async Task SeedProductCatalogAsync()
         {
-            var catPlaskie = new ProductCategory { Name = "Wyroby Płaskie", Description = "Blachy zimno i gorącowalcowane" };
-            var catDlugie = new ProductCategory { Name = "Wyroby Długie", Description = "Pręty, profile, kątowniki" };
-            var catRury = new ProductCategory { Name = "Rury", Description = "Rury stalowe bez szwu i spawane" };
-
-            await _context.ProductCategories.AddRangeAsync(catPlaskie, catDlugie, catRury);
-
-            var types = new List<ProductType>
+            var categories = new List<ProductCategory>
             {
-                new() { Name = "Blacha Zimnowalcowana", Description = "Podstawowa blacha zimnowalcowana", Category = catPlaskie },
-                new() { Name = "Blacha Ocynkowana", Description = "Blacha pokryta warstwą cynku", Category = catPlaskie },
-                new() { Name = "Pręt Żebrowany", Description = "Pręt zbrojeniowy", Category = catDlugie },
-                new() { Name = "Profil Zamknięty", Description = "Stalowy profil konstrukcyjny", Category = catDlugie },
-                new() { Name = "Rura Stalowa Bezszwowa", Description = "Rura do zastosowań ciśnieniowych", Category = catRury },
-                new() { Name = "Rura Stalowa Spawana", Description = "Standardowa rura spawana", Category = catRury }
+                new() { Name = "Blachy i Wyroby Płaskie", Description = "Blachy zimno i gorącowalcowane", Category = ProductCategoryEnum.Standard },
+                new() { Name = "Pręty", Description = "Pręty zbrojeniowe i gładkie", Category = ProductCategoryEnum.Bar },
+                new() { Name = "Profile i Kątowniki", Description = "Profile zamknięte i otwarte", Category = ProductCategoryEnum.Profile },
+                new() { Name = "Rury", Description = "Rury stalowe bez szwu i spawane", Category = ProductCategoryEnum.Pipe }
             };
 
-            await _context.ProductTypes.AddRangeAsync(types);
+            await _context.ProductCategories.AddRangeAsync(categories);
             await _context.SaveChangesAsync();
-            Console.WriteLine("Product categories and types seeded successfully.");
+            Console.WriteLine("Product categories seeded successfully.");
         }
 
         private async Task SeedCompaniesAndContactsAsync()
@@ -314,10 +306,10 @@ namespace Infrastructure.Seeders
                     },
                     Notes = new List<ContactNote>
                     {
-                        new() { 
-                            Title = "Problemy z płatnościami", 
-                            Content = "Pani Anna ostrzegała, że w tym miesiącu mogą mieć kilkudniowy poślizg z przelewami z powodu audytu.", 
-                            Author = manager! 
+                        new() {
+                            Title = "Problemy z płatnościami",
+                            Content = "Pani Anna ostrzegała, że w tym miesiącu mogą mieć kilkudniowy poślizg z przelewami z powodu audytu.",
+                            Author = manager!
                         }
                     }
                 },
@@ -465,7 +457,7 @@ namespace Infrastructure.Seeders
 
         private async Task SeedProductsAsync()
         {
-            var types = await _context.ProductTypes.ToListAsync();
+            var categories = await _context.ProductCategories.ToListAsync();
             var units = await _context.UnitsOfMeasure.ToListAsync();
             var random = new Random();
             var products = new List<Product>();
@@ -474,15 +466,15 @@ namespace Infrastructure.Seeders
 
             for (int i = 1; i <= 50; i++)
             {
-                var type = types[random.Next(types.Count)];
+                var category = categories[random.Next(categories.Count)];
                 var unit = units[random.Next(units.Count)];
                 var grade = grades[random.Next(grades.Length)];
 
-                bool isPipe = type.Name.Contains("Rura", StringComparison.OrdinalIgnoreCase);
+                bool isPipe = category.Category == ProductCategoryEnum.Pipe;
 
                 products.Add(new Product
                 {
-                    Name = $"{type.Name} {grade} Wymiar {random.Next(10, 200)}x{random.Next(10, 200)}",
+                    Name = $"{category.Name} {grade} Wymiar {random.Next(10, 200)}x{random.Next(10, 200)}",
                     SteelGrade = grade,
                     Thickness = random.Next(10, 500),
                     Width = random.Next(100, 2000),
@@ -494,7 +486,8 @@ namespace Infrastructure.Seeders
                     Unit = unit,
                     PricePerUnit = random.Next(1000, 10000) * 10000,
                     StockQuantity = random.Next(0, 500),
-                    ProductType = type
+
+                    ProductCategory = category
                 });
 
                 Console.WriteLine($"Prepared product {i}: {products.Last().Name}");
@@ -564,8 +557,8 @@ namespace Infrastructure.Seeders
                         InvoiceNumber = $"FV/{DateTime.Now.Year}/{DateTime.Now.Month:D2}/{i:D3}",
                         TotalAmount = deal.Value,
                         PaidAmount = isPaid ? deal.Value : 0,
-                        IssueDate = deal.CloseDate.AddDays(-14), 
-                        DueDate = deal.CloseDate, 
+                        IssueDate = deal.CloseDate.AddDays(-14),
+                        DueDate = deal.CloseDate,
                         PaymentDate = isPaid ? deal.CloseDate.AddDays(-2) : null,
                         Currency = deal.Currency,
                         Company = deal.Company,

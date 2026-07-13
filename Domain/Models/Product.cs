@@ -17,8 +17,8 @@ namespace Domain.Models
         public long PricePerUnit { get; set; }
         public int StockQuantity { get; set; }
 
-        public Guid ProductTypeId { get; set; }
-        public ProductType ProductType { get; set; } = null!;
+        public Guid ProductCategoryId { get; set; }
+        public ProductCategory ProductCategory { get; set; } = null!;
 
         public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
     }

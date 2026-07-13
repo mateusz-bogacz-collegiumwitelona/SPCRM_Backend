@@ -167,14 +167,13 @@ namespace Services.Services
             var query = _context.DealProducts
                 .AsNoTracking()
                 .Include(dp => dp.Product)
-                    .ThenInclude(p => p.ProductType)
-                        .ThenInclude(pt => pt.Category)
+                    .ThenInclude(p => p.ProductCategory)
                 .Include(dp => dp.Product)
                     .ThenInclude(p => p.Unit)
                 .Include(dp => dp.Deal)
                     .ThenInclude(d => d.Currency)
                 .Where(dp => dp.DealId == dealId);
-            
+
             query = query
                 .ApplySearch(search.SearchTerm ?? string.Empty)
                 .ApplyFilter(filter)
@@ -189,8 +188,7 @@ namespace Services.Services
                 SteelGrade = dp.Product.SteelGrade,
 
                 Dimensions = DimensionsFormatter.Format(
-                    dp.Product.ProductType.Category.Name,
-                    dp.Product.ProductType.Name,
+                    dp.Product.ProductCategory.Category,
                     dp.Product.Diameter,
                     dp.Product.Thickness,
                     dp.Product.Width,

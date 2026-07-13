@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Enum;
+using Domain.Models;
 using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -119,17 +120,10 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"Stal_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych"
+                Description = "Kategoria dla produktów stalowych",
+                Category = ProductCategoryEnum.Standard
             };
 
-            var type = new ProductType
-            {
-                Id = Guid.NewGuid(),
-                Name = "Rura",
-                CategoryId = category.Id,
-                Category = category,
-                Description = "Typ dla produktów stalowych"
-            };
 
             var product = new Product
             {
@@ -145,13 +139,12 @@ namespace Tests.Services
                 StockQuantity = 100,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type
+                ProductCategoryId = category.Id,
+                ProductCategory = category
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.ProductCategories.Add(category);
-            _contextMock.ProductTypes.Add(type);
             _contextMock.Products.Add(product);
             await _contextMock.SaveChangesAsync();
 
@@ -201,16 +194,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"Kat_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych"
-            };
-
-            var type = new ProductType
-            {
-                Id = Guid.NewGuid(),
-                Name = "Profil",
-                CategoryId = category.Id,
-                Category = category,
-                Description = "Typ dla produktów stalowych"
+                Description = "Kategoria dla produktów stalowych",
+                Category = ProductCategoryEnum.Standard
             };
 
             var targetProduct = new Product
@@ -226,8 +211,8 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type
+                ProductCategoryId = category.Id,
+                ProductCategory = category
             };
 
             var otherProduct = new Product
@@ -243,13 +228,12 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type
+                ProductCategoryId = category.Id,
+                ProductCategory = category
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.ProductCategories.Add(category);
-            _contextMock.ProductTypes.Add(type);
             _contextMock.Products.AddRange(targetProduct, otherProduct);
             await _contextMock.SaveChangesAsync();
 
@@ -270,7 +254,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetProductListAsync_WhenNoProductsMatch_ReturnsEmptyListWithSuccessStatus() // Zmieniona nazwa
+        public async Task GetProductListAsync_WhenNoProductsMatch_ReturnsEmptyListWithSuccessStatus()
         {
             // Arrange
             var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
@@ -307,32 +291,16 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"Stal_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych"
+                Description = "Kategoria dla produktów stalowych",
+                Category = ProductCategoryEnum.Standard
             };
 
             var catAlu = new ProductCategory
             {
                 Id = Guid.NewGuid(),
                 Name = $"Aluminium_{uniqueSuffix}",
-                Description = "Kategoria dla produktów aluminiowych"
-            };
-
-            var typeSteel = new ProductType
-            {
-                Id = Guid.NewGuid(),
-                Name = "Rura",
-                CategoryId = catSteel.Id,
-                Category = catSteel,
-                Description = "Typ dla produktów stalowych"
-            };
-
-            var typeAlu = new ProductType
-            {
-                Id = Guid.NewGuid(),
-                Name = "Profil",
-                CategoryId = catAlu.Id,
-                Category = catAlu,
-                Description = "Typ dla produktów aluminiowych"
+                Description = "Kategoria dla produktów aluminiowych",
+                Category = ProductCategoryEnum.Profile
             };
 
             var p1 = new Product
@@ -346,8 +314,8 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = typeSteel.Id,
-                ProductType = typeSteel
+                ProductCategory = catSteel,
+                ProductCategoryId = catSteel.Id
             };
 
             var p2 = new Product
@@ -361,9 +329,8 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId =
-                typeSteel.Id,
-                ProductType = typeSteel
+                ProductCategory = catSteel,
+                ProductCategoryId = catSteel.Id
             };
 
             var p3 = new Product
@@ -377,13 +344,12 @@ namespace Tests.Services
                 StockQuantity = 100,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = typeAlu.Id,
-                ProductType = typeAlu
+                ProductCategory = catAlu,
+                ProductCategoryId = catAlu.Id
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.ProductCategories.AddRange(catSteel, catAlu);
-            _contextMock.ProductTypes.AddRange(typeSteel, typeAlu);
             _contextMock.Products.AddRange(p1, p2, p3);
             await _contextMock.SaveChangesAsync();
 
@@ -504,18 +470,9 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"Cat_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych"
+                Description = "Kategoria dla produktów stalowych",
+                Category = ProductCategoryEnum.Standard
             };
-
-            var type = new ProductType
-            {
-                Id = Guid.NewGuid(),
-                Name = "Typ",
-                CategoryId = category.Id,
-                Category = category,
-                Description = $"{uniqueSuffix}"
-            };
-
 
             var p1 = new Product
             {
@@ -524,8 +481,8 @@ namespace Tests.Services
                 SteelGrade = $"S355_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type,
+                ProductCategoryId = category.Id,
+                ProductCategory = category,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -538,8 +495,8 @@ namespace Tests.Services
                 SteelGrade = $"AW6060_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type,
+                ProductCategoryId = category.Id,
+                ProductCategory = category,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -552,8 +509,8 @@ namespace Tests.Services
                 SteelGrade = $"S355_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type,
+                ProductCategoryId = category.Id,
+                ProductCategory = category,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -566,8 +523,8 @@ namespace Tests.Services
                 SteelGrade = $"S235_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type,
+                ProductCategoryId = category.Id,
+                ProductCategory = category,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -575,7 +532,6 @@ namespace Tests.Services
 
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.ProductCategories.Add(category);
-            _contextMock.ProductTypes.Add(type);
             _contextMock.Products.AddRange(p1, p2, p3, p4);
             await _contextMock.SaveChangesAsync();
 

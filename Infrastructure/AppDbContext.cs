@@ -23,7 +23,6 @@ namespace Infrastructure
         public DbSet<Note> Notes { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductCategory> ProductCategories { get; set; }
-        public DbSet<ProductType> ProductTypes { get; set; }
         public DbSet<Tasks> Tasks { get; set; }
         public DbSet<UnitOfMeasure> UnitsOfMeasure { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
@@ -70,6 +69,10 @@ namespace Infrastructure
 
             builder.Entity<ContactDetail>()
                 .Property(t => t.Type)
+                .HasConversion<string>();
+
+            builder.Entity<ProductCategory>()
+                .Property(t => t.Category)
                 .HasConversion<string>();
 
             builder.Entity<Note>()

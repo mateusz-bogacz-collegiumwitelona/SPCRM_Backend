@@ -740,16 +740,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"Cat_{uniqueSuffix}",
-                Description = "Opis kategorii"
-            };
-
-            var type = new ProductType
-            {
-                Id = Guid.NewGuid(),
-                Name = "Profil",
-                CategoryId = category.Id,
-                Category = category,
-                Description = "Dwdadadasd"
+                Description = "Opis kategorii",
+                Category = ProductCategoryEnum.Standard
             };
 
             var product = new Product
@@ -763,8 +755,8 @@ namespace Tests.Services
                 PricePerUnit = 10000,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type
+                ProductCategoryId = category.Id,
+                ProductCategory = category
             };
 
             var dealProduct = new DealProduct
@@ -784,7 +776,6 @@ namespace Tests.Services
             _contextMock.Deals.Add(deal);
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.ProductCategories.Add(category);
-            _contextMock.ProductTypes.Add(type);
             _contextMock.Products.Add(product);
             _contextMock.DealProducts.Add(dealProduct);
             await _contextMock.SaveChangesAsync();
@@ -893,16 +884,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"Kat2_{uniqueSuffix}",
-                Description = "Opis kategorii"
-            };
-
-            var type = new ProductType
-            {
-                Id = Guid.NewGuid(),
-                Name = "Rura",
-                CategoryId = category.Id,
-                Category = category,
-                Description = "Opis typu produktu"
+                Description = "Opis kategorii",
+                Category = ProductCategoryEnum.Standard
             };
 
             var product = new Product
@@ -912,8 +895,8 @@ namespace Tests.Services
                 SteelGrade = "S355",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductTypeId = type.Id,
-                ProductType = type
+                ProductCategoryId = category.Id,
+                ProductCategory = category
             };
 
             var targetDealProduct = new DealProduct
@@ -942,7 +925,6 @@ namespace Tests.Services
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.ProductCategories.Add(category);
-            _contextMock.ProductTypes.Add(type);
             _contextMock.Products.Add(product);
             _contextMock.DealProducts.AddRange(targetDealProduct, otherDealProduct);
             await _contextMock.SaveChangesAsync();

@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Enum;
 
 namespace Domain.Models
 {
@@ -6,8 +7,7 @@ namespace Domain.Models
     {
         public required String Name { get; set; }
         public required String Description { get; set; }
-
-        public ICollection<ProductType> ProductTypes { get; set; } = new List<ProductType>();
-
+        public ProductCategoryEnum Category { get; set; }
+        public ICollection<Product> Products { get; set; } = new List<Product>();
     }
 }

@@ -37,16 +37,15 @@ namespace Services.Services
                     Id = p.Id,
                     Name = p.Name,
                     SteelGrade = p.SteelGrade,
-                    Category = p.ProductType.Category.Name,
+                    Category = p.ProductCategory.Name,
 
                     Dimensions = DimensionsFormatter.Format(
-                         p.ProductType.Category.Name,
-                         p.ProductType.Name,
-                         p.Diameter,
-                         p.Thickness,
-                         p.Width,
-                         p.Length
-                         ),
+                     p.ProductCategory.Category,
+                     p.Diameter,
+                     p.Thickness,
+                     p.Width,
+                     p.Length
+                    ),
 
                     StockQuantity = p.StockQuantity,
                     UnitSymbol = p.Unit.Symbol
