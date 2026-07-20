@@ -10,6 +10,9 @@ namespace Api.Controllers
 {
     [Route("api/contacts")]
     [ApiController]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class ContactController : AuthControllerBase
     {
         private IContactServices _contact;
@@ -22,9 +25,6 @@ namespace Api.Controllers
         [EndpointSummary("Get contacts")]
         [EndpointDescription("Show all contacts.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
 
@@ -43,9 +43,6 @@ namespace Api.Controllers
         [EndpointSummary("Get companies")]
         [EndpointDescription("Show all companies in contact list.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("companies")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetCompaniesAsync()
@@ -57,9 +54,6 @@ namespace Api.Controllers
         [EndpointSummary("Get contact detail")]
         [EndpointDescription("Show detail of a specific contact.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{contactId}")]
         [Authorize(Roles = "User,Manager")] 
         public async Task<IActionResult> GetContactDetailAsync([FromRoute] Guid contactId)
@@ -70,10 +64,6 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact ways")]
         [EndpointDescription("Show all ways to contact a specific contact.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{contactId}/ways")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactWaysAsync([FromRoute] Guid contactId)
@@ -84,10 +74,6 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact notes")]
         [EndpointDescription("Show all notes for a specific contact.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{contactId}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactNotesAsync(

@@ -11,6 +11,9 @@ namespace Api.Controllers
 {
     [Route("api/company")]
     [ApiController]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class CompanyController : AuthControllerBase
     {
         private readonly ICompanyServices _companyServices;
@@ -33,9 +36,6 @@ namespace Api.Controllers
         [EndpointSummary("Get data to global map")]
         [EndpointDescription("Show data of every company on the global map.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("map")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> Map(string? searchTerm = null)
@@ -47,9 +47,6 @@ namespace Api.Controllers
         [EndpointSummary("Get detail about company")]
         [EndpointDescription("Show detail about company. This endpoint return onliy name, Nip and data to map")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> Details([FromQuery] Guid companyId)
@@ -61,9 +58,6 @@ namespace Api.Controllers
         [EndpointSummary("Get all company adresses")]
         [EndpointDescription("Show all company adresses. This endpoint return only city, street, zip-code, lat and log")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("addresses")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyAddresses(
@@ -79,9 +73,6 @@ namespace Api.Controllers
         [EndpointSummary("Get company contacts")]
         [EndpointDescription("Show all company contacts. This endpoint return only first name, last name, job title and if contact is primary")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("contacts")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyContacts(
@@ -97,9 +88,6 @@ namespace Api.Controllers
         [EndpointSummary("Get company sales")]
         [EndpointDescription("Show all company sales. This endpoint return only name, value, close date and status")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
             [FromQuery] Guid companyId,
@@ -114,8 +102,6 @@ namespace Api.Controllers
         [EndpointSummary("Get company debt summary")]
         [EndpointDescription("Show total unpaid amount grouped by currency for a specific company.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("debts/summary")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyDebtSummaryAsync([FromQuery] Guid companyId)
@@ -127,8 +113,6 @@ namespace Api.Controllers
         [EndpointSummary("Get company debts details")]
         [EndpointDescription("Show all unpaid invoices for a specific company with pagination.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("debts")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyDebts(
@@ -142,10 +126,9 @@ namespace Api.Controllers
         }
 
         [EndpointSummary("Get paginated list of companies")]
-        [EndpointDescription("Show a paginated list of companies with optional filtering, sorting, and search term. Returns basic company details along with the headquarters address and the date of the last deal.")]
+        [EndpointDescription("Show a paginated list of companies with optional filtering, sorting, and search term. " +
+            "Returns basic company details along with the headquarters address and the date of the last deal.")]
         [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("list")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyListAsync(

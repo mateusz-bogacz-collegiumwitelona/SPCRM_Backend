@@ -1,14 +1,16 @@
 using Api.Configuration;
 using Api.Middlewares;
+using Api.Validators;
 using Domain.Models;
 using Email;
+using FluentValidation;
 using Infrastructure;
 using Infrastructure.Seeders;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using Services;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
-using Serilog;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -26,6 +28,8 @@ try
 
     // Add services to the container.
     builder.Services.AddControllers();
+
+    builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
     builder.Services.AddFluentValidationAutoValidation(configuration =>
     {

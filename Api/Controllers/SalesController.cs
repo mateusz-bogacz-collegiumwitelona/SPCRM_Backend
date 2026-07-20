@@ -10,6 +10,9 @@ namespace Api.Controllers
 {
     [Route("api/sales")]
     [ApiController]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class SalesController : AuthControllerBase
     {
         private readonly ISalesServices _sales;
@@ -22,7 +25,6 @@ namespace Api.Controllers
         [EndpointSummary("Get user deals")]
         [EndpointDescription("Show data of every user deals.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetUserSales(
@@ -40,7 +42,6 @@ namespace Api.Controllers
         [EndpointSummary("Get sales statuses")]
         [EndpointDescription("Show available sales statuses.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("statuses")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSalesStatuses()
@@ -52,9 +53,6 @@ namespace Api.Controllers
         [EndpointSummary("Get sale detail")]
         [EndpointDescription("Returns detailed information about a specific sale.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{dealId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSaleDetailAsync([FromRoute] Guid dealId)
@@ -66,9 +64,6 @@ namespace Api.Controllers
         [EndpointSummary("Get deal products")]
         [EndpointDescription("Returns a paginated list of products associated with a specific deal.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{dealId}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealProductAsync(
@@ -86,9 +81,6 @@ namespace Api.Controllers
         [EndpointSummary("Get deal notes")]
         [EndpointDescription("Returns a list of notes associated with a specific deal.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{dealId}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealNotesAsync([FromRoute] Guid dealId)

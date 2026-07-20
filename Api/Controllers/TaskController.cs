@@ -10,6 +10,9 @@ namespace Api.Controllers
 {
     [Route("api/tasks")]
     [ApiController]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class TaskController : AuthControllerBase
     {
         private readonly ITaskServices _taskServices;
@@ -23,9 +26,6 @@ namespace Api.Controllers
         [EndpointSummary("Get tasks for calendar")]
         [EndpointDescription("Show tasks for calendar view. This endpoint return tasks within a specified date range")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("calendar")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTasksForCalendarAsync([FromQuery] TaskCalendarRequest request)
@@ -38,9 +38,6 @@ namespace Api.Controllers
         [EndpointSummary("Get task dictionaries")]
         [EndpointDescription("Returns available statuses and priorities for frontend dropdowns.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("dictionaries")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskDictionariesAsync()
@@ -52,9 +49,6 @@ namespace Api.Controllers
         [EndpointSummary("Get task detail")]
         [EndpointDescription("Returns detailed information about a specific task.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{taskId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskDetailResponse([FromRoute] Guid taskId)
@@ -66,9 +60,6 @@ namespace Api.Controllers
         [EndpointSummary("Get task contact")]
         [EndpointDescription("Returns contact information associated with a specific task.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{taskId}/contact")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskContactAsync([FromRoute]Guid taskId)
@@ -80,9 +71,6 @@ namespace Api.Controllers
         [EndpointSummary("Get task deal")]
         [EndpointDescription("Returns deal information associated with a specific task.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{taskId}/deal")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskDealAsync([FromRoute] Guid taskId)
@@ -94,9 +82,6 @@ namespace Api.Controllers
         [EndpointSummary("Get task notes")]
         [EndpointDescription("Returns notes associated with a specific task.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("{taskId}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskNotesAsync([FromRoute] Guid taskId)
