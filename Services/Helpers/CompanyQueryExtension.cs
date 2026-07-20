@@ -1,6 +1,5 @@
 ﻿using Domain.Enum;
 using Domain.Models;
-using DTO.Request;
 
 namespace Services.Helpers
 {
@@ -25,12 +24,17 @@ namespace Services.Helpers
 
             return query;
         }
-        internal static IQueryable<Company> ApplyFiler(this IQueryable<Company> query, CompanyFilterRequest filter, Guid userId) 
+        internal static IQueryable<Company> ApplyFiler(
+            this IQueryable<Company> query, 
+            bool? isYour,
+            DateTime? createdAtFrom,
+            DateTime? createdAtTo,
+            Guid userId) 
         {
 
-            if (filter.IsYour.HasValue)
+            if (isYour.HasValue)
             {
-                if (filter.IsYour.Value)
+                if (isYour.Value)
                 {
                     query = query.Where(c => c.OwnerId == userId);
                 }
@@ -41,32 +45,36 @@ namespace Services.Helpers
                     
             }
 
-            if (filter.CreatedAtFrom.HasValue)
+            if (createdAtFrom.HasValue)
             {
-                query = query.Where(c => c.CreatedAt >= filter.CreatedAtFrom.Value.ToUniversalTime());
+                query = query.Where(c => c.CreatedAt >= createdAtFrom.Value.ToUniversalTime());
             }
 
-            if (filter.CreatedAtTo.HasValue)
+            if (createdAtTo.HasValue)
             {
-                query = query.Where(c => c.CreatedAt <= filter.CreatedAtTo.Value.ToUniversalTime());
+                query = query.Where(c => c.CreatedAt <= createdAtTo.Value.ToUniversalTime());
             }
 
             return query;
         }
 
-        internal static IQueryable<Company> ApplySorting(this IQueryable<Company> query, SortingRequest sorting)
+        internal static IQueryable<Company> ApplySorting(
+            this IQueryable<Company> query, 
+            string? sortBy, 
+            bool sortDescending
+            )
         {
-            return sorting.SortBy?.ToLower() switch
+            return sortBy?.ToLower() switch
             {
-                "name" => sorting.SortDescending
+                "name" => sortDescending
                     ? query.OrderByDescending(x => x.Name)
                     : query.OrderBy(x => x.Name),
 
-                "nip" => sorting.SortDescending
+                "nip" => sortDescending
                     ? query.OrderByDescending(x => x.NIP)
                     : query.OrderBy(x => x.NIP),
 
-                "city" => sorting.SortDescending
+                "city" => sortDescending
                     ? query.OrderByDescending(x => x.CompanyAdresses
                         .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
                         .Select(ca => ca.City)
@@ -76,7 +84,7 @@ namespace Services.Helpers
                         .Select(ca => ca.City)
                         .FirstOrDefault()),
 
-                "zipcode" => sorting.SortDescending
+                "zipcode" => sortDescending
                     ? query.OrderByDescending(x => x.CompanyAdresses
                         .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
                         .Select(ca => ca.ZipCode) 
@@ -86,7 +94,7 @@ namespace Services.Helpers
                         .Select(ca => ca.ZipCode)
                         .FirstOrDefault()),
 
-                "createdat" => sorting.SortDescending
+                "createdat" => sortDescending
                   ? query.OrderByDescending(x => x.CreatedAt)
                   : query.OrderBy(x => x.CreatedAt),
 

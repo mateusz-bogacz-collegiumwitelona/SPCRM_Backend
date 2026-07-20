@@ -1,10 +1,10 @@
 ﻿using Domain.Common;
 using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.Response;
@@ -64,10 +64,10 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(Guid comapnyId, PaggedRequest pagged)
+        public async Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(CompanyCommand command)
         {
             var query = _context.Contacts
-                .Where(c => c.CompanyId == comapnyId)
+                .Where(c => c.CompanyId == command.CompanyId)
                 .Distinct()
                 .AsNoTracking()
                 .Select(c => new CompanyContactResponse
@@ -81,7 +81,7 @@ namespace Services.Services
                     OwnerLastName = c.Owner.LastName ?? ""
                 });
 
-            return await query.ToPagedResultAsync(pagged, _logger, "company_contacts");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_contacts");
         }
 
         public async Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId)

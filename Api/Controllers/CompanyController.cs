@@ -1,10 +1,11 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
-using DTO.Request;
-using DTO.Response;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response;
 
 namespace Api.Controllers
 {
@@ -51,9 +52,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> Details([FromQuery] GetCompanyIdRequest request)
+        public async Task<IActionResult> Details([FromQuery] Guid companyId)
         {
-            var result = await _companyServices.Details(request.CompanyId, CurrentUserId);
+            var result = await _companyServices.Details(companyId, CurrentUserId);
             return HandleResult(result);
         }
 
@@ -66,11 +67,12 @@ namespace Api.Controllers
         [HttpGet("addresses")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyAddresses(
-            [FromQuery] GetCompanyIdRequest request,
+            [FromQuery] Guid companyId, 
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await _companyServices.GetCompanyAddresses(request.CompanyId, pagged);
+            var mapper = new CompanyMapper();
+            var result = await _companyServices.GetCompanyAddresses(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
 
@@ -83,11 +85,12 @@ namespace Api.Controllers
         [HttpGet("contacts")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyContacts(
-            [FromQuery] GetCompanyIdRequest request,
+            [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await _contactServices.GetCompanyContactsAsync(request.CompanyId, pagged);
+            var mapper = new CompanyMapper();
+            var result = await _contactServices.GetCompanyContactsAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
 
@@ -99,11 +102,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
-            [FromQuery] GetCompanyIdRequest request,
+            [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await _salesServices.GetComapanySalesAsync(request.CompanyId, pagged);
+            var mapper = new CompanyMapper();
+            var result = await _salesServices.GetComapanySalesAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
 
@@ -114,9 +118,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("debts/summary")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> GetCompanyDebtSummaryAsync([FromQuery] GetCompanyIdRequest request)
+        public async Task<IActionResult> GetCompanyDebtSummaryAsync([FromQuery] Guid companyId)
         {
-            var result = await _debtServices.GetCompanyDebtSummaryAsync(request.CompanyId);
+            var result = await _debtServices.GetCompanyDebtSummaryAsync(companyId);
             return HandleResult(result);
         }
 
@@ -132,7 +136,8 @@ namespace Api.Controllers
             [FromQuery] PaggedRequest pagged
         )
         {
-            var result = await _debtServices.GetCompanyDebtsAsync(companyId, pagged);
+            var mapper = new CompanyMapper();
+            var result = await _debtServices.GetCompanyDebtsAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
 
@@ -150,13 +155,14 @@ namespace Api.Controllers
            [FromQuery] SearchRequest search
             )
         {
-            var result = await _companyServices.GetCompanyListAsync(
+            var mapper = new CompanyMapper();
+            var result = await _companyServices.GetCompanyListAsync(mapper.MapList(
                 CurrentUserId,
                 pagged,
                 filer,
                 sorting,
                 search
-            );
+            ));
             return HandleResult(result);
         }
     }

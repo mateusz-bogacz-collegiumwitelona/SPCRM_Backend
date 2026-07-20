@@ -1,5 +1,5 @@
 ﻿using Domain.Common;
-using DTO.Request;
+using Services.Command;
 using Services.Response;
 
 namespace Services.Interfaces
@@ -7,6 +7,6 @@ namespace Services.Interfaces
     public interface IDebtService
     {
         Task<Result<List<CompanyDebtSummaryResponse>>> GetCompanyDebtSummaryAsync(Guid comapnyId);
-        Task<Result<PagedResult<CompanyDebtDetailResponse>>> GetCompanyDebtsAsync(Guid companyId, PaggedRequest pagged);
+        Task<Result<PagedResult<CompanyDebtDetailResponse>>> GetCompanyDebtsAsync(CompanyCommand command);
     }
 }

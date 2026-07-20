@@ -2,11 +2,11 @@
 using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.Response;
@@ -68,10 +68,10 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(Guid comapnyId, PaggedRequest pagged)
+        public async Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command)
         {
             var query = _context.Deals
-                .Where(d => d.CompanyId == comapnyId)
+                .Where(d => d.CompanyId == command.CompanyId)
                 .Select(d => new CompanySalesResponse
                 {
                     Id = d.Id,
@@ -86,7 +86,7 @@ namespace Services.Services
                     CreatedAt = d.CreatedAt
                 });
 
-            return await query.ToPagedResultAsync(pagged, _logger, "company_sales");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_sales");
         }
 
         public async Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId)

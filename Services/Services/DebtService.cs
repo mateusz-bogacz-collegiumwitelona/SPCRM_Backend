@@ -1,9 +1,9 @@
 ﻿using Domain.Common;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.Response;
@@ -46,12 +46,12 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<CompanyDebtDetailResponse>>> GetCompanyDebtsAsync(Guid companyId, PaggedRequest pagged)
+        public async Task<Result<PagedResult<CompanyDebtDetailResponse>>> GetCompanyDebtsAsync(CompanyCommand command)
         {
             DateTime now = DateTime.UtcNow;
 
             var query = _context.Invoices
-                .Where(i => i.CompanyId == companyId && i.PaidAmount < i.TotalAmount)
+                .Where(i => i.CompanyId == command.CompanyId && i.PaidAmount < i.TotalAmount)
                 .OrderBy(i => i.DueDate)
                 .Select(i => new CompanyDebtDetailResponse
                 {
@@ -64,7 +64,7 @@ namespace Services.Services
                     DaysOverdue = i.DueDate < now ? (int)(now - i.DueDate).TotalDays : 0
                 });
 
-            return await query.ToPagedResultAsync(pagged, _logger, "company_debt");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_debt");
         }
     }
 }

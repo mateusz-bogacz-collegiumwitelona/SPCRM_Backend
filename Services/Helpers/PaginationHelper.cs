@@ -1,5 +1,4 @@
 ﻿using Domain.Common;
-using DTO.Request;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,7 +9,8 @@ namespace Services.Helpers
     {
         public static async Task<Result<PagedResult<T>>> ToPagedResultAsync<T>(
            this IQueryable<T> source,
-           PaggedRequest pagged,
+           int? number,
+           int? size,
            ILogger logger,
            string entityName = "item"
            )
@@ -19,14 +19,14 @@ namespace Services.Helpers
             {
                 if (source == null) throw new ArgumentNullException(nameof(source));
 
-                int pageNumber = pagged.PageNumber ?? 1;
-                int pageSize = pagged.PageSize ?? 10;
+                int pageNumber = number ?? 1;
+                int pageSize = size ?? 10;
 
                 int totalCount = await source.CountAsync();
 
                 if (totalCount == 0)
                 {
-                    var emptyPage = CreateEmptyPagedResult<T>(pagged);
+                    var emptyPage = CreateEmptyPagedResult<T>(number, size);
 
                     return Result<PagedResult<T>>.Success(
                         message: $"No {entityName} found.",
@@ -73,13 +73,13 @@ namespace Services.Helpers
             }
         }
 
-        private static PagedResult<T> CreateEmptyPagedResult<T>(PaggedRequest pagged)
+        private static PagedResult<T> CreateEmptyPagedResult<T>(int? number, int? size)
         {
             return new PagedResult<T>
             {
                 Items = new List<T>(),
-                PageNumber = pagged.PageNumber ?? 1,
-                PageSize = pagged.PageSize ?? 10,
+                PageNumber = number ?? 1,
+                PageSize = size ?? 10,
                 TotalCount = 0,
                 TotalPages = 0
             };

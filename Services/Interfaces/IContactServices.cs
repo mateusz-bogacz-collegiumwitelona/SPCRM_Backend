@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using DTO.Request;
+using Services.Command;
 using Services.Response;
 
 namespace Services.Interfaces
@@ -13,7 +14,7 @@ namespace Services.Interfaces
                     SearchRequest search
                     );
         Task<Result<List<string>>> GetCompaniesAsync();
-        Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(Guid comapnyId, PaggedRequest pagged);
+        Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(CompanyCommand command);
         Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId);
         Task<Result<List<ContactWayResponse>>> GetContactWayAsync(Guid contactId);
         Task<Result<PagedResult<ContactNoteResponse>>> GetContactNoteAsync(Guid contatcId, PaggedRequest pagged, SearchRequest search);

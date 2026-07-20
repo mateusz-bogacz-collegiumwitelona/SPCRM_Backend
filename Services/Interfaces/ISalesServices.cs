@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using DTO.Request;
+using Services.Command;
 using Services.Response;
 
 namespace Services.Interfaces
@@ -14,7 +15,7 @@ namespace Services.Interfaces
             SalesFilterRequest filter
             );
         Task<Result<List<String>>> GetSalesStatus();
-        Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(Guid comapnyId, PaggedRequest pagged);
+        Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command);
         Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId);
         Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
             Guid dealId,

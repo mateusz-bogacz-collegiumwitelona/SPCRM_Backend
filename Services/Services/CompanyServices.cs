@@ -1,11 +1,11 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.Response;
@@ -92,13 +92,10 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(
-            Guid companyId,
-            PaggedRequest pagged
-            )
+        public async Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(CompanyCommand command)
         {
             var query = _context.CompanyAdresses
-                .Where(a => a.CompanyId == companyId)
+                .Where(a => a.CompanyId == command.CompanyId)
                 .Select(a => new AddressDetailResponse
                 {
                     Id = a.Id,
@@ -110,20 +107,18 @@ namespace Services.Services
                     Type = a.AddressType.ToString()
                 });
 
-            return await query.ToPagedResultAsync(pagged, _logger, "comapny_adresses");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "comapny_adresses");
         }
 
 
-        public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(Guid userId,
-            PaggedRequest pagged, CompanyFilterRequest filer, SortingRequest sorting, SearchRequest search
-            )
+        public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command)
         {
             var query = _context.Companies
-                .ApplyFiler(filer, userId)
-                .ApplySearch(search.SearchTerm ?? string.Empty)
+                .ApplyFiler(command.IsYour, command.CreatedAtFrom, command.CreatedAtTo, command.UserId)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
                 .Where(c => !c.IsDeleted)
                 .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
-                .ApplySorting(sorting)
+                .ApplySorting(command.SortBy, command.SortDescending)
                 .Select(c => new CompanyResponse
                 {
                     Id = c.Id,
@@ -135,9 +130,9 @@ namespace Services.Services
                         .Select(d => (DateTime?)d.CreatedAt)
                         .FirstOrDefault(),
                     
-                    IsYour = c.OwnerId == userId,
-                    OwnerFirstName = c.OwnerId == userId ? null : c.Owner.FirstName,
-                    OwnerLastName = c.OwnerId == userId ? null : c.Owner.LastName,
+                    IsYour = c.OwnerId == command.UserId,
+                    OwnerFirstName = c.OwnerId == command.UserId ? null : c.Owner.FirstName,
+                    OwnerLastName = c.OwnerId == command.UserId ? null : c.Owner.LastName,
                    
                     City = c.CompanyAdresses
                         .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
@@ -157,7 +152,7 @@ namespace Services.Services
                     CreatedAt = c.CreatedAt,
                 });
             
-            return await query.ToPagedResultAsync(pagged, _logger, "companies");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies");
         }
     }
 }
