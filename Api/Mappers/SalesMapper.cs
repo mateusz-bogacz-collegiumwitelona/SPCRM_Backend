@@ -5,12 +5,12 @@ using Services.Command;
 namespace Api.Mappers
 {
     [Mapper]
-    public class SalesMapper
+    public partial class SalesMapper
     {
         public partial SalesListCommand MapList(
             PaggedRequest pagged,
             SortingRequest sorting,
-            SearchRequest search
+            SearchRequest search,
             SalesFilterRequest filter
             );
     }

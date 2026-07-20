@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
-using DTO.Request;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -27,9 +28,10 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpGet("calendar")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetTasksForCalendarAsync([FromQuery]TaskCalendarRequest request)
+        public async Task<IActionResult> GetTasksForCalendarAsync([FromQuery] TaskCalendarRequest request)
         {
-            var result = await _taskServices.GetTasksForCalendarAsync(CurrentUserId, request);
+            var mapper = new TaskMapper();
+            var result = await _taskServices.GetTasksForCalendarAsync(mapper.MapUserCalendar(CurrentUserId, request));
             return HandleResult(result);
         }
 

@@ -1,10 +1,10 @@
 ﻿using Domain.Common;
 using Domain.Enum;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.Response;
@@ -22,19 +22,19 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(Guid userId, TaskCalendarRequest request)
+        public async Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(TaskCalendarCommand command)
         {
-            var fromUtc = request.DateFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-            var toUtc = request.DateTo.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+            var fromUtc = command.DateFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var toUtc = command.DateTo.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
 
             var query = await _context.Tasks
                 .AsNoTracking()
                 .Where(t => !t.IsDeleted)
-                .Where(t => t.AssignedToId == userId)
+                .Where(t => t.AssignedToId == command.UserId)
                 .Where(t => t.DueAt >= fromUtc && t.DueAt <= toUtc)
                 .OrderBy(t => t.DueAt)
-                .ApplyFilterByStatus(request.TaskStatus ?? string.Empty)
-                .ApplyFilterByPriority(request.TaskPriority ?? string.Empty)
+                .ApplyFilterByStatus(command.TaskStatus ?? string.Empty)
+                .ApplyFilterByPriority(command.TaskPriority ?? string.Empty)
                 .Select(t => new TaskCalendarResponse
                 {
                     Id = t.Id,

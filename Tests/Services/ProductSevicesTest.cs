@@ -1,11 +1,11 @@
 ﻿using Domain.Enum;
 using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -148,18 +148,15 @@ namespace Tests.Services
             _contextMock.Products.Add(product);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new ProductListCommand
             {
                 PageNumber = 1,
                 PageSize = 10
             };
 
-            var sorting = new SortingRequest();
-            var search = new SearchRequest();
-            var filter = new ProductFilterRequest();
 
             // Act
-            var result = await _productSevicesMock.GetProductListAsync(pagged, sorting, search, filter);
+            var result = await _productSevicesMock.GetProductListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -237,14 +234,15 @@ namespace Tests.Services
             _contextMock.Products.AddRange(targetProduct, otherProduct);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var sorting = new SortingRequest();
-
-            var search = new SearchRequest { SearchTerm = "zamknięty" };
-            var filter = new ProductFilterRequest();
+            var command = new ProductListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "zamknięty"
+            };
 
             // Act
-            var result = await _productSevicesMock.GetProductListAsync(pagged, sorting, search, filter);
+            var result = await _productSevicesMock.GetProductListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -257,14 +255,15 @@ namespace Tests.Services
         public async Task GetProductListAsync_WhenNoProductsMatch_ReturnsEmptyListWithSuccessStatus()
         {
             // Arrange
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var sorting = new SortingRequest();
-
-            var search = new SearchRequest { SearchTerm = Guid.NewGuid().ToString() };
-            var filter = new ProductFilterRequest();
+            var command = new ProductListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = Guid.NewGuid().ToString()
+            };
 
             // Act
-            var result = await _productSevicesMock.GetProductListAsync(pagged, sorting, search, filter);
+            var result = await _productSevicesMock.GetProductListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -353,28 +352,17 @@ namespace Tests.Services
             _contextMock.Products.AddRange(p1, p2, p3);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new ProductListCommand
             {
                 PageNumber = 1,
-                PageSize = 10
+                PageSize = 10,
+                ProductCategory = catSteel.Name,
+                SortBy = "quantity",
+                SortDescending = true
             };
-
-            var search = new SearchRequest();
-
-            var filter = new ProductFilterRequest
-            {
-                ProductCategory = catSteel.Name
-            };
-
-            var sorting = new SortingRequest { SortBy = "quantity", SortDescending = true };
 
             // Act
-            var result = await _productSevicesMock.GetProductListAsync(
-                pagged,
-                sorting,
-                search,
-                filter
-                );
+            var result = await _productSevicesMock.GetProductListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

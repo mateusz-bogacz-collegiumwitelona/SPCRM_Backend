@@ -124,16 +124,16 @@ namespace Services.Services
                     Id = c.Id,
                     Name = c.Name,
                     Nip = c.NIP,
-                   
+
                     LastDealDate = c.Deals
                         .OrderByDescending(d => d.CreatedAt)
                         .Select(d => (DateTime?)d.CreatedAt)
                         .FirstOrDefault(),
-                    
+
                     IsYour = c.OwnerId == command.UserId,
                     OwnerFirstName = c.OwnerId == command.UserId ? null : c.Owner.FirstName,
                     OwnerLastName = c.OwnerId == command.UserId ? null : c.Owner.LastName,
-                   
+
                     City = c.CompanyAdresses
                         .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
                         .Select(ca => ca.City)
@@ -151,7 +151,7 @@ namespace Services.Services
 
                     CreatedAt = c.CreatedAt,
                 });
-            
+
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies");
         }
     }

@@ -1,13 +1,13 @@
-﻿using Domain.Constants;
+﻿using Domain.Comunication;
+using Domain.Constants;
 using Domain.Models;
-using DTO.Domain;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
@@ -123,7 +123,7 @@ namespace Tests.Services
         public async Task SendEmailToSupport_WhenUserDoesNotExist_Returns404NotFound()
         {
             // Arrange
-            var request = new SupportEmailRequest
+            var request = new SupportEmailCommand
             {
                 Email = "nonexistent@test.pl",
                 Title = "Problem",
@@ -161,7 +161,7 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             await _contextMock.SaveChangesAsync();
 
-            var request = new SupportEmailRequest
+            var request = new SupportEmailCommand
             {
                 Email = email,
                 Title = "Błąd w module X",

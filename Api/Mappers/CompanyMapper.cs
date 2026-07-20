@@ -8,6 +8,8 @@ namespace Api.Mappers
     public partial class CompanyMapper
     {
         public partial CompanyCommand MapBasic(Guid companyId, PaggedRequest request);
+
+        [MapProperty(nameof(userId), nameof(CompanyListCommand.UserId))]
         public partial CompanyListCommand MapList(
             Guid userId,
             PaggedRequest pagged,

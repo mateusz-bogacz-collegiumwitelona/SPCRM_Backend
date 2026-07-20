@@ -1,12 +1,12 @@
 ﻿using Domain.Enum;
 using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -343,10 +343,14 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(targetAddress, otherAddress);
             await _contextMock.SaveChangesAsync();
 
-            var paggedRequest = new PaggedRequest { PageNumber = 1, PageSize = 10 };
+            var command = new CompanyCommand { 
+                PageNumber = 1, 
+                PageSize = 10, 
+                CompanyId = targetCompany.Id
+            };
 
             // Act
-            var result = await _companyServicesMock.GetCompanyAddresses(targetCompany.Id, paggedRequest);
+            var result = await _companyServicesMock.GetCompanyAddresses(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -418,10 +422,14 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(adresses);
             await _contextMock.SaveChangesAsync();
 
-            var paggedRequest = new PaggedRequest { PageNumber = 1, PageSize = 2 };
+            var command = new CompanyCommand { 
+                PageNumber = 1, 
+                PageSize = 2, 
+                CompanyId = company.Id 
+            };
 
             // Act
-            var result = await _companyServicesMock.GetCompanyAddresses(company.Id, paggedRequest);
+            var result = await _companyServicesMock.GetCompanyAddresses(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -534,20 +542,15 @@ namespace Tests.Services
 
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new CompanyListCommand
             {
                 PageNumber = 1,
-                PageSize = 10
+                PageSize = 10,
+                UserId = myUserId
             };
 
             // Act
-            var result = await _companyServicesMock.GetCompanyListAsync(
-                myUserId,
-                pagged,
-                new CompanyFilterRequest(),
-                new SortingRequest(),
-                new SearchRequest()
-                );
+            var result = await _companyServicesMock.GetCompanyListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -650,21 +653,16 @@ namespace Tests.Services
 
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new CompanyListCommand
             {
                 PageNumber = 1,
-                PageSize = 10
+                PageSize = 10,
+                IsYour = true,
+                UserId = userId
             };
-            var filter = new CompanyFilterRequest { IsYour = true };
 
             // Act
-            var result = await _companyServicesMock.GetCompanyListAsync(
-                userId,
-                pagged,
-                filter,
-                new SortingRequest(),
-                new SearchRequest()
-                );
+            var result = await _companyServicesMock.GetCompanyListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -736,12 +734,18 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(addressA, addressB);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var search = new SearchRequest { SearchTerm = "apple" };
-            var sorting = new SortingRequest { SortBy = "name", SortDescending = true };
+            var command = new CompanyListCommand 
+            { 
+                PageNumber = 1, 
+                PageSize = 10,
+                UserId = userId,
+                SearchTerm = "apple",
+                SortBy = "name",
+                SortDescending = true
+            };
 
             // Act
-            var result = await _companyServicesMock.GetCompanyListAsync(userId, pagged, new CompanyFilterRequest(), sorting, search);
+            var result = await _companyServicesMock.GetCompanyListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -836,19 +840,16 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(deletedAddress, oldAddress, validAddress);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-
-            var filter = new CompanyFilterRequest
-            {
+            var command = new CompanyListCommand { 
+                PageNumber = 1, 
+                PageSize = 10,
                 CreatedAtFrom = referenceDate.AddDays(-5),
-                CreatedAtTo = referenceDate.AddDays(1)
+                CreatedAtTo = referenceDate.AddDays(1),
+                UserId = userId
             };
 
-            var sorting = new SortingRequest();
-            var search = new SearchRequest();
-
             // Act
-            var result = await _companyServicesMock.GetCompanyListAsync(userId, pagged, filter, sorting, search);
+            var result = await _companyServicesMock.GetCompanyListAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

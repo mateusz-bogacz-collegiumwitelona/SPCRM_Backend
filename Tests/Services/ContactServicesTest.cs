@@ -1,10 +1,10 @@
 ﻿using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -144,15 +144,10 @@ namespace Tests.Services
             _contextMock.Contacts.Add(contact);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
+            var command = new ContactListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
-            var result = await _contactServicesMock.GetContactsAsync(
-                pagged,
-                new ContactFilterRequest(),
-                new SortingRequest(),
-                new SearchRequest()
-            );
+            var result = await _contactServicesMock.GetContactsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -224,16 +219,15 @@ namespace Tests.Services
             _contextMock.Contacts.AddRange(targetContact, otherContact);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var search = new SearchRequest { SearchTerm = "zielińska" };
+            var command = new ContactListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "zielińska"
+            };
 
             // Act
-            var result = await _contactServicesMock.GetContactsAsync(
-                pagged,
-                new ContactFilterRequest(),
-                new SortingRequest(),
-                search
-            );
+            var result = await _contactServicesMock.GetContactsAsync(command);
 
             await Assert.That(result.IsSuccess).IsTrue();
             var items = result.Data!.Items;
@@ -310,15 +304,10 @@ namespace Tests.Services
             _contextMock.Contacts.AddRange(contacts);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 2 };
+            var command = new ContactListCommand { PageNumber = 1, PageSize = 2 };
 
             // Act
-            var result = await _contactServicesMock.GetContactsAsync(
-                pagged,
-                new ContactFilterRequest(),
-                new SortingRequest(),
-                new SearchRequest()
-            );
+            var result = await _contactServicesMock.GetContactsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -514,10 +503,15 @@ namespace Tests.Services
             _contextMock.Contacts.AddRange(targetContactFull, targetContactNullJob, otherContact);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
+            var command = new CompanyCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                CompanyId = targetCompany.Id
+            };
 
             // Act
-            var result = await _contactServicesMock.GetCompanyContactsAsync(targetCompany.Id, pagged);
+            var result = await _contactServicesMock.GetCompanyContactsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -603,9 +597,9 @@ namespace Tests.Services
             _contextMock.Contacts.AddRange(contacts);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 2 };
+            var command = new CompanyCommand { PageNumber = 1, PageSize = 2, CompanyId = company.Id };
 
-            var result = await _contactServicesMock.GetCompanyContactsAsync(company.Id, pagged);
+            var result = await _contactServicesMock.GetCompanyContactsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -617,10 +611,10 @@ namespace Tests.Services
         {
             // Arrange
             var randomCompanyId = Guid.NewGuid();
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
+            var command = new CompanyCommand { PageNumber = 1, PageSize = 10, CompanyId = randomCompanyId };
 
             // Act
-            var result = await _contactServicesMock.GetCompanyContactsAsync(randomCompanyId, pagged);
+            var result = await _contactServicesMock.GetCompanyContactsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -806,11 +800,15 @@ namespace Tests.Services
             _contextMock.Notes.AddRange(validNote, deletedNote, dealNote);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var search = new SearchRequest();
+            var command = new NoteListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                searchId = contact.Id
+            };
 
             // Act
-            var result = await _contactServicesMock.GetContactNoteAsync(contact.Id, pagged, search);
+            var result = await _contactServicesMock.GetContactNoteAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -930,11 +928,15 @@ namespace Tests.Services
             _contextMock.Notes.AddRange(oldNote, middleNote, newestNote);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var search = new SearchRequest();
+            var command = new NoteListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                searchId = contact.Id
+            };
 
             // Act
-            var result = await _contactServicesMock.GetContactNoteAsync(contact.Id, pagged, new SearchRequest());
+            var result = await _contactServicesMock.GetContactNoteAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1024,10 +1026,15 @@ namespace Tests.Services
             _contextMock.Notes.AddRange(targetNote, otherNote);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
+            var command = new NoteListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                searchId = targetContact.Id
+            };
 
             // Act 
-            var result = await _contactServicesMock.GetContactNoteAsync(targetContact.Id, pagged, new SearchRequest());
+            var result = await _contactServicesMock.GetContactNoteAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

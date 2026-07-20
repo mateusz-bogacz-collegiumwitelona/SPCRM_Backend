@@ -7,7 +7,7 @@ namespace Api.Mappers
     [Mapper]
     public partial class ProductMapper
     {
-        public ProductListCommand MapList(
+        public partial ProductListCommand MapList(
             PaggedRequest pagged,
             SortingRequest sorting,
             SearchRequest search,

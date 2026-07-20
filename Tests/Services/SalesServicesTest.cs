@@ -1,11 +1,11 @@
 ﻿using Domain.Enum;
 using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -184,18 +184,14 @@ namespace Tests.Services
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new SalesListCommand
             {
                 PageNumber = 1,
                 PageSize = 10
             };
 
-            var filter = new SalesFilterRequest();
-            var search = new SearchRequest();
-            var sorting = new SortingRequest();
-
             // Act
-            var result = await _salesServicesMock.GetUserSales(targetUserId, pagged, sorting, search, filter);
+            var result = await _salesServicesMock.GetUserSales(targetUserId, command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -219,15 +215,15 @@ namespace Tests.Services
         [Test]
         public async Task GetUserSales_WhenUserHasNoSales_ReturnsEmptyListWithSuccessStatus()
         {
+            // Arrange
             var randomUserId = Guid.NewGuid();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var filter = new SalesFilterRequest();
-            var search = new SearchRequest();
-            var sorting = new SortingRequest();
+            var command = new SalesListCommand { PageNumber = 1, PageSize = 10 };
 
-            var result = await _salesServicesMock.GetUserSales(randomUserId, pagged, sorting, search, filter);
+            // Act
+            var result = await _salesServicesMock.GetUserSales(randomUserId, command);
 
+            // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
@@ -342,14 +338,15 @@ namespace Tests.Services
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new CompanyCommand
             {
                 PageNumber = 1,
-                PageSize = 10
+                PageSize = 10,
+                CompanyId = targetCompany.Id
             };
 
             // Act
-            var result = await _salesServicesMock.GetComapanySalesAsync(targetCompany.Id, pagged);
+            var result = await _salesServicesMock.GetComapanySalesAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -456,14 +453,15 @@ namespace Tests.Services
             _contextMock.Deals.AddRange(deals);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new CompanyCommand
             {
                 PageNumber = 1,
-                PageSize = 2
+                PageSize = 2,
+                CompanyId = company.Id
             };
 
             // Act
-            var result = await _salesServicesMock.GetComapanySalesAsync(company.Id, pagged);
+            var result = await _salesServicesMock.GetComapanySalesAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -475,10 +473,10 @@ namespace Tests.Services
         {
             // Arrange
             var randomCompanyId = Guid.NewGuid();
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
+            var command = new CompanyCommand { PageNumber = 1, PageSize = 10, CompanyId = randomCompanyId };
 
             // Act
-            var result = await _salesServicesMock.GetComapanySalesAsync(randomCompanyId, pagged);
+            var result = await _salesServicesMock.GetComapanySalesAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -780,13 +778,10 @@ namespace Tests.Services
             _contextMock.DealProducts.Add(dealProduct);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var sorting = new SortingRequest();
-            var search = new SearchRequest();
-            var filter = new ProductFilterRequest();
+            var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
-            var result = await _salesServicesMock.GetDealProductAsync(deal.Id, pagged, sorting, search, filter);
+            var result = await _salesServicesMock.GetDealProductAsync(deal.Id, command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -929,14 +924,14 @@ namespace Tests.Services
             _contextMock.DealProducts.AddRange(targetDealProduct, otherDealProduct);
             await _contextMock.SaveChangesAsync();
 
-            var pagged = new PaggedRequest
+            var command = new ProductListCommand
             {
                 PageNumber = 1,
                 PageSize = 10
             };
 
             // Act 
-            var result = await _salesServicesMock.GetDealProductAsync(targetDeal.Id, pagged, new SortingRequest(), new SearchRequest(), new ProductFilterRequest());
+            var result = await _salesServicesMock.GetDealProductAsync(targetDeal.Id, command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -953,14 +948,11 @@ namespace Tests.Services
         {
             // Arrange
             var randomDealId = Guid.NewGuid();
+            var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
-            var pagged = new PaggedRequest { PageNumber = 1, PageSize = 10 };
-            var sorting = new SortingRequest();
-            var search = new SearchRequest();
-            var filter = new ProductFilterRequest();
 
             // Act
-            var result = await _salesServicesMock.GetDealProductAsync(randomDealId, pagged, sorting, search, filter);
+            var result = await _salesServicesMock.GetDealProductAsync(randomDealId, command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

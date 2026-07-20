@@ -1,6 +1,5 @@
 ﻿using Domain.Constants;
 using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -12,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -170,7 +170,7 @@ namespace Tests.Services
 
             await _userManagerMock.CreateAsync(user, "Password123!");
 
-            var request = new LoginRequest { Name = "test1@test.pl", Password = "Password123!" };
+            var request = new LoginCommand { Name = "test1@test.pl", Password = "Password123!" };
 
             // Act
             var result = await _authServicesMock.LoginAsync(request);
@@ -201,7 +201,7 @@ namespace Tests.Services
 
             await _userManagerMock.CreateAsync(user, "GoodPassword123!");
 
-            var request = new LoginRequest { Name = "test2@test.pl", Password = "BadPassword123!" };
+            var request = new LoginCommand { Name = "test2@test.pl", Password = "BadPassword123!" };
 
             // Act
             var result = await _authServicesMock.LoginAsync(request);
@@ -230,7 +230,7 @@ namespace Tests.Services
 
             await _userManagerMock.CreateAsync(user, "GoodPassword123!");
 
-            var request = new LoginRequest { Name = "test3@test.pl", Password = "GoodPassword123!" };
+            var request = new LoginCommand { Name = "test3@test.pl", Password = "GoodPassword123!" };
 
             // Act
             var result = await _authServicesMock.LoginAsync(request);
@@ -267,7 +267,7 @@ namespace Tests.Services
 
             await _userManagerMock.AddToRoleAsync(user, "User");
 
-            var request = new LoginRequest { Name = "test4@test.pl", Password = "GoodPassword123!" };
+            var request = new LoginCommand { Name = "test4@test.pl", Password = "GoodPassword123!" };
 
             // Act
             var result = await _authServicesMock.LoginAsync(request);

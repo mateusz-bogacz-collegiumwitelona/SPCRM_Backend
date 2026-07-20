@@ -1,12 +1,12 @@
 ﻿using Domain.Common;
-using DTO.Request;
+using Services.Command;
 using Services.Response;
 
 namespace Services.Interfaces
 {
     public interface ITaskServices
     {
-        Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(Guid userId, TaskCalendarRequest request);
+        Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(TaskCalendarCommand command);
         Task<Result<object>> GetTaskDictionariesAsync();
         Task<Result<TaskDetailResponse>> GetTaskDetailResponse(Guid taskId);
         Task<Result<TaskContactResponse>> GetTaskContactAsync(Guid taskId);

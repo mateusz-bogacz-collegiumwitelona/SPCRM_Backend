@@ -1,11 +1,11 @@
 ﻿using Domain.Enum;
 using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -126,12 +126,6 @@ namespace Tests.Services
                 LastName = "User"
             };
 
-            var request = new TaskCalendarRequest
-            {
-                DateFrom = new DateOnly(2026, 7, 10),
-                DateTo = new DateOnly(2026, 7, 20)
-            };
-
             var validTask = new Tasks
             {
                 Id = Guid.NewGuid(),
@@ -188,8 +182,16 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(validTask, outOfDateTask, deletedTask, otherUserTask);
             await _contextMock.SaveChangesAsync();
 
+
+            var command = new TaskCalendarCommand
+            {
+                DateFrom = new DateOnly(2026, 7, 10),
+                DateTo = new DateOnly(2026, 7, 20),
+                UserId = targetUserId
+            };
+
             // Act
-            var result = await _taskServicesMock.GetTasksForCalendarAsync(targetUserId, request);
+            var result = await _taskServicesMock.GetTasksForCalendarAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -207,12 +209,6 @@ namespace Tests.Services
             // Arrange
             var userId = Guid.NewGuid();
             var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var request = new TaskCalendarRequest
-            {
-                DateFrom = new DateOnly(2026, 1, 1),
-                DateTo = new DateOnly(2026, 12, 31)
-            };
 
             var owner = new ApplicationUser
             {
@@ -300,8 +296,16 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(taskWithRelations, taskWithoutRelations);
             await _contextMock.SaveChangesAsync();
 
+
+            var command = new TaskCalendarCommand
+            {
+                DateFrom = new DateOnly(2026, 1, 1),
+                DateTo = new DateOnly(2026, 12, 31),
+                UserId = userId
+            };
+
             // Act
-            var result = await _taskServicesMock.GetTasksForCalendarAsync(userId, request);
+            var result = await _taskServicesMock.GetTasksForCalendarAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -323,12 +327,6 @@ namespace Tests.Services
             // Arrange
             var userId = Guid.NewGuid();
             var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var request = new TaskCalendarRequest
-            {
-                DateFrom = new DateOnly(2026, 8, 1),
-                DateTo = new DateOnly(2026, 8, 31)
-            };
 
             var user = new ApplicationUser
             {
@@ -373,8 +371,15 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(taskDay15, taskDay1, taskDay30);
             await _contextMock.SaveChangesAsync();
 
+            var command = new TaskCalendarCommand
+            {
+                DateFrom = new DateOnly(2026, 8, 1),
+                DateTo = new DateOnly(2026, 8, 31),
+                UserId = userId
+            };
+
             // Act
-            var result = await _taskServicesMock.GetTasksForCalendarAsync(userId, request);
+            var result = await _taskServicesMock.GetTasksForCalendarAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

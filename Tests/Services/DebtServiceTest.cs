@@ -1,9 +1,9 @@
 ﻿using Domain.Models;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -357,10 +357,14 @@ namespace Tests.Services
             _contextMock.Invoices.AddRange(overdueInvoice, futureInvoice, paidInvoice);
             await _contextMock.SaveChangesAsync();
 
-            var paggedRequest = new PaggedRequest { PageNumber = 1, PageSize = 10 };
+            var command = new CompanyCommand { 
+                PageNumber = 1, 
+                PageSize = 10, 
+                CompanyId = company.Id
+            };
 
             // Act
-            var result = await _debtServicesMock.GetCompanyDebtsAsync(company.Id, paggedRequest);
+            var result = await _debtServicesMock.GetCompanyDebtsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
