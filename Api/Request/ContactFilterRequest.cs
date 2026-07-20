@@ -1,4 +1,4 @@
-﻿namespace DTO.Request
+﻿namespace Api.Request
 {
     public record ContactFilterRequest
     {

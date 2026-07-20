@@ -1,8 +1,8 @@
 ﻿using Domain.Constants;
-using DTO.Request;
+using Api.Request;
 using FluentValidation;
 
-namespace Services.Validators
+namespace Api.Validators
 {
     public class PaggedRequestValidator : AbstractValidator<PaggedRequest>
     {
