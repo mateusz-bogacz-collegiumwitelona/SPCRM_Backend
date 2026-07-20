@@ -1,10 +1,10 @@
 ﻿using Domain.Common;
-using DTO.Request;
+using Services.Command;
 
 namespace Services.Interfaces
 {
     public interface ISupportServices
     {
-        Task<Result> SendEmailToSupport(SupportEmailRequest request);
+        Task<Result> SendEmailToSupport(SupportEmailCommand command);
     }
 }

@@ -1,12 +1,12 @@
 ﻿using Domain.Common;
+using Domain.Comunication;
 using Domain.Constants;
-using DTO.Domain;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Interfaces;
 using System.Globalization;
 
@@ -35,13 +35,13 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result> SendEmailToSupport(SupportEmailRequest request)
+        public async Task<Result> SendEmailToSupport(SupportEmailCommand command)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == command.Email);
 
             if (user == null)
             {
-                _logger.LogError("User with email {email} doesn't exist.", request.Email);
+                _logger.LogError("User with email {email} doesn't exist.", command.Email);
                 return Result.Failure(
                     "User with the provided email does not exist.",
                     ErrorCodes.UserNotFound,
@@ -59,10 +59,10 @@ namespace Services.Services
                 SupportEmail = _supportEmail,
                 UserName = user.FirstName,
                 UserSurname = user.LastName,
-                UserEmail = request.Email,
+                UserEmail = command.Email,
                 Time = date,
-                Title = request.Title,
-                Message = request.Message,
+                Title = command.Title,
+                Message = command.Message,
             };
 
             await _emailSender.SendReportEmailAsync(domain);

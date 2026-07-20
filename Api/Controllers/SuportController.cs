@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
-using DTO.Request;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -30,8 +31,8 @@ namespace Api.Controllers
             [FromBody] SupportEmailRequest request
             )
         {
-            var result = await _supportServices.SendEmailToSupport(request);
-
+            var mapper = new SupportMapper();
+            var result = await _supportServices.SendEmailToSupport(mapper.MapEmail(request));
             return HandleResult(result);
         }
     }
