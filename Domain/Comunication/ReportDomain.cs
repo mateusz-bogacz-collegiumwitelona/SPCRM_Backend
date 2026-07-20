@@ -1,4 +1,4 @@
-﻿namespace DTO.Domain
+﻿namespace Domain.Comunication
 {
     public record ReportDomain
     {
