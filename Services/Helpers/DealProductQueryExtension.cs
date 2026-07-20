@@ -1,5 +1,4 @@
 ﻿using Domain.Models;
-using DTO.Request;
 
 namespace Services.Helpers
 {
@@ -18,34 +17,34 @@ namespace Services.Helpers
             );
         }
 
-        internal static IQueryable<DealProduct> ApplyFilter(this IQueryable<DealProduct> query, ProductFilterRequest filter)
+        internal static IQueryable<DealProduct> ApplyFilter(this IQueryable<DealProduct> query, string? productCategory, string? steelGrade)
         {
-            if (!string.IsNullOrWhiteSpace(filter.ProductCategory))
-                query = query.Where(dp => dp.Product.ProductCategory.Name.ToLower() == filter.ProductCategory.ToLower());
+            if (!string.IsNullOrWhiteSpace(productCategory))
+                query = query.Where(dp => dp.Product.ProductCategory.Name.ToLower() == productCategory.ToLower());
 
-            if (!string.IsNullOrWhiteSpace(filter.SteelGrade))
-                query = query.Where(dp => dp.Product.SteelGrade.ToLower() == filter.SteelGrade.ToLower());
+            if (!string.IsNullOrWhiteSpace(steelGrade))
+                query = query.Where(dp => dp.Product.SteelGrade.ToLower() == steelGrade.ToLower());
 
             return query;
         }
 
-        internal static IQueryable<DealProduct> ApplySorting(this IQueryable<DealProduct> query, SortingRequest request)
+        internal static IQueryable<DealProduct> ApplySorting(this IQueryable<DealProduct> query, string? sortBy, bool sortDescending)
         {
-            return request.SortBy?.ToLower() switch
+            return sortBy?.ToLower() switch
             {
-                "name" => request.SortDescending
+                "name" => sortDescending
                     ? query.OrderByDescending(dp => dp.Product.Name)
                     : query.OrderBy(dp => dp.Product.Name),
 
-                "steelgrade" => request.SortDescending
+                "steelgrade" => sortDescending
                     ? query.OrderByDescending(dp => dp.Product.SteelGrade)
                     : query.OrderBy(dp => dp.Product.SteelGrade),
 
-                "quantity" => request.SortDescending
+                "quantity" => sortDescending
                     ? query.OrderByDescending(dp => dp.Quantity)
                     : query.OrderBy(dp => dp.Quantity),
 
-                "totalprice" => request.SortDescending
+                "totalprice" => sortDescending
                     ? query.OrderByDescending(dp => dp.Quantity * dp.UnitPrice)
                     : query.OrderBy(dp => dp.Quantity * dp.UnitPrice),
 

@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
-using DTO.Request;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -30,13 +31,8 @@ namespace Api.Controllers
             [FromQuery] SearchRequest search,
             [FromQuery] SalesFilterRequest filter)
         {
-            var result = await _sales.GetUserSales(
-                CurrentUserId,
-                pagged,
-                sorting,
-                search,
-                filter
-                );
+            var mapper = new SalesMapper();
+            var result = await _sales.GetUserSales(CurrentUserId, mapper.MapList(pagged, sorting, search, filter));
 
             return HandleResult(result);
         }
@@ -82,7 +78,8 @@ namespace Api.Controllers
             [FromQuery] SearchRequest search,
             [FromQuery] ProductFilterRequest filter)
         {
-            var result = await _sales.GetDealProductAsync(dealId, pagged, sorting, search, filter   );
+            var mapper = new ProductMapper();
+            var result = await _sales.GetDealProductAsync(dealId, mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }
 

@@ -27,17 +27,22 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(
-            Guid userId,
-            PaggedRequest pagged,
-            SortingRequest sorting,
-            SearchRequest search,
-            SalesFilterRequest filter
-            )
+        public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(Guid userId, SalesListCommand command)
         {
             var query = _context.Deals
+                .AsNoTracking()
+                .Include(d => d.Company)
+                .Include(d => d.Currency)
                 .Where(d => d.OwnerId == userId)
-                .ApplyFilter(filter)
+                .ApplyFilter(
+                    command.CompanyName,
+                    command.Value,
+                    command.DateFrom,
+                    command.DateTo,
+                    command.StatusType
+                )
+                .ApplySorting(command.SortBy, command.SortDescending)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
                 .Select(d => new UserSalesResponse
                 {
                     Id = d.Id,
@@ -49,15 +54,12 @@ namespace Services.Services
                     Currency = d.Currency.Name,
                     CompanyName = d.Company.Name,
                     Status = d.Status.ToString()
-                })
-                .ApplySearch(search.SearchTerm ?? string.Empty)
-                .ApplySorting(sorting);
-
-
-            return await query.ToPagedResultAsync(pagged, _logger, "sales");
+                });
+                
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
         }
 
-        public async Task<Result<List<String>>> GetSalesStatus()
+        public async Task<Result<List<string>>> GetSalesStatus()
         {
             var statuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
 
@@ -156,13 +158,7 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
-            Guid dealId,
-            PaggedRequest pagged,
-            SortingRequest sorting,
-            SearchRequest search,
-            ProductFilterRequest filter
-        )
+        public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, ProductListCommand command)
         {
             var query = _context.DealProducts
                 .AsNoTracking()
@@ -175,11 +171,11 @@ namespace Services.Services
                 .Where(dp => dp.DealId == dealId);
 
             query = query
-                .ApplySearch(search.SearchTerm ?? string.Empty)
-                .ApplyFilter(filter)
-                .ApplySorting(sorting);
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .ApplyFilter(command.ProductCategory, command.SteelGrade)
+                .ApplySorting(command.SortBy, command.SortDescending);
 
-            var pagedEntitiesResult = await query.ToPagedResultAsync(pagged, _logger, "deal_products");
+            var pagedEntitiesResult = await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
 
             return pagedEntitiesResult.MapData(dp => new DealProductResponse
             {

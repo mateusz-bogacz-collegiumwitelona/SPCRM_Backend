@@ -1,68 +1,70 @@
 ﻿using Domain.Enum;
 using Domain.Models;
-using DTO.Request;
-using DTO.Response;
 
 namespace Services.Helpers
 {
     internal static class DealQueryExtension
     {
-        internal static IQueryable<Deal> ApplyFilter(this IQueryable<Deal> query, SalesFilterRequest filter)
+        internal static IQueryable<Deal> ApplyFilter(
+            this IQueryable<Deal> query,
+            string? companyName,
+            decimal? value,
+            DateTime? dateFrom,
+            DateTime? dateTo,
+            string? statusType
+            )
         {
-            if (!string.IsNullOrWhiteSpace(filter.CompanyName))
+            if (!string.IsNullOrWhiteSpace(companyName))
             {
-                var search = filter.CompanyName.ToLower();
+                var search = companyName.ToLower();
                 query = query.Where(d => d.Company.Name.ToLower().Contains(search));
             }
 
-            if (filter.Value.HasValue)
+            if (value.HasValue)
             {
-                long dbValue = (long)(filter.Value.Value * 10000m);
+                long dbValue = (long)(value.Value * 10000m);
                 query = query.Where(d => d.Value == dbValue);
             }
 
-            if (!string.IsNullOrWhiteSpace(filter.StatusType))
+            if (!string.IsNullOrWhiteSpace(statusType))
             {
-                if (!string.IsNullOrWhiteSpace(filter.StatusType))
+                if (Enum.TryParse<DealsStatusEnum>(statusType, true, out var parsedStatus))
                 {
-                    if (Enum.TryParse<DealsStatusEnum>(filter.StatusType, true, out var parsedStatus))
-                    {
-                        query = query.Where(d => d.Status == parsedStatus);
-                    }
+                    query = query.Where(d => d.Status == parsedStatus);
                 }
             }
 
-            if (filter.DateFrom.HasValue)
-                query = query.Where(d => d.CloseDate >= filter.DateFrom.Value.ToUniversalTime());
+            if (dateFrom.HasValue)
+                query = query.Where(d => d.CloseDate >= dateFrom.Value.ToUniversalTime());
 
-            if (filter.DateTo.HasValue)
-                query = query.Where(d => d.CloseDate <= filter.DateTo.Value.ToUniversalTime());
+            if (dateTo.HasValue)
+                query = query.Where(d => d.CloseDate <= dateTo.Value.ToUniversalTime());
 
             return query;
         }
 
-        internal static IQueryable<UserSalesResponse> ApplySorting(this IQueryable<UserSalesResponse> query, SortingRequest request)
+        internal static IQueryable<Deal> ApplySorting(this IQueryable<Deal> query, string? sortBy, bool sortDescending)
         {
-            return request.SortBy?.ToLower() switch
+            return sortBy?.ToLower() switch
             {
-                "name" => request.SortDescending ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
-                "value" => request.SortDescending ? query.OrderByDescending(x => x.Value) : query.OrderBy(x => x.Value),
-                "currency" => request.SortDescending ? query.OrderByDescending(x => x.Currency) : query.OrderBy(x => x.Currency),
-                "company" => request.SortDescending ? query.OrderByDescending(x => x.CompanyName) : query.OrderBy(x => x.CompanyName),
-                "date" => request.SortDescending ? query.OrderByDescending(x => x.CloseDate) : query.OrderBy(x => x.CloseDate),
+                "name" => sortDescending ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
+                "value" => sortDescending ? query.OrderByDescending(x => x.Value) : query.OrderBy(x => x.Value),
+                "currency" => sortDescending ? query.OrderByDescending(x => x.Currency) : query.OrderBy(x => x.Currency),
+                "company" => sortDescending ? query.OrderByDescending(x => x.Company.Name) : query.OrderBy(x => x.Company.Name),
+                "date" => sortDescending ? query.OrderByDescending(x => x.CloseDate) : query.OrderBy(x => x.CloseDate),
                 _ => query.OrderByDescending(x => x.CloseDate)
             };
         }
 
-        internal static IQueryable<UserSalesResponse> ApplySearch(this IQueryable<UserSalesResponse> query, string searchTerm)
+        internal static IQueryable<Deal> ApplySearch(this IQueryable<Deal> query, string searchTerm)
         {
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 searchTerm = searchTerm.ToLower();
                 query = query.Where(d =>
                     d.Name.ToLower().Contains(searchTerm) ||
-                    d.CompanyName.ToLower().Contains(searchTerm) ||
-                    d.Currency.ToLower().Contains(searchTerm)
+                    d.Company.Name.ToLower().Contains(searchTerm) ||
+                    d.Currency.Code.ToLower().Contains(searchTerm)
                 );
             }
             return query;
