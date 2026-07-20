@@ -1,4 +1,4 @@
-﻿using DTO.Domain;
+﻿using Domain.Comunication;
 using Email.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;

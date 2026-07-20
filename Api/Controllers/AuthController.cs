@@ -1,10 +1,11 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
-using DTO.Request;
-using DTO.Response;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response;
 
 namespace Api.Controllers
 {
@@ -33,7 +34,8 @@ namespace Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> LoginAsync([FromBody] LoginRequest request)
         {
-            var result = await _auth.LoginAsync(request);
+            var mapper = new AuthMapper();
+            var result = await _auth.LoginAsync(mapper.MapLoginAsync(request));
             return HandleResult(result);
         }
     }

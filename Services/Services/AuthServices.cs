@@ -1,11 +1,11 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Models;
-using DTO.Request;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Interfaces;
 using Services.Response;
 
@@ -28,11 +28,11 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request)
+        public async Task<Result<AuthResponse>> LoginAsync(LoginCommand command)
         {
             var user = await _userManager.Users.FirstOrDefaultAsync(u =>
-                u.Email == request.Name ||
-                u.NormalizedUserName == request.Name.Trim().ToUpper()
+                u.Email == command.Name ||
+                u.NormalizedUserName == command.Name.Trim().ToUpper()
             );
 
 
@@ -41,7 +41,7 @@ namespace Services.Services
 
             if (user != null)
             {
-                isPasswordValidate = await _userManager.CheckPasswordAsync(user, request.Password);
+                isPasswordValidate = await _userManager.CheckPasswordAsync(user, command.Password);
             }
 
             if (user == null || !isPasswordValidate)

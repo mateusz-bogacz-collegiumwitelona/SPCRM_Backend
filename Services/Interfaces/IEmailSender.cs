@@ -1,4 +1,4 @@
-﻿using DTO.Domain;
+﻿using Domain.Comunication;
 
 namespace Services.Interfaces
 {
