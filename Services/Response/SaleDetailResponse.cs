@@ -1,6 +1,4 @@
-﻿using System.Net.Sockets;
-
-namespace DTO.Response
+﻿namespace Services.Response
 {
     public record SaleDetailResponse
     {

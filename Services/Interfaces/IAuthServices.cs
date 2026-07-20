@@ -1,6 +1,6 @@
 ﻿using Domain.Common;
 using DTO.Request;
-using DTO.Response;
+using Services.Response;
 
 namespace Services.Interfaces
 {

@@ -1,4 +1,4 @@
-﻿namespace DTO.Response
+﻿namespace Services.Response
 {
     public record CompanyDebtSummaryResponse
     {

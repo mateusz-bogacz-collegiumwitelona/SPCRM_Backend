@@ -1,13 +1,13 @@
 ﻿using Domain.Common;
 using Domain.Models;
 using DTO.Request;
-using DTO.Response;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Helpers;
 using Services.Interfaces;
+using Services.Response;
 
 namespace Services.Services
 {
@@ -105,7 +105,7 @@ namespace Services.Services
             return Result<ContactsResponse>.Success(
                 data: response,
                 message: "Contact details retrieved successfully",
-                statusCode: StatusCodes.Status200OK 
+                statusCode: StatusCodes.Status200OK
                 );
         }
 
@@ -149,8 +149,8 @@ namespace Services.Services
                     CreatedAt = n.CreatedAt,
                     UpdateAt = n.UpdateAt
                 });
-                
-           return await query.ToPagedResultAsync(pagged, _logger, "contact_notes");
+
+            return await query.ToPagedResultAsync(pagged, _logger, "contact_notes");
         }
     }
 }

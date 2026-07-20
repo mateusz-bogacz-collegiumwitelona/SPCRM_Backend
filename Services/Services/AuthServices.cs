@@ -2,12 +2,12 @@
 using Domain.Constants;
 using Domain.Models;
 using DTO.Request;
-using DTO.Response;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Interfaces;
+using Services.Response;
 
 namespace Services.Services
 {
