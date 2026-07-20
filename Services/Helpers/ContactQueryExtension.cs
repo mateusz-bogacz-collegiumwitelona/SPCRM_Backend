@@ -1,31 +1,28 @@
 ﻿using Domain.Models;
-using DTO.Request;
-using DTO.Response;
-
 
 namespace Services.Helpers
 {
     internal static class ContactQueryExtension
     {
-        internal static IQueryable<ContactsResponse> ApplySorting(this IQueryable<ContactsResponse> query, SortingRequest request)
+        internal static IQueryable<Contact> ApplySorting(this IQueryable<Contact> query, string? sortBy, bool sortDescending)
         {
-            return request.SortBy?.ToLower() switch 
+            return sortBy?.ToLower() switch 
             {
-                "firstname" => request.SortDescending ? query.OrderByDescending(x => x.FirstName) : query.OrderBy(x => x.FirstName),
-                "lastname" => request.SortDescending ? query.OrderByDescending(x => x.LastName) : query.OrderBy(x => x.LastName),
-                "companyname" => request.SortDescending ? query.OrderByDescending(x => x.CompanyName) : query.OrderBy(x => x.CompanyName),
-                _ => query.OrderByDescending(x => x.CompanyName)
+                "firstname" => sortDescending ? query.OrderByDescending(x => x.FirstName) : query.OrderBy(x => x.FirstName),
+                "lastname" => sortDescending ? query.OrderByDescending(x => x.LastName) : query.OrderBy(x => x.LastName),
+                "companyname" => sortDescending ? query.OrderByDescending(x => x.Company.Name) : query.OrderBy(x => x.Company.Name),
+                _ => query.OrderByDescending(x => x.Company.Name)
             };
         }
 
-        internal static IQueryable<Contact> ApplyFilter(this IQueryable<Contact> query, ContactFilterRequest filter)
+        internal static IQueryable<Contact> ApplyFilter(this IQueryable<Contact> query, string? companyName, bool? isPrimary)
         {
 
-            if (!string.IsNullOrEmpty(filter.ComapnyName))
-                query = query.Where(c => c.Company.Name.ToLower().Contains(filter.ComapnyName.ToLower()));
+            if (!string.IsNullOrEmpty(companyName))
+                query = query.Where(c => c.Company.Name.ToLower().Contains(companyName.ToLower()));
 
-            if (filter.IsPrimary.HasValue)
-                query = query.Where(c => c.IsPrimary == filter.IsPrimary.Value);
+            if (isPrimary.HasValue)
+                query = query.Where(c => c.IsPrimary == isPrimary.Value);
 
             return query;
         }

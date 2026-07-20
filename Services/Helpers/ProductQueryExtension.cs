@@ -1,5 +1,4 @@
 ﻿using Domain.Models;
-using DTO.Request;
 
 namespace Services.Helpers
 {
@@ -18,30 +17,30 @@ namespace Services.Helpers
             );
         }
 
-        internal static IQueryable<Product> ApplyFilter(this IQueryable<Product> query, ProductFilterRequest filter)
+        internal static IQueryable<Product> ApplyFilter(this IQueryable<Product> query, string? productCategory, string? steelGrade)
         {
-            if (!string.IsNullOrWhiteSpace(filter.ProductCategory))
-                query = query.Where(p => p.ProductCategory.Name.ToLower() == filter.ProductCategory.ToLower());
+            if (!string.IsNullOrWhiteSpace(productCategory))
+                query = query.Where(p => p.ProductCategory.Name.ToLower() == productCategory.ToLower());
 
-            if (!string.IsNullOrWhiteSpace(filter.SteelGrade))
-                query = query.Where(p => p.SteelGrade.ToLower() == filter.SteelGrade.ToLower());
+            if (!string.IsNullOrWhiteSpace(steelGrade))
+                query = query.Where(p => p.SteelGrade.ToLower() == steelGrade.ToLower());
 
             return query;
         }
 
-        internal static IQueryable<Product> ApplySorting(this IQueryable<Product> query, SortingRequest request)
+        internal static IQueryable<Product> ApplySorting(this IQueryable<Product> query, string? sortBy, bool sortDescending)
         {
-            return request.SortBy?.ToLower() switch
+            return sortBy?.ToLower() switch
             {
-                "name" => request.SortDescending
+                "name" => sortDescending
                     ? query.OrderByDescending(p => p.Name)
                     : query.OrderBy(p => p.Name),
 
-                "steelgrade" => request.SortDescending
+                "steelgrade" => sortDescending
                     ? query.OrderByDescending(p => p.SteelGrade)
                     : query.OrderBy(p => p.SteelGrade),
 
-                "quantity" => request.SortDescending
+                "quantity" => sortDescending
                     ? query.OrderByDescending(p => p.StockQuantity)
                     : query.OrderBy(p => p.StockQuantity),
 

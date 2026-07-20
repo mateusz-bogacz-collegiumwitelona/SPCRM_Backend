@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
-using DTO.Request;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -34,8 +35,8 @@ namespace Api.Controllers
             [FromQuery] SearchRequest search
             )
         {
-            var result = await _contact.GetContactsAsync(pagged, filter, sorting, search);
-
+            var mapper = new ContactMapper();
+            var result = await _contact.GetContactsAsync(mapper.MapContactList(pagged, filter, sorting, search));
             return HandleResult(result);
         }
 
@@ -95,7 +96,8 @@ namespace Api.Controllers
             [FromQuery] SearchRequest search
             )
         {
-            var result = await _contact.GetContactNoteAsync(contactId, pagged, search);
+            var mapper = new NoteMapper();
+            var result = await _contact.GetContactNoteAsync(mapper.MapList(contactId, pagged, search));
             return HandleResult(result);
         }
     }

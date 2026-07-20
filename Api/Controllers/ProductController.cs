@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
-using DTO.Request;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -33,8 +34,8 @@ namespace Api.Controllers
             [FromQuery] ProductFilterRequest filter
             )
         {
-            var result = await _productServices.GetProductListAsync(pagged, sorting, search, filter);
-
+            var mapper = new ProductMapper();
+            var result = await _productServices.GetProductListAsync(mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }
 

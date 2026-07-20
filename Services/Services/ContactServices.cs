@@ -22,18 +22,15 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(
-            PaggedRequest pagged,
-            ContactFilterRequest filter,
-            SortingRequest sorting,
-            SearchRequest search
-            )
+        public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command)
         {
             var query = _context.Contacts
-                .ApplyFilter(filter)
-                .ApplySearch(search.SearchTerm ?? string.Empty)
+                .Include(c => c.Company)
                 .AsNoTracking()
                 .Distinct()
+                .ApplyFilter(command.ComapnyName, command.IsPrimary)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .ApplySorting(command.SortBy, command.SortDescending)
                 .Select(c => new ContactsResponse
                 {
                     Id = c.Id,
@@ -44,10 +41,10 @@ namespace Services.Services
                     OwnerFirstName = c.Owner.FirstName,
                     OwnerLastName = c.Owner.LastName,
                     IsPrimary = c.IsPrimary
-                })
-                .ApplySorting(sorting);
+                });
+                
 
-            return await query.ToPagedResultAsync(pagged, _logger, "contacts");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts");
         }
 
         public async Task<Result<List<string>>> GetCompaniesAsync()
@@ -130,14 +127,14 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<ContactNoteResponse>>> GetContactNoteAsync(Guid contatcId, PaggedRequest pagged, SearchRequest search)
+        public async Task<Result<PagedResult<ContactNoteResponse>>> GetContactNoteAsync(NoteListCommand command)
         {
             var query = _context.Notes
                 .OfType<ContactNote>()
                 .Include(n => n.Author)
-                .Where(n => n.ContactId == contatcId && !n.IsDeleted)
+                .Where(n => n.ContactId == command.searchId && !n.IsDeleted)
                 .AsNoTracking()
-                .ApplySearch(search.SearchTerm ?? string.Empty)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
                 .OrderByDescending(n => n.CreatedAt)
                 .Select(n => new ContactNoteResponse
                 {
@@ -150,7 +147,7 @@ namespace Services.Services
                     UpdateAt = n.UpdateAt
                 });
 
-            return await query.ToPagedResultAsync(pagged, _logger, "contact_notes");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact_notes");
         }
     }
 }

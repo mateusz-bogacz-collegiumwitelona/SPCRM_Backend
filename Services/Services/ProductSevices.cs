@@ -1,9 +1,9 @@
 ﻿using Domain.Common;
-using DTO.Request;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.Response;
@@ -21,17 +21,13 @@ namespace Services.Services
             _logger = logger;
         }
 
-        public async Task<Result<PagedResult<ProductResponse>>> GetProductListAsync(PaggedRequest pagged,
-            SortingRequest sorting,
-            SearchRequest search,
-            ProductFilterRequest filter
-            )
+        public async Task<Result<PagedResult<ProductResponse>>> GetProductListAsync(ProductListCommand command)
         {
             var query = _context.Products
                 .AsNoTracking()
-                .ApplySearch(search.SearchTerm ?? string.Empty)
-                .ApplyFilter(filter)
-                .ApplySorting(sorting)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .ApplyFilter(command.ProductCategory, command.SteelGrade)
+                .ApplySorting(command.SortBy ?? string.Empty, command.SortDescending)
                 .Select(p => new ProductResponse
                 {
                     Id = p.Id,
@@ -51,7 +47,7 @@ namespace Services.Services
                     UnitSymbol = p.Unit.Symbol
                 });
 
-            return await query.ToPagedResultAsync(pagged, _logger, "products");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "products");
         }
 
         public async Task<Result<IEnumerable<string>>> GetProductCategoryAsync()
