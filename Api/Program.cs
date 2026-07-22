@@ -1,4 +1,5 @@
 using Api.Configuration;
+using Api.Mappers;
 using Api.Middlewares;
 using Api.Validators;
 using Domain.Models;
@@ -50,6 +51,7 @@ try
 
     // Add configs
     builder.Services.AddSwaggerConfiguration();
+    builder.Services.AddMappers();
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddJwtAuthentication(builder.Configuration);
     builder.Services.AddApplicationServices();

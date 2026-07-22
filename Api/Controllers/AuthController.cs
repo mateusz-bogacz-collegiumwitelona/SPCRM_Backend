@@ -32,9 +32,8 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpPost("login")]
-        public async Task<IActionResult> LoginAsync([FromBody] LoginRequest request)
+        public async Task<IActionResult> LoginAsync([FromBody] LoginRequest request, [FromServices] AuthMapper mapper)
         {
-            var mapper = new AuthMapper();
             var result = await _auth.LoginAsync(mapper.MapLoginAsync(request));
             return HandleResult(result);
         }
