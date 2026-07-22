@@ -15,27 +15,21 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class ContactController : AuthControllerBase
     {
-        private IContactServices _contact;
-
-        public ContactController(IContactServices contact)
-        {
-            _contact = contact;
-        }
-
         [EndpointSummary("Get contacts")]
         [EndpointDescription("Show all contacts.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactsAsync(
+            [FromServices] ContactMapper mapper,
+            [FromServices] IContactServices contact,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] ContactFilterRequest filter,
             [FromQuery] SortingRequest sorting,
-            [FromQuery] SearchRequest search,
-            [FromServices] ContactMapper mapper
+            [FromQuery] SearchRequest search
             )
         {
-            var result = await _contact.GetContactsAsync(mapper.MapContactList(pagged, filter, sorting, search));
+            var result = await contact.GetContactsAsync(mapper.MapContactList(pagged, filter, sorting, search));
             return HandleResult(result);
         }
 
@@ -44,9 +38,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("companies")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetCompaniesAsync()
+        public async Task<IActionResult> GetCompaniesAsync([FromServices] IContactServices contact)
         {
-            var result = await _contact.GetCompaniesAsync();
+            var result = await contact.GetCompaniesAsync();
             return HandleResult(result);
         }
 
@@ -54,10 +48,13 @@ namespace Api.Controllers
         [EndpointDescription("Show detail of a specific contact.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{contactId}")]
-        [Authorize(Roles = "User,Manager")] 
-        public async Task<IActionResult> GetContactDetailAsync([FromRoute] Guid contactId)
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetContactDetailAsync(
+            [FromServices] IContactServices contact,
+            [FromRoute] Guid contactId
+            )
         {
-            var result = await _contact.GetContactDetailAsync(contactId);
+            var result = await contact.GetContactDetailAsync(contactId);
             return HandleResult(result);
         }
 
@@ -65,9 +62,11 @@ namespace Api.Controllers
         [EndpointDescription("Show all ways to contact a specific contact.")]
         [HttpGet("{contactId}/ways")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetContactWaysAsync([FromRoute] Guid contactId)
+        public async Task<IActionResult> GetContactWaysAsync(
+            [FromServices] IContactServices contact,
+            [FromRoute] Guid contactId)
         {
-            var result = await _contact.GetContactWayAsync(contactId);
+            var result = await contact.GetContactWayAsync(contactId);
             return HandleResult(result);
         }
 
@@ -76,13 +75,14 @@ namespace Api.Controllers
         [HttpGet("{contactId}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactNotesAsync(
+            [FromServices] IContactServices contact,
+            [FromServices] NoteMapper mapper,
             [FromRoute] Guid contactId,
             [FromQuery] PaggedRequest pagged,
-            [FromQuery] SearchRequest search,
-            [FromServices] NoteMapper mapper
+            [FromQuery] SearchRequest search
             )
         {
-            var result = await _contact.GetContactNoteAsync(mapper.MapList(contactId, pagged, search));
+            var result = await contact.GetContactNoteAsync(mapper.MapList(contactId, pagged, search));
             return HandleResult(result);
         }
     }

@@ -15,19 +15,13 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class SalesController : AuthControllerBase
     {
-        private readonly ISalesServices _sales;
-
-        public SalesController(ISalesServices sales)
-        {
-            _sales = sales;
-        }
-
         [EndpointSummary("Get user deals")]
         [EndpointDescription("Show data of every user deals.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetUserSales(
+            [FromServices] ISalesServices salesServices,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
@@ -35,7 +29,7 @@ namespace Api.Controllers
             [FromServices] SalesMapper mapper
             )
         {
-            var result = await _sales.GetUserSales(CurrentUserId, mapper.MapList(pagged, sorting, search, filter));
+            var result = await salesServices.GetUserSales(CurrentUserId, mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }
 
@@ -44,9 +38,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("statuses")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetSalesStatuses()
+        public async Task<IActionResult> GetSalesStatuses([FromServices] ISalesServices salesServices)
         {
-            var result = await _sales.GetSalesStatus();
+            var result = await salesServices.GetSalesStatus();
             return HandleResult(result);
         }
 
@@ -55,9 +49,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{dealId}")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetSaleDetailAsync([FromRoute] Guid dealId)
+        public async Task<IActionResult> GetSaleDetailAsync(
+            [FromServices] ISalesServices salesServices, 
+            [FromRoute] Guid dealId)
         {
-            var result = await _sales.GetSaleDetailAsync(dealId);
+            var result = await salesServices.GetSaleDetailAsync(dealId);
             return HandleResult(result);
         }
 
@@ -67,15 +63,16 @@ namespace Api.Controllers
         [HttpGet("{dealId}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealProductAsync(
+            [FromServices] ISalesServices salesServices,
+            [FromServices] ProductMapper mapper,
             [FromRoute] Guid dealId,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] ProductFilterRequest filter,
-            [FromServices] ProductMapper mapper
+            [FromQuery] ProductFilterRequest filter
             )
         {
-            var result = await _sales.GetDealProductAsync(dealId, mapper.MapList(pagged, sorting, search, filter));
+            var result = await salesServices.GetDealProductAsync(dealId, mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }
 
@@ -84,9 +81,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{dealId}/notes")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetDealNotesAsync([FromRoute] Guid dealId)
+        public async Task<IActionResult> GetDealNotesAsync(
+            [FromServices] ISalesServices salesServices,
+            [FromRoute] Guid dealId)
         {
-            var result = await _sales.GetDealNotesAsync(dealId);
+            var result = await salesServices.GetDealNotesAsync(dealId);
             return HandleResult(result);
         }
     }

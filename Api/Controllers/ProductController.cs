@@ -15,12 +15,6 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class ProductController : AuthControllerBase
     {
-        private readonly IProductSevices _productServices;
-
-        public ProductController(IProductSevices productServices)
-        {
-            _productServices = productServices;
-        }
 
         [EndpointSummary("Get product list")]
         [EndpointDescription("Get product list with pagination, sorting and filtering.")]
@@ -28,14 +22,15 @@ namespace Api.Controllers
         [HttpGet("")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetProductListAsync(
+            [FromServices] IProductSevices productServices,
+            [FromServices] ProductMapper mapper,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] ProductFilterRequest filter,
-            [FromServices] ProductMapper mapper
+            [FromQuery] ProductFilterRequest filter
             )
         {
-            var result = await _productServices.GetProductListAsync(mapper.MapList(pagged, sorting, search, filter));
+            var result = await productServices.GetProductListAsync(mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }
 
@@ -44,9 +39,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("categories")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> GetProductCategoryAsync()
+        public async Task<IActionResult> GetProductCategoryAsync([FromServices] IProductSevices productServices)
         {
-            var result = await _productServices.GetProductCategoryAsync();
+            var result = await productServices.GetProductCategoryAsync();
             return HandleResult(result);
         }
 
@@ -55,9 +50,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("steel-grades")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> GetSteelGradesAsync()
+        public async Task<IActionResult> GetSteelGradesAsync([FromServices] IProductSevices productServices)
         {
-            var result = await _productServices.GetSteelGradesAsync();
+            var result = await productServices.GetSteelGradesAsync();
             return HandleResult(result);
         }
     }

@@ -15,14 +15,6 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class TaskController : AuthControllerBase
     {
-        private readonly ITaskServices _taskServices;
-
-        public TaskController(ITaskServices taskServices)
-        {
-            _taskServices = taskServices;
-        }
-
-
         [EndpointSummary("Get tasks for calendar")]
         [EndpointDescription("Show tasks for calendar view. " +
             "This endpoint return tasks within a specified date range")]
@@ -30,10 +22,12 @@ namespace Api.Controllers
         [HttpGet("calendar")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTasksForCalendarAsync(
-            [FromQuery] TaskCalendarRequest request,
-            [FromServices] TaskMapper mapper)
+            [FromServices] TaskMapper mapper,
+            [FromServices] ITaskServices taskServices,
+            [FromQuery] TaskCalendarRequest request
+            )
         {
-            var result = await _taskServices.GetTasksForCalendarAsync(mapper.MapUserCalendar(CurrentUserId, request));
+            var result = await taskServices.GetTasksForCalendarAsync(mapper.MapUserCalendar(CurrentUserId, request));
             return HandleResult(result);
         }
 
@@ -42,9 +36,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("dictionaries")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetTaskDictionariesAsync()
+        public async Task<IActionResult> GetTaskDictionariesAsync([FromServices] ITaskServices taskServices)
         {
-            var result = await _taskServices.GetTaskDictionariesAsync();
+            var result = await taskServices.GetTaskDictionariesAsync();
             return HandleResult(result);
         }
 
@@ -53,9 +47,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{taskId}")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetTaskDetailResponse([FromRoute] Guid taskId)
+        public async Task<IActionResult> GetTaskDetailResponse(
+            [FromServices] ITaskServices taskServices,
+            [FromRoute] Guid taskId
+            )
         {
-            var result = await _taskServices.GetTaskDetailResponse(taskId);
+            var result = await taskServices.GetTaskDetailResponse(taskId);
             return HandleResult(result);
         }
 
@@ -64,9 +61,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{taskId}/contact")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetTaskContactAsync([FromRoute]Guid taskId)
+        public async Task<IActionResult> GetTaskContactAsync(
+            [FromServices] ITaskServices taskServices,
+            [FromRoute] Guid taskId
+        )
         {
-            var result = await _taskServices.GetTaskContactAsync(taskId);
+            var result = await taskServices.GetTaskContactAsync(taskId);
             return HandleResult(result);
         }
 
@@ -75,9 +75,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{taskId}/deal")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetTaskDealAsync([FromRoute] Guid taskId)
+        public async Task<IActionResult> GetTaskDealAsync(
+            [FromServices] ITaskServices taskServices,
+            [FromRoute] Guid taskId
+        )
         {
-            var result = await _taskServices.GetTaskDealAsync(taskId);
+            var result = await taskServices.GetTaskDealAsync(taskId);
             return HandleResult(result);
         }
 
@@ -86,9 +89,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{taskId}/notes")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetTaskNotesAsync([FromRoute] Guid taskId)
+        public async Task<IActionResult> GetTaskNotesAsync(
+            [FromServices] ITaskServices taskServices,
+            [FromRoute] Guid taskId
+        )
         {
-            var result = await _taskServices.GetTaskNotesAsync(taskId);
+            var result = await taskServices.GetTaskNotesAsync(taskId);
             return HandleResult(result);
         }
     }

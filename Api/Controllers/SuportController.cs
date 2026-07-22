@@ -13,13 +13,6 @@ namespace Api.Controllers
     [AllowAnonymous]
     public class SuportController : BaseController
     {
-        private readonly ISupportServices _supportServices;
-
-        public SuportController(ISupportServices supportServices)
-        {
-            _supportServices = supportServices;
-        }
-
         [EndpointSummary("Send email to support")]
         [EndpointDescription("Sends an email to the support team with the provided details.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
@@ -28,8 +21,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpPost]
         public async Task<IActionResult> SendEmailToSupport(
-            [FromBody] SupportEmailRequest request,
-            [FromServices] SupportMapper mapper
+            [FromServices] SupportMapper mapper,
+            [FromServices] ISupportServices _supportServices,
+            [FromBody] SupportEmailRequest request
             )
         {
             var result = await _supportServices.SendEmailToSupport(mapper.MapEmail(request));
