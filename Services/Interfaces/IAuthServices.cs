@@ -6,6 +6,6 @@ namespace Services.Interfaces
 {
     public interface IAuthServices
     {
-        Task<Result<AuthResponse>> LoginAsync(LoginCommand command);
+        Task<int> LoginAsync(LoginCommand command);
     }
 }

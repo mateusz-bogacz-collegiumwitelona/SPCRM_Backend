@@ -7,6 +7,7 @@ using Email;
 using FluentValidation;
 using Infrastructure;
 using Infrastructure.Seeders;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -53,11 +54,16 @@ try
     builder.Services.AddSwaggerConfiguration();
     builder.Services.AddMappers();
     builder.Services.AddInfrastructure(builder.Configuration);
-    builder.Services.AddJwtAuthentication(builder.Configuration);
+    builder.Services.AddCookieAuthentication(builder.Configuration);
     builder.Services.AddApplicationServices();
     builder.Services.AddEmailModule(builder.Configuration);
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
+
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    });
 
     var app = builder.Build();
 

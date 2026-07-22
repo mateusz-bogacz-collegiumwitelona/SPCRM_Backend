@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
 using Services.Response;
+using Services.Services;
 
 namespace Api.Controllers
 {
@@ -17,7 +18,7 @@ namespace Api.Controllers
     {
         [EndpointSummary("Authenticate user (Login Step 1)")]
         [EndpointDescription("Authenticates a user using their email and password. " +
-            "If credentials are valid, a final JWT token is returned.")]
+            "If credentials are valid, a HttpOnlyCookie was given.")]
         [ProducesResponseType(typeof(Result<AuthResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status403Forbidden)]
@@ -27,11 +28,14 @@ namespace Api.Controllers
         public async Task<IActionResult> LoginAsync(
             [FromBody] LoginRequest request, 
             [FromServices] AuthMapper mapper,
-            [FromServices] IAuthServices auth
+            [FromServices] IAuthServices authServices
             )
         {
-            var result = await auth.LoginAsync(mapper.MapLoginAsync(request));
-            return HandleResult(result);
+            var statusCode = await authServices.LoginAsync(mapper.MapLoginAsync(request));
+
+            return statusCode == StatusCodes.Status401Unauthorized
+                ? Unauthorized()
+                : NoContent();
         }
     }
 }
