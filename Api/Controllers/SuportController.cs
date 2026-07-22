@@ -28,10 +28,10 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
         [HttpPost]
         public async Task<IActionResult> SendEmailToSupport(
-            [FromBody] SupportEmailRequest request
+            [FromBody] SupportEmailRequest request,
+            [FromServices] SupportMapper mapper
             )
         {
-            var mapper = new SupportMapper();
             var result = await _supportServices.SendEmailToSupport(mapper.MapEmail(request));
             return HandleResult(result);
         }

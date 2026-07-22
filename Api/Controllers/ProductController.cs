@@ -31,10 +31,10 @@ namespace Api.Controllers
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] ProductFilterRequest filter
+            [FromQuery] ProductFilterRequest filter,
+            [FromServices] ProductMapper mapper
             )
         {
-            var mapper = new ProductMapper();
             var result = await _productServices.GetProductListAsync(mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }

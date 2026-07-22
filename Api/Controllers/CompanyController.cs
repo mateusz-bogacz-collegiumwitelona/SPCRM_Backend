@@ -62,10 +62,10 @@ namespace Api.Controllers
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyAddresses(
             [FromQuery] Guid companyId, 
-            [FromQuery] PaggedRequest pagged
+            [FromQuery] PaggedRequest pagged,
+            [FromServices] CompanyMapper mapper
             )
         {
-            var mapper = new CompanyMapper();
             var result = await _companyServices.GetCompanyAddresses(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
@@ -77,10 +77,10 @@ namespace Api.Controllers
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyContacts(
             [FromQuery] Guid companyId,
-            [FromQuery] PaggedRequest pagged
+            [FromQuery] PaggedRequest pagged,
+            [FromServices] CompanyMapper mapper
             )
         {
-            var mapper = new CompanyMapper();
             var result = await _contactServices.GetCompanyContactsAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
@@ -91,10 +91,10 @@ namespace Api.Controllers
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
             [FromQuery] Guid companyId,
-            [FromQuery] PaggedRequest pagged
-            )
+            [FromQuery] PaggedRequest pagged,
+            [FromServices] CompanyMapper mapper
+        )
         {
-            var mapper = new CompanyMapper();
             var result = await _salesServices.GetComapanySalesAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
@@ -117,10 +117,10 @@ namespace Api.Controllers
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyDebts(
             [FromQuery] Guid companyId,
-            [FromQuery] PaggedRequest pagged
+            [FromQuery] PaggedRequest pagged,
+            [FromServices] CompanyMapper mapper
         )
         {
-            var mapper = new CompanyMapper();
             var result = await _debtServices.GetCompanyDebtsAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
@@ -135,10 +135,10 @@ namespace Api.Controllers
            [FromQuery] PaggedRequest pagged,
            [FromQuery] CompanyFilterRequest filer,
            [FromQuery] SortingRequest sorting,
-           [FromQuery] SearchRequest search
+           [FromQuery] SearchRequest search,
+           [FromServices] CompanyMapper mapper
             )
         {
-            var mapper = new CompanyMapper();
             var result = await _companyServices.GetCompanyListAsync(mapper.MapList(
                 CurrentUserId,
                 pagged,

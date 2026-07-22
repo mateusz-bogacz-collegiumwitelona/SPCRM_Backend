@@ -24,13 +24,15 @@ namespace Api.Controllers
 
 
         [EndpointSummary("Get tasks for calendar")]
-        [EndpointDescription("Show tasks for calendar view. This endpoint return tasks within a specified date range")]
+        [EndpointDescription("Show tasks for calendar view. " +
+            "This endpoint return tasks within a specified date range")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("calendar")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetTasksForCalendarAsync([FromQuery] TaskCalendarRequest request)
+        public async Task<IActionResult> GetTasksForCalendarAsync(
+            [FromQuery] TaskCalendarRequest request,
+            [FromServices] TaskMapper mapper)
         {
-            var mapper = new TaskMapper();
             var result = await _taskServices.GetTasksForCalendarAsync(mapper.MapUserCalendar(CurrentUserId, request));
             return HandleResult(result);
         }

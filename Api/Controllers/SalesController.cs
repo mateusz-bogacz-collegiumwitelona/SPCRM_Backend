@@ -31,11 +31,11 @@ namespace Api.Controllers
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] SalesFilterRequest filter)
+            [FromQuery] SalesFilterRequest filter,
+            [FromServices] SalesMapper mapper
+            )
         {
-            var mapper = new SalesMapper();
             var result = await _sales.GetUserSales(CurrentUserId, mapper.MapList(pagged, sorting, search, filter));
-
             return HandleResult(result);
         }
 
@@ -71,9 +71,10 @@ namespace Api.Controllers
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] ProductFilterRequest filter)
+            [FromQuery] ProductFilterRequest filter,
+            [FromServices] ProductMapper mapper
+            )
         {
-            var mapper = new ProductMapper();
             var result = await _sales.GetDealProductAsync(dealId, mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }

@@ -27,15 +27,14 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
-
         public async Task<IActionResult> GetContactsAsync(
             [FromQuery] PaggedRequest pagged,
             [FromQuery] ContactFilterRequest filter,
             [FromQuery] SortingRequest sorting,
-            [FromQuery] SearchRequest search
+            [FromQuery] SearchRequest search,
+            [FromServices] ContactMapper mapper
             )
         {
-            var mapper = new ContactMapper();
             var result = await _contact.GetContactsAsync(mapper.MapContactList(pagged, filter, sorting, search));
             return HandleResult(result);
         }
@@ -79,10 +78,10 @@ namespace Api.Controllers
         public async Task<IActionResult> GetContactNotesAsync(
             [FromRoute] Guid contactId,
             [FromQuery] PaggedRequest pagged,
-            [FromQuery] SearchRequest search
+            [FromQuery] SearchRequest search,
+            [FromServices] NoteMapper mapper
             )
         {
-            var mapper = new NoteMapper();
             var result = await _contact.GetContactNoteAsync(mapper.MapList(contactId, pagged, search));
             return HandleResult(result);
         }
