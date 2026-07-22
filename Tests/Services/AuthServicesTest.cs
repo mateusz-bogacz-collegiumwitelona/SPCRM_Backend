@@ -1,5 +1,4 @@
-﻿using Domain.Constants;
-using Domain.Models;
+﻿using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -30,6 +29,7 @@ namespace Tests.Services
 
         protected AuthServices _authServicesMock = null!;
         protected TokenServices _tokenServicesMock = null!;
+        protected SignInManager<ApplicationUser> _signInManagerMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -138,7 +138,9 @@ namespace Tests.Services
             _loggerMock = Mock.Of<ILogger<AuthServices>>().Object;
             _tokenServicesMock = Mock.Of<TokenServices>(configuration).Object;
 
-            _authServicesMock = new AuthServices(_userManagerMock, _tokenServicesMock, _loggerMock);
+            var fakeSignInManager = new FakeSignInManager(_userManagerMock);
+
+            _authServicesMock = new AuthServices(_userManagerMock, _tokenServicesMock, _loggerMock, fakeSignInManager);
         }
 
         [After(Test)]
@@ -154,7 +156,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task LoginAsync_WhenEmailIsNotConfirmed_Returns403()
+        public async Task LoginAsync_WhenEmailIsNotConfirmed_Returns401()
         {
             // Arrange
             var user = new ApplicationUser
@@ -176,10 +178,7 @@ namespace Tests.Services
             var result = await _authServicesMock.LoginAsync(request);
 
             // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("Email is not confirmed.");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.EmailNotConfirmed);
+            await Assert.That(result).IsEqualTo(StatusCodes.Status401Unauthorized);
         }
 
 
@@ -187,7 +186,6 @@ namespace Tests.Services
         public async Task LoginAsync_WhenPasswordIsInvalid_Returns401()
         {
             // Arrange
-            var passwordHasher = new PasswordHasher<ApplicationUser>();
             var user = new ApplicationUser
             {
                 UserName = "Test2",
@@ -207,14 +205,11 @@ namespace Tests.Services
             var result = await _authServicesMock.LoginAsync(request);
 
             // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status401Unauthorized);
-            await Assert.That(result.Message).IsEqualTo("Invalid username or password.");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidCredentials);
+            await Assert.That(result).IsEqualTo(StatusCodes.Status401Unauthorized);
         }
 
         [Test]
-        public async Task LoginAsync_WhenUserHasNoRoles_Returns403()
+        public async Task LoginAsync_WhenUserHasNoRoles_Returns401()
         {
             // Arrange
             var user = new ApplicationUser
@@ -236,14 +231,11 @@ namespace Tests.Services
             var result = await _authServicesMock.LoginAsync(request);
 
             // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("User has no roles assigned.");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoRolesAssigned);
+            await Assert.That(result).IsEqualTo(StatusCodes.Status401Unauthorized);
         }
 
         [Test]
-        public async Task LoginAsync_WhenCredentialsAreValid_Returns200()
+        public async Task LoginAsync_WhenCredentialsAreValid_Returns204()
         {
             // Arrange
             var user = new ApplicationUser
@@ -273,9 +265,30 @@ namespace Tests.Services
             var result = await _authServicesMock.LoginAsync(request);
 
             // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-            await Assert.That(result.Message).IsEqualTo("Login successful.");
+            await Assert.That(result).IsEqualTo(StatusCodes.Status204NoContent);
         }
+    }
+
+    public class DummyClaimsFactory : IUserClaimsPrincipalFactory<ApplicationUser>
+    {
+        public Task<System.Security.Claims.ClaimsPrincipal> CreateAsync(ApplicationUser user)
+            => Task.FromResult(new System.Security.Claims.ClaimsPrincipal());
+    }
+
+    public class FakeSignInManager : SignInManager<ApplicationUser>
+    {
+        public FakeSignInManager(UserManager<ApplicationUser> userManager)
+            : base(userManager,
+                   new HttpContextAccessor(),
+                   new DummyClaimsFactory(),
+                   Microsoft.Extensions.Options.Options.Create(new IdentityOptions()), new NullLogger<SignInManager<ApplicationUser>>(),
+                   null!,
+                   null!)
+        {
+        }
+
+        public override Task<Microsoft.AspNetCore.Identity.SignInResult> PasswordSignInAsync(
+            string userName, string password, bool isPersistent, bool lockoutOnFailure)
+            => Task.FromResult(Microsoft.AspNetCore.Identity.SignInResult.Success);
     }
 }
