@@ -1,30 +1,25 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request;
-using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
-using Services.Response;
-using Services.Services;
 
 namespace Api.Controllers
 {
     [ApiController]
-    [AllowAnonymous]
     [Route("api/auth")]
     [Tags("Authentication")]
-    public class AuthController : BaseController
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public class AuthController : AuthControllerBase
     {
         [EndpointSummary("Authenticate user (Login Step 1)")]
         [EndpointDescription("Authenticates a user using their email and password. " +
             "If credentials are valid, a HttpOnlyCookie was given.")]
-        [ProducesResponseType(typeof(Result<AuthResponse>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> LoginAsync(
             [FromBody] LoginRequest request, 
             [FromServices] AuthMapper mapper,
@@ -36,6 +31,29 @@ namespace Api.Controllers
             return statusCode == StatusCodes.Status401Unauthorized
                 ? Unauthorized()
                 : NoContent();
+        }
+
+        
+        [EndpointSummary("Logout user (Login Step 2)")]
+        [EndpointDescription("Logs out the authenticated user by clearing the authentication cookie.")]
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> LogoutAsync(
+            [FromServices] IAuthServices authServices
+            )
+        {
+            var statusCode = await authServices.LogoutAsync();
+            return NoContent();
+        }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetUserDataAsync(
+            [FromServices] IAuthServices authServices
+            )
+        {
+            var result = await authServices.GetUserDataAsync(CurrentUserId);
+            return HandleResult(result);
         }
     }
 }

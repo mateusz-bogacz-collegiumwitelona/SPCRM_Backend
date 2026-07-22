@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -140,6 +141,8 @@ namespace Tests.Services
 
             var fakeSignInManager = new FakeSignInManager(_userManagerMock);
 
+            _signInManagerMock = fakeSignInManager;
+
             _authServicesMock = new AuthServices(_userManagerMock, _tokenServicesMock, _loggerMock, fakeSignInManager);
         }
 
@@ -267,6 +270,100 @@ namespace Tests.Services
             // Assert
             await Assert.That(result).IsEqualTo(StatusCodes.Status204NoContent);
         }
+
+        [Test]
+        public async Task LogoutAsync_WhenCalled_Returns204AndSignsOut()
+        {
+            // Act
+            var result = await _authServicesMock.LogoutAsync();
+
+            // Assert
+            await Assert.That(result).IsEqualTo(StatusCodes.Status204NoContent);
+
+            var fakeSignInManager = (FakeSignInManager)_signInManagerMock;
+
+            await Assert.That(fakeSignInManager.SignOutCalled).IsTrue();
+        }
+
+        [Test]
+        public async Task GetUserDataAsync_WhenUserIsntLogin_Return404() 
+        {
+            // Act 
+            var result = await _authServicesMock.GetUserDataAsync(Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound.ToString());
+        }
+
+        [Test]
+        public async Task GetUserDataAsync_WhenUserDontHaveRoles_Return404()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                UserName = "Test5",
+                NormalizedUserName = "TEST5",
+                FirstName = "Test5",
+                LastName = "Test5",
+                Email = "test5@test.pl",
+                NormalizedEmail = "TEST5@TEST5.PL",
+                EmailConfirmed = true
+            };
+
+            await _userManagerMock.CreateAsync(user, "GoodPassword123!");
+
+            // Act
+            var result = await _authServicesMock.GetUserDataAsync(user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("User has no roles assigned");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoRolesAssigned.ToString());
+        }
+
+        [Test]
+        public async Task GetUserDataAsync_WhenEverythingIsFine_ReturnsUserData()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                UserName = "Test6",
+                NormalizedUserName = "TEST6",
+                FirstName = "Test6",
+                LastName = "Test6",
+                Email = "test6@test.pl",
+                NormalizedEmail = "TEST6@TEST6.PL",
+                EmailConfirmed = true
+            };
+
+            await _userManagerMock.CreateAsync(user, "GoodPassword123!");
+
+            string roleName = "User" + Guid.NewGuid().ToString("N");
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid>
+            {
+                Name = roleName,
+                NormalizedName = roleName.ToUpper()
+            });
+
+            await _userManagerMock.AddToRoleAsync(user, "User");
+
+            // Act
+            var result = await _authServicesMock.GetUserDataAsync(user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("User data retrieved successfully");
+            await Assert.That(result.Data!.UserId).IsEqualTo(user.Id);
+            await Assert.That(result.Data!.Email).IsEqualTo(user.Email);
+            await Assert.That(result.Data!.UserName).IsEqualTo(user.UserName);
+            await Assert.That(result.Data!.Roles).Contains("User");
+        }
     }
 
     public class DummyClaimsFactory : IUserClaimsPrincipalFactory<ApplicationUser>
@@ -277,11 +374,14 @@ namespace Tests.Services
 
     public class FakeSignInManager : SignInManager<ApplicationUser>
     {
+        public bool SignOutCalled { get; private set; } = false;
+
         public FakeSignInManager(UserManager<ApplicationUser> userManager)
             : base(userManager,
                    new HttpContextAccessor(),
                    new DummyClaimsFactory(),
-                   Microsoft.Extensions.Options.Options.Create(new IdentityOptions()), new NullLogger<SignInManager<ApplicationUser>>(),
+                   Microsoft.Extensions.Options.Options.Create(new IdentityOptions()),
+                   new NullLogger<SignInManager<ApplicationUser>>(),
                    null!,
                    null!)
         {
@@ -290,5 +390,11 @@ namespace Tests.Services
         public override Task<Microsoft.AspNetCore.Identity.SignInResult> PasswordSignInAsync(
             string userName, string password, bool isPersistent, bool lockoutOnFailure)
             => Task.FromResult(Microsoft.AspNetCore.Identity.SignInResult.Success);
+
+        public override Task SignOutAsync()
+        {
+            SignOutCalled = true;
+            return Task.CompletedTask;
+        }
     }
 }
