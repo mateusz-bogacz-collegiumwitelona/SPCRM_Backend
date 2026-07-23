@@ -37,18 +37,6 @@ namespace Tests.Services
             await _dbContainer.StartAsync();
 
             _connectionString = _dbContainer.GetConnectionString();
-
-            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
-                {
-                    options.UseNetTopologySuite();
-                })
-                .Options;
-            using var context = new AppDbContext(dbOptions);
-            await context.Database.EnsureCreatedAsync();
-
-            using var conn = new NpgsqlConnection(_connectionString);
-            await conn.OpenAsync();
         }
 
         [After(Class)]
@@ -59,33 +47,30 @@ namespace Tests.Services
         public async Task SetupAsync()
         {
             _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
-            using var conn = new NpgsqlConnection(_connectionString);
 
-            await conn.OpenAsync();
-
-            using (var cmd = conn.CreateCommand())
+            using (var conn = new NpgsqlConnection(_connectionString))
             {
-                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
-                await cmd.ExecuteNonQueryAsync();
+                await conn.OpenAsync();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
 
+            var testConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
+                .UseNpgsql(testConnectionString, options =>
                 {
                     options.UseNetTopologySuite();
-                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
-            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
-            await _contextMock.Database.EnsureCreatedAsync();
 
-            _contextMock = new AppDbContext(dbOptions);
             await _contextMock.Database.EnsureCreatedAsync();
 
             _loggerMock = new LoggerFactory().CreateLogger<ProductSevices>();
-
             _productSevicesMock = new ProductSevices(_contextMock, _loggerMock);
         }
 
@@ -116,14 +101,6 @@ namespace Tests.Services
                 Symbol = "szt"
             };
 
-            var category = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Stal_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych",
-                Category = ProductCategoryEnum.Standard
-            };
-
 
             var product = new Product
             {
@@ -139,12 +116,10 @@ namespace Tests.Services
                 StockQuantity = 100,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category
+                Category = ProductCategoryEnum.Standard
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.ProductCategories.Add(category);
             _contextMock.Products.Add(product);
             await _contextMock.SaveChangesAsync();
 
@@ -168,7 +143,7 @@ namespace Tests.Services
             await Assert.That(mappedProduct!.Name).IsEqualTo(product.Name);
             await Assert.That(mappedProduct.SteelGrade).IsEqualTo("S235");
             await Assert.That(mappedProduct.StockQuantity).IsEqualTo(100);
-            await Assert.That(mappedProduct.Category).IsEqualTo(category.Name);
+            await Assert.That(mappedProduct.Category).IsEqualTo(ProductCategoryEnum.Standard.ToString());
             await Assert.That(mappedProduct.UnitSymbol).IsEqualTo("szt");
             await Assert.That(mappedProduct.Dimensions).IsNotNull();
             await Assert.That(mappedProduct.Dimensions).IsNotEmpty();
@@ -187,14 +162,6 @@ namespace Tests.Services
                 Symbol = "m"
             };
 
-            var category = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Kat_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych",
-                Category = ProductCategoryEnum.Standard
-            };
-
             var targetProduct = new Product
             {
                 Id = Guid.NewGuid(),
@@ -208,8 +175,7 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category
+                Category = ProductCategoryEnum.Profile
             };
 
             var otherProduct = new Product
@@ -225,12 +191,10 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category
+                Category = ProductCategoryEnum.Standard
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.ProductCategories.Add(category);
             _contextMock.Products.AddRange(targetProduct, otherProduct);
             await _contextMock.SaveChangesAsync();
 
@@ -286,21 +250,6 @@ namespace Tests.Services
                 Symbol = "szt"
             };
 
-            var catSteel = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Stal_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych",
-                Category = ProductCategoryEnum.Standard
-            };
-
-            var catAlu = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Aluminium_{uniqueSuffix}",
-                Description = "Kategoria dla produktów aluminiowych",
-                Category = ProductCategoryEnum.Profile
-            };
 
             var p1 = new Product
             {
@@ -313,8 +262,7 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategory = catSteel,
-                ProductCategoryId = catSteel.Id
+                Category = ProductCategoryEnum.Standard
             };
 
             var p2 = new Product
@@ -328,8 +276,7 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategory = catSteel,
-                ProductCategoryId = catSteel.Id
+                Category= ProductCategoryEnum.Standard
             };
 
             var p3 = new Product
@@ -343,12 +290,10 @@ namespace Tests.Services
                 StockQuantity = 100,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategory = catAlu,
-                ProductCategoryId = catAlu.Id
+                Category = ProductCategoryEnum.Profile
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.ProductCategories.AddRange(catSteel, catAlu);
             _contextMock.Products.AddRange(p1, p2, p3);
             await _contextMock.SaveChangesAsync();
 
@@ -356,7 +301,7 @@ namespace Tests.Services
             {
                 PageNumber = 1,
                 PageSize = 10,
-                ProductCategory = catSteel.Name,
+                ProductCategory = ProductCategoryEnum.Standard.ToString(),
                 SortBy = "quantity",
                 SortDescending = true
             };
@@ -376,42 +321,8 @@ namespace Tests.Services
         // ─── GetProductCategoryAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetProductCategoryAsync_ReturnsDistinctAndSortedCategories()
+        public async Task GetProductCategoryAsync_ReturnsAllEnumValues()
         {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var cat1 = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Zebra_{uniqueSuffix}",
-                Description = "Zebra"
-            };
-
-            var cat2 = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Alpaka_{uniqueSuffix}",
-                Description = "Alpaka"
-            };
-
-            var cat3 = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Zebra_{uniqueSuffix}",
-                Description = "Zebra"
-            };
-
-            var cat4 = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Delfin_{uniqueSuffix}",
-                Description = "Delfin"
-            };
-
-            _contextMock.ProductCategories.AddRange(cat1, cat2, cat3, cat4);
-            await _contextMock.SaveChangesAsync();
-
             // Act
             var result = await _productSevicesMock.GetProductCategoryAsync();
 
@@ -419,12 +330,15 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
 
-            var myCategories = result.Data!.Where(c => c.EndsWith(uniqueSuffix)).ToList();
+            var expectedCategories = Enum.GetNames(typeof(ProductCategoryEnum)).ToList();
+            var returnedCategories = result.Data!.ToList();
 
-            await Assert.That(myCategories).HasCount().EqualTo(3);
-            await Assert.That(myCategories[0]).IsEqualTo($"Alpaka_{uniqueSuffix}");
-            await Assert.That(myCategories[1]).IsEqualTo($"Delfin_{uniqueSuffix}");
-            await Assert.That(myCategories[2]).IsEqualTo($"Zebra_{uniqueSuffix}");
+            await Assert.That(returnedCategories).HasCount().EqualTo(expectedCategories.Count);
+
+            foreach (var category in expectedCategories)
+            {
+                await Assert.That(returnedCategories.Contains(category)).IsTrue();
+            }
         }
 
         [Test]
@@ -454,13 +368,6 @@ namespace Tests.Services
                 Symbol = "szt"
             };
 
-            var category = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Cat_{uniqueSuffix}",
-                Description = "Kategoria dla produktów stalowych",
-                Category = ProductCategoryEnum.Standard
-            };
 
             var p1 = new Product
             {
@@ -469,8 +376,7 @@ namespace Tests.Services
                 SteelGrade = $"S355_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category,
+                Category = ProductCategoryEnum.Standard,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -483,8 +389,7 @@ namespace Tests.Services
                 SteelGrade = $"AW6060_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category,
+                Category = ProductCategoryEnum.Standard,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -497,8 +402,7 @@ namespace Tests.Services
                 SteelGrade = $"S355_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category,
+                Category = ProductCategoryEnum.Standard,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -511,15 +415,13 @@ namespace Tests.Services
                 SteelGrade = $"S235_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category,
+                Category = ProductCategoryEnum.Standard,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.ProductCategories.Add(category);
             _contextMock.Products.AddRange(p1, p2, p3, p4);
             await _contextMock.SaveChangesAsync();
 

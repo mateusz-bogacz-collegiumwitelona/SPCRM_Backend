@@ -163,8 +163,6 @@ namespace Services.Services
             var query = _context.DealProducts
                 .AsNoTracking()
                 .Include(dp => dp.Product)
-                    .ThenInclude(p => p.ProductCategory)
-                .Include(dp => dp.Product)
                     .ThenInclude(p => p.Unit)
                 .Include(dp => dp.Deal)
                     .ThenInclude(d => d.Currency)
@@ -184,7 +182,7 @@ namespace Services.Services
                 SteelGrade = dp.Product.SteelGrade,
 
                 Dimensions = DimensionsFormatter.Format(
-                    dp.Product.ProductCategory.Category,
+                    dp.Product.Category,
                     dp.Product.Diameter,
                     dp.Product.Thickness,
                     dp.Product.Width,

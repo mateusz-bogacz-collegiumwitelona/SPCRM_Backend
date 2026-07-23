@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Enum;
 
 namespace Domain.Models
 {
@@ -17,9 +18,7 @@ namespace Domain.Models
         public long PricePerUnit { get; set; }
         public int StockQuantity { get; set; }
 
-        public Guid ProductCategoryId { get; set; }
-        public ProductCategory ProductCategory { get; set; } = null!;
-
+        public ProductCategoryEnum Category { get; set; }
         public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
     }
 }

@@ -13,14 +13,14 @@ namespace Services.Helpers
             return query.Where(dp =>
                 dp.Product.Name.ToLower().Contains(searchTerm) ||
                 dp.Product.SteelGrade.ToLower().Contains(searchTerm) ||
-                dp.Product.ProductCategory.Name.ToLower().Contains(searchTerm)
+                dp.Product.Category.ToString().ToLower().Contains(searchTerm)
             );
         }
 
         internal static IQueryable<DealProduct> ApplyFilter(this IQueryable<DealProduct> query, string? productCategory, string? steelGrade)
         {
             if (!string.IsNullOrWhiteSpace(productCategory))
-                query = query.Where(dp => dp.Product.ProductCategory.Name.ToLower() == productCategory.ToLower());
+                query = query.Where(dp => dp.Product.Category.ToString().ToLower() == productCategory.ToLower());
 
             if (!string.IsNullOrWhiteSpace(steelGrade))
                 query = query.Where(dp => dp.Product.SteelGrade.ToLower() == steelGrade.ToLower());

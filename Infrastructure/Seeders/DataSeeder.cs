@@ -30,7 +30,6 @@ namespace Infrastructure.Seeders
 
             if (!await _context.Currencies.AnyAsync()) await SeedCurrenciesAsync();
             if (!await _context.UnitsOfMeasure.AnyAsync()) await SeedUnitsAsync();
-            if (!await _context.ProductCategories.AnyAsync()) await SeedProductCatalogAsync();
 
             if (!await _context.Companies.AnyAsync()) await SeedCompaniesAndContactsAsync();
             if (!await _context.Products.AnyAsync()) await SeedProductsAsync();
@@ -162,21 +161,6 @@ namespace Infrastructure.Seeders
             await _context.UnitsOfMeasure.AddRangeAsync(units);
             await _context.SaveChangesAsync();
             Console.WriteLine("All units of measure seeded successfully.");
-        }
-
-        private async Task SeedProductCatalogAsync()
-        {
-            var categories = new List<ProductCategory>
-            {
-                new() { Name = "Blachy i Wyroby Płaskie", Description = "Blachy zimno i gorącowalcowane", Category = ProductCategoryEnum.Standard },
-                new() { Name = "Pręty", Description = "Pręty zbrojeniowe i gładkie", Category = ProductCategoryEnum.Bar },
-                new() { Name = "Profile i Kątowniki", Description = "Profile zamknięte i otwarte", Category = ProductCategoryEnum.Profile },
-                new() { Name = "Rury", Description = "Rury stalowe bez szwu i spawane", Category = ProductCategoryEnum.Pipe }
-            };
-
-            await _context.ProductCategories.AddRangeAsync(categories);
-            await _context.SaveChangesAsync();
-            Console.WriteLine("Product categories seeded successfully.");
         }
 
         private async Task SeedCompaniesAndContactsAsync()
@@ -457,37 +441,34 @@ namespace Infrastructure.Seeders
 
         private async Task SeedProductsAsync()
         {
-            var categories = await _context.ProductCategories.ToListAsync();
             var units = await _context.UnitsOfMeasure.ToListAsync();
             var random = new Random();
             var products = new List<Product>();
 
             var grades = new[] { "S235JR", "S355J2", "DC01", "DX51D", "304L" };
+            var categories = Enum.GetValues(typeof(ProductCategoryEnum)).Cast<ProductCategoryEnum>().ToArray();
 
             for (int i = 1; i <= 50; i++)
             {
-                var category = categories[random.Next(categories.Count)];
                 var unit = units[random.Next(units.Count)];
                 var grade = grades[random.Next(grades.Length)];
+                var category = categories[random.Next(categories.Length)];
 
-                bool isPipe = category.Category == ProductCategoryEnum.Pipe;
+                bool isPipe = category == ProductCategoryEnum.Pipe;
 
                 products.Add(new Product
                 {
-                    Name = $"{category.Name} {grade} Wymiar {random.Next(10, 200)}x{random.Next(10, 200)}",
+                    Name = $"{category} {grade} Wymiar {random.Next(10, 200)}x{random.Next(10, 200)}",
                     SteelGrade = grade,
                     Thickness = random.Next(10, 500),
                     Width = random.Next(100, 2000),
                     Length = random.Next(1000, 12000),
-
                     Diameter = isPipe ? random.Next(20, 800) : null,
-
                     Weight = random.Next(10, 5000),
                     Unit = unit,
                     PricePerUnit = random.Next(1000, 10000) * 10000,
                     StockQuantity = random.Next(0, 500),
-
-                    ProductCategory = category
+                    Category = category
                 });
 
                 Console.WriteLine($"Prepared product {i}: {products.Last().Name}");

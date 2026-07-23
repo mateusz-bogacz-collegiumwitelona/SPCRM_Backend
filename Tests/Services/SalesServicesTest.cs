@@ -733,14 +733,7 @@ namespace Tests.Services
                 Name = "Sztuka",
                 Symbol = "szt"
             };
-
-            var category = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Cat_{uniqueSuffix}",
-                Description = "Opis kategorii",
-                Category = ProductCategoryEnum.Standard
-            };
+;
 
             var product = new Product
             {
@@ -753,8 +746,7 @@ namespace Tests.Services
                 PricePerUnit = 10000,
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category
+                Category = ProductCategoryEnum.Standard,
             };
 
             var dealProduct = new DealProduct
@@ -773,7 +765,6 @@ namespace Tests.Services
             _contextMock.Companies.Add(company);
             _contextMock.Deals.Add(deal);
             _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.ProductCategories.Add(category);
             _contextMock.Products.Add(product);
             _contextMock.DealProducts.Add(dealProduct);
             await _contextMock.SaveChangesAsync();
@@ -875,14 +866,6 @@ namespace Tests.Services
                 Symbol = "m"
             };
 
-            var category = new ProductCategory
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Kat2_{uniqueSuffix}",
-                Description = "Opis kategorii",
-                Category = ProductCategoryEnum.Standard
-            };
-
             var product = new Product
             {
                 Id = Guid.NewGuid(),
@@ -890,8 +873,7 @@ namespace Tests.Services
                 SteelGrade = "S355",
                 UnitId = unit.Id,
                 Unit = unit,
-                ProductCategoryId = category.Id,
-                ProductCategory = category
+                Category = ProductCategoryEnum.Standard
             };
 
             var targetDealProduct = new DealProduct
@@ -919,7 +901,6 @@ namespace Tests.Services
             _contextMock.Companies.Add(company);
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.ProductCategories.Add(category);
             _contextMock.Products.Add(product);
             _contextMock.DealProducts.AddRange(targetDealProduct, otherDealProduct);
             await _contextMock.SaveChangesAsync();

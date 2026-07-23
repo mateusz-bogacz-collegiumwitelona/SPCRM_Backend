@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Enum;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -33,10 +34,10 @@ namespace Services.Services
                     Id = p.Id,
                     Name = p.Name,
                     SteelGrade = p.SteelGrade,
-                    Category = p.ProductCategory.Name,
+                    Category = p.Category.ToString(),
 
                     Dimensions = DimensionsFormatter.Format(
-                     p.ProductCategory.Category,
+                     p.Category,
                      p.Diameter,
                      p.Thickness,
                      p.Width,
@@ -52,12 +53,7 @@ namespace Services.Services
 
         public async Task<Result<IEnumerable<string>>> GetProductCategoryAsync()
         {
-            var query = await _context.ProductCategories
-                .AsNoTracking()
-                .Select(pc => pc.Name)
-                .Distinct()
-                .OrderBy(pc => pc)
-                .ToListAsync();
+            var query = Enum.GetNames(typeof(ProductCategoryEnum)).ToList();
 
             return Result<IEnumerable<string>>.Success(
                 message: "Product categories reviewed successfully",

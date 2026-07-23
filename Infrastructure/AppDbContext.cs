@@ -22,10 +22,10 @@ namespace Infrastructure
         public DbSet<DealProduct> DealProducts { get; set; }
         public DbSet<Note> Notes { get; set; }
         public DbSet<Product> Products { get; set; }
-        public DbSet<ProductCategory> ProductCategories { get; set; }
         public DbSet<Tasks> Tasks { get; set; }
         public DbSet<UnitOfMeasure> UnitsOfMeasure { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -71,15 +71,15 @@ namespace Infrastructure
                 .Property(t => t.Type)
                 .HasConversion<string>();
 
-            builder.Entity<ProductCategory>()
-                .Property(t => t.Category)
-                .HasConversion<string>();
-
             builder.Entity<Note>()
                 .HasDiscriminator<string>("NoteType")
                 .HasValue<ContactNote>("Contact")
                 .HasValue<DealNote>("Deal")
                 .HasValue<TaskNote>("Task");
+            
+            builder.Entity<Product>()
+                .Property(p => p.Category)
+                .HasConversion<string>();
 
             foreach (var entityType in builder.Model.GetEntityTypes())
             {
