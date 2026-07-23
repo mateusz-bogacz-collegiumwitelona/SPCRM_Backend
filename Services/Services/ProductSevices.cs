@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Constants;
 using Domain.Enum;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -73,6 +74,54 @@ namespace Services.Services
 
             return Result<IEnumerable<string>>.Success(
                 message: "Product categories reviewed successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: query
+                );
+        }
+
+        public async Task<Result<ProductDetailResponse>> GetProductDetailsAsync(Guid productId)
+        {
+            var query = await _context.Products
+                .AsNoTracking()
+                .Where(p => p.Id == productId)
+                .Select(p => new ProductDetailResponse
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    SteelGrade = p.SteelGrade,
+                    Category = p.Category.ToString(),
+
+                    Dimensions = DimensionsFormatter.Format(
+                     p.Category,
+                     p.Diameter,
+                     p.Thickness,
+                     p.Width,
+                     p.Length
+                    ),
+
+                    StockQuantity = p.StockQuantity,
+                    UnitSymbol = p.Unit.Symbol,
+                    PricePerUnit = (decimal)p.PricePerUnit / 10000m,
+                    Weight = (decimal) p.Weight / 1000m,
+
+                    ReservedQuantity = p.DealProducts
+                        .Where(dp => dp.Deal.Status == DealsStatusEnum.ToDo || dp.Deal.Status == DealsStatusEnum.InProgress)
+                        .Sum(dp => (int?)dp.Quantity) ?? 0
+                })
+                .FirstOrDefaultAsync();
+
+            if (query == null)
+            {
+                _logger.LogWarning("Product with ID {ProductId} not found.", productId);
+                return Result<ProductDetailResponse>.Failure(
+                    message: "Product not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ProductNotFound.ToString()
+                    );
+            }
+
+            return Result<ProductDetailResponse>.Success(
+                message: "Product details retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
                 data: query
                 );

@@ -26,5 +26,8 @@
 
         // Błędy dotyczące firm
         public const string CompanyNotFound = "COM_001";
+
+        // Błędy dotyczące produktów
+        public const string ProductNotFound = "PROD_001";
     }
 }

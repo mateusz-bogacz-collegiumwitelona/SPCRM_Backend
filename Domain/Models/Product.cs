@@ -11,7 +11,7 @@ namespace Domain.Models
         public int Width { get; set; }
         public int Length { get; set; }
         public int? Diameter { get; set; }
-        public int Weight { get; set; }
+        public int Weight { get; set; } // kg * 1000
         public Guid UnitId { get; set; }
         public UnitOfMeasure Unit { get; set; } = null!;
 

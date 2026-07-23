@@ -55,5 +55,19 @@ namespace Api.Controllers
             var result = await productServices.GetSteelGradesAsync();
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get product details")]
+        [EndpointDescription("Get product details by product id.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpGet("{productId:guid}")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetProductDetailsAsync(
+            [FromServices] IProductSevices productServices,
+            [FromRoute] Guid productId
+            )
+        {
+            var result = await productServices.GetProductDetailsAsync(productId);
+            return HandleResult(result);
+        }
     }
 }
