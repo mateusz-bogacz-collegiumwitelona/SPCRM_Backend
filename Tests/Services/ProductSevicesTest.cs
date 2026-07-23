@@ -451,5 +451,76 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
         }
+
+        // ───  GetProductDetailsAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetProductDetailsAsync_WhenProductExist_Return200()
+        {
+            // Arrange
+            var unit = new UnitOfMeasure
+            {
+                Name = "Ton",
+                Symbol = "t",
+                BaseMultiplier = 4
+            };
+
+            var productId = Guid.NewGuid();
+
+            var product = new Product
+            {
+                Id = productId,
+                Name = "Test",
+                SteelGrade = "SRT345",
+                Thickness = 2,
+                Width = 3,
+                Length = 4,
+                Weight = 40000000,
+                Unit = unit,
+                PricePerUnit = 400000,
+                StockQuantity = 100000,
+                Category = ProductCategoryEnum.Standard
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _productSevicesMock.GetProductDetailsAsync(product.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Message).IsEqualTo("Product details retrieved successfully");
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var response = result.Data;
+            string theoryDimmension = $"{product.Thickness} x {product.Width} x {product.Length}";
+
+            await Assert.That(response!.Id).IsEquatableTo(productId);
+            await Assert.That(response!.Name).IsEquatableTo("Test");
+            await Assert.That(response!.SteelGrade).IsEquatableTo("SRT345");
+            await Assert.That(response!.Category).IsEquatableTo(ProductCategoryEnum.Standard.ToString());
+            await Assert.That(response!.Dimensions).IsEquatableTo(theoryDimmension);
+            await Assert.That(response!.StockQuantity).IsEquatableTo(100000);
+            await Assert.That(response!.UnitSymbol).IsEquatableTo("t");
+            await Assert.That(response!.PricePerUnit).IsEquatableTo(400000 / 10000m);
+            await Assert.That(response!.Weight).IsEquatableTo(40000000 / 1000m);
+            await Assert.That(response!.ReservedQuantity).IsEquatableTo(0);
+        }
+
+        [Test]
+        public async Task GetProductDetailsAsync_WhenProductDoesNotExist_Return404()
+        {
+            // Act
+            var result = await _productSevicesMock.GetProductDetailsAsync(Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.Data).IsNull();
+            await Assert.That(result.Message).IsEqualTo("Product not found.");
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+        }
     }
 }

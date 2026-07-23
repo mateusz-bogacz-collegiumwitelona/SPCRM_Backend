@@ -114,7 +114,7 @@ namespace Services.Services
             {
                 _logger.LogWarning("Product with ID {ProductId} not found.", productId);
                 return Result<ProductDetailResponse>.Failure(
-                    message: "Product not found",
+                    message: "Product not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.ProductNotFound.ToString()
                     );
