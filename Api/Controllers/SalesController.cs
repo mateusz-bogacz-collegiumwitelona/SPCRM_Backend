@@ -82,10 +82,10 @@ namespace Api.Controllers
         [HttpGet("{dealId}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealNotesAsync(
-            [FromServices] ISalesServices salesServices,
+            [FromServices] INoteServices note,
             [FromRoute] Guid dealId)
         {
-            var result = await salesServices.GetDealNotesAsync(dealId);
+            var result = await note.GetDealNotesAsync(dealId);
             return HandleResult(result);
         }
     }

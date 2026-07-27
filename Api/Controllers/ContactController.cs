@@ -75,14 +75,14 @@ namespace Api.Controllers
         [HttpGet("{contactId}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactNotesAsync(
-            [FromServices] IContactServices contact,
+            [FromServices] INoteServices note,
             [FromServices] NoteMapper mapper,
             [FromRoute] Guid contactId,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SearchRequest search
             )
         {
-            var result = await contact.GetContactNoteAsync(mapper.MapList(contactId, pagged, search));
+            var result = await note.GetContactNoteAsync(mapper.MapList(contactId, pagged, search));
             return HandleResult(result);
         }
     }

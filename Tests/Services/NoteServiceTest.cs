@@ -1,0 +1,812 @@
+﻿using Domain.Models;
+using Infrastructure;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Npgsql;
+using Services.Command;
+using Services.Services;
+using Testcontainers.PostgreSql;
+
+namespace Tests.Services
+{
+   
+    public class NoteServiceTest
+    {
+        protected AppDbContext _contextMock = null!;
+
+        private static PostgreSqlContainer _dbContainer = null!;
+        private static string _connectionString = null!;
+
+        protected NoteServices _noteServicesMock = null!;
+        protected ILogger<NoteServices> _loggerMock = null!;
+
+        private string _currentSchema = null!;
+
+        [Before(Class)]
+        [Obsolete]
+        public static async Task SetupClassAsync()
+        {
+            _dbContainer = new PostgreSqlBuilder()
+                .WithImage("postgis/postgis:18-3.6")
+                .WithDatabase("testdb")
+                .WithUsername("testuser")
+                .WithPassword("testpassword")
+                .Build();
+
+            await _dbContainer.StartAsync();
+
+            _connectionString = _dbContainer.GetConnectionString();
+
+            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql(_connectionString, options =>
+                {
+                    options.UseNetTopologySuite();
+                })
+                .Options;
+            using var context = new AppDbContext(dbOptions);
+            await context.Database.EnsureCreatedAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+        }
+
+        [After(Class)]
+        public static async Task CleanupClassAsync()
+            => await _dbContainer.DisposeAsync();
+
+        [Before(Test)]
+        public async Task SetupAsync()
+        {
+            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
+            using var conn = new NpgsqlConnection(_connectionString);
+
+            await conn.OpenAsync();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql(_connectionString, options =>
+                {
+                    options.UseNetTopologySuite();
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
+                })
+                .Options;
+
+            _contextMock = new AppDbContext(dbOptions);
+            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
+            await _contextMock.Database.EnsureCreatedAsync();
+
+            _loggerMock = new LoggerFactory().CreateLogger<NoteServices>();
+
+            _noteServicesMock = new NoteServices(_contextMock, _loggerMock);
+        }
+
+        [After(Test)]
+        public async Task CleanupAsync()
+        {
+            await _contextMock.DisposeAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+
+        // ─── GetContactNoteAsync ─────────────────────────────────────────────────
+        [Test]
+        public async Task GetContactNoteAsync_FiltersDeletedAndOtherTypes_AndMapsCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var author = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"u_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U_{uniqueSuffix}@T.PL",
+                FirstName = "Michał",
+                LastName = "Pisarz"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Comp_{uniqueSuffix}",
+                NIP = "123",
+                OwnerId = userId,
+                Owner = author
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                IsPrimary = true
+            };
+
+            var validNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Ważna notatka",
+                Content = "Treść",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var deletedNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Usunięta",
+                Content = "Treść",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = true
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN"
+            };
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Deal",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                CurrencyId = currency.Id,
+                Currency = currency
+            };
+
+            var dealNote = new DealNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Notatka Deal",
+                Content = "Treść",
+                DealId = deal.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = false
+            };
+
+            _contextMock.Users.Add(author);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Notes.AddRange(validNote, deletedNote, dealNote);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new NoteListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                searchId = contact.Id
+            };
+
+            // Act
+            var result = await _noteServicesMock.GetContactNoteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+
+            var mappedNote = items.First();
+            await Assert.That(mappedNote.Id).IsEqualTo(validNote.Id);
+            await Assert.That(mappedNote.Title).IsEqualTo("Ważna notatka");
+            await Assert.That(mappedNote.AuthorFirstName).IsEqualTo("Michał");
+            await Assert.That(mappedNote.AuthorLastName).IsEqualTo("Pisarz");
+        }
+
+        [Test]
+        public async Task GetContactNoteAsync_SortsNotesByCreatedAtDescending()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var author = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"u_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U_{uniqueSuffix}@T.PL",
+                FirstName = "Michał",
+                LastName = "Pisarz"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Comp_{uniqueSuffix}",
+                NIP = "123",
+                OwnerId = userId,
+                Owner = author
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                IsPrimary = true
+            };
+
+            var validNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Ważna notatka",
+                Content = "Treść",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var deletedNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Usunięta",
+                Content = "Treść",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = true
+            };
+
+            var now = DateTime.UtcNow;
+
+            var oldNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old",
+                Content = "C",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                CreatedAt = now.AddDays(-5)
+            };
+
+            var newestNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Newest",
+                Content = "C",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                CreatedAt = now
+            };
+
+            var middleNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Middle",
+                Content = "C",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                CreatedAt = now.AddDays(-2)
+            };
+
+            _contextMock.Users.Add(author);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.AddRange(oldNote, middleNote, newestNote);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new NoteListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                searchId = contact.Id
+            };
+
+            // Act
+            var result = await _noteServicesMock.GetContactNoteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items;
+
+            await Assert.That(items).Count().IsEqualTo(3);
+
+            await Assert.That(items[0].Id).IsEqualTo(newestNote.Id);
+            await Assert.That(items[1].Id).IsEqualTo(middleNote.Id);
+            await Assert.That(items[2].Id).IsEqualTo(oldNote.Id);
+        }
+
+        [Test]
+        public async Task GetContactNoteAsync_ReturnsNotesOnlyForSpecificContact()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var author = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"u_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U_{uniqueSuffix}@T.PL",
+                FirstName = "Michał",
+                LastName = "Pisarz"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "111",
+                OwnerId = userId,
+                Owner = author
+            };
+
+            var targetContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Target",
+                LastName = "Contact",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                IsPrimary = true
+            };
+
+            var otherContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Other",
+                LastName = "Contact",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                IsPrimary = false
+            };
+
+            var targetNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Dla Target",
+                Content = "Treść",
+                ContactId = targetContact.Id,
+                AuthorId = userId,
+                Author = author
+            };
+
+            var otherNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Dla Other",
+                Content = "Treść",
+                ContactId = otherContact.Id,
+                AuthorId = userId,
+                Author = author
+            };
+
+            _contextMock.Users.Add(author);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.AddRange(targetContact, otherContact);
+            _contextMock.Notes.AddRange(targetNote, otherNote);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new NoteListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                searchId = targetContact.Id
+            };
+
+            // Act 
+            var result = await _noteServicesMock.GetContactNoteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().Id).IsEqualTo(targetNote.Id);
+        }
+
+
+        // ─── GetTaskNotesAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetTaskNotesAsync_WhenTaskDoesNotExist_Returns404()
+        {
+            // Act
+            var result = await _noteServicesMock.GetTaskNotesAsync(Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Task for this note not found");
+        }
+
+        [Test]
+        public async Task GetTaskNotesAsync_ReturnsSortedValidNotes()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var taskId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "User",
+                Email = "u@t.pl",
+                FirstName = "Anna",
+                LastName = "Nowak"
+            };
+
+            var task = new Tasks
+            {
+                Id = taskId,
+                Title = "Zadanie",
+                AssignedToId = userId,
+                AssignedTo = user,
+                Description = "Description",
+            };
+
+            var now = DateTime.UtcNow;
+
+            var note1 = new TaskNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Stara",
+                Content = "Duppppa",
+                TaskId = taskId,
+                AuthorId = userId,
+                Author = user,
+                CreatedAt = now.AddDays(-5),
+                IsDeleted = false
+            };
+
+            var note2 = new TaskNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Nowa",
+                Content = "Dupa",
+                TaskId = taskId,
+                AuthorId = userId,
+                Author = user,
+                CreatedAt = now,
+                IsDeleted = false
+            };
+
+            var noteDeleted = new TaskNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Usunięta",
+                Content = "Dupa",
+                TaskId = taskId,
+                AuthorId = userId,
+                Author = user,
+                IsDeleted = true
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Tasks.Add(task);
+            _contextMock.Notes.AddRange(note1, note2, noteDeleted);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _noteServicesMock.GetTaskNotesAsync(taskId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var notes = result.Data!;
+
+            await Assert.That(notes).Count().IsEqualTo(2);
+            await Assert.That(notes[0].NoteId).IsEqualTo(note2.Id);
+            await Assert.That(notes[0].AuthorFirstName).IsEqualTo("Anna");
+            await Assert.That(notes[1].NoteId).IsEqualTo(note1.Id);
+        }
+
+        // ─── GetDealNotesAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetDealNotesAsync_FiltersDeletedAndOtherTypes_AndMapsCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var author = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"U_{uniqueSuffix}",
+                NormalizedUserName = $"U_{uniqueSuffix}",
+                Email = $"e_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
+                FirstName = "Anna",
+                LastName = "Nowak"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Comp_{uniqueSuffix}",
+                NIP = "111",
+                OwnerId = userId,
+                Owner = author
+            };
+
+            var targetDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Target Deal",
+                Value = 0,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                CurrencyId = currency.Id,
+                Currency = currency
+            };
+
+            var otherDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Other Deal",
+                Value = 0,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                CurrencyId = currency.Id,
+                Currency = currency
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                IsPrimary = true,
+            };
+
+            var validNote = new DealNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Valid Note",
+                Content = "Treść",
+                DealId = targetDeal.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var deletedNote = new DealNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Deleted Note",
+                Content = "Treść",
+                DealId = targetDeal.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var otherDealNote = new DealNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Other Deal Note",
+                Content = "Treść",
+                DealId = otherDeal.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var contactNote = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Contact Note",
+                Content = "Treść",
+                ContactId = contact.Id,
+                AuthorId = userId,
+                Author = author,
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _contextMock.Users.Add(author);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.AddRange(targetDeal, otherDeal);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.AddRange(validNote, deletedNote, otherDealNote, contactNote);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _noteServicesMock.GetDealNotesAsync(targetDeal.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+
+            var mappedNote = items.First();
+            await Assert.That(mappedNote.NoteId).IsEqualTo(validNote.Id);
+            await Assert.That(mappedNote.Title).IsEqualTo("Valid Note");
+            await Assert.That(mappedNote.AuthorFirstName).IsEqualTo("Anna");
+            await Assert.That(mappedNote.AuthorLastName).IsEqualTo("Nowak");
+        }
+
+        [Test]
+        public async Task GetDealNotesAsync_SortsNotesByCreatedAtDescending()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var author = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"U2_{uniqueSuffix}",
+                NormalizedUserName = $"U2_{uniqueSuffix}",
+                Email = $"e2_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"E2_{uniqueSuffix}@T.PL",
+                FirstName = "Anna",
+                LastName = "Nowak"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"C2_{uniqueSuffix}",
+                NIP = "222",
+                OwnerId = userId,
+                Owner = author
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Deal",
+                Value = 0,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                CurrencyId = currency.Id,
+                Currency = currency
+            };
+
+            var now = DateTime.UtcNow;
+
+            var oldNote = new DealNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old",
+                Content = "...",
+                DealId = deal.Id,
+                AuthorId = userId,
+                Author = author,
+                CreatedAt = now.AddDays(-5)
+            };
+
+            var newestNote = new DealNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Newest",
+                Content = "...",
+                DealId = deal.Id,
+                AuthorId = userId,
+                Author = author,
+                CreatedAt = now
+            };
+
+            var middleNote = new DealNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Middle",
+                Content = "...",
+                DealId = deal.Id,
+                AuthorId = userId,
+                Author = author,
+                CreatedAt = now.AddDays(-2)
+            };
+
+            _contextMock.Users.Add(author);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Notes.AddRange(oldNote, middleNote, newestNote);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _noteServicesMock.GetDealNotesAsync(deal.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!;
+
+            await Assert.That(items).Count().IsEqualTo(3);
+            await Assert.That(items[0].NoteId).IsEqualTo(newestNote.Id);
+            await Assert.That(items[1].NoteId).IsEqualTo(middleNote.Id);
+            await Assert.That(items[2].NoteId).IsEqualTo(oldNote.Id);
+        }
+
+        [Test]
+        public async Task GetDealNotesAsync_WhenNoNotesExist_ReturnsEmptyListWithSuccessStatus()
+        {
+            // Arrange
+            var randomDealId = Guid.NewGuid();
+
+            // Act
+            var result = await _noteServicesMock.GetDealNotesAsync(randomDealId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!).IsEmpty();
+        }
+    }
+}

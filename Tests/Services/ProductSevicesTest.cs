@@ -313,7 +313,7 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             var items = result.Data!.Items;
 
-            await Assert.That(items).HasCount().EqualTo(2);
+            await Assert.That(items).Count().IsEqualTo(2);
             await Assert.That(items[0].Id).IsEqualTo(p1.Id);
             await Assert.That(items[1].Id).IsEqualTo(p2.Id);
         }
@@ -333,7 +333,7 @@ namespace Tests.Services
             var expectedCategories = Enum.GetNames(typeof(ProductCategoryEnum)).ToList();
             var returnedCategories = result.Data!.ToList();
 
-            await Assert.That(returnedCategories).HasCount().EqualTo(expectedCategories.Count);
+            await Assert.That(returnedCategories).Count().IsEqualTo(expectedCategories.Count);
 
             foreach (var category in expectedCategories)
             {
@@ -434,7 +434,7 @@ namespace Tests.Services
 
             var myGrades = result.Data!.Where(g => g.EndsWith(uniqueSuffix)).ToList();
 
-            await Assert.That(myGrades).HasCount().EqualTo(3);
+            await Assert.That(myGrades).Count().IsEqualTo(3);
             await Assert.That(myGrades[0]).IsEqualTo($"AW6060_{uniqueSuffix}");
             await Assert.That(myGrades[1]).IsEqualTo($"S235_{uniqueSuffix}");
             await Assert.That(myGrades[2]).IsEqualTo($"S355_{uniqueSuffix}");

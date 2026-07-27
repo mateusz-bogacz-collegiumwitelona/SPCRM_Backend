@@ -203,7 +203,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
-            await Assert.That(result.Data!).HasCount().EqualTo(2);
+            await Assert.That(result.Data!).Count().IsEqualTo(2);
 
             var plnSummary = result.Data!.First(s => s.CurrencyCode == "PLN");
             await Assert.That(plnSummary.TotalAmount).IsEqualTo(800.00m);
@@ -372,7 +372,7 @@ namespace Tests.Services
 
             var items = result.Data!.Items;
 
-            await Assert.That(items).HasCount().EqualTo(2);
+            await Assert.That(items).Count().IsEqualTo(2);
 
             var firstMapped = items[0];
             await Assert.That(firstMapped.InvoiceNumber).IsEqualTo("INV/OVER");

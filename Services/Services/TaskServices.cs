@@ -172,45 +172,6 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<List<NoteResponse>>> GetTaskNotesAsync(Guid taskId)
-        {
-            bool isTaskExists = await _context.Tasks
-                .AsNoTracking()
-                .AnyAsync(t => t.Id == taskId);
-
-            if (!isTaskExists)
-            {
-                return Result<List<NoteResponse>>.Failure(
-                    message: "Task for this note not found",
-                    statusCode: StatusCodes.Status404NotFound
-                );
-            }
-
-            var query = await _context.Tasks
-                .AsNoTracking()
-                .Where(t => t.Id == taskId)
-                .SelectMany(t => t.Notes)
-                .Where(n => !n.IsDeleted)
-                .OrderByDescending(n => n.CreatedAt)
-                .Select(n => new NoteResponse
-                {
-                    NoteId = n.Id,
-                    Title = n.Title,
-                    Content = n.Content,
-                    AuthorFirstName = n.Author.FirstName,
-                    AuthorLastName = n.Author.LastName,
-                    CreatedAt = n.CreatedAt,
-                    UpdatedAt = n.UpdateAt ?? null,
-                })
-                .ToListAsync();
-
-            return Result<List<NoteResponse>>.Success(
-                data: query,
-                message: "Task notes retrieved successfully",
-                statusCode: StatusCodes.Status200OK
-            );
-        }
-
         private List<object> GetStatusDictionary()
             => new List<object>
                 {

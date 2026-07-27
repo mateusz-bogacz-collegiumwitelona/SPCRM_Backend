@@ -21,7 +21,7 @@ namespace Api.Controllers
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> LoginAsync(
-            [FromBody] LoginRequest request, 
+            [FromBody] LoginRequest request,
             [FromServices] AuthMapper mapper,
             [FromServices] IAuthServices authServices
             )
@@ -33,7 +33,7 @@ namespace Api.Controllers
                 : NoContent();
         }
 
-        
+
         [EndpointSummary("Logout user (Login Step 2)")]
         [EndpointDescription("Logs out the authenticated user by clearing the authentication cookie.")]
         [HttpPost("logout")]

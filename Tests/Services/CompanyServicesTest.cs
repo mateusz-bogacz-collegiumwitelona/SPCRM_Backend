@@ -357,7 +357,7 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
 
             var items = result.Data!.Items;
-            await Assert.That(items).HasCount().EqualTo(1);
+            await Assert.That(items).Count().IsEqualTo(1);
 
             var mappedAddress = items.First();
             await Assert.That(mappedAddress.City).IsEqualTo("Kraków");
@@ -435,7 +435,7 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
 
-            await Assert.That(result.Data!.Items).HasCount().EqualTo(2);
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(2);
 
             await Assert.That(result.Data.TotalCount).IsEqualTo(3);
         }
@@ -559,7 +559,7 @@ namespace Tests.Services
                 .Where(c => c.Name.Contains(uniqueSuffix))
                 .ToList();
 
-            await Assert.That(returnedCompanies).HasCount().EqualTo(2);
+            await Assert.That(returnedCompanies).Count().IsEqualTo(2);
 
             var myReturnedCompany = returnedCompanies.First(c => c.Id == myCompanyWithHq.Id);
             await Assert.That(myReturnedCompany.IsYour).IsTrue();

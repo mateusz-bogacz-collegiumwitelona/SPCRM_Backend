@@ -59,7 +59,7 @@ namespace Tests.Email
             await sender.SendReportEmailAsync(report);
 
             // Assert
-            await Assert.That(fakeQueue.QueuedEmails).HasCount().EqualTo(1);
+            await Assert.That(fakeQueue.QueuedEmails).Count().IsEqualTo(1);
 
             var queuedEmail = fakeQueue.QueuedEmails.First();
 

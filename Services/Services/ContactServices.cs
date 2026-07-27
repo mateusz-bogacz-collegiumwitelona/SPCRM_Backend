@@ -1,5 +1,4 @@
 ﻿using Domain.Common;
-using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +41,7 @@ namespace Services.Services
                     OwnerLastName = c.Owner.LastName,
                     IsPrimary = c.IsPrimary
                 });
-                
+
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts");
         }
@@ -127,27 +126,5 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<ContactNoteResponse>>> GetContactNoteAsync(NoteListCommand command)
-        {
-            var query = _context.Notes
-                .OfType<ContactNote>()
-                .Include(n => n.Author)
-                .Where(n => n.ContactId == command.searchId && !n.IsDeleted)
-                .AsNoTracking()
-                .ApplySearch(command.SearchTerm ?? string.Empty)
-                .OrderByDescending(n => n.CreatedAt)
-                .Select(n => new ContactNoteResponse
-                {
-                    Id = n.Id,
-                    Title = n.Title,
-                    Content = n.Content,
-                    AuthorFirstName = n.Author.FirstName,
-                    AuthorLastName = n.Author.LastName,
-                    CreatedAt = n.CreatedAt,
-                    UpdateAt = n.UpdateAt
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact_notes");
-        }
     }
 }

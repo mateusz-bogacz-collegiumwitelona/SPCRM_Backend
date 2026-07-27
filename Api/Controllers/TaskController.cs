@@ -90,11 +90,11 @@ namespace Api.Controllers
         [HttpGet("{taskId}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskNotesAsync(
-            [FromServices] ITaskServices taskServices,
+            [FromServices] INoteServices note,
             [FromRoute] Guid taskId
         )
         {
-            var result = await taskServices.GetTaskNotesAsync(taskId);
+            var result = await note.GetTaskNotesAsync(taskId);
             return HandleResult(result);
         }
     }

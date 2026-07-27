@@ -11,6 +11,5 @@ namespace Services.Interfaces
         Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(CompanyCommand command);
         Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId);
         Task<Result<List<ContactWayResponse>>> GetContactWayAsync(Guid contactId);
-        Task<Result<PagedResult<ContactNoteResponse>>> GetContactNoteAsync(NoteListCommand command);
     }
 }
