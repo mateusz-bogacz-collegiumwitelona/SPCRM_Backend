@@ -149,7 +149,7 @@ namespace Services.Services
                 );
             }
 
-            if (user.Id == note.AuthorId || await _userManager.IsInRoleAsync(user, "Admin"))
+            if (user.Id != note.AuthorId && !await _userManager.IsInRoleAsync(user, "Manager"))
             {
                 _logger.LogWarning("User with ID {UserId} is not authorized to edit note with ID {NoteId}.", userId, command.Id);
                 return Result.Failure(
@@ -162,7 +162,6 @@ namespace Services.Services
             if (!string.IsNullOrWhiteSpace(command.Title)) note.Title = command.Title;
             if (!string.IsNullOrWhiteSpace(command.Content)) note.Content = command.Content;
 
-            _context.Update(note);
             await _context.SaveChangesAsync();
 
             return Result.Success(
