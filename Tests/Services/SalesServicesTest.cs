@@ -59,15 +59,6 @@ namespace Tests.Services
         public async Task SetupAsync()
         {
             _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
-            using var conn = new NpgsqlConnection(_connectionString);
-
-            await conn.OpenAsync();
-
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
-                await cmd.ExecuteNonQueryAsync();
-            }
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseNpgsql(_connectionString, options =>
@@ -78,7 +69,7 @@ namespace Tests.Services
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
-            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
+
             await _contextMock.Database.EnsureCreatedAsync();
 
             _loggerMock = new LoggerFactory().CreateLogger<SalesServices>();
@@ -199,7 +190,7 @@ namespace Tests.Services
 
             var items = result.Data!.Items;
 
-            await Assert.That(items).HasCount().EqualTo(1);
+            await Assert.That(items).Count().IsEqualTo(1);
 
             var mappedDeal = items.First();
 
@@ -248,7 +239,7 @@ namespace Tests.Services
 
             var items = result.Data!;
 
-            await Assert.That(items).HasCount().EqualTo(expectedStatuses.Count);
+            await Assert.That(items).Count().IsEqualTo(expectedStatuses.Count);
 
             foreach (var status in expectedStatuses)
             {
@@ -354,7 +345,7 @@ namespace Tests.Services
 
             var items = result.Data!.Items;
 
-            await Assert.That(items).HasCount().EqualTo(1);
+            await Assert.That(items).Count().IsEqualTo(1);
 
             var mappedDeal = items.First();
 
@@ -779,7 +770,7 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
 
             var items = result.Data!.Items;
-            await Assert.That(items).HasCount().EqualTo(1);
+            await Assert.That(items).Count().IsEqualTo(1);
 
             var mapped = items.First();
 
@@ -920,7 +911,7 @@ namespace Tests.Services
 
             var items = result.Data!.Items;
 
-            await Assert.That(items).HasCount().EqualTo(1);
+            await Assert.That(items).Count().IsEqualTo(1);
             await Assert.That(items.First().Quantity).IsEqualTo(1);
         }
 

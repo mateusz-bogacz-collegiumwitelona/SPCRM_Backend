@@ -7,8 +7,17 @@ namespace Api.Mappers
     [Mapper]
     public partial class NoteMapper
     {
-        [MapProperty(nameof(searchId), nameof(NoteListCommand.searchId))]
-        public partial NoteListCommand MapList(Guid searchId, PaggedRequest pagged, SearchRequest search);
+        public NoteListCommand MapList(
+            Guid searchId,
+            PaggedRequest pagged,
+            SearchRequest search)
+            => new NoteListCommand
+                {
+                    SearchId = searchId,
+                    PageNumber = pagged?.PageNumber,
+                    PageSize = pagged?.PageSize,
+                    SearchTerm = search?.SearchTerm
+                };
 
         public partial NoteEditCommand MapEdit(NoteEditRequest request);
     }

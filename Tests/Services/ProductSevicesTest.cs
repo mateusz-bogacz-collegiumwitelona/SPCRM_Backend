@@ -56,16 +56,20 @@ namespace Tests.Services
             => await _dbContainer.DisposeAsync();
 
         [Before(Test)]
-        public void Setup()
+        public async Task SetupAsync()
         {
+            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
+
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseNpgsql(_connectionString, options =>
                 {
                     options.UseNetTopologySuite();
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
+            await _contextMock.Database.EnsureCreatedAsync();
 
             _loggerMock = new LoggerFactory().CreateLogger<ProductSevices>();
             _productSevicesMock = new ProductSevices(_contextMock, _loggerMock);
@@ -75,6 +79,12 @@ namespace Tests.Services
         public async Task CleanupAsync()
         {
             await _contextMock.DisposeAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         // ─── GetProductListAsync ─────────────────────────────────────────────────

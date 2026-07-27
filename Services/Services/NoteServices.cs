@@ -36,7 +36,7 @@ namespace Services.Services
             var query = _context.Notes
                 .OfType<ContactNote>()
                 .Include(n => n.Author)
-                .Where(n => n.ContactId == command.searchId && !n.IsDeleted)
+                .Where(n => n.ContactId == command.SearchId && !n.IsDeleted)
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .OrderByDescending(n => n.CreatedAt)

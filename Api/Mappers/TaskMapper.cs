@@ -8,8 +8,7 @@ namespace Api.Mappers
     public partial class TaskMapper
     {
         public TaskCalendarCommand MapUserCalendar(Guid userId, TaskCalendarRequest request)
-        {
-            return new TaskCalendarCommand
+            => new TaskCalendarCommand
             {
                 UserId = userId,
                 DateFrom = request.DateFrom,
@@ -17,6 +16,5 @@ namespace Api.Mappers
                 TaskPriority = request.TaskPriority,
                 TaskStatus = request.TaskStatus
             };
-        }
     }
 }

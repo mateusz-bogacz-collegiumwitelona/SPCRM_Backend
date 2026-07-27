@@ -7,15 +7,32 @@ namespace Api.Mappers
     [Mapper]
     public partial class CompanyMapper
     {
-        public partial CompanyCommand MapBasic(Guid companyId, PaggedRequest request);
+        public CompanyCommand MapBasic(Guid companyId, PaggedRequest request)
+            => new CompanyCommand
+            {
+                CompanyId = companyId,
+                PageNumber = request?.PageNumber,
+                PageSize = request?.PageSize
+            };
 
-        [MapProperty(nameof(userId), nameof(CompanyListCommand.UserId))]
-        public partial CompanyListCommand MapList(
+        public CompanyListCommand MapList(
             Guid userId,
             PaggedRequest pagged,
             CompanyFilterRequest filter,
             SortingRequest sorting,
-            SearchRequest search
-            );
+            SearchRequest search)
+            => new CompanyListCommand
+                {
+                    UserId = userId,
+                    PageNumber = pagged?.PageNumber,
+                    PageSize = pagged?.PageSize,
+                    IsYour = filter?.IsYour,
+                    CreatedAtFrom = filter?.CreatedAtFrom,
+                    CreatedAtTo = filter?.CreatedAtTo,
+                    SortBy = sorting?.SortBy,
+                    SortDescending = sorting?.SortDescending ?? false,
+                    SearchTerm = search?.SearchTerm
+                };
+        
     }
 }

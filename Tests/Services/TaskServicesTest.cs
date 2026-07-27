@@ -59,15 +59,6 @@ namespace Tests.Services
         public async Task SetupAsync()
         {
             _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
-            using var conn = new NpgsqlConnection(_connectionString);
-
-            await conn.OpenAsync();
-
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
-                await cmd.ExecuteNonQueryAsync();
-            }
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseNpgsql(_connectionString, options =>
@@ -78,7 +69,7 @@ namespace Tests.Services
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
-            await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
+
             await _contextMock.Database.EnsureCreatedAsync();
 
             _loggerMock = new LoggerFactory().CreateLogger<TaskServices>();
@@ -199,7 +190,7 @@ namespace Tests.Services
 
             var tasks = result.Data!;
 
-            await Assert.That(tasks).HasCount().EqualTo(1);
+            await Assert.That(tasks).Count().IsEqualTo(1);
             await Assert.That(tasks[0].Id).IsEqualTo(validTask.Id);
         }
 
@@ -386,7 +377,7 @@ namespace Tests.Services
 
             var tasks = result.Data!.Where(t => t.Id == taskDay15.Id || t.Id == taskDay1.Id || t.Id == taskDay30.Id).ToList();
 
-            await Assert.That(tasks).HasCount().EqualTo(3);
+            await Assert.That(tasks).Count().IsEqualTo(3);
             await Assert.That(tasks[0].Id).IsEqualTo(taskDay1.Id);
             await Assert.That(tasks[1].Id).IsEqualTo(taskDay15.Id);
             await Assert.That(tasks[2].Id).IsEqualTo(taskDay30.Id);
@@ -590,7 +581,7 @@ namespace Tests.Services
             await Assert.That(data.FirstName).IsEqualTo("Anna");
             await Assert.That(data.CompanyName).IsEqualTo("Firma Testowa");
 
-            await Assert.That(data.ContactWays).HasCount().EqualTo(2);
+            await Assert.That(data.ContactWays).Count().IsEqualTo(2);
             await Assert.That(data.ContactWays.Any(c => c.Value == "123456789")).IsTrue();
             await Assert.That(data.ContactWays.Any(c => c.Value == "old@test.pl")).IsFalse();
         }
