@@ -9,5 +9,7 @@ namespace Api.Mappers
     {
         [MapProperty(nameof(searchId), nameof(NoteListCommand.searchId))]
         public partial NoteListCommand MapList(Guid searchId, PaggedRequest pagged, SearchRequest search);
+
+        public partial NoteEditCommand MapEdit(NoteEditRequest request);
     }
 }

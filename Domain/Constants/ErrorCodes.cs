@@ -29,5 +29,11 @@
 
         // Błędy dotyczące produktów
         public const string ProductNotFound = "PROD_001";
+
+        // Błędy notatek
+        public const string NoteNotFound = "NOTE_001";
+        public const string NoteIdRequired = "NOTE_002";
+        public const string NoteTitleIsNotValid = "NOTE_003";
+        public const string NoteContentIsNotValid = "NOTE_004";
     }
 }
