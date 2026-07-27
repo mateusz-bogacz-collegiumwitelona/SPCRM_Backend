@@ -1,8 +1,13 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Services.Command;
 using Services.Services;
@@ -10,7 +15,7 @@ using Testcontainers.PostgreSql;
 
 namespace Tests.Services
 {
-   
+
     public class NoteServiceTest
     {
         protected AppDbContext _contextMock = null!;
@@ -20,6 +25,7 @@ namespace Tests.Services
 
         protected NoteServices _noteServicesMock = null!;
         protected ILogger<NoteServices> _loggerMock = null!;
+        protected UserManager<ApplicationUser> _userManagerMock = null!;
 
         private string _currentSchema = null!;
 
@@ -81,9 +87,28 @@ namespace Tests.Services
             await _contextMock.Database.ExecuteSqlRawAsync($"SET search_path TO {_currentSchema}");
             await _contextMock.Database.EnsureCreatedAsync();
 
+            var userStore = new UserStore<ApplicationUser, IdentityRole<Guid>, AppDbContext, Guid>(_contextMock);
+            var passwordHasher = new PasswordHasher<ApplicationUser>();
+            var normalizer = new UpperInvariantLookupNormalizer();
+            var userManagerLogger = NullLogger<UserManager<ApplicationUser>>.Instance;
+            var identityOptions = Options.Create(new IdentityOptions());
+
+            _userManagerMock = new UserManager<ApplicationUser>(
+                userStore,
+                identityOptions,
+                passwordHasher,
+                null!,
+                null!,
+                normalizer,
+                new IdentityErrorDescriber(),
+                null!,
+                userManagerLogger
+                );
+
+
             _loggerMock = new LoggerFactory().CreateLogger<NoteServices>();
 
-            _noteServicesMock = new NoteServices(_contextMock, _loggerMock);
+            _noteServicesMock = new NoteServices(_contextMock, _loggerMock, _userManagerMock);
         }
 
         [After(Test)]
@@ -807,6 +832,239 @@ namespace Tests.Services
 
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!).IsEmpty();
+        }
+
+        // ─── EditNoteAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task EditNoteAsync_WhenNoteDoesNotExist_Returns404()
+        {
+            // Arrange
+            var command = new NoteEditCommand
+            {
+                Id = Guid.NewGuid(),
+                Title = "New Title",
+                Content = "New Content"
+            };
+
+            // Act
+            var result = await _noteServicesMock.EditNoteAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Note not found or is deleted");
+        }
+
+        [Test]
+        public async Task EditNoteAsync_WhenUserDoesNotExist_Returns404()
+        {
+            // Arrange
+            Guid ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                FirstName = "Anna",
+                LastName = "Nowak",
+                UserName = "user1",
+                Email = "anna.nowak@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Company",
+                NIP = "1233211231",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = Guid.NewGuid(),
+                IsPrimary = true,
+                Owner = owner,
+                Company = company
+            };
+
+            var note = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old Title",
+                Content = "Old Content",
+                Contact = contact,
+                Author = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.Add(note);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new NoteEditCommand
+            {
+                Id = note.Id,
+                Title = "New Title",
+                Content = "New Content"
+            };
+
+            // Act 
+            var result = await _noteServicesMock.EditNoteAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task EditNoteAsync_WhenUserNotHaveAccess_Returns403()
+        {
+            // Arrange
+            Guid ownerId = Guid.NewGuid();
+            Guid otherUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                FirstName = "Anna",
+                LastName = "Nowak",
+                UserName = "user1",
+                Email = "anna.nowak@example.com"
+            };
+
+            var otherUser = new ApplicationUser
+            {
+                Id = otherUserId,
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                UserName = "user2",
+                Email = "piotr.kowalski@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Company",
+                NIP = "1233211231",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = Guid.NewGuid(),
+                IsPrimary = true,
+                Owner = owner,
+                Company = company
+            };
+
+            var note = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old Title",
+                Content = "Old Content",
+                Contact = contact,
+                Author = owner
+            };
+
+            _contextMock.Users.AddRange(owner, otherUser);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.Add(note);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new NoteEditCommand
+            {
+                Id = note.Id,
+                Title = "New Title",
+                Content = "New Content"
+            };
+
+            // Act
+            var result = await _noteServicesMock.EditNoteAsync(command, otherUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.Message).IsEqualTo("You are not authorized to edit this note");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+        }
+
+        [Test]
+        public async Task EditNoteAsync_WhenEverythingIsValid_UpdatesNoteSuccessfully()
+        {
+            // Arrange
+            Guid ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                FirstName = "Anna",
+                LastName = "Nowak",
+                UserName = "user1",
+                Email = "anna.nowak@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Company",
+                NIP = "1233211231",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = Guid.NewGuid(),
+                IsPrimary = true,
+                Owner = owner,
+                Company = company
+            };
+
+            var note = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old Title",
+                Content = "Old Content",
+                Contact = contact,
+                Author = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.Add(note);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new NoteEditCommand
+            {
+                Id = note.Id,
+                Title = "New Title",
+                Content = "New Content"
+            };
+
+            // Act
+            var result = await _noteServicesMock.EditNoteAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK); 
+            await Assert.That(result.Message).IsEqualTo("Note updated successfully");
+
         }
     }
 }

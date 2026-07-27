@@ -350,7 +350,7 @@ namespace Tests.Services
                 NormalizedName = roleName.ToUpper()
             });
 
-            await _userManagerMock.AddToRoleAsync(user, "User");
+            await _userManagerMock.AddToRoleAsync(user, roleName);
 
             // Act
             var result = await _authServicesMock.GetUserDataAsync(user.Id);
@@ -362,7 +362,7 @@ namespace Tests.Services
             await Assert.That(result.Data!.UserId).IsEqualTo(user.Id);
             await Assert.That(result.Data!.Email).IsEqualTo(user.Email);
             await Assert.That(result.Data!.UserName).IsEqualTo(user.UserName);
-            await Assert.That(result.Data!.Roles).Contains("User");
+            await Assert.That(result.Data!.Roles).Contains(roleName);
         }
     }
 

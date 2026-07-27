@@ -35,8 +35,20 @@ namespace Tests.Services
                 .Build();
 
             await _dbContainer.StartAsync();
-
             _connectionString = _dbContainer.GetConnectionString();
+
+            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql(_connectionString, options =>
+                {
+                    options.UseNetTopologySuite();
+                })
+                .Options;
+
+            using var context = new AppDbContext(dbOptions);
+            await context.Database.EnsureCreatedAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
         }
 
         [After(Class)]
@@ -44,31 +56,16 @@ namespace Tests.Services
             => await _dbContainer.DisposeAsync();
 
         [Before(Test)]
-        public async Task SetupAsync()
+        public void Setup()
         {
-            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
-
-            using (var conn = new NpgsqlConnection(_connectionString))
-            {
-                await conn.OpenAsync();
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = $"CREATE SCHEMA {_currentSchema};";
-                    await cmd.ExecuteNonQueryAsync();
-                }
-            }
-
-            var testConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(testConnectionString, options =>
+                .UseNpgsql(_connectionString, options =>
                 {
                     options.UseNetTopologySuite();
                 })
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
-
-            await _contextMock.Database.EnsureCreatedAsync();
 
             _loggerMock = new LoggerFactory().CreateLogger<ProductSevices>();
             _productSevicesMock = new ProductSevices(_contextMock, _loggerMock);
@@ -78,12 +75,6 @@ namespace Tests.Services
         public async Task CleanupAsync()
         {
             await _contextMock.DisposeAsync();
-
-            using var conn = new NpgsqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
-            await cmd.ExecuteNonQueryAsync();
         }
 
         // ─── GetProductListAsync ─────────────────────────────────────────────────
@@ -228,7 +219,7 @@ namespace Tests.Services
 
             // Act
             var result = await _productSevicesMock.GetProductListAsync(command);
-
+            Console.WriteLine(string.Join(", ", result.Errors ?? new List<string>()));
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
@@ -303,7 +294,8 @@ namespace Tests.Services
                 PageSize = 10,
                 ProductCategory = ProductCategoryEnum.Standard.ToString(),
                 SortBy = "quantity",
-                SortDescending = true
+                SortDescending = true,
+                SearchTerm = uniqueSuffix
             };
 
             // Act
