@@ -1,4 +1,5 @@
-﻿using Domain.Constants;
+﻿using Domain.Common;
+using Domain.Constants;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -1052,9 +1053,173 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK); 
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Message).IsEqualTo("Note updated successfully");
 
+        }
+
+        // ─── AddNoteAsync ──────────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddNoteAsync_WhenUserDoesNotExist_Returns404()
+        {
+            // Arrange
+            var command = new AddNoteCommand
+            {
+                Title = "Tytuł",
+                Content = "Treść",
+                TargetId = Guid.NewGuid(),
+                NoteType = NoteEnum.Contact,
+                AuthorId = Guid.NewGuid() 
+            };
+
+            // Act
+            var result = await _noteServicesMock.AddNoteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task AddNoteAsync_WhenTargetDoesNotExist_Returns404()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "testuser",
+                Email = "test@example.com",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddNoteCommand
+            {
+                Title = "Tytuł",
+                Content = "Treść",
+                TargetId = Guid.NewGuid(),
+                NoteType = NoteEnum.Contact,
+                AuthorId = userId
+            };
+
+            // Act
+            var result = await _noteServicesMock.AddNoteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo($"{NoteEnum.Contact} for this note not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoteTargetNotFound);
+        }
+
+        [Test]
+        public async Task AddNoteAsync_WhenValidContact_AddsNoteSuccessfully()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var contactId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "testuser",
+                Email = "test@example.com",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Testowa",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            var contact = new Contact
+            {
+                Id = contactId,
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = user,
+                IsPrimary = true
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddNoteCommand
+            {
+                Title = "Ważna notatka",
+                Content = "To jest treść notatki do kontaktu",
+                TargetId = contactId,
+                NoteType = NoteEnum.Contact,
+                AuthorId = userId
+            };
+
+            // Act
+            var result = await _noteServicesMock.AddNoteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var savedNote = await _contextMock.Notes
+                .OfType<ContactNote>()
+                .FirstOrDefaultAsync(n => n.ContactId == contactId);
+
+            await Assert.That(savedNote).IsNotNull();
+            await Assert.That(savedNote!.Title).IsEqualTo("Ważna notatka");
+            await Assert.That(savedNote.Content).IsEqualTo("To jest treść notatki do kontaktu");
+            await Assert.That(savedNote.AuthorId).IsEqualTo(userId);
+        }
+
+        [Test]
+        public async Task AddNoteAsync_WhenInvalidNoteType_Returns404()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "testuser",
+                Email = "test@example.com",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddNoteCommand
+            {
+                Title = "Tytuł",
+                Content = "Treść",
+                TargetId = Guid.NewGuid(),
+                NoteType = (NoteEnum)999,
+                AuthorId = userId
+            };
+
+            // Act
+            var result = await _noteServicesMock.AddNoteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoteTargetNotFound);
         }
     }
 }
