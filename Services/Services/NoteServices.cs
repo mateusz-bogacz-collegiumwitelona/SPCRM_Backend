@@ -20,7 +20,7 @@ namespace Services.Services
         private readonly UserManager<ApplicationUser> _userManager;
 
         public NoteServices(
-            AppDbContext context, 
+            AppDbContext context,
             ILogger<NoteServices> logger,
             UserManager<ApplicationUser> roleManger
 
@@ -133,7 +133,7 @@ namespace Services.Services
                     errorCode: ErrorCodes.NoteNotFound,
                     statusCode: StatusCodes.Status404NotFound
                 );
-            } 
+            }
 
             var user = await _context.Users
                 .AsNoTracking()
@@ -167,6 +167,75 @@ namespace Services.Services
             return Result.Success(
                 message: "Note updated successfully",
                 statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> AddNoteAsync(AddNoteCommand command)
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == command.AuthorId);
+
+            if (user == null)
+            {
+                _logger.LogWarning("User with ID {UserId} not found.", command.AuthorId);
+                return Result.Failure(
+                    message: "User not found",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            bool targetExists = command.NoteType switch
+            {
+                NoteEnum.Contact => await _context.Contacts.AnyAsync(c => c.Id == command.TargetId),
+                NoteEnum.Deal => await _context.Deals.AnyAsync(d => d.Id == command.TargetId),
+                NoteEnum.Task => await _context.Tasks.AnyAsync(t => t.Id == command.TargetId),
+                _ => false
+            };
+
+            if (!targetExists)
+            {
+                _logger.LogWarning("Target entity {TargetType} with ID {TargetId} not found.", command.NoteType, command.TargetId);
+
+                return Result.Failure(
+                    message: $"{command.NoteType} for this note not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NoteTargetNotFound
+                );
+            }
+
+            Note newNote = command.NoteType switch
+            {
+                NoteEnum.Contact => new ContactNote
+                {
+                    ContactId = command.TargetId,
+                    Title = command.Title,
+                    Content = command.Content,
+                    Author = user
+                },
+                NoteEnum.Deal => new DealNote
+                {
+                    DealId = command.TargetId,
+                    Title = command.Title,
+                    Content = command.Content,
+                    Author = user
+                },
+                NoteEnum.Task => new TaskNote
+                {
+                    TaskId = command.TargetId,
+                    Title = command.Title,
+                    Content = command.Content,
+                    Author = user
+                },
+                _ => throw new ArgumentException("Invalid note type", nameof(command.NoteType))
+            };
+
+            _context.Notes.Add(newNote);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Note added successfully",
+                statusCode: StatusCodes.Status201Created
             );
         }
     }

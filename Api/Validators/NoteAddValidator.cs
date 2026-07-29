@@ -4,11 +4,11 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class NoteEditValidator : AbstractValidator<NoteEditRequest>
+    public class NoteAddValidator : AbstractValidator<NoteAddRequest>
     {
-        public NoteEditValidator()
+        public NoteAddValidator()
         {
-            RuleFor(x => x.Id).ApplyNoteIdRules();
+            RuleFor(x => x.TargetId).ApplyNoteIdRules();
             RuleFor(x => x.Title).ApplyTitleRules();
             RuleFor(x => x.Content).ApplyContentRules();
         }

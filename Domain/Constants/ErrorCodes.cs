@@ -35,5 +35,6 @@
         public const string NoteIdRequired = "NOTE_002";
         public const string NoteTitleIsNotValid = "NOTE_003";
         public const string NoteContentIsNotValid = "NOTE_004";
+        public const string NoteTargetNotFound = "NOTE_005";
     }
 }

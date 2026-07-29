@@ -20,5 +20,6 @@ namespace Api.Mappers
                 };
 
         public partial NoteEditCommand MapEdit(NoteEditRequest request);
+        public partial AddNoteCommand MapAdd(NoteAddRequest request, Guid authorId);
     }
 }

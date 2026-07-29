@@ -1,6 +1,6 @@
 ﻿namespace Api.Request
 {
-    public class NoteEditRequest
+    public record NoteEditRequest
     {
         public required Guid Id { get; init; }
 

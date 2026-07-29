@@ -33,5 +33,19 @@ namespace Api.Controllers
 
             return HandleResult(result);
         }
+
+        [EndpointName("Add note")]
+        [EndpointDescription("Add note, this endpoint determinate with note type is save by NoteEnum")]
+        [HttpPost]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> AddNoteAsync(
+            [FromServices] INoteServices note,
+            [FromServices] NoteMapper mapper,
+            [FromBody] NoteAddRequest request
+            )
+        {
+            var result = await note.AddNoteAsync(mapper.MapAdd(request, CurrentUserId));
+            return HandleResult(result);
+        }
     }
 }
