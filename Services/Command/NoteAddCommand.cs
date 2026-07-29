@@ -2,7 +2,7 @@
 
 namespace Services.Command
 {
-    public record AddNoteCommand
+    public record NoteAddCommand
     {
         public required Guid AuthorId { get; init; }
         public required Guid TargetId { get; init; }

@@ -1064,7 +1064,7 @@ namespace Tests.Services
         public async Task AddNoteAsync_WhenUserDoesNotExist_Returns404()
         {
             // Arrange
-            var command = new AddNoteCommand
+            var command = new NoteAddCommand
             {
                 Title = "Tytuł",
                 Content = "Treść",
@@ -1100,7 +1100,7 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             await _contextMock.SaveChangesAsync();
 
-            var command = new AddNoteCommand
+            var command = new NoteAddCommand
             {
                 Title = "Tytuł",
                 Content = "Treść",
@@ -1161,7 +1161,7 @@ namespace Tests.Services
             _contextMock.Contacts.Add(contact);
             await _contextMock.SaveChangesAsync();
 
-            var command = new AddNoteCommand
+            var command = new NoteAddCommand
             {
                 Title = "Ważna notatka",
                 Content = "To jest treść notatki do kontaktu",
@@ -1204,7 +1204,7 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             await _contextMock.SaveChangesAsync();
 
-            var command = new AddNoteCommand
+            var command = new NoteAddCommand
             {
                 Title = "Tytuł",
                 Content = "Treść",

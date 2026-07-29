@@ -170,7 +170,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result> AddNoteAsync(AddNoteCommand command)
+        public async Task<Result> AddNoteAsync(NoteAddCommand command)
         {
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Id == command.AuthorId);
