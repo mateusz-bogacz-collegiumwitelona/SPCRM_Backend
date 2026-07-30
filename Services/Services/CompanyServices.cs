@@ -25,7 +25,7 @@ namespace Services.Services
 
         public async Task<Result<List<CompaniesMapResponse>>> Map(string? searchTerm = null)
         {
-            var query = _context.CompanyAdresses.Where(a => !a.IsDeleted);
+            var query = _context.CompanyAdresses.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -67,7 +67,7 @@ namespace Services.Services
             var company = await _context.Companies
                 .FirstOrDefaultAsync(c => c.Id == id);
 
-            if (company == null || company.IsDeleted)
+            if (company == null)
             {
                 _logger.LogInformation("User with id: {userId} want see comapny with id {companyID} who doesn't exist.", userId, id);
                 return Result<CompanyDetailResponse>.Failure(
@@ -116,7 +116,6 @@ namespace Services.Services
             var query = _context.Companies
                 .ApplyFiler(command.IsYour, command.CreatedAtFrom, command.CreatedAtTo, command.UserId)
                 .ApplySearch(command.SearchTerm ?? string.Empty)
-                .Where(c => !c.IsDeleted)
                 .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
                 .ApplySorting(command.SortBy, command.SortDescending)
                 .Select(c => new CompanyResponse

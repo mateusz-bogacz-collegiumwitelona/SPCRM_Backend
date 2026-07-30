@@ -54,7 +54,7 @@ namespace Services.Services
                     CompanyName = d.Company.Name,
                     Status = d.Status.ToString()
                 });
-                
+
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
         }
 
@@ -95,7 +95,7 @@ namespace Services.Services
             var query = await _context.Deals
                 .Where(d => d.Id == dealId)
                 .AsNoTracking()
-                .Select(d => new 
+                .Select(d => new
                 {
                     Id = d.Id,
                     Name = d.Name,
@@ -109,8 +109,8 @@ namespace Services.Services
                     CompanyName = d.Company.Name,
                     InvoicedAmount = d.Invoices.Sum(i => i.TotalAmount),
                     PaidAmount = d.Invoices.Sum(i => i.PaidAmount),
-                    IsOverduelInvoices = d.Invoices.Any(i => 
-                        (i.TotalAmount - i.PaidAmount) > 0 
+                    IsOverduelInvoices = d.Invoices.Any(i =>
+                        (i.TotalAmount - i.PaidAmount) > 0
                         && i.DueDate < DateTime.UtcNow
                     ),
                 })
@@ -132,7 +132,7 @@ namespace Services.Services
                     MidpointRounding.AwayFromZero)
                 : 0;
 
-            SaleDetailResponse response = new SaleDetailResponse 
+            SaleDetailResponse response = new SaleDetailResponse
             {
                 Id = query.Id,
                 Name = query.Name,

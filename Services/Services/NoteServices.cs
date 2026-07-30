@@ -36,7 +36,7 @@ namespace Services.Services
             var query = _context.Notes
                 .OfType<ContactNote>()
                 .Include(n => n.Author)
-                .Where(n => n.ContactId == command.SearchId && !n.IsDeleted)
+                .Where(n => n.ContactId == command.SearchId)
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .OrderByDescending(n => n.CreatedAt)
@@ -122,7 +122,7 @@ namespace Services.Services
         public async Task<Result> EditNoteAsync(NoteEditCommand command, Guid userId)
         {
             var note = await _context.Notes
-                .FirstOrDefaultAsync(n => n.Id == command.Id && !n.IsDeleted);
+                .FirstOrDefaultAsync(n => n.Id == command.Id);
 
             if (note == null)
             {
@@ -236,6 +236,55 @@ namespace Services.Services
             return Result.Success(
                 message: "Note added successfully",
                 statusCode: StatusCodes.Status201Created
+            );
+        }
+
+        public async Task<Result> DeleteNoteAsync(Guid noteId, Guid userId)
+        {
+            var note = await _context.Notes
+                .FirstOrDefaultAsync(n => n.Id == noteId);
+
+            if (note == null)
+            {
+                _logger.LogWarning("Note with ID {NoteId} not found or is already deleted.", noteId);
+                return Result.Failure(
+                    message: "Note not found or is already deleted",
+                    errorCode: ErrorCodes.NoteNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user == null)
+            {
+                _logger.LogWarning("User with ID {UserId} not found.", userId);
+                return Result.Failure(
+                    message: "User not found",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var isManager = user != null && await _userManager.IsInRoleAsync(user, "Manager");
+
+            if (note.AuthorId != userId && !isManager)
+            {
+                _logger.LogWarning("User with ID {UserId} is not authorized to delete note with ID {NoteId}.", userId, noteId);
+                return Result.Failure(
+                    message: "You are not authorized to delete this note",
+                    errorCode: ErrorCodes.UnauthorizedAccess,
+                    statusCode: StatusCodes.Status403Forbidden
+                );
+            }
+
+            note.IsDeleted = true;
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Note deleted successfully",
+                statusCode: StatusCodes.Status200OK
             );
         }
     }

@@ -27,6 +27,7 @@ namespace Tests.Services
         protected NoteServices _noteServicesMock = null!;
         protected ILogger<NoteServices> _loggerMock = null!;
         protected UserManager<ApplicationUser> _userManagerMock = null!;
+        protected RoleManager<IdentityRole<Guid>> _roleManagerMock = null!;
 
         private string _currentSchema = null!;
 
@@ -93,6 +94,14 @@ namespace Tests.Services
                 userManagerLogger
                 );
 
+            var roleStore = new RoleStore<IdentityRole<Guid>, AppDbContext, Guid>(_contextMock);
+            _roleManagerMock = new RoleManager<IdentityRole<Guid>>(
+                roleStore,
+                null!,
+                normalizer,
+                null!,
+                null!
+                );
 
             _loggerMock = new LoggerFactory().CreateLogger<NoteServices>();
 
@@ -105,6 +114,7 @@ namespace Tests.Services
             await _contextMock.DisposeAsync();
 
             _userManagerMock?.Dispose();
+            _roleManagerMock?.Dispose();
 
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -1070,7 +1080,7 @@ namespace Tests.Services
                 Content = "Treść",
                 TargetId = Guid.NewGuid(),
                 NoteType = NoteEnum.Contact,
-                AuthorId = Guid.NewGuid() 
+                AuthorId = Guid.NewGuid()
             };
 
             // Act
@@ -1220,6 +1230,281 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoteTargetNotFound);
+        }
+
+        // ─── DeleteNoteAsync ──────────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteNoteAsync_WhenNoteDoesNotExist_Return404()
+        {
+            // Act
+            var result = await _noteServicesMock.DeleteNoteAsync(Guid.NewGuid(), Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Note not found or is already deleted");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoteNotFound);
+        }
+
+        [Test]
+        public async Task DeleteNoteAsync_WhenUserDoesNotExist_Return404()
+        {
+            // Arrange 
+            Guid ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                FirstName = "Anna4",
+                LastName = "Nowak4",
+                UserName = "user14",
+                Email = "anna.nowak4@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Company",
+                NIP = "1233211231",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = Guid.NewGuid(),
+                IsPrimary = true,
+                Owner = owner,
+                Company = company
+            };
+
+            var note = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old Title",
+                Content = "Old Content",
+                Contact = contact,
+                Author = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.Add(note);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _noteServicesMock.DeleteNoteAsync(note.Id, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task DeleteNoteAsync_WhenUserNotHaveAccess_Returns403()
+        {
+            // Arrange 
+            Guid ownerId = Guid.NewGuid();
+            Guid otherUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                FirstName = "Anna",
+                LastName = "Nowak",
+                UserName = "user1",
+                Email = "anna.nowak@example.com"
+            };
+
+            var otherUser = new ApplicationUser
+            {
+                Id = otherUserId,
+                FirstName = "Anna3",
+                LastName = "Nowak3",
+                UserName = "user13",
+                Email = "anna.nowak3@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Company",
+                NIP = "1233211231",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = Guid.NewGuid(),
+                IsPrimary = true,
+                Owner = owner,
+                Company = company
+            };
+
+            var note = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old Title",
+                Content = "Old Content",
+                Contact = contact,
+                Author = owner
+            };
+
+            _contextMock.Users.AddRange(owner, otherUser);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.Add(note);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _noteServicesMock.DeleteNoteAsync(note.Id, otherUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.Message).IsEqualTo("You are not authorized to delete this note");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+        }
+
+        [Test]
+        public async Task DeleteNoteAsync_WhenUserIsAuthor_DeleteSuccessfully()
+        {
+            Guid ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                FirstName = "Anna44",
+                LastName = "Nowak44",
+                UserName = "user14",
+                Email = "anna.nowak44@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Company",
+                NIP = "1233211231",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = Guid.NewGuid(),
+                IsPrimary = true,
+                Owner = owner,
+                Company = company
+            };
+
+            var note = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old Title",
+                Content = "Old Content",
+                Contact = contact,
+                Author = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.Add(note);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _noteServicesMock.DeleteNoteAsync(note.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Note deleted successfully");
+        }
+
+        [Test]
+        public async Task DeleteNoteAsync_WhenUserIsManager_DeleteSuccessfully()
+        {
+            // Arrange 
+            Guid ownerId = Guid.NewGuid();
+            Guid managerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                FirstName = "Anna",
+                LastName = "Nowak",
+                UserName = "user145",
+                Email = "anna.nowa33k@example.com"
+            };
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                FirstName = "Anna34343",
+                LastName = "Nowak334343",
+                UserName = "user134334",
+                Email = "anna.nowak433433@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Company",
+                NIP = "1233211231",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = Guid.NewGuid(),
+                IsPrimary = true,
+                Owner = owner,
+                Company = company
+            };
+
+            var note = new ContactNote
+            {
+                Id = Guid.NewGuid(),
+                Title = "Old Title",
+                Content = "Old Content",
+                Contact = contact,
+                Author = owner
+            };
+
+            await _userManagerMock.CreateAsync(manager, "Password123!");
+            await _userManagerMock.CreateAsync(owner, "Password123!");
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = "Manager", NormalizedName = "MANAGER" });
+            await _userManagerMock.AddToRoleAsync(manager, "Manager");
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Notes.Add(note);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _noteServicesMock.DeleteNoteAsync(note.Id, managerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Note deleted successfully");
         }
     }
 }

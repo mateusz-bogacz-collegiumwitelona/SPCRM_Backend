@@ -11,5 +11,6 @@ namespace Services.Interfaces
         Task<Result<List<NoteResponse>>> GetTaskNotesAsync(Guid taskId);
         Task<Result> EditNoteAsync(NoteEditCommand command, Guid userId);
         Task<Result> AddNoteAsync(NoteAddCommand command);
+        Task<Result> DeleteNoteAsync(Guid noteId, Guid userId);
     }
 }

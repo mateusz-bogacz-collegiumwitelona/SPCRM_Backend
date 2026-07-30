@@ -34,7 +34,7 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [EndpointName("Add note")]
+        [EndpointSummary("Add note")]
         [EndpointDescription("Add note, this endpoint determinate with note type is save by NoteEnum")]
         [HttpPost]
         [Authorize(Roles = "Manager,User")]
@@ -45,6 +45,18 @@ namespace Api.Controllers
             )
         {
             var result = await note.AddNoteAsync(mapper.MapAdd(request, CurrentUserId));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Delete note")]
+        [EndpointDescription("Delete an existing note.")]
+        [HttpDelete]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> DeleteNoteAsync(
+            [FromServices] INoteServices note,
+            [FromQuery] Guid id)
+        {
+            var result = await note.DeleteNoteAsync(id, CurrentUserId);
             return HandleResult(result);
         }
     }

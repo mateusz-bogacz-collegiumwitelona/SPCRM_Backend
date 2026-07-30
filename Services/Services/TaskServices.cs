@@ -29,7 +29,6 @@ namespace Services.Services
 
             var query = await _context.Tasks
                 .AsNoTracking()
-                .Where(t => !t.IsDeleted)
                 .Where(t => t.AssignedToId == command.UserId)
                 .Where(t => t.DueAt >= fromUtc && t.DueAt <= toUtc)
                 .OrderBy(t => t.DueAt)
