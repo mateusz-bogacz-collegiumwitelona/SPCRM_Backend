@@ -48,7 +48,8 @@ namespace Services.Services
                     AuthorFirstName = n.Author.FirstName,
                     AuthorLastName = n.Author.LastName,
                     CreatedAt = n.CreatedAt,
-                    UpdateAt = n.UpdateAt
+                    UpdateAt = n.UpdateAt,
+                    AuthorId = n.Author.Id,
                 });
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact_notes");
@@ -70,6 +71,7 @@ namespace Services.Services
                     AuthorLastName = n.Author.LastName,
                     CreatedAt = n.CreatedAt,
                     UpdatedAt = n.UpdateAt ?? null,
+                    AuthorId = n.Author.Id,
                 })
                 .ToListAsync();
 
@@ -109,6 +111,7 @@ namespace Services.Services
                     AuthorLastName = n.Author.LastName,
                     CreatedAt = n.CreatedAt,
                     UpdatedAt = n.UpdateAt ?? null,
+                    AuthorId = n.Author.Id,
                 })
                 .ToListAsync();
 
