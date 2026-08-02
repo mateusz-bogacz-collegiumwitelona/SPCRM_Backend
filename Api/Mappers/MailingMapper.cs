@@ -9,5 +9,7 @@ namespace Api.Mappers
     {
         public partial SupportEmailCommand MapEmail(SupportEmailRequest request);
         public partial MailingCommand MapProductMailing(MailingRequest request);
+
+        public partial SimpleListCommand MapSimpleList(SimpleListRequest request);
     }
 }

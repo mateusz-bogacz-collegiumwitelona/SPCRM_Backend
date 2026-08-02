@@ -30,9 +30,11 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpPost("mailing")]
+        [EndpointSummary("Send product mailing and record offers")]
+        [EndpointDescription("Sends promotional product mailing emails to specified clients and automatically creates persistent, " +
+            "trackable offer records in the database with their respective quoted prices and expiration details.")]
+        [HttpPost("offert")]
         [Authorize(Roles = "User,Manager")]
-
         public async Task<IActionResult> SendProductMailingAsync(
             [FromServices] IMailingServices mailing,
             [FromServices] MailingMapper mapper,
@@ -40,6 +42,20 @@ namespace Api.Controllers
             )
         {
             var result = await mailing.SendProductMailingAsync(mapper.MapProductMailing(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get client data for mailing")]
+        [EndpointDescription("Retrieves a list of client contacts for mailing purposes, with optional search and pagination.")]
+        [HttpGet("contacts")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetClientDataToMailingAsync(
+            [FromServices] IContactServices contact,
+            [FromServices] MailingMapper mapper,
+            [FromQuery] SimpleListRequest request
+            )
+        { 
+            var result = await contact.GetClientDataToMailingAsync(mapper.MapSimpleList(request));
             return HandleResult(result);
         }
     }

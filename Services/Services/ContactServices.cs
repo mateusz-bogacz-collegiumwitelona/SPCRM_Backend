@@ -126,5 +126,25 @@ namespace Services.Services
                 );
         }
 
+
+        public async Task<Result<PagedResult<MailingClientResponse>>> GetClientDataToMailingAsync(SimpleListCommand command) 
+        {
+            var query = _context.Contacts
+                .Include(c => c.Company)
+                .AsNoTracking()
+                .Distinct()
+                .Where(c => c.IsPrimary)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .Select(c => new MailingClientResponse
+                {
+                    CompanyName = c.Company.Name,
+                    Nip = c.Company.NIP,
+                    ContactFirstName = c.FirstName,
+                    ContactLastName = c.LastName,
+                    ContactId = c.Id
+                });
+
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize , _logger, "mailing_clients");
+        }
     }
 }
