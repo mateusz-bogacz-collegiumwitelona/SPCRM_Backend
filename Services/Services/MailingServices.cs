@@ -133,7 +133,7 @@ namespace Services.Services
 
             string defaultCurrencyCode = groupProducts.FirstOrDefault()?.CurrencyCode ?? "PLN";
             var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code == defaultCurrencyCode)
-                           ?? await _context.Currencies.FirstAsync(); 
+                           ?? await _context.Currencies.FirstAsync();
 
 
             var productsToOffer = groupProducts.Select(cmd =>
@@ -148,25 +148,35 @@ namespace Services.Services
                     product.Length
                 );
 
-                long basePrice = cmd.Price ?? product.PricePerUnit;
-                long finalPrice = basePrice;
+                long standardPrice = product.PricePerUnit;
+
+                long finalPrice = cmd.Price ?? standardPrice;
 
                 decimal? discountPercentage = null;
                 bool isPromoted = false;
+                long? originalPrice = null;
+
+                if (finalPrice < standardPrice)
+                {
+                    isPromoted = true;
+                    originalPrice = standardPrice;
+                    discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, 2);
+                }
 
                 var activePromotion = product.Promotions.FirstOrDefault();
-
                 if (activePromotion != null)
                 {
                     isPromoted = true;
+                    originalPrice = standardPrice;
 
                     if (activePromotion.PromotionalPrice.HasValue)
                     {
                         finalPrice = activePromotion.PromotionalPrice.Value;
+                        discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, 2);
                     }
                     else if (activePromotion.DiscountPercentage.HasValue)
                     {
-                        finalPrice = (long)(basePrice * (1m - (activePromotion.DiscountPercentage.Value / 100m)));
+                        finalPrice = (long)(standardPrice * (1m - (activePromotion.DiscountPercentage.Value / 100m)));
                         discountPercentage = activePromotion.DiscountPercentage.Value;
                     }
                 }
@@ -182,9 +192,9 @@ namespace Services.Services
                     CurrencyCode = cmd.CurrencyCode ?? "PLN",
 
                     FinalPrice = finalPrice,
-                    OriginalPrice = (isPromoted && finalPrice < basePrice) ? basePrice : null,
-                    DiscountPercentage = discountPercentage,
-                    IsPromoted = isPromoted
+                    OriginalPrice = originalPrice,
+                    DiscountPercentage = discountPercentage, 
+                    IsPromoted = isPromoted 
                 };
             }).ToList();
 
