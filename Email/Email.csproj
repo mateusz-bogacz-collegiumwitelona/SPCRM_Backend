@@ -16,7 +16,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="Templates\*.html">
+		<None Update="Templates\**\*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

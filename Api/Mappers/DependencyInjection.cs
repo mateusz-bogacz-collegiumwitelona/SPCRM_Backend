@@ -10,7 +10,7 @@
             services.AddScoped<NoteMapper>();
             services.AddScoped<ProductMapper>();
             services.AddScoped<SalesMapper>();
-            services.AddScoped<SupportMapper>();
+            services.AddScoped<MailingMapper>();
             services.AddScoped<TaskMapper>();
 
             return services;

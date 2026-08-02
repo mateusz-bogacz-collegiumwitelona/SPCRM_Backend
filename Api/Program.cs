@@ -55,7 +55,7 @@ try
     builder.Services.AddMappers();
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddCookieAuthentication(builder.Configuration);
-    builder.Services.AddApplicationServices();
+    builder.Services.AddApplicationServices(builder.Configuration);
     builder.Services.AddEmailModule(builder.Configuration);
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
@@ -94,6 +94,8 @@ try
     app.UseAuthorization();
 
     app.MapControllers().RequireAuthorization();
+
+    app.UseHangfirePipeline();
 
     app.Run();
 }

@@ -2,6 +2,7 @@
 using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -72,7 +73,7 @@ namespace Services.Services
             return Result.Success("Email sent to support successfully.", StatusCodes.Status200OK);
         }
 
-        public async Task<Result> SendProductMailingAsync(MailingCommand command)
+        public async Task<Result> SendProductMailingAsync(MailingCommand command, Guid authorId)
         {
             var grouptClients = command.To
                 .GroupBy(x => x)
@@ -106,6 +107,11 @@ namespace Services.Services
                 .ToList();
 
             var existingProducts = await _context.Products
+                .Include(p => p.Unit)
+                .Include(p => p.Promotions.Where(pr =>
+                    pr.IsActive &&
+                    (!pr.StartDate.HasValue || pr.StartDate <= DateTime.UtcNow) &&
+                    (!pr.EndDate.HasValue || pr.EndDate >= DateTime.UtcNow)))
                 .Where(p => groupProducts.Select(x => x.ProductId).Contains(p.Id))
                 .ToListAsync();
 
@@ -125,12 +131,9 @@ namespace Services.Services
                 );
             }
 
-            var emailToSend = existingClients
-                .SelectMany(c => c.ContactDetails)
-                .Where(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)
-                .Select(cd => cd.Value)
-                .Distinct()
-                .ToList();
+            string defaultCurrencyCode = groupProducts.FirstOrDefault()?.CurrencyCode ?? "PLN";
+            var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code == defaultCurrencyCode)
+                           ?? await _context.Currencies.FirstAsync(); 
 
 
             var productsToOffer = groupProducts.Select(cmd =>
@@ -143,7 +146,30 @@ namespace Services.Services
                     product.Thickness,
                     product.Width,
                     product.Length
-                    );
+                );
+
+                long basePrice = cmd.Price ?? product.PricePerUnit;
+                long finalPrice = basePrice;
+
+                decimal? discountPercentage = null;
+                bool isPromoted = false;
+
+                var activePromotion = product.Promotions.FirstOrDefault();
+
+                if (activePromotion != null)
+                {
+                    isPromoted = true;
+
+                    if (activePromotion.PromotionalPrice.HasValue)
+                    {
+                        finalPrice = activePromotion.PromotionalPrice.Value;
+                    }
+                    else if (activePromotion.DiscountPercentage.HasValue)
+                    {
+                        finalPrice = (long)(basePrice * (1m - (activePromotion.DiscountPercentage.Value / 100m)));
+                        discountPercentage = activePromotion.DiscountPercentage.Value;
+                    }
+                }
 
                 return new MailingProductItemDomain
                 {
@@ -151,12 +177,47 @@ namespace Services.Services
                     SteelGrade = product.SteelGrade,
                     FormattedDimensions = formatDimmension,
                     Weight = product.Weight,
-                    UnitSymbol = product.Unit.Symbol,
+                    UnitSymbol = product.Unit?.Symbol ?? "szt.",
                     Quantity = cmd.Quantity,
-                    Price = cmd.Price ?? product.PricePerUnit,
-                    CurrencyCode = cmd.CurrencyCode ?? "PLN"
+                    CurrencyCode = cmd.CurrencyCode ?? "PLN",
+
+                    FinalPrice = finalPrice,
+                    OriginalPrice = (isPromoted && finalPrice < basePrice) ? basePrice : null,
+                    DiscountPercentage = discountPercentage,
+                    IsPromoted = isPromoted
                 };
             }).ToList();
+
+            foreach (var client in existingClients)
+            {
+                var newOffer = new Offer
+                {
+                    Id = Guid.NewGuid(),
+                    ContactId = client.Id,
+                    CreatedByUserId = authorId,
+                    ValidUntil = DateTime.UtcNow.AddDays(7),
+                    Status = OfferStatusEnum.Sent,
+                    Products = productsToOffer.Select(p => new OfferProducts
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductId = existingProducts.First(ep => ep.Name == p.ProductName).Id, 
+                        Quantity = p.Quantity,
+                        QuotedPrice = p.FinalPrice,
+                        Currency = currency
+                    }).ToList()
+                };
+
+                _context.Offers.Add(newOffer);
+            }
+
+            await _context.SaveChangesAsync();
+
+            var emailToSend = existingClients
+                .SelectMany(c => c.ContactDetails)
+                .Where(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)
+                .Select(cd => cd.Value)
+                .Distinct()
+                .ToList();
 
             var offerDomain = new MailingOfferDomain
             {
@@ -168,7 +229,7 @@ namespace Services.Services
             await _emailSender.SendProductMailingAsync(offerDomain);
 
             return Result.Success(
-                message: "Product mailing sent successfully.",
+                message: "Product mailing sent and offers recorded successfully.",
                 statusCode: StatusCodes.Status200OK
             );
         }

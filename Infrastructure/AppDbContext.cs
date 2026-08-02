@@ -25,6 +25,9 @@ namespace Infrastructure
         public DbSet<Tasks> Tasks { get; set; }
         public DbSet<UnitOfMeasure> UnitsOfMeasure { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<Promotion> Promotions { get; set; }
+        public DbSet<Offer> Offers { get; set; }
+        public DbSet<OfferProducts> OfferProducts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -79,6 +82,10 @@ namespace Infrastructure
             
             builder.Entity<Product>()
                 .Property(p => p.Category)
+                .HasConversion<string>();
+
+            builder.Entity<Offer>()
+                .Property(o => o.Status)
                 .HasConversion<string>();
 
             foreach (var entityType in builder.Model.GetEntityTypes())

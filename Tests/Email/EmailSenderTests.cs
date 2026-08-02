@@ -116,5 +116,11 @@ namespace Tests.Email
         {
             throw new NotImplementedException();
         }
+
+        public ValueTask QueueEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default) 
+        {
+            throw new NotImplementedException();
+        }
     }
+
 }

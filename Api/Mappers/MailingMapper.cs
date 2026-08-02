@@ -5,8 +5,9 @@ using Services.Command;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class SupportMapper
+    public partial class MailingMapper
     {
         public partial SupportEmailCommand MapEmail(SupportEmailRequest request);
+        public partial MailingCommand MapProductMailing(MailingRequest request);
     }
 }

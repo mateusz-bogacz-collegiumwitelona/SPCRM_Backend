@@ -65,8 +65,10 @@ namespace Services.Services
 
             }
 
+            var userName = user.UserName ?? string.Empty;
+
             var singIn = await _signInManager.PasswordSignInAsync(
-                user.UserName,
+                userName,
                 command.Password,
                 isPersistent: false,
                 lockoutOnFailure: false

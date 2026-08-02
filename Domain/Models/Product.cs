@@ -20,5 +20,7 @@ namespace Domain.Models
 
         public ProductCategoryEnum Category { get; set; }
         public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
+
+        public ICollection<Promotion> Promotions { get; set; } = new List<Promotion>();
     }
 }

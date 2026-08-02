@@ -15,7 +15,12 @@
         public required int Weight { get; init; }
         public required string UnitSymbol { get; init; }
         public required int Quantity { get; init; }
-        public required long Price { get; init; }
         public required string CurrencyCode { get; init; }
+
+        public required long FinalPrice { get; init; }
+
+        public long? OriginalPrice { get; init; }
+        public decimal? DiscountPercentage { get; init; }
+        public bool IsPromoted { get; init; }
     }
 }
