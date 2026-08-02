@@ -126,5 +126,27 @@ namespace Services.Services
                 data: query
                 );
         }
+
+        public async Task<Result<PagedResult<MailingProductResponse>>> GetMailingProductsAsync(SimpleListCommand command)
+        {
+            var query = _context.Products
+                .AsNoTracking()
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .Select(p => new MailingProductResponse
+                {
+                    ProductId = p.Id,
+                    Name = p.Name,
+                    Dimmension = DimensionsFormatter.Format(
+                     p.Category,
+                     p.Diameter,
+                     p.Thickness,
+                     p.Width,
+                     p.Length
+                    ),
+                    StockQuantity = p.StockQuantity,
+                    StockPrice = (long)p.PricePerUnit
+                });
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing products");
+        }
     }
 }

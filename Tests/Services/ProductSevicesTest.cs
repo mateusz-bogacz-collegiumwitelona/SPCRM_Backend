@@ -127,7 +127,8 @@ namespace Tests.Services
             var command = new ProductListCommand
             {
                 PageNumber = 1,
-                PageSize = 10
+                PageSize = 100, 
+                SearchTerm = uniqueSuffix
             };
 
 
@@ -523,6 +524,133 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNull();
             await Assert.That(result.Message).IsEqualTo("Product not found.");
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+        }
+
+        // ─── GetMailingProductsAsync ───────────────────────────────────────────
+
+        [Test]
+        public async Task GetMailingProductsAsync_MapsPropertiesAndDimensionsCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sztuka",
+                Symbol = "szt"
+            };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Blacha Mailingowa_{uniqueSuffix}",
+                SteelGrade = "S355",
+                Thickness = 10,
+                Width = 1000,
+                Length = 2000,
+                Diameter = 0,
+                Weight = 150,
+                PricePerUnit = 250000,
+                StockQuantity = 45,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Pipe
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _productSevicesMock.GetMailingProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var mappedProduct = result.Data!.Items.FirstOrDefault(p => p.ProductId == product.Id);
+
+            await Assert.That(mappedProduct).IsNotNull();
+            await Assert.That(mappedProduct!.Name).IsEqualTo(product.Name);
+            await Assert.That(mappedProduct.StockQuantity).IsEqualTo(45);
+            await Assert.That(mappedProduct.StockPrice).IsEqualTo(250000);
+            await Assert.That(mappedProduct.Dimmension).IsNotNull();
+            await Assert.That(mappedProduct.Dimmension).IsNotEmpty();
+        }
+
+        [Test]
+        public async Task GetMailingProductsAsync_WhenSearchTermProvided_FiltersResultsCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sztuka",
+                Symbol = "szt"
+            };
+
+            var targetProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Ceownik Specjalny_{uniqueSuffix}",
+                SteelGrade = "S235",
+                Thickness = 5,
+                Width = 100,
+                Length = 3000,
+                Weight = 50,
+                PricePerUnit = 120000,
+                StockQuantity = 20,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Profile
+            };
+
+            var otherProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Kątownik zwykły_{uniqueSuffix}",
+                SteelGrade = "S235",
+                Thickness = 4,
+                Width = 50,
+                Length = 3000,
+                Weight = 30,
+                PricePerUnit = 90000,
+                StockQuantity = 15,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Profile
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.AddRange(targetProduct, otherProduct);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "Specjalny"
+            };
+
+            // Act
+            var result = await _productSevicesMock.GetMailingProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().ProductId).IsEqualTo(targetProduct.Id);
+            await Assert.That(items.First().Name).Contains("Specjalny");
         }
     }
 }

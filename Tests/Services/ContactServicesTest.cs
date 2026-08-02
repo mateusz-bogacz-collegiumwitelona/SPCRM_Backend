@@ -749,7 +749,11 @@ namespace Tests.Services
             _contextMock.Contacts.AddRange(primaryContact, secondaryContact);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SimpleListCommand { PageNumber = 1, PageSize = 10 };
+            var command = new SimpleListCommand { 
+                PageNumber = 1, 
+                PageSize = 10,
+                SearchTerm = uniqueSuffix
+            };
 
             // Act
             var result = await _contactServicesMock.GetClientDataToMailingAsync(command);

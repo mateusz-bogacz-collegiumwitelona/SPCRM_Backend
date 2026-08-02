@@ -58,5 +58,19 @@ namespace Api.Controllers
             var result = await contact.GetClientDataToMailingAsync(mapper.MapSimpleList(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get product data for mailing")]
+        [EndpointDescription("Retrieves a list of products for mailing purposes, with optional search and pagination.")]
+        [HttpGet("products")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetProductDataToMailingAsync(
+            [FromServices] IProductSevices product,
+            [FromServices] MailingMapper mapper,
+            [FromQuery] SimpleListRequest request
+            )
+        {
+            var result = await product.GetMailingProductsAsync(mapper.MapSimpleList(request));
+            return HandleResult(result);
+        }
     }
 }
