@@ -13,6 +13,8 @@ namespace Domain.Models
         public int Quantity { get; set; }
 
         public long QuotedPrice { get; set; }
-        public required Currency Currency { get; set; } 
+
+        public Guid CurrencyId { get; set; }
+        public  Currency Currency { get; set; } = null!;
     }
 }

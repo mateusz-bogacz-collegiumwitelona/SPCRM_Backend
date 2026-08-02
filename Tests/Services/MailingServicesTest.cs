@@ -176,6 +176,156 @@ namespace Tests.Services
             await Assert.That(sentReport.SupportEmail).IsEqualTo("support@mojafirma.pl");
             await Assert.That(sentReport.Time).IsNotNull();
         }
+
+        [Test]
+        public async Task SendProductMailingAsync_WhenClientOrProductMissing_Returns404NotFound()
+        {
+            var command = new MailingCommand
+            {
+                To = [Guid.NewGuid()],
+                Products = [
+                    new MailingProductCommand { ProductId = Guid.NewGuid(), Quantity = 10 }
+                ],
+                Language = "pl"
+            };
+
+            // Act
+            var result = await _supportServicesMock.SendProductMailingAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ClientNotFound);
+        }
+
+        [Test]
+        public async Task SendProductMailingAsync_WhenDataIsValid_SavesOffersAndQueuesEmail()
+        {
+            // Arrange
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = "TestUser",
+                Email = "test@test.pl",
+                FirstName = "Test",
+                LastName = "User"
+            };
+            _contextMock.Users.Add(owner);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                NIP = "12345678901",
+                Name = "Testowa Firma Sp. z o.o.",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+            _contextMock.Companies.Add(company);
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Code = "PLN",
+                Name = "Polski Złoty",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.Add(currency);
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sztuka",
+                Symbol = "szt."
+            };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Blacha stalowa",
+                SteelGrade = "S235",
+                Thickness = 10,
+                Width = 1000,
+                Length = 2000,
+                Weight = 15000,
+                UnitId = unit.Id,
+                PricePerUnit = 500000,
+                StockQuantity = 100,
+                Category = Domain.Enum.ProductCategoryEnum.Profile
+            };
+            _contextMock.Products.Add(product);
+
+            var contactId = Guid.NewGuid();
+
+            var contact = new Contact
+            {
+                Id = contactId,
+                FirstName = "Jan",
+                LastName = "Nowak",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                OwnerId = ownerId,
+                Owner = owner,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new ContactDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = Domain.Enum.ContactDetailTypeEnum.EMAIL,
+                        Value = "jan.nowak@test.pl",
+                        IsPrimary = true
+                    }
+                }
+            };
+            _contextMock.Contacts.Add(contact);
+            try
+            {
+                await _contextMock.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                var innerMessage = ex.InnerException?.Message;
+                throw new Exception($"SQL Save Changes Error: {innerMessage}", ex);
+            }
+
+            var command = new MailingCommand
+            {
+                To = [contactId],
+                Products = [
+                    new MailingProductCommand
+                    {
+                        ProductId = product.Id,
+                        Quantity = 5,
+                        CurrencyCode = "PLN"
+                    }
+                ],
+                Language = "pl"
+            };
+
+            // Act
+            var result = await _supportServicesMock.SendProductMailingAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var savedOffer = await _contextMock.Offers
+                .Include(o => o.Products)
+                .FirstOrDefaultAsync(o => o.ContactId == contactId);
+
+            await Assert.That(savedOffer).IsNotNull();
+            await Assert.That(savedOffer!.CreatedByUserId).IsEqualTo(ownerId);
+            await Assert.That(savedOffer.Status).IsEqualTo(Domain.Enum.OfferStatusEnum.Sent);
+            await Assert.That(savedOffer.Products).Count().IsEqualTo(1);
+
+            var savedItem = savedOffer.Products.First();
+            await Assert.That(savedItem.ProductId).IsEqualTo(product.Id);
+            await Assert.That(savedItem.Quantity).IsEqualTo(5);
+            await Assert.That(savedItem.QuotedPrice).IsEqualTo(500000);
+        }
     }
 
     public class FakeEmailSender : IEmailSender

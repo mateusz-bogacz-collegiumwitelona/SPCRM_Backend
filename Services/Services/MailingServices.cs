@@ -200,10 +200,10 @@ namespace Services.Services
                     Products = productsToOffer.Select(p => new OfferProducts
                     {
                         Id = Guid.NewGuid(),
-                        ProductId = existingProducts.First(ep => ep.Name == p.ProductName).Id, 
+                        ProductId = existingProducts.First(ep => ep.Name == p.ProductName).Id,
                         Quantity = p.Quantity,
                         QuotedPrice = p.FinalPrice,
-                        Currency = currency
+                        CurrencyId = currency.Id, 
                     }).ToList()
                 };
 
