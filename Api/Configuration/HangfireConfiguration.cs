@@ -27,7 +27,13 @@ namespace Api.Configuration
     {
         public bool Authorize(DashboardContext context)
         {
-            return true;
+            var httpContext = context.GetHttpContext();
+
+            if (httpContext.User.Identity?.IsAuthenticated != true)
+            {
+                return false;
+            }
+            return httpContext.User.IsInRole("Admin");
         }
     }
 }
