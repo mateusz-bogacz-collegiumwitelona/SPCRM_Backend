@@ -75,36 +75,55 @@ namespace Services.Services
 
         public async Task<Result> SendProductMailingAsync(MailingCommand command, Guid authorId)
         {
-            var grouptClients = command.To
-                .GroupBy(x => x)
-                .Select(g => g.First())
-                .ToList();
+            var (existingClients, clientError) = await GetAndValidateClientsAsync(command.To);
+            if (clientError != null) return clientError;
+
+            var (existingProducts, productError) = await GetAndValidateProductsAsync(command.Products);
+            if (productError != null) return productError;
+
+            var currencyId = await GetCurrencyIdAsync(command.Products.FirstOrDefault()?.CurrencyCode);
+
+            var productsToOffer = PrepareProductsToOffer(command.Products, existingProducts);
+
+            await CreateAndSaveOffersAsync(existingClients, existingProducts, productsToOffer, currencyId, authorId);
+
+            await DispatchMailingAsync(existingClients, productsToOffer, command.Language);
+
+            return Result.Success(
+                message: "Product mailing sent and offers recorded successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        private async Task<(List<Contact> Contacts, Result? Error)> GetAndValidateClientsAsync(IEnumerable<Guid> clientIds)
+        {
+            var groupedClients = clientIds.Distinct().ToList();
 
             var existingClients = await _context.Contacts
                 .Include(c => c.ContactDetails)
-                .Where(u => grouptClients.Contains(u.Id))
+                .Where(u => groupedClients.Contains(u.Id))
                 .ToListAsync();
 
-            var missingClients = grouptClients
-                .Except(existingClients.Select(u => u.Id))
-                .ToList();
+            var missingClients = groupedClients.Except(existingClients.Select(u => u.Id)).ToList();
 
             if (missingClients.Any())
             {
                 _logger.LogError("Some clients do not exist: {missingClients}", string.Join(", ", missingClients));
-
-                return Result.Failure(
+                var error = Result.Failure(
                     "Some clients do not exist.",
                     ErrorCodes.ClientNotFound,
                     StatusCodes.Status404NotFound,
                     missingClients.Select(id => $"Client with ID {id} does not exist.").ToList()
                 );
+                return (new List<Contact>(), error);
             }
 
-            var groupProducts = command.Products
-                .GroupBy(p => p.ProductId)
-                .Select(g => g.First())
-                .ToList();
+            return (existingClients, null);
+        }
+
+        private async Task<(List<Product> Products, Result? Error)> GetAndValidateProductsAsync(IEnumerable<MailingProductCommand> productCommands)
+        {
+            var groupedProducts = productCommands.Select(p => p.ProductId).Distinct().ToList();
 
             var existingProducts = await _context.Products
                 .Include(p => p.Unit)
@@ -112,44 +131,50 @@ namespace Services.Services
                     pr.IsActive &&
                     (!pr.StartDate.HasValue || pr.StartDate <= DateTime.UtcNow) &&
                     (!pr.EndDate.HasValue || pr.EndDate >= DateTime.UtcNow)))
-                .Where(p => groupProducts.Select(x => x.ProductId).Contains(p.Id))
+                .Where(p => groupedProducts.Contains(p.Id))
                 .ToListAsync();
 
-            var missingProducts = groupProducts
-                .Select(x => x.ProductId)
-                .Except(existingProducts.Select(p => p.Id))
-                .ToList();
+            var missingProducts = groupedProducts.Except(existingProducts.Select(p => p.Id)).ToList();
 
             if (missingProducts.Any())
             {
                 _logger.LogError("Some products do not exist: {missingProducts}", string.Join(", ", missingProducts));
-                return Result.Failure(
+                var error = Result.Failure(
                     "Some products do not exist.",
                     ErrorCodes.ProductNotFound,
                     StatusCodes.Status404NotFound,
                     missingProducts.Select(id => $"Product with ID {id} does not exist.").ToList()
                 );
+                return (new List<Product>(), error);
             }
 
-            string defaultCurrencyCode = groupProducts.FirstOrDefault()?.CurrencyCode ?? "PLN";
-            var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code == defaultCurrencyCode)
+            return (existingProducts, null);
+        }
+
+        private async Task<Guid> GetCurrencyIdAsync(string? currencyCode)
+        {
+            string code = currencyCode ?? "PLN";
+            var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code == code)
                            ?? await _context.Currencies.FirstAsync();
 
+            return currency.Id;
+        }
 
-            var productsToOffer = groupProducts.Select(cmd =>
+        private List<MailingProductItemDomain> PrepareProductsToOffer(
+            IEnumerable<MailingProductCommand> commands,
+            List<Product> existingProducts
+        )
+        {
+            var uniqueCommands = commands.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
+
+            return uniqueCommands.Select(cmd =>
             {
                 var product = existingProducts.First(p => p.Id == cmd.ProductId);
 
                 var formatDimmension = DimensionsFormatter.Format(
-                    product.Category,
-                    product.Diameter,
-                    product.Thickness,
-                    product.Width,
-                    product.Length
-                );
+                    product.Category, product.Diameter, product.Thickness, product.Width, product.Length);
 
                 long standardPrice = product.PricePerUnit;
-
                 long finalPrice = cmd.Price ?? standardPrice;
 
                 decimal? discountPercentage = null;
@@ -190,15 +215,22 @@ namespace Services.Services
                     UnitSymbol = product.Unit?.Symbol ?? "szt.",
                     Quantity = cmd.Quantity,
                     CurrencyCode = cmd.CurrencyCode ?? "PLN",
-
                     FinalPrice = finalPrice,
                     OriginalPrice = originalPrice,
-                    DiscountPercentage = discountPercentage, 
-                    IsPromoted = isPromoted 
+                    DiscountPercentage = discountPercentage,
+                    IsPromoted = isPromoted
                 };
             }).ToList();
+        }
 
-            foreach (var client in existingClients)
+        private async Task CreateAndSaveOffersAsync(
+            List<Contact> clients,
+            List<Product> existingProducts,
+            List<MailingProductItemDomain> productsToOffer,
+            Guid currencyId,
+            Guid authorId)
+        {
+            foreach (var client in clients)
             {
                 var newOffer = new Offer
                 {
@@ -213,7 +245,7 @@ namespace Services.Services
                         ProductId = existingProducts.First(ep => ep.Name == p.ProductName).Id,
                         Quantity = p.Quantity,
                         QuotedPrice = p.FinalPrice,
-                        CurrencyId = currency.Id, 
+                        CurrencyId = currencyId,
                     }).ToList()
                 };
 
@@ -221,8 +253,14 @@ namespace Services.Services
             }
 
             await _context.SaveChangesAsync();
+        }
 
-            var emailToSend = existingClients
+        private async Task DispatchMailingAsync(
+            List<Contact> clients,
+            List<MailingProductItemDomain> productsToOffer,
+            string language)
+        {
+            var emailsToSend = clients
                 .SelectMany(c => c.ContactDetails)
                 .Where(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)
                 .Select(cd => cd.Value)
@@ -231,17 +269,12 @@ namespace Services.Services
 
             var offerDomain = new MailingOfferDomain
             {
-                BccEmails = emailToSend,
-                Language = command.Language,
+                BccEmails = emailsToSend,
+                Language = language,
                 Products = productsToOffer
             };
 
             await _emailSender.SendProductMailingAsync(offerDomain);
-
-            return Result.Success(
-                message: "Product mailing sent and offers recorded successfully.",
-                statusCode: StatusCodes.Status200OK
-            );
         }
     }
 }
