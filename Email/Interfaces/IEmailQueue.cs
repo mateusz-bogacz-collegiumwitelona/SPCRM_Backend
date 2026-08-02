@@ -6,5 +6,6 @@ namespace Email.Interfaces
     {
         void QueueEmail(string to, string subject, string body);
         ValueTask<EmailDomain> DequeueAsync(CancellationToken cancellationToken);
+        ValueTask QueueEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default);
     }
 }

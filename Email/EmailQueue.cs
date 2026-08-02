@@ -26,5 +26,8 @@ namespace Email
             var (to, subject, body) = await _channel.Reader.ReadAsync(cancellationToken);
             return new EmailDomain(to, subject, body);
         }
+
+        public async ValueTask QueueEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
+            => await _channel.Writer.WriteAsync((to, subject, body), cancellationToken);
     }
 }

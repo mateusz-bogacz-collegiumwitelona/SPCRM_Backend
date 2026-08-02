@@ -14,7 +14,7 @@ using Testcontainers.PostgreSql;
 
 namespace Tests.Services
 {
-    public class SupportServicesTest
+    public class MailingServicesTest
     {
 
         protected AppDbContext _contextMock = null!;
@@ -22,8 +22,8 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
 
-        protected SupportServices _supportServicesMock = null!;
-        protected ILogger<SupportServices> _loggerMock = null!;
+        protected MailingServices _supportServicesMock = null!;
+        protected ILogger<MailingServices> _loggerMock = null!;
         protected FakeEmailSender _fakeEmailSender = null!;
 
         private string _currentSchema = null!;
@@ -76,7 +76,7 @@ namespace Tests.Services
             _contextMock = new AppDbContext(dbOptions);
 
             await _contextMock.Database.EnsureCreatedAsync();
-            _loggerMock = new LoggerFactory().CreateLogger<SupportServices>();
+            _loggerMock = new LoggerFactory().CreateLogger<MailingServices>();
             _fakeEmailSender = new FakeEmailSender();
 
             var inMemorySettings = new Dictionary<string, string> {
@@ -87,7 +87,7 @@ namespace Tests.Services
                 .AddInMemoryCollection(inMemorySettings!)
                 .Build();
 
-            _supportServicesMock = new SupportServices(
+            _supportServicesMock = new MailingServices(
                 _contextMock,
                 configuration,
                 _fakeEmailSender,
@@ -187,6 +187,11 @@ namespace Tests.Services
         {
             SentReport = report;
             CallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task SendProductMailingAsync(MailingOfferDomain domain)
+        {
             return Task.CompletedTask;
         }
     }

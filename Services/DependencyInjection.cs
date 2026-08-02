@@ -10,7 +10,7 @@ namespace Services
         {
             services.AddScoped<TokenServices>();
             services.AddScoped<IAuthServices, AuthServices>();
-            services.AddScoped<ISupportServices, SupportServices>();
+            services.AddScoped<IMailingServices, MailingServices>();
             services.AddScoped<ICompanyServices, CompanyServices>();
             services.AddScoped<ISalesServices, SalesServices>();
             services.AddScoped<IContactServices, ContactServices>();

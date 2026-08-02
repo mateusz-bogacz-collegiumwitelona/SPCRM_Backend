@@ -50,5 +50,57 @@ namespace Email
                 _logger.LogError(ex, "Error in SendReportEmailAsync");
             }
         }
+
+        public async Task SendProductMailingAsync(MailingOfferDomain domain)
+        {
+            try
+            {
+                string language = domain.Language.ToLower();
+                var templatePath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Templates",
+                    "Product-Offert",
+                    $"product-offert-{language}.html"
+                    );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Email template not found at path: {templatePath}");
+                }
+
+                string template = await File.ReadAllTextAsync(templatePath);
+                string subject = language == "pl" ? $"Nowa oferta produktów" : $"New Product Offer";
+
+                var sb = new System.Text.StringBuilder();
+
+                foreach (var p in domain.Products)
+                {
+                    decimal actualWeight = p.Weight / 1000m;
+                    decimal formattedPrice = p.Price / 10000m;
+
+                    sb.AppendLine("<tr>");
+                    sb.AppendLine($"<td>{p.ProductName}</td>");
+                    sb.AppendLine($"<td>{p.SteelGrade}</td>");
+                    sb.AppendLine($"<td>{p.FormattedDimensions}</td>");
+                    sb.AppendLine($"<td>{actualWeight:0.##} kg</td>");
+                    sb.AppendLine($"<td>{p.Quantity} {p.UnitSymbol}</td>");
+                    sb.AppendLine($"<td>{formattedPrice:0.00} {p.CurrencyCode}</td>");
+                    sb.AppendLine("</tr>");
+                }
+
+                string finalizedHtmlTemplate = template.Replace("{{ProductRows}}", sb.ToString());
+
+                foreach (var email in domain.BccEmails)
+                {
+                    await _emailQueue.QueueEmailAsync(email, subject, finalizedHtmlTemplate);
+                }
+
+                _logger.LogInformation("{Count} offer emails have been successfully queued.", domain.BccEmails.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendProductMailingAsync");
+            }
+        }
     }
 }

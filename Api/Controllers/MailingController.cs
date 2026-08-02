@@ -22,7 +22,7 @@ namespace Api.Controllers
         [HttpPost]
         public async Task<IActionResult> SendEmailToSupport(
             [FromServices] SupportMapper mapper,
-            [FromServices] ISupportServices _supportServices,
+            [FromServices] IMailingServices _supportServices,
             [FromBody] SupportEmailRequest request
             )
         {

@@ -36,5 +36,8 @@
         public const string NoteTitleIsNotValid = "NOTE_003";
         public const string NoteContentIsNotValid = "NOTE_004";
         public const string NoteTargetNotFound = "NOTE_005";
+
+        // mailing errors
+        public const string ClientNotFound = "MAIL_001";
     }
 }
