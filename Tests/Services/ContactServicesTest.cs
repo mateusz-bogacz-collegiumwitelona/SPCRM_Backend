@@ -690,5 +690,168 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNull();
         }
+
+        // ─── GetClientDataToMailingAsync ───────────────────────────────────────
+
+        [Test]
+        public async Task GetClientDataToMailingAsync_FiltersPrimaryContactsAndMapsPropertiesCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Owner_{uniqueSuffix}",
+                NormalizedUserName = $"OWNER_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OWNER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"SteelCorp_{uniqueSuffix}",
+                NIP = "9876543210",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var primaryContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Nowak",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var secondaryContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Piotr",
+                LastName = "Zieliński",
+                IsPrimary = false,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.AddRange(primaryContact, secondaryContact);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _contactServicesMock.GetClientDataToMailingAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+
+            var mappedClient = items.First();
+            await Assert.That(mappedClient.ContactId).IsEqualTo(primaryContact.Id);
+            await Assert.That(mappedClient.ContactFirstName).IsEqualTo("Adam");
+            await Assert.That(mappedClient.ContactLastName).IsEqualTo("Nowak");
+            await Assert.That(mappedClient.CompanyName).IsEqualTo(company.Name);
+            await Assert.That(mappedClient.Nip).IsEqualTo(company.NIP);
+        }
+
+        [Test]
+        public async Task GetClientDataToMailingAsync_WhenSearchTermProvided_FiltersCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Usr_{uniqueSuffix}",
+                NormalizedUserName = $"USR_{uniqueSuffix}",
+                Email = $"u_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U_{uniqueSuffix}@T.PL",
+                FirstName = "Marek",
+                LastName = "Mostowiak"
+            };
+
+            var matchingCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Huta Katowice {uniqueSuffix}",
+                NIP = "111222333",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var otherCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Inna Firma {uniqueSuffix}",
+                NIP = "999888777",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var matchingContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Krzysztof",
+                LastName = "Stalowy",
+                IsPrimary = true,
+                CompanyId = matchingCompany.Id,
+                Company = matchingCompany,
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var otherContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Janusz",
+                LastName = "Drewniany",
+                IsPrimary = true,
+                CompanyId = otherCompany.Id,
+                Company = otherCompany,
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.AddRange(matchingCompany, otherCompany);
+            _contextMock.Contacts.AddRange(matchingContact, otherContact);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "Katowice"
+            };
+
+            // Act
+            var result = await _contactServicesMock.GetClientDataToMailingAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().ContactId).IsEqualTo(matchingContact.Id);
+            await Assert.That(items.First().CompanyName).Contains("Katowice");
+        }
     }
 }
