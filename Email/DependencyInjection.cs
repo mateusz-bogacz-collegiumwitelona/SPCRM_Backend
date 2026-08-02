@@ -11,9 +11,9 @@ namespace Email
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            services.AddSingleton<IEmailQueue, EmailQueue>();
+            services.AddScoped<ISmtpEmailService, SmtpEmailService>();
+
             services.AddScoped<IEmailSender, EmailSender>();
-            services.AddHostedService<EmailBackgroundWorker>();
 
             return services;
         }

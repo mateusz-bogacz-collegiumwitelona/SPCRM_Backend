@@ -1,5 +1,6 @@
 ﻿using Domain.Comunication;
 using Email.Interfaces;
+using Hangfire;
 using Microsoft.Extensions.Logging;
 using Services.Interfaces;
 
@@ -8,12 +9,12 @@ namespace Email
     public class EmailSender : IEmailSender
     {
         private readonly ILogger<EmailSender> _logger;
-        private readonly IEmailQueue _emailQueue;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public EmailSender(ILogger<EmailSender> logger, IEmailQueue emailQueue)
+        public EmailSender(ILogger<EmailSender> logger, IBackgroundJobClient backgroundJobClient)
         {
             _logger = logger;
-            _emailQueue = emailQueue;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task SendReportEmailAsync(ReportDomain report)
@@ -42,7 +43,7 @@ namespace Email
 
                 string subject = $"Nowe zgłoszenie: {report.UserName} {report.UserSurname} {report.Time}";
 
-                _emailQueue.QueueEmail(report.SupportEmail, subject, template);
+                _backgroundJobClient.Enqueue<ISmtpEmailService>(x => x.SendEmailAsync(report.SupportEmail, subject, template));
                 _logger.LogInformation("Email queued to {Email}", report.SupportEmail);
             }
             catch (Exception ex)
@@ -113,7 +114,8 @@ namespace Email
 
                 foreach (var email in domain.BccEmails)
                 {
-                    await _emailQueue.QueueEmailAsync(email, subject, finalizedHtmlTemplate);
+                    _backgroundJobClient.Enqueue<ISmtpEmailService>(
+                        x => x.SendEmailAsync(email, subject, finalizedHtmlTemplate));
                 }
 
                 _logger.LogInformation("{Count} offer emails have been successfully queued.", domain.BccEmails.Count);

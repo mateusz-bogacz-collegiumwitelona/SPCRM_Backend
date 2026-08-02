@@ -26,7 +26,7 @@ services:
       - JWT__AUDIENCE=${ASPNETCORE_JWT_AUDIENCE}
       - FRONTEND__URL=${ASPNETCORE_FRONTEND_URL}
       - TZ=UTC
-      - SUPPORT_EMAIL=${ASPNETCORE_SUPPORT_EMAIL} 
+      - SUPPORT_EMAIL=${MAIL_FROM} 
       - Mail__Host=${MAIL_HOST}
       - Mail__Port=${MAIL_PORT}
       - Mail__EnableSsl=${MAIL_ENABLE_SSL}
