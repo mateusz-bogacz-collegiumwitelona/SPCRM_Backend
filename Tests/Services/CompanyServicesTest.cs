@@ -62,17 +62,18 @@ namespace Tests.Services
 
             var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
 
-            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-               .UseNpgsql(schemaConnectionString, options =>
-               {
-                   options.UseNetTopologySuite();
-                   options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
-               })
-               .Options;
+             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql(schemaConnectionString, options =>
+                {
+                    options.UseNetTopologySuite();
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema); 
+                })
+                .Options;
 
             _contextMock = new AppDbContext(dbOptions);
 
-            await _contextMock.Database.EnsureCreatedAsync();
+            var createScript = _contextMock.Database.GenerateCreateScript();
+            await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<CompanyServices>();
 

@@ -76,7 +76,9 @@ namespace Tests.Services
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
-            await _contextMock.Database.EnsureCreatedAsync();
+
+            var createScript = _contextMock.Database.GenerateCreateScript();
+            await _contextMock.Database.ExecuteSqlRawAsync(createScript);
             
             _loggerMock = new LoggerFactory().CreateLogger<MailingServices>();
             _fakeEmailSender = new FakeEmailSender();

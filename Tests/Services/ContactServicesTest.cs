@@ -31,6 +31,7 @@ namespace Tests.Services
                  .WithDatabase("testdb")
                  .WithUsername("testuser")
                  .WithPassword("testpassword")
+                 .WithExposedPort(1025)
                  .Build();
 
             await _dbContainer.StartAsync();
@@ -70,7 +71,8 @@ namespace Tests.Services
 
             _contextMock = new AppDbContext(dbOptions);
 
-            await _contextMock.Database.EnsureCreatedAsync();
+            var createScript = _contextMock.Database.GenerateCreateScript();
+            await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<ContactServices>();
 

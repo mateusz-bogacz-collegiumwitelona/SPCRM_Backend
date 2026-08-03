@@ -71,7 +71,8 @@ namespace Tests.Services
 
             _contextMock = new AppDbContext(dbOptions);
 
-            await _contextMock.Database.EnsureCreatedAsync();
+            var createScript = _contextMock.Database.GenerateCreateScript();
+            await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<ProductSevices>();
             _productSevicesMock = new ProductSevices(_contextMock, _loggerMock);

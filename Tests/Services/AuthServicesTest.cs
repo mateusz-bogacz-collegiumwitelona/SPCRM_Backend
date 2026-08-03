@@ -92,7 +92,8 @@ namespace Tests.Services
 
             _contextMock = new AppDbContext(dbOptions);
 
-            await _contextMock.Database.EnsureCreatedAsync();
+            var createScript = _contextMock.Database.GenerateCreateScript();
+            await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             var userStore = new UserStore<ApplicationUser, IdentityRole<Guid>, AppDbContext, Guid>(_contextMock);
             var passwordHasher = new PasswordHasher<ApplicationUser>();
