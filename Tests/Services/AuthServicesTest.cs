@@ -47,15 +47,6 @@ namespace Tests.Services
 
             _connectionString = _dbContainer.GetConnectionString();
 
-            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
-                {
-                    options.UseNetTopologySuite();
-                })
-                .Options;
-            using var context = new AppDbContext(dbOptions);
-            await context.Database.EnsureCreatedAsync();
-
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
         }
@@ -71,6 +62,16 @@ namespace Tests.Services
         {
             _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
 
+            using (var conn = new NpgsqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"CREATE SCHEMA IF NOT EXISTS {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
+
             var configuration = new ConfigurationBuilder()
              .AddInMemoryCollection(new Dictionary<string, string?>
              {
@@ -82,10 +83,10 @@ namespace Tests.Services
              .Build();
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
+                .UseNpgsql(schemaConnectionString, options =>
                 {
                     options.UseNetTopologySuite();
-                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
+                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema); 
                 })
                 .Options;
 
@@ -282,7 +283,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetUserDataAsync_WhenUserIsntLogin_Return404() 
+        public async Task GetUserDataAsync_WhenUserIsntLogin_Return404()
         {
             // Act 
             var result = await _authServicesMock.GetUserDataAsync(Guid.NewGuid());

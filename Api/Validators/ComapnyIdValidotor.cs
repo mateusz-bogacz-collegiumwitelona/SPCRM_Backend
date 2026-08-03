@@ -1,5 +1,5 @@
-﻿using Domain.Constants;
-using Api.Request;
+﻿using Api.Request;
+using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators
@@ -8,8 +8,8 @@ namespace Api.Validators
     {
         public CompanyIdValidator()
         {
-                RuleFor(x => x.CompanyId).NotEmpty().WithErrorCode(ErrorCodes.BadRequest)
-                .NotEqual(Guid.Empty).WithErrorCode(ErrorCodes.BadRequest);
+            RuleFor(x => x.CompanyId).NotEmpty().WithErrorCode(ErrorCodes.BadRequest)
+            .NotEqual(Guid.Empty).WithErrorCode(ErrorCodes.BadRequest);
         }
     }
 }

@@ -78,7 +78,7 @@ namespace Services.Services
             {
                 _logger.LogError("User: {userName} failed to sign in.", user.UserName);
                 return StatusCodes.Status401Unauthorized;
-            }    
+            }
 
             return StatusCodes.Status204NoContent;
         }
@@ -92,17 +92,17 @@ namespace Services.Services
         public async Task<Result<AuthResponse>> GetUserDataAsync(Guid userId)
         {
             var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            
+
             if (user == null)
             {
                 _logger.LogInformation("User with ID: {userId} not found.", userId);
                 return Result<AuthResponse>.Failure(
-                    message: "User not found", 
+                    message: "User not found",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.UserNotFound
                     );
             }
-            
+
             var roles = await _userManager.GetRolesAsync(user);
 
             if (roles == null || !roles.Any())

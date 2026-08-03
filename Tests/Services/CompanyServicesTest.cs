@@ -39,15 +39,6 @@ namespace Tests.Services
 
             _connectionString = _dbContainer.GetConnectionString();
 
-            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
-                {
-                    options.UseNetTopologySuite();
-                })
-                .Options;
-            using var context = new AppDbContext(dbOptions);
-            await context.Database.EnsureCreatedAsync();
-
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
         }
@@ -61,13 +52,23 @@ namespace Tests.Services
         {
             _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
 
+            using (var conn = new NpgsqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"CREATE SCHEMA IF NOT EXISTS {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
+
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
-                {
-                    options.UseNetTopologySuite();
-                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
-                })
-                .Options;
+               .UseNpgsql(schemaConnectionString, options =>
+               {
+                   options.UseNetTopologySuite();
+                   options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
+               })
+               .Options;
 
             _contextMock = new AppDbContext(dbOptions);
 
@@ -212,7 +213,7 @@ namespace Tests.Services
         }
 
         // ─── Details ─────────────────────────────────────────────────
-       
+
         [Test]
         public async Task Details_WhenCompanyDoesNotExist_Returns404NotFound()
         {
@@ -274,7 +275,7 @@ namespace Tests.Services
         }
 
         // ─── GetCompanyAddresses ─────────────────────────────────────────────────
-        
+
         [Test]
         public async Task GetCompanyAddresses_WhenCompanyHasAddresses_ReturnsMappedCoordinatesAndFiltersProperly()
         {
@@ -334,9 +335,10 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(targetAddress, otherAddress);
             await _contextMock.SaveChangesAsync();
 
-            var command = new CompanyCommand { 
-                PageNumber = 1, 
-                PageSize = 10, 
+            var command = new CompanyCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
                 CompanyId = targetCompany.Id
             };
 
@@ -413,10 +415,11 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(adresses);
             await _contextMock.SaveChangesAsync();
 
-            var command = new CompanyCommand { 
-                PageNumber = 1, 
-                PageSize = 2, 
-                CompanyId = company.Id 
+            var command = new CompanyCommand
+            {
+                PageNumber = 1,
+                PageSize = 2,
+                CompanyId = company.Id
             };
 
             // Act
@@ -432,7 +435,7 @@ namespace Tests.Services
         }
 
         // ─── GetCompanyListAsync ─────────────────────────────────────────────────
-       
+
         [Test]
         public async Task GetCompanyListAsync_ValidatesHeadquartersAndOwnerVisibility()
         {
@@ -725,9 +728,9 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(addressA, addressB);
             await _contextMock.SaveChangesAsync();
 
-            var command = new CompanyListCommand 
-            { 
-                PageNumber = 1, 
+            var command = new CompanyListCommand
+            {
+                PageNumber = 1,
                 PageSize = 10,
                 UserId = userId,
                 SearchTerm = "apple",
@@ -831,8 +834,9 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(deletedAddress, oldAddress, validAddress);
             await _contextMock.SaveChangesAsync();
 
-            var command = new CompanyListCommand { 
-                PageNumber = 1, 
+            var command = new CompanyListCommand
+            {
+                PageNumber = 1,
                 PageSize = 10,
                 CreatedAtFrom = referenceDate.AddDays(-5),
                 CreatedAtTo = referenceDate.AddDays(1),

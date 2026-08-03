@@ -25,11 +25,11 @@ namespace Services.QueryExtension
             return query;
         }
         internal static IQueryable<Company> ApplyFiler(
-            this IQueryable<Company> query, 
+            this IQueryable<Company> query,
             bool? isYour,
             DateTime? createdAtFrom,
             DateTime? createdAtTo,
-            Guid userId) 
+            Guid userId)
         {
 
             if (isYour.HasValue)
@@ -42,7 +42,7 @@ namespace Services.QueryExtension
                 {
                     query = query.Where(c => c.OwnerId != userId);
                 }
-                    
+
             }
 
             if (createdAtFrom.HasValue)
@@ -59,8 +59,8 @@ namespace Services.QueryExtension
         }
 
         internal static IQueryable<Company> ApplySorting(
-            this IQueryable<Company> query, 
-            string? sortBy, 
+            this IQueryable<Company> query,
+            string? sortBy,
             bool sortDescending
             )
         {
@@ -87,7 +87,7 @@ namespace Services.QueryExtension
                 "zipcode" => sortDescending
                     ? query.OrderByDescending(x => x.CompanyAdresses
                         .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
-                        .Select(ca => ca.ZipCode) 
+                        .Select(ca => ca.ZipCode)
                         .FirstOrDefault())
                     : query.OrderBy(x => x.CompanyAdresses
                         .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)

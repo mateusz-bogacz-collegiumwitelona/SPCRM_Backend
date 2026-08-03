@@ -52,7 +52,7 @@ namespace Api.Controllers
         public async Task<IActionResult> GetCompanyAddresses(
             [FromServices] CompanyMapper mapper,
             [FromServices] ICompanyServices companyServices,
-            [FromQuery] Guid companyId, 
+            [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged
             )
         {

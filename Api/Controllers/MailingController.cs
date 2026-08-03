@@ -54,7 +54,7 @@ namespace Api.Controllers
             [FromServices] MailingMapper mapper,
             [FromQuery] SimpleListRequest request
             )
-        { 
+        {
             var result = await contact.GetClientDataToMailingAsync(mapper.MapSimpleList(request));
             return HandleResult(result);
         }

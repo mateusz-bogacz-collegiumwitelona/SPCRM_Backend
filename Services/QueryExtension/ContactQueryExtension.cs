@@ -6,7 +6,7 @@ namespace Services.QueryExtension
     {
         internal static IQueryable<Contact> ApplySorting(this IQueryable<Contact> query, string? sortBy, bool sortDescending)
         {
-            return sortBy?.ToLower() switch 
+            return sortBy?.ToLower() switch
             {
                 "firstname" => sortDescending ? query.OrderByDescending(x => x.FirstName) : query.OrderBy(x => x.FirstName),
                 "lastname" => sortDescending ? query.OrderByDescending(x => x.LastName) : query.OrderBy(x => x.LastName),
@@ -43,5 +43,5 @@ namespace Services.QueryExtension
             }
             return query;
         }
-     }
+    }
 }

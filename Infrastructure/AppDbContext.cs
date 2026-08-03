@@ -53,7 +53,7 @@ namespace Infrastructure
                 .WithMany(u => u.Tasks)
                 .HasForeignKey(t => t.AssignedToId)
                 .OnDelete(DeleteBehavior.Restrict);
-           
+
             builder.Entity<CompanyAdress>()
                 .Property(a => a.AddressType)
                 .HasConversion<string>();
@@ -79,7 +79,7 @@ namespace Infrastructure
                 .HasValue<ContactNote>("Contact")
                 .HasValue<DealNote>("Deal")
                 .HasValue<TaskNote>("Task");
-            
+
             builder.Entity<Product>()
                 .Property(p => p.Category)
                 .HasConversion<string>();

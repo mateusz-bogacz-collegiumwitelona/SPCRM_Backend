@@ -22,17 +22,17 @@ namespace Api.Mappers
             SortingRequest sorting,
             SearchRequest search)
             => new CompanyListCommand
-                {
-                    UserId = userId,
-                    PageNumber = pagged?.PageNumber,
-                    PageSize = pagged?.PageSize,
-                    IsYour = filter?.IsYour,
-                    CreatedAtFrom = filter?.CreatedAtFrom,
-                    CreatedAtTo = filter?.CreatedAtTo,
-                    SortBy = sorting?.SortBy,
-                    SortDescending = sorting?.SortDescending ?? false,
-                    SearchTerm = search?.SearchTerm
-                };
-        
+            {
+                UserId = userId,
+                PageNumber = pagged?.PageNumber,
+                PageSize = pagged?.PageSize,
+                IsYour = filter?.IsYour,
+                CreatedAtFrom = filter?.CreatedAtFrom,
+                CreatedAtTo = filter?.CreatedAtTo,
+                SortBy = sorting?.SortBy,
+                SortDescending = sorting?.SortDescending ?? false,
+                SearchTerm = search?.SearchTerm
+            };
+
     }
 }

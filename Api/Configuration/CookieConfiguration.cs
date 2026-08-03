@@ -75,7 +75,7 @@ namespace Api.Configuration
                         ValidIssuer = configuration?["JWT:ISSUER"] ?? configuration?["JWT__ISSUER"] ?? "TestIssuer",
                         ValidAudience = configuration?["JWT:AUDIENCE"] ?? configuration?["JWT__AUDIENCE"] ?? "TestAudience",
                         IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(configuration?["JWT:KEY"] ?? configuration?["JWT__KEY"] 
+                            Encoding.UTF8.GetBytes(configuration?["JWT:KEY"] ?? configuration?["JWT__KEY"]
                             ?? "SuperTajnyKluczTestowyOodpowiedniejDlugosci123!"
                             ))
                     };
@@ -92,7 +92,7 @@ namespace Api.Configuration
                                 success = false,
                                 message = "Unauthorized",
                                 errors = new[] { "You are not authorized to access this resource." },
-                                
+
                             });
                         }
                     };

@@ -1,5 +1,5 @@
-﻿using Domain.Constants;
-using Api.Request;
+﻿using Api.Request;
+using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators

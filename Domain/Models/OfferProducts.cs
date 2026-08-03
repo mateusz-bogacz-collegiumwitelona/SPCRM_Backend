@@ -15,6 +15,6 @@ namespace Domain.Models
         public long QuotedPrice { get; set; }
 
         public Guid CurrencyId { get; set; }
-        public  Currency Currency { get; set; } = null!;
+        public Currency Currency { get; set; } = null!;
     }
 }

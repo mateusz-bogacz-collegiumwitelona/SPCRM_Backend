@@ -32,6 +32,7 @@ namespace Services.Services
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .ApplyFilter(command.ProductCategory, command.SteelGrade, command.HasActivePromotion)
+                .ApplySorting(command.SortBy ?? string.Empty, command.SortDescending) 
                 .Select(p => new ProductResponse
                 {
                     Id = p.Id,

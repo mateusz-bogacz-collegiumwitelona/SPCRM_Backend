@@ -16,7 +16,7 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<DebtService> _logger;
 
-        public DebtService (AppDbContext context, ILogger<DebtService> logger)
+        public DebtService(AppDbContext context, ILogger<DebtService> logger)
         {
             _context = context;
             _logger = logger;

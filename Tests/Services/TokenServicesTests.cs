@@ -24,14 +24,15 @@ namespace Tests.Services
 
             var tokenService = new TokenServices(configuration);
 
-            var user = new ApplicationUser { 
-                Id = Guid.NewGuid(), 
-                Email = "test@test.pl", 
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                Email = "test@test.pl",
                 UserName = "TestUser",
                 FirstName = "Test",
                 LastName = "Test",
             };
-            
+
             var roles = new List<string> { "Admin", "User" };
 
             // Act

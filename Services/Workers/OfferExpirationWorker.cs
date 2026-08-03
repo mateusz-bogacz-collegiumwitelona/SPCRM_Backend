@@ -24,7 +24,7 @@ namespace Services.Workers
                 .Where(o => o.Status == OfferStatusEnum.Sent && o.ValidUntil <= DateTime.UtcNow)
                 .ToListAsync();
 
-            if (expiredOffers.Any()) 
+            if (expiredOffers.Any())
             {
                 foreach (var offer in expiredOffers)
                 {

@@ -88,7 +88,7 @@ namespace Tests.Services
         }
 
         // ─── GetCompanyDebtSummaryAsync ─────────────────────────────────────────────────
-        
+
         [Test]
         public async Task GetCompanyDebtSummaryAsync_GroupsByCurrencyAndCalculatesCorrectAmount()
         {
@@ -348,9 +348,10 @@ namespace Tests.Services
             _contextMock.Invoices.AddRange(overdueInvoice, futureInvoice, paidInvoice);
             await _contextMock.SaveChangesAsync();
 
-            var command = new CompanyCommand { 
-                PageNumber = 1, 
-                PageSize = 10, 
+            var command = new CompanyCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
                 CompanyId = company.Id
             };
 

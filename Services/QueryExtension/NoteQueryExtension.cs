@@ -10,7 +10,7 @@ namespace Services.QueryExtension
             {
                 searchTerm = searchTerm.ToLower();
 
-                query = query.Where(n => 
+                query = query.Where(n =>
                     n.Title.ToLower().Contains(searchTerm) ||
                     n.Content.ToLower().Contains(searchTerm) ||
                     n.Author.FirstName.ToLower().Contains(searchTerm) ||

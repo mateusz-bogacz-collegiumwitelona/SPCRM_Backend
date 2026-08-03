@@ -72,12 +72,12 @@ namespace Email
                 string template = await File.ReadAllTextAsync(templatePath);
                 string subject = language == "pl" ? $"Nowa oferta produktów" : $"New Product Offer";
 
-                var sb = new System.Text.StringBuilder(); 
+                var sb = new System.Text.StringBuilder();
 
                 foreach (var p in domain.Products)
                 {
                     decimal actualWeight = p.Weight / 1000m;
-    
+
                     decimal formattedFinalPrice = p.FinalPrice / 10000m;
 
                     string nameCell = p.ProductName;

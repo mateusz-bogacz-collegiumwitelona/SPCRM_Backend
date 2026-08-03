@@ -50,7 +50,7 @@ namespace Api.Controllers
         [HttpGet("{dealId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSaleDetailAsync(
-            [FromServices] ISalesServices salesServices, 
+            [FromServices] ISalesServices salesServices,
             [FromRoute] Guid dealId)
         {
             var result = await salesServices.GetSaleDetailAsync(dealId);

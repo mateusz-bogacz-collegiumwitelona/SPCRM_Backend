@@ -128,7 +128,7 @@ namespace Services.Services
         }
 
 
-        public async Task<Result<PagedResult<MailingClientResponse>>> GetClientDataToMailingAsync(SimpleListCommand command) 
+        public async Task<Result<PagedResult<MailingClientResponse>>> GetClientDataToMailingAsync(SimpleListCommand command)
         {
             var query = _context.Contacts
                 .Include(c => c.Company)
@@ -145,7 +145,7 @@ namespace Services.Services
                     ContactId = c.Id
                 });
 
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize , _logger, "mailing_clients");
+            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing_clients");
         }
     }
 }

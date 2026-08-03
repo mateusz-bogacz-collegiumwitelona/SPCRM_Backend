@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Services.Workers
 {
-    public class PromotionCleanupWorker 
+    public class PromotionCleanupWorker
     {
         private readonly AppDbContext _context;
         private readonly ILogger<PromotionCleanupWorker> _logger;
@@ -20,7 +20,7 @@ namespace Services.Workers
         {
             _logger.LogInformation("I'm starting to clean up expired promotions...");
 
-            var expiredPromotions = await _context.Set<Promotion>()     
+            var expiredPromotions = await _context.Set<Promotion>()
                 .Where(p => p.IsActive && p.EndDate.HasValue && p.EndDate.Value < DateTime.UtcNow)
                 .ToListAsync();
 

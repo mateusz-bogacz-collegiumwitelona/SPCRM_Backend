@@ -18,8 +18,8 @@ namespace Services.QueryExtension
         }
 
         internal static IQueryable<Product> ApplyFilter(
-            this IQueryable<Product> query, 
-            string? productCategory, 
+            this IQueryable<Product> query,
+            string? productCategory,
             string? steelGrade,
             bool? hasActivePromotion = null
             )

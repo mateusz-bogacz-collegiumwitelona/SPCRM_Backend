@@ -16,7 +16,7 @@ namespace Domain.Models
         public Contact? Contact { get; set; }
 
         public Guid? DealId { get; set; }
-        public  Deal? Deal { get; set; }
+        public Deal? Deal { get; set; }
 
 
         public TaskStatusEnum Status { get; set; }

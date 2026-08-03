@@ -12,12 +12,12 @@ namespace Api.Mappers
             PaggedRequest pagged,
             SearchRequest search)
             => new NoteListCommand
-                {
-                    SearchId = searchId,
-                    PageNumber = pagged?.PageNumber,
-                    PageSize = pagged?.PageSize,
-                    SearchTerm = search?.SearchTerm
-                };
+            {
+                SearchId = searchId,
+                PageNumber = pagged?.PageNumber,
+                PageSize = pagged?.PageSize,
+                SearchTerm = search?.SearchTerm
+            };
 
         public partial NoteEditCommand MapEdit(NoteEditRequest request);
         public partial NoteAddCommand MapAdd(NoteAddRequest request, Guid authorId);

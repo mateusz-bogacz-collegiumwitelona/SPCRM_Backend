@@ -27,24 +27,15 @@ namespace Tests.Services
         public static async Task SetupClassAsync()
         {
             _dbContainer = new PostgreSqlBuilder()
-                .WithImage("postgis/postgis:18-3.6")
-                .WithDatabase("testdb")
-                .WithUsername("testuser")
-                .WithPassword("testpassword")
-                .Build();
+                 .WithImage("postgis/postgis:18-3.6")
+                 .WithDatabase("testdb")
+                 .WithUsername("testuser")
+                 .WithPassword("testpassword")
+                 .Build();
 
             await _dbContainer.StartAsync();
 
             _connectionString = _dbContainer.GetConnectionString();
-
-            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
-                {
-                    options.UseNetTopologySuite();
-                })
-                .Options;
-            using var context = new AppDbContext(dbOptions);
-            await context.Database.EnsureCreatedAsync();
 
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -59,8 +50,18 @@ namespace Tests.Services
         {
             _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
 
+            using (var conn = new NpgsqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"CREATE SCHEMA IF NOT EXISTS {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
+
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(_connectionString, options =>
+                .UseNpgsql(schemaConnectionString, options =>
                 {
                     options.UseNetTopologySuite();
                     options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
@@ -749,8 +750,9 @@ namespace Tests.Services
             _contextMock.Contacts.AddRange(primaryContact, secondaryContact);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SimpleListCommand { 
-                PageNumber = 1, 
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
                 PageSize = 10,
                 SearchTerm = uniqueSuffix
             };
