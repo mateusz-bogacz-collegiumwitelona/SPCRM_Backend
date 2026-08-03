@@ -1,9 +1,9 @@
 ﻿using Domain.Enum;
 using Domain.Models;
 
-namespace Services.Helpers
+namespace Services.QueryExtension
 {
-    internal static class TaskExtensionQuery
+    internal static class TaskExtensionQueryExtension
     {
         internal static IQueryable<Tasks> ApplyFilterByStatus(this IQueryable<Tasks> query, string? status)
         {

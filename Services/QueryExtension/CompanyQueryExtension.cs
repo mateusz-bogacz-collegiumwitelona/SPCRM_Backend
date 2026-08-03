@@ -1,7 +1,7 @@
 ﻿using Domain.Enum;
 using Domain.Models;
 
-namespace Services.Helpers
+namespace Services.QueryExtension
 {
     internal static class CompanyQueryExtension
     {

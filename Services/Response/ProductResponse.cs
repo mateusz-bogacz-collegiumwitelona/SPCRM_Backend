@@ -9,5 +9,6 @@
         public required string Dimensions { get; init; }
         public required int StockQuantity { get; init; }
         public required string UnitSymbol { get; init; }
+        public bool IsActivePromotion { get; init; }
     }
 }

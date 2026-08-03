@@ -1,6 +1,6 @@
 ﻿using Domain.Models;
 
-namespace Services.Helpers
+namespace Services.QueryExtension
 {
     internal static class ProductQueryExtension
     {
@@ -17,13 +17,27 @@ namespace Services.Helpers
             );
         }
 
-        internal static IQueryable<Product> ApplyFilter(this IQueryable<Product> query, string? productCategory, string? steelGrade)
+        internal static IQueryable<Product> ApplyFilter(
+            this IQueryable<Product> query, 
+            string? productCategory, 
+            string? steelGrade,
+            bool? hasActivePromotion = null
+            )
         {
             if (!string.IsNullOrWhiteSpace(productCategory))
                 query = query.Where(p => p.Category.ToString().ToLower() == productCategory.ToLower());
 
             if (!string.IsNullOrWhiteSpace(steelGrade))
                 query = query.Where(p => p.SteelGrade.ToLower() == steelGrade.ToLower());
+
+            if (hasActivePromotion == true)
+            {
+                var now = DateTime.UtcNow;
+                query = query.Where(p => p.Promotions.Any(pr =>
+                    pr.IsActive &&
+                    (!pr.StartDate.HasValue || pr.StartDate <= now) &&
+                    (!pr.EndDate.HasValue || pr.EndDate >= now)));
+            }
 
             return query;
         }

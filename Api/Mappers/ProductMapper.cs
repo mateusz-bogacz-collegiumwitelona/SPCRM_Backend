@@ -21,7 +21,8 @@ namespace Api.Mappers
                 SortDescending = sorting.SortDescending,
                 SearchTerm = search.SearchTerm,
                 ProductCategory = filter.ProductCategory,
-                SteelGrade = filter.SteelGrade
+                SteelGrade = filter.SteelGrade,
+                HasActivePromotion = filter.HasActivePromotion
             };
     }
 }

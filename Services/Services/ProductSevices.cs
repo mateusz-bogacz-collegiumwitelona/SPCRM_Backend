@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Services.Command;
 using Services.Helpers;
 using Services.Interfaces;
+using Services.QueryExtension;
 using Services.Response;
 
 namespace Services.Services
@@ -25,11 +26,13 @@ namespace Services.Services
 
         public async Task<Result<PagedResult<ProductResponse>>> GetProductListAsync(ProductListCommand command)
         {
+            var now = DateTime.UtcNow;
+
             var query = _context.Products
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .ApplyFilter(command.ProductCategory, command.SteelGrade)
-                .ApplySorting(command.SortBy ?? string.Empty, command.SortDescending)
+                .ApplyFilter(command.ProductCategory, command.SteelGrade, command.HasActivePromotion)
                 .Select(p => new ProductResponse
                 {
                     Id = p.Id,
@@ -46,7 +49,13 @@ namespace Services.Services
                     ),
 
                     StockQuantity = p.StockQuantity,
-                    UnitSymbol = p.Unit.Symbol
+                    UnitSymbol = p.Unit.Symbol,
+
+                    IsActivePromotion = p.Promotions.Any(pr =>
+                        pr.IsActive &&
+                        (!pr.StartDate.HasValue || pr.StartDate <= now) &&
+                        (!pr.EndDate.HasValue || pr.EndDate >= now)
+                        )
                 });
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "products");
@@ -102,7 +111,7 @@ namespace Services.Services
                     StockQuantity = p.StockQuantity,
                     UnitSymbol = p.Unit.Symbol,
                     PricePerUnit = (decimal)p.PricePerUnit / 10000m,
-                    Weight = (decimal) p.Weight / 1000m,
+                    Weight = (decimal)p.Weight / 1000m,
 
                     ReservedQuantity = p.DealProducts
                         .Where(dp => dp.Deal.Status == DealsStatusEnum.ToDo || dp.Deal.Status == DealsStatusEnum.InProgress)

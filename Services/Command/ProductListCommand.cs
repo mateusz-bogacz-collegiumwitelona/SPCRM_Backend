@@ -9,5 +9,6 @@
         public string? SearchTerm { get; init; }
         public string? ProductCategory { get; init; }
         public string? SteelGrade { get; init; }
+        public bool? HasActivePromotion { get; init; }
     }
 }

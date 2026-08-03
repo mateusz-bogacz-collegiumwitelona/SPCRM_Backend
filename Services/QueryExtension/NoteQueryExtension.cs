@@ -1,6 +1,6 @@
 ﻿using Domain.Common;
 
-namespace Services.Helpers
+namespace Services.QueryExtension
 {
     internal static class NoteQueryExtension
     {
