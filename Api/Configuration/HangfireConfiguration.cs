@@ -19,6 +19,12 @@ namespace Api.Configuration
                 Cron.Daily()
             );
 
+            RecurringJob.AddOrUpdate<OfferExpirationWorker>(
+                "expire-old-offers-job",
+                worker => worker.ExpireOldOffersAsync(),
+                Cron.Daily()
+            );
+
             return app;
         }
     }
