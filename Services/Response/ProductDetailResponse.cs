@@ -12,5 +12,6 @@
         public required decimal PricePerUnit { get; init; }
         public required decimal Weight { get; init; }
         public required int ReservedQuantity { get; init; }
+        public ActivePromotionResponse? ActivePromotion { get; set; }
     }
 }

@@ -31,7 +31,6 @@ namespace Services.Services
             var query = _context.Products
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
-                .ApplyFilter(command.ProductCategory, command.SteelGrade)
                 .ApplyFilter(command.ProductCategory, command.SteelGrade, command.HasActivePromotion)
                 .Select(p => new ProductResponse
                 {
@@ -90,6 +89,8 @@ namespace Services.Services
 
         public async Task<Result<ProductDetailResponse>> GetProductDetailsAsync(Guid productId)
         {
+            var now = DateTime.UtcNow;
+
             var query = await _context.Products
                 .AsNoTracking()
                 .Where(p => p.Id == productId)
@@ -115,7 +116,19 @@ namespace Services.Services
 
                     ReservedQuantity = p.DealProducts
                         .Where(dp => dp.Deal.Status == DealsStatusEnum.ToDo || dp.Deal.Status == DealsStatusEnum.InProgress)
-                        .Sum(dp => (int?)dp.Quantity) ?? 0
+                        .Sum(dp => (int?)dp.Quantity) ?? 0,
+
+                    ActivePromotion = p.Promotions
+                        .Where(pr => pr.IsActive && (!pr.StartDate.HasValue || pr.StartDate <= now) && (!pr.EndDate.HasValue || pr.EndDate >= now))
+                        .Select(pr => new ActivePromotionResponse
+                        {
+                            Name = pr.Name,
+                            DiscountPercentage = pr.DiscountPercentage,
+                            PromotionalPrice = pr.PromotionalPrice.HasValue ? (decimal)pr.PromotionalPrice.Value / 10000m : null,
+                            EndDate = pr.EndDate,
+                            MinQuantity = pr.MinQuantity
+                        })
+                        .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync();
 
