@@ -30,6 +30,13 @@ namespace Email
                 _logger.LogError("An email cannot be sent. The (Mail:From) address is missing from the configuration.");
                 return;
             }
+            
+            if (string.IsNullOrWhiteSpace(to))
+            {
+                _logger.LogWarning("Cannot send email. The recipient 'to' address is empty. Subject: {Subject}", subject);
+                return;
+            }
+
 
             using var mailMessage = new MailMessage();
             mailMessage.From = new MailAddress(fromEmail, displayName);

@@ -24,6 +24,7 @@ namespace Services
             services.AddScoped<INoteServices, NoteServices>();
 
             services.AddScoped<PromotionCleanupWorker>();
+            services.AddScoped<OfferExpirationWorker>();
 
             services.AddHangfire(config => config
                 .UsePostgreSqlStorage(configuration.GetConnectionString("DefaultConnection")));

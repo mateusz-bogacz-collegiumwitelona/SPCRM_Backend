@@ -32,7 +32,7 @@ namespace Services.Services
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .ApplyFilter(command.ProductCategory, command.SteelGrade, command.HasActivePromotion)
-                .ApplySorting(command.SortBy ?? string.Empty, command.SortDescending) 
+                .ApplySorting(command.SortBy ?? string.Empty, command.SortDescending)
                 .Select(p => new ProductResponse
                 {
                     Id = p.Id,
@@ -152,6 +152,8 @@ namespace Services.Services
 
         public async Task<Result<PagedResult<MailingProductResponse>>> GetMailingProductsAsync(SimpleListCommand command)
         {
+            var now = DateTime.UtcNow;
+
             var query = _context.Products
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
@@ -167,7 +169,16 @@ namespace Services.Services
                      p.Length
                     ),
                     StockQuantity = p.StockQuantity,
-                    StockPrice = (long)p.PricePerUnit
+                    StockPrice = (long)p.PricePerUnit,
+
+                    PromotionalPrice = p.Promotions
+                        .Where(pr => pr.IsActive &&
+                                     (!pr.StartDate.HasValue || pr.StartDate <= now) &&
+                                     (!pr.EndDate.HasValue || pr.EndDate >= now))
+                        .Select(pr => pr.PromotionalPrice.HasValue
+                            ? (long?)pr.PromotionalPrice.Value
+                            : (long?)(p.PricePerUnit * (1 - (pr.DiscountPercentage ?? 0) / 100m)))
+                        .FirstOrDefault()
                 });
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing products");
         }
