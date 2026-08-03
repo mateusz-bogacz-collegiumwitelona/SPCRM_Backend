@@ -188,7 +188,13 @@ namespace Services.Services
                     discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, 2);
                 }
 
-                var activePromotion = product.Promotions.FirstOrDefault();
+                var activePromotion = product.Promotions
+                    .Where(pr =>
+                        !pr.ContactId.HasValue &&
+                        (!pr.MinQuantity.HasValue || cmd.Quantity >= pr.MinQuantity.Value))
+                    .OrderByDescending(pr => pr.DiscountPercentage ?? 0) 
+                    .FirstOrDefault();
+
                 if (activePromotion != null)
                 {
                     isPromoted = true;
