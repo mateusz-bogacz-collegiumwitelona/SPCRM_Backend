@@ -1,5 +1,5 @@
 ﻿using Api.Request;
-using Domain.Constants;
+using Api.Validators.Rule;
 using FluentValidation;
 
 namespace Api.Validators
@@ -8,13 +8,8 @@ namespace Api.Validators
     {
         public PaggedRequestValidator()
         {
-            RuleFor(x => x.PageSize)
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.ValidationError);
-
-            RuleFor(x => x.PageNumber)
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.ValidationError);
+            RuleFor(x => x.PageSize).ApplyPageSizeRules();
+            RuleFor(x => x.PageNumber).ApplyPageNumberRules();
         }
     }
 }

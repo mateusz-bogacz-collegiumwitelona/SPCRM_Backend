@@ -7,38 +7,43 @@ namespace Api.Validators
 {
     public class AddContactDetailCommandValidator : AbstractValidator<AddContactDetailRequest>
     {
-        public AddContactDetailCommandValidator() 
+        public AddContactDetailCommandValidator()
         {
             RuleFor(x => x.Type)
                 .IsEnumName(typeof(ContactDetailTypeEnum), caseSensitive: false)
-                .WithErrorCode(ErrorCodes.ValidationError);
+                .WithErrorCode(ErrorCodes.TypeInvalid);
 
             RuleFor(x => x.Label)
                 .NotEmpty()
-                .WithErrorCode(ErrorCodes.ValidationError);
+                .WithErrorCode(ErrorCodes.LabelRequired)
+                .Length(1, 50)
+                .WithErrorCode(ErrorCodes.LabelLengthInvalid);
 
             When(x => x.Type.Equals("EMAIL", StringComparison.OrdinalIgnoreCase), () =>
             {
                 RuleFor(x => x.Value)
                     .NotEmpty()
+                    .WithErrorCode(ErrorCodes.EmailRequired)
                     .EmailAddress()
-                    .WithErrorCode(ErrorCodes.ValidationError);
+                    .WithErrorCode(ErrorCodes.EmailInvalid);
             });
 
             When(x => IsPhoneType(x.Type), () =>
             {
                 RuleFor(x => x.Value)
                     .NotEmpty()
+                    .WithErrorCode(ErrorCodes.NumberRequired)
                     .Must(BeAValidPhoneNumber)
-                    .WithErrorCode(ErrorCodes.ValidationError);
+                    .WithErrorCode(ErrorCodes.NumberInvalid);
             });
 
             When(x => x.Type.Equals("LINKEDIN", StringComparison.OrdinalIgnoreCase), () =>
             {
                 RuleFor(x => x.Value)
                     .NotEmpty()
+                    .WithErrorCode(ErrorCodes.LinkedInUrlRequired)
                     .Must(BeAValidLinkedInUrl)
-                    .WithErrorCode(ErrorCodes.ValidationError);
+                    .WithErrorCode(ErrorCodes.LinkedInUrlInvalid);
             });
         }
 

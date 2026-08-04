@@ -1,4 +1,5 @@
 ﻿using Api.Request;
+using Api.Validators.Rule;
 using Domain.Constants;
 using FluentValidation;
 
@@ -8,18 +9,15 @@ namespace Api.Validators
     {
         public AddContactValidator() 
         {
-            RuleFor(x => x.CompanyId)
-                .NotEmpty()
-                .NotEqual(Guid.Empty)
-                .WithErrorCode(ErrorCodes.ValidationError);
+            RuleFor(x => x.CompanyId).ApplyValidGuidRule();
 
             RuleFor(x => x.FirstName)
-                .NotEmpty()
-                .WithErrorCode(ErrorCodes.ValidationError);
+                .NotEmpty().WithErrorCode(ErrorCodes.NameRequired) 
+                .Length(5, 100).WithErrorCode(ErrorCodes.NameLengthInvalid);
 
             RuleFor(x => x.LastName)
-                .NotEmpty()
-                .WithErrorCode(ErrorCodes.ValidationError);
+                .NotEmpty().WithErrorCode(ErrorCodes.NameRequired) 
+                .Length(5, 100).WithErrorCode(ErrorCodes.NameLengthInvalid); 
 
             RuleFor(x => x.Details)
                 .NotEmpty()
@@ -27,7 +25,7 @@ namespace Api.Validators
 
             RuleFor(x => x.Details)
                 .Must(details => details != null && details.Count(d => d.IsPrimary) == 1)
-                .WithErrorCode(ErrorCodes.ValidationError);
+                .WithErrorCode(ErrorCodes.PrimaryContactDetailRequired);
 
             RuleForEach(x => x.Details)
                 .SetValidator(new AddContactDetailCommandValidator());

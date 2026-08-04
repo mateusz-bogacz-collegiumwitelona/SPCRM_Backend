@@ -6,11 +6,7 @@ namespace Api.Validators.Rule
     public static class NoteValidationRules
     {
         public static IRuleBuilderOptions<T, Guid> ApplyNoteIdRules<T>(this IRuleBuilder<T, Guid> ruleBuilder)
-            => ruleBuilder
-                .NotEmpty()
-                .WithErrorCode(ErrorCodes.NoteIdRequired)
-                .NotEqual(Guid.Empty)
-                .WithErrorCode(ErrorCodes.NoteIdRequired);
+            => ruleBuilder.ApplyValidGuidRule();
 
         public static IRuleBuilderOptions<T, string?> ApplyTitleRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
