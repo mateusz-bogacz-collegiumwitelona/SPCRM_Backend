@@ -8,8 +8,10 @@ namespace Api.Validators
     {
         public CompanyIdValidator()
         {
-            RuleFor(x => x.CompanyId).NotEmpty().WithErrorCode(ErrorCodes.BadRequest)
-            .NotEqual(Guid.Empty).WithErrorCode(ErrorCodes.BadRequest);
+            RuleFor(x => x.CompanyId)
+                .NotEmpty()
+                .NotEqual(Guid.Empty)
+                .WithErrorCode(ErrorCodes.BadRequest);
         }
     }
 }

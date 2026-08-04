@@ -24,5 +24,7 @@ namespace Api.Mappers
             SortDescending = sorting.SortDescending,
             SearchTerm = search.SearchTerm
         };
+
+        public partial AddContactCommand MapAdd(AddContactRequest request);
     }
 }

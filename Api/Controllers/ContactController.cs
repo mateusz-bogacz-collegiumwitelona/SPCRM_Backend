@@ -85,5 +85,19 @@ namespace Api.Controllers
             var result = await note.GetContactNoteAsync(mapper.MapList(contactId, pagged, search));
             return HandleResult(result);
         }
+
+        [HttpPost]
+        [EndpointSummary("Add contact")]
+        [EndpointDescription("Add a new contact.")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> AddContactAsync(
+            [FromServices] IContactServices contact,
+            [FromServices] ContactMapper mapper,
+            [FromBody] AddContactRequest request
+            )
+        {
+            var result = await contact.AddContactAsync(mapper.MapAdd(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }

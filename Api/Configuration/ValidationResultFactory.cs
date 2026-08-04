@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Constants;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
@@ -10,18 +11,23 @@ namespace Api.Configuration
     public class ValidationResultFactory : IFluentValidationAutoValidationResultFactory
     {
         public Task<IActionResult?> CreateActionResult(
-            ActionExecutingContext context,
-            ValidationProblemDetails validationProblemDetails,
-            IDictionary<IValidationContext, ValidationResult> validationResults
-            )
+             ActionExecutingContext context,
+             ValidationProblemDetails validationProblemDetails,
+             IDictionary<IValidationContext, ValidationResult> validationResults
+             )
         {
+            var firstErrorCode = validationResults
+                .SelectMany(x => x.Value.Errors)
+                .Select(x => x.ErrorCode)
+                .FirstOrDefault(code => !string.IsNullOrEmpty(code)) ?? ErrorCodes.ValidationError;
+
             var errors = validationProblemDetails.Errors
                .SelectMany(x => x.Value)
                .ToList() ?? new List<string>();
 
             var result = Result<object>.Failure(
                 message: "Validation failed",
-                errorCode: "VALIDATION_ERROR",
+                errorCode: firstErrorCode,
                 statusCode: StatusCodes.Status400BadRequest,
                 errors: errors);
 

@@ -1,4 +1,7 @@
 ﻿using Domain.Common;
+using Domain.Constants;
+using Domain.Enum;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -147,5 +150,69 @@ namespace Services.Services
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing_clients");
         }
+
+        public async Task<Result> AddContactAsync(AddContactCommand command, Guid userId)
+        {
+            var company = await _context.Companies.AnyAsync(c => c.Id == command.CompanyId);
+
+            if (!company)
+            {
+                _logger.LogWarning("Company with ID {CompanyId} not found.", command.CompanyId);
+                return Result.Failure(
+                    message: "Company not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.CompanyNotFound
+                    );
+            }
+
+            var hasAnyPrimaryContact = await _context.Contacts
+                .AnyAsync(c => c.CompanyId == command.CompanyId && c.IsPrimary);
+
+            var owner = await _context.Users.FindAsync(userId);
+            if (owner == null)
+            {
+                return Result.Failure(
+                   message: "User not found",
+                   statusCode: StatusCodes.Status404NotFound,
+                   errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            var contact = new Contact
+            {
+                CompanyId = command.CompanyId,
+                FirstName = command.FirstName,
+                LastName = command.LastName,
+                JobTitle = command.JobTitle,
+                OwnerId = userId,
+                Owner = owner,
+                IsPrimary = !hasAnyPrimaryContact
+            };
+
+            foreach (var detail in command.Details)
+            {
+                var parsedType = Enum.Parse<ContactDetailTypeEnum>(detail.Type, ignoreCase: true);
+
+                var contactDetail = new ContactDetail
+                {
+                    Type = parsedType,
+                    Value = detail.Value,
+                    Label = detail.Label,
+                    IsPrimary = detail.IsPrimary,
+                    Contact = contact
+                };
+
+                contact.ContactDetails.Add(contactDetail);
+            }
+
+            _context.Contacts.Add(contact);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Contact added successfully",
+                statusCode: StatusCodes.Status201Created
+                );
+        }
+
     }
 }
