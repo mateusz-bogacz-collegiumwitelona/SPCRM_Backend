@@ -1,4 +1,6 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Enum;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,7 @@ using Npgsql;
 using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using TUnit.Core.Interfaces;
 
 namespace Tests.Services
 {
@@ -860,6 +863,251 @@ namespace Tests.Services
             await Assert.That(items).Count().IsEqualTo(1);
             await Assert.That(items.First().ContactId).IsEqualTo(matchingContact.Id);
             await Assert.That(items.First().CompanyName).Contains("Katowice");
+        }
+
+        // ─── AddContactAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddContactAsync_WhenCompanyDoesntExist_Return404()
+        {
+            // Arrange
+            var detail = new AddContactDetailCommand
+            {
+                Label = "NWM",
+                Value = "12345678",
+                IsPrimary = false,
+                Type = ContactDetailTypeEnum.PHONE_MOBILE.ToString()
+            };
+
+            var detailList = new List<AddContactDetailCommand>();
+            detailList.Add(detail);
+
+            var request = new AddContactCommand
+            {
+                CompanyId = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "Test",
+                Details = detailList
+            };
+
+            // Act 
+            var result = await _contactServicesMock.AddContactAsync(request, Guid.NewGuid());
+
+            // Assert 
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.Message).IsEqualTo("Company not found");
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CompanyNotFound);
+        }
+
+        [Test]
+        public async Task AddContactAsync_WhenOwnerDoesntExist_Return404()
+        {
+            // Arrange
+            var companyOwnerId = Guid.NewGuid();
+            var companyOwner = new ApplicationUser
+            {
+                Id = companyOwnerId,
+                UserName = "TestOwner",
+                Email = "test@test.pl",
+                FirstName = "Test",
+                LastName = "Test"
+            };
+
+            var comapnyId = Guid.NewGuid();
+            var company = new Company
+            {
+                Id = comapnyId,
+                Name = "Test",
+                NIP = "12345678901",
+                OwnerId = companyOwnerId,
+                Owner = companyOwner
+            };
+
+            await _contextMock.Users.AddAsync(companyOwner);
+            await _contextMock.Companies.AddAsync(company);
+            await _contextMock.SaveChangesAsync();
+
+            var detail = new AddContactDetailCommand
+            {
+                Label = "NWM",
+                Value = "12345678",
+                IsPrimary = false,
+                Type = ContactDetailTypeEnum.PHONE_MOBILE.ToString()
+            };
+
+            var request = new AddContactCommand
+            {
+                CompanyId = comapnyId,
+                FirstName = "Test",
+                LastName = "Test",
+                Details = new List<AddContactDetailCommand> { detail }
+            };
+
+            // Act 
+            var nonExistentUserId = Guid.NewGuid();
+            var result = await _contactServicesMock.AddContactAsync(request, nonExistentUserId);
+
+            // Assert 
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.Message).IsEqualTo("User not found");
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task AddContactAsync_WhenNoPrimaryContactExists_Returns201AndSetsIsPrimaryToTrue()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "TestOwner",
+                Email = "owner@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Nowa Firma",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            var detail = new AddContactDetailCommand
+            {
+                Label = "Służbowy",
+                Value = "jan.kowalski@test.pl",
+                IsPrimary = true,
+                Type = ContactDetailTypeEnum.EMAIL.ToString()
+            };
+
+            var request = new AddContactCommand
+            {
+                CompanyId = company.Id,
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                JobTitle = "Dyrektor",
+                Details = new List<AddContactDetailCommand> { detail }
+            };
+
+            // Act
+            var result = await _contactServicesMock.AddContactAsync(request, userId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+            await Assert.That(result.Message).IsEqualTo("Contact added successfully");
+
+            var savedContact = await _contextMock.Contacts
+                .Include(c => c.ContactDetails)
+                .FirstOrDefaultAsync(c => c.CompanyId == company.Id);
+
+            await Assert.That(savedContact).IsNotNull();
+            await Assert.That(savedContact!.IsPrimary).IsTrue();
+            await Assert.That(savedContact.ContactDetails).Count().IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task AddContactAsync_WhenPrimaryContactAlreadyExists_Returns201AndSetsIsPrimaryToFalse()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "TestOwner2",
+                Email = "owner2@test.pl",
+                FirstName = "Piotr",
+                LastName = "Nowak"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Istniejąca Firma",
+                NIP = "0987654321",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var existingPrimaryContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Stary",
+                LastName = "Kontakt",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(existingPrimaryContact);
+            await _contextMock.SaveChangesAsync();
+
+            var detail = new AddContactDetailCommand
+            {
+                Label = "Prywatny",
+                Value = "123123123",
+                IsPrimary = true,
+                Type = ContactDetailTypeEnum.PHONE_MOBILE.ToString()
+            };
+
+            var request = new AddContactCommand
+            {
+                CompanyId = company.Id,
+                FirstName = "Nowy",
+                LastName = "Kontakt",
+                JobTitle = "Zastępca",
+                Details = new List<AddContactDetailCommand> { detail }
+            };
+
+            // Act
+            var result = await _contactServicesMock.AddContactAsync(request, userId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var newContact = await _contextMock.Contacts
+                .FirstOrDefaultAsync(c => c.CompanyId == company.Id && c.FirstName == "Nowy");
+
+            await Assert.That(newContact).IsNotNull();
+            await Assert.That(newContact!.IsPrimary).IsFalse();
+        }
+
+        // ─── GetContactTypeAsync ─────────────────────────────────────────────────
+        
+        [Test]
+        public async Task GetContactTypeAsync_ReturnsAllEnumNamesAndStatus200()
+        {
+            // Arrange
+            var expectedTypesCount = Enum.GetNames(typeof(ContactDetailTypeEnum)).Length;
+
+            // Act
+            var result = await _contactServicesMock.GetContactTypeAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Contact types retrieved successfully");
+
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!).Count().IsEqualTo(expectedTypesCount);
+
+            var containsEmail = result.Data!.Contains(ContactDetailTypeEnum.EMAIL.ToString());
+            await Assert.That(containsEmail).IsTrue();
         }
     }
 }

@@ -13,5 +13,6 @@ namespace Services.Interfaces
         Task<Result<List<ContactWayResponse>>> GetContactWayAsync(Guid contactId);
         Task<Result<PagedResult<MailingClientResponse>>> GetClientDataToMailingAsync(SimpleListCommand command);
         Task<Result> AddContactAsync(AddContactCommand command, Guid userId);
+        Task<Result<List<string>>> GetContactTypeAsync();
     }
 }

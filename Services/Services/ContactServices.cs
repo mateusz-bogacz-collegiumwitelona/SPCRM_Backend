@@ -214,5 +214,17 @@ namespace Services.Services
                 );
         }
 
+        public Task<Result<List<string>>> GetContactTypeAsync()
+        {
+            var contactTypes = Enum.GetNames(typeof(ContactDetailTypeEnum)).ToList();
+
+            var result = Result<List<string>>.Success(
+                message: "Contact types retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: contactTypes
+            );
+            return Task.FromResult(result);
+        }
+
     }
 }

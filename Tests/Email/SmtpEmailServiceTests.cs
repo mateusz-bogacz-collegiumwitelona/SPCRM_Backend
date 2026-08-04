@@ -16,11 +16,13 @@ namespace Tests.Email
         private static string _mailpitPort = null!;
 
         [Before(Class)]
+        [Obsolete]
         public static async Task SetupClassAsync()
         {
             _mailpitContainer = new ContainerBuilder()
                 .WithImage("axllent/mailpit:v1.29.4")
                 .WithPortBinding(1025, true)
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilExternalTcpPortIsAvailable(1025))
                 .Build();
 
             await _mailpitContainer.StartAsync();
@@ -89,7 +91,6 @@ namespace Tests.Email
             await Assert.That(action).ThrowsNothing();
         }
     }
-
 
     public class FakeLogger<T> : ILogger<T>
     {

@@ -99,5 +99,15 @@ namespace Api.Controllers
             var result = await contact.AddContactAsync(mapper.MapAdd(request), CurrentUserId);
             return HandleResult(result);
         }
+
+        [HttpGet("types")]
+        [EndpointSummary("Get contact types")]
+        [EndpointDescription("Show all available contact types.")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetContactTypesAsync([FromServices] IContactServices contact)
+        {
+            var result = await contact.GetContactTypeAsync();
+            return HandleResult(result);
+        }
     }
 }
