@@ -1,6 +1,6 @@
 ﻿using Api.Request;
+using Api.Validators.Rule;
 using Domain.Constants;
-using Domain.Enum;
 using FluentValidation;
 
 namespace Api.Validators
@@ -10,59 +10,37 @@ namespace Api.Validators
         public AddContactDetailCommandValidator()
         {
             RuleFor(x => x.Type)
-                .IsEnumName(typeof(ContactDetailTypeEnum), caseSensitive: false)
-                .WithErrorCode(ErrorCodes.TypeInvalid);
+                .NotEmpty()
+                .ApplyTypeRules();
 
             RuleFor(x => x.Label)
                 .NotEmpty()
                 .WithErrorCode(ErrorCodes.LabelRequired)
-                .Length(1, 50)
-                .WithErrorCode(ErrorCodes.LabelLengthInvalid);
+                .ApplyLabelRules();
 
-            When(x => x.Type.Equals("EMAIL", StringComparison.OrdinalIgnoreCase), () =>
+            When(x => string.Equals(x.Type, "EMAIL", StringComparison.OrdinalIgnoreCase), () =>
             {
                 RuleFor(x => x.Value)
                     .NotEmpty()
                     .WithErrorCode(ErrorCodes.EmailRequired)
-                    .EmailAddress()
-                    .WithErrorCode(ErrorCodes.EmailInvalid);
+                    .ApplyEmailRules();
             });
 
-            When(x => IsPhoneType(x.Type), () =>
+            When(x => ContactValidationRules.IsPhoneType(x.Type), () =>
             {
                 RuleFor(x => x.Value)
                     .NotEmpty()
                     .WithErrorCode(ErrorCodes.NumberRequired)
-                    .Must(BeAValidPhoneNumber)
-                    .WithErrorCode(ErrorCodes.NumberInvalid);
+                    .ApplyPhoneRules();
             });
 
-            When(x => x.Type.Equals("LINKEDIN", StringComparison.OrdinalIgnoreCase), () =>
+            When(x => string.Equals(x.Type, "LINKEDIN", StringComparison.OrdinalIgnoreCase), () =>
             {
                 RuleFor(x => x.Value)
                     .NotEmpty()
                     .WithErrorCode(ErrorCodes.LinkedInUrlRequired)
-                    .Must(BeAValidLinkedInUrl)
-                    .WithErrorCode(ErrorCodes.LinkedInUrlInvalid);
+                    .ApplyLinkedInRules();
             });
         }
-
-        private bool IsPhoneType(string type) =>
-            type.Equals("PHONE", StringComparison.OrdinalIgnoreCase) ||
-            type.Equals("PHONE_MOBILE", StringComparison.OrdinalIgnoreCase) ||
-            type.Equals("FAX", StringComparison.OrdinalIgnoreCase);
-
-        private bool BeAValidPhoneNumber(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return false;
-            var digitsCount = value.Count(char.IsDigit);
-            if (digitsCount < 7 || digitsCount > 15) return false;
-            return value.All(c => char.IsDigit(c) || c == '+' || c == '-' || c == ' ' || c == '(' || c == ')');
-        }
-
-        private bool BeAValidLinkedInUrl(string value)
-            => Uri.TryCreate(value, UriKind.Absolute, out var uriResult)
-                && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps)
-                && uriResult.Host.Contains("linkedin.com");
     }
 }

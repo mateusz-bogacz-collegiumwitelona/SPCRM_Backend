@@ -7,17 +7,17 @@ namespace Api.Validators
 {
     public class AddContactValidator : AbstractValidator<AddContactRequest>
     {
-        public AddContactValidator() 
+        public AddContactValidator()
         {
             RuleFor(x => x.CompanyId).ApplyValidGuidRule();
 
             RuleFor(x => x.FirstName)
-                .NotEmpty().WithErrorCode(ErrorCodes.NameRequired) 
-                .Length(5, 100).WithErrorCode(ErrorCodes.NameLengthInvalid);
+                .NotEmpty().WithErrorCode(ErrorCodes.NameRequired)
+                .ApplyNameRules(); 
 
             RuleFor(x => x.LastName)
-                .NotEmpty().WithErrorCode(ErrorCodes.NameRequired) 
-                .Length(5, 100).WithErrorCode(ErrorCodes.NameLengthInvalid); 
+                .NotEmpty().WithErrorCode(ErrorCodes.NameRequired)
+                .ApplyNameRules(); 
 
             RuleFor(x => x.Details)
                 .NotEmpty()

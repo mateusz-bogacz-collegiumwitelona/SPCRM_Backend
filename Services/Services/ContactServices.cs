@@ -4,6 +4,7 @@ using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command;
@@ -45,7 +46,6 @@ namespace Services.Services
                     OwnerLastName = c.Owner.LastName,
                     IsPrimary = c.IsPrimary
                 });
-
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts");
         }
@@ -130,7 +130,6 @@ namespace Services.Services
                 );
         }
 
-
         public async Task<Result<PagedResult<MailingClientResponse>>> GetClientDataToMailingAsync(SimpleListCommand command)
         {
             var query = _context.Contacts
@@ -169,6 +168,7 @@ namespace Services.Services
                 .AnyAsync(c => c.CompanyId == command.CompanyId && c.IsPrimary);
 
             var owner = await _context.Users.FindAsync(userId);
+
             if (owner == null)
             {
                 return Result.Failure(
@@ -191,11 +191,9 @@ namespace Services.Services
 
             foreach (var detail in command.Details)
             {
-                var parsedType = Enum.Parse<ContactDetailTypeEnum>(detail.Type, ignoreCase: true);
-
                 var contactDetail = new ContactDetail
                 {
-                    Type = parsedType,
+                    Type = ParseWithString(detail.Type),
                     Value = detail.Value,
                     Label = detail.Label,
                     IsPrimary = detail.IsPrimary,
@@ -226,5 +224,113 @@ namespace Services.Services
             return Task.FromResult(result);
         }
 
+        public async Task<Result> EditContactAsync(EditContactCommand command, Guid currentUserId)
+        {
+            var contact = await _context.Contacts.FirstOrDefaultAsync(c => c.Id == command.ContactId);
+
+            if (contact == null)
+            {
+                _logger.LogError("Contact with id {ContactId} not found.", command.ContactId);
+                return Result.Failure(
+                    message: "Contact not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
+                );
+            }
+
+            if (!CanModifyContact(currentUserId, contact.OwnerId))
+            {
+                _logger.LogWarning("User with id {userId} cannot edit contact with this id", currentUserId, command.ContactId);
+                return Result.Failure(
+                    message: "You do not have permission to edit this contact",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UnauthorizedAccess
+                );
+            }
+
+            if (!string.IsNullOrEmpty(command.FirstName)) contact.FirstName = command.FirstName;
+            if (!string.IsNullOrEmpty(command.LastName)) contact.LastName = command.LastName;
+            if (!string.IsNullOrEmpty(command.JobTitle)) contact.JobTitle = command.JobTitle;
+
+            contact.UpdateAt = DateTime.UtcNow;
+
+            var incomingDetailsIds = command.Details
+                .Where(d => d.ContactDetailId.HasValue && d.ContactDetailId != Guid.Empty)
+                .Select(d => d.ContactDetailId!.Value)
+                .ToHashSet();
+
+            var detailsToRemoveIds = await _context.ContactDetails
+                .Where(d => d.ContactId == contact.Id && !incomingDetailsIds.Contains(d.Id))
+                .Select(d => d.Id)
+                .ToListAsync();
+
+            if (detailsToRemoveIds.Any())
+            {
+                await _context.ContactDetails
+                    .Where(d => detailsToRemoveIds.Contains(d.Id))
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(d => d.IsDeleted, true)
+                        .SetProperty(d => d.UpdateAt, DateTime.UtcNow));
+            }
+
+            var newDetailsToAdd = new List<ContactDetail>();
+
+            foreach (var detail in command.Details)
+            {
+                var typeToSet = ParseWithString(detail.Type);
+
+                if (detail.ContactDetailId.HasValue && detail.ContactDetailId.Value != Guid.Empty)
+                {
+                    await _context.ContactDetails
+                        .Where(d => d.Id == detail.ContactDetailId.Value)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(d => d.Label, detail.Label ?? string.Empty)
+                            .SetProperty(d => d.Value, detail.Value ?? string.Empty)
+                            .SetProperty(d => d.Type, typeToSet)
+                            .SetProperty(d => d.IsPrimary, detail.IsPrimary ?? false)
+                            .SetProperty(d => d.UpdateAt, DateTime.UtcNow));
+                }
+                else
+                {
+                    newDetailsToAdd.Add(new ContactDetail
+                    {
+                        Type = typeToSet,
+                        Value = detail.Value!,
+                        Label = detail.Label,
+                        IsPrimary = detail.IsPrimary ?? false,
+                        ContactId = contact.Id,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            if (newDetailsToAdd.Any())
+            {
+                await _context.ContactDetails.AddRangeAsync(newDetailsToAdd);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Contact updated successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        private ContactDetailTypeEnum ParseWithString(string? name)
+            => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)
+                ? result
+                : ContactDetailTypeEnum.OTHER;
+
+        private bool CanModifyContact(Guid userId, Guid ownerId)
+        {
+            if (userId == ownerId) return true;
+
+            var isManager = _context.UserRoles
+                .Any(ur => ur.UserId == userId &&
+                                _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == "MANAGER"));
+
+            return isManager;
+        }
     }
 }

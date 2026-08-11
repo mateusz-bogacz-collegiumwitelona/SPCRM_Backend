@@ -109,5 +109,20 @@ namespace Api.Controllers
             var result = await contact.GetContactTypeAsync();
             return HandleResult(result);
         }
+
+        [HttpPatch("edit")]
+        [EndpointSummary("Edit contact")]
+        [EndpointDescription("Edit an existing contact.")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> EditContactAsync(
+            [FromServices] IContactServices contact,
+            [FromServices] ContactMapper mapper,
+            [FromBody] EditContactRequest request
+            )
+        {
+            var result = await contact.EditContactAsync(mapper.MapEdit(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
     }
 }

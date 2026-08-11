@@ -1,4 +1,5 @@
 ﻿using Domain.Models;
+using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,7 @@ namespace Infrastructure
                 {
                     npgsqlOptions.UseNetTopologySuite();
                 });
+                //options.AddInterceptors(new SoftDeleteInterceptor());
             });
 
             // identity config

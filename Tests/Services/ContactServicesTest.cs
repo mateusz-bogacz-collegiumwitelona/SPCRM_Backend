@@ -2,14 +2,15 @@
 using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
+using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
-using TUnit.Core.Interfaces;
 
 namespace Tests.Services
 {
@@ -70,6 +71,7 @@ namespace Tests.Services
                     options.UseNetTopologySuite();
                     options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
+                //.AddInterceptors(new SoftDeleteInterceptor()) 
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
@@ -1088,7 +1090,7 @@ namespace Tests.Services
         }
 
         // ─── GetContactTypeAsync ─────────────────────────────────────────────────
-        
+
         [Test]
         public async Task GetContactTypeAsync_ReturnsAllEnumNamesAndStatus200()
         {
@@ -1108,6 +1110,278 @@ namespace Tests.Services
 
             var containsEmail = result.Data!.Contains(ContactDetailTypeEnum.EMAIL.ToString());
             await Assert.That(containsEmail).IsTrue();
+        }
+
+        // ─── EditContactAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task EditContactAsync_WhenContactNotFound_Returns404()
+        {
+            // Arrange
+            var command = new EditContactCommand
+            {
+                ContactId = Guid.NewGuid(),
+                Details = new List<EditContactDetailCommand>()
+            };
+
+            // Act
+            var result = await _contactServicesMock.EditContactAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.Message).IsEqualTo("Contact not found");
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task EditContactAsync_WhenUserIsNotOwnerOrManager_Returns403()
+        {
+            // Arrange
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = "Owner",
+                Email = "owner@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Testowa",
+                NIP = "1234567890",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Nowak",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditContactCommand
+            {
+                ContactId = contact.Id,
+                Details = new List<EditContactDetailCommand>()
+            };
+
+            // Act
+            var result = await _contactServicesMock.EditContactAsync(command, unauthorizedUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.Message).IsEqualTo("You do not have permission to edit this contact");
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+        }
+
+        [Test]
+        public async Task EditContactAsync_WhenUserIsManagerButNotOwner_AllowsEdit()
+        {
+            // Arrange
+            var ownerId = Guid.NewGuid();
+            var managerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = "Owner",
+                FirstName = "O",
+                LastName = "O"
+            };
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = "Manager",
+                FirstName = "M",
+                LastName = "M"
+            };
+
+            var role = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = "MANAGER"
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = role.Id
+            };
+
+            var company = new Company { Id = Guid.NewGuid(), Name = "Comp", NIP = "111", OwnerId = ownerId, Owner = owner };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Nowak",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.AddRange(owner, manager);
+            _contextMock.Roles.Add(role);
+            _contextMock.UserRoles.Add(userRole);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditContactCommand
+            {
+                ContactId = contact.Id,
+                FirstName = "Zmienione",
+                Details = new List<EditContactDetailCommand>()
+            };
+
+            // Act
+            var result = await _contactServicesMock.EditContactAsync(command, managerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedContact = await _contextMock.Contacts.FindAsync(contact.Id);
+            await Assert.That(updatedContact!.FirstName).IsEqualTo("Zmienione");
+        }
+
+        [Test]
+        public async Task EditContactAsync_UpdatesDeletesAndAddsDetailsCorrectly()
+        {
+            // Arrange
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = "Owner",
+                FirstName = "O",
+                LastName = "O"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Comp",
+                NIP = "111",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var detailToUpdate = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Type = ContactDetailTypeEnum.EMAIL,
+                Value = "old@test.pl",
+                IsPrimary = true
+            };
+
+            var detailToDelete = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Type = ContactDetailTypeEnum.PHONE,
+                Value = "123123123",
+                IsPrimary = false
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Stare",
+                LastName = "Stare",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner,
+                ContactDetails = new List<ContactDetail> { detailToUpdate, detailToDelete }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var updateDetailCommand = new EditContactDetailCommand
+            {
+                ContactDetailId = detailToUpdate.Id,
+                Value = "new@test.pl",
+                Type = "EMAIL",
+                IsPrimary = true
+            };
+
+            var addDetailCommand = new EditContactDetailCommand
+            {
+                ContactDetailId = null,
+                Value = "linkedin.com/in/test",
+                Type = "LINKEDIN",
+                IsPrimary = false
+            };
+
+            var command = new EditContactCommand
+            {
+                ContactId = contact.Id,
+                FirstName = "NoweImię",
+                LastName = "NoweNazwisko",
+                JobTitle = "Szef",
+                Details = new List<EditContactDetailCommand> { updateDetailCommand, addDetailCommand }
+            };
+
+            // Act
+            var result = await _contactServicesMock.EditContactAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedContact = await _contextMock.Contacts
+                .IgnoreQueryFilters()
+                .Include(c => c.ContactDetails)
+                .FirstOrDefaultAsync(c => c.Id == contact.Id);
+
+            await Assert.That(updatedContact).IsNotNull();
+            await Assert.That(updatedContact!.FirstName).IsEqualTo("NoweImię");
+            await Assert.That(updatedContact.LastName).IsEqualTo("NoweNazwisko");
+            await Assert.That(updatedContact.JobTitle).IsEqualTo("Szef");
+
+            var allDetails = updatedContact.ContactDetails.ToList();
+            await Assert.That(allDetails).Count().IsEqualTo(3);
+
+            var modifiedDetail = allDetails.FirstOrDefault(d => d.Id == detailToUpdate.Id);
+            await Assert.That(modifiedDetail!.Value).IsEqualTo("new@test.pl");
+            await Assert.That(modifiedDetail.IsDeleted).IsFalse();
+
+            var deletedDetail = allDetails.FirstOrDefault(d => d.Id == detailToDelete.Id);
+            await Assert.That(deletedDetail!.IsDeleted).IsTrue();
+
+            var addedDetail = allDetails.FirstOrDefault(d => d.Id != detailToUpdate.Id && d.Id != detailToDelete.Id);
+            await Assert.That(addedDetail).IsNotNull();
+            await Assert.That(addedDetail!.Type).IsEqualTo(ContactDetailTypeEnum.LINKEDIN);
+            await Assert.That(addedDetail.Value).IsEqualTo("linkedin.com/in/test");
         }
     }
 }

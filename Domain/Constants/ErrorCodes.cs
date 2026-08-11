@@ -45,6 +45,8 @@
         // Contact
         public const string InvalidContactDetailType = "CON_001";
         public const string PrimaryContactDetailRequired = "CON_002";
+        public const string ContactNotFound = "CON_003";
+
         // Product
         public const string ProductNotFound = "PROD_001";
 
