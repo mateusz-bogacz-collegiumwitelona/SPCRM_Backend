@@ -93,6 +93,10 @@ namespace Infrastructure
                 .Property(o => o.Status)
                 .HasConversion<string>();
 
+            builder.Entity<ContactDetail>()
+                .Property(d => d.UpdateAt)
+                .IsConcurrencyToken(false);
+
             foreach (var entityType in builder.Model.GetEntityTypes())
             {
                 if (entityType.BaseType != null) continue;

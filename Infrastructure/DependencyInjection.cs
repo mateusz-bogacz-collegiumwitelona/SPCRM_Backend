@@ -26,7 +26,7 @@ namespace Infrastructure
                 {
                     npgsqlOptions.UseNetTopologySuite();
                 });
-                //options.AddInterceptors(new SoftDeleteInterceptor());
+                options.AddInterceptors(new SoftDeleteInterceptor());
             });
 
             // identity config
