@@ -15,5 +15,6 @@ namespace Services.Interfaces
         Task<Result> AddContactAsync(AddContactCommand command, Guid userId);
         Task<Result<List<string>>> GetContactTypeAsync();
         Task<Result> EditContactAsync(EditContactCommand command, Guid currentUserId);
+        Task<Result<ContactDetailCommand>> GetContactDetailCommand(Guid contactId);
     }
 }

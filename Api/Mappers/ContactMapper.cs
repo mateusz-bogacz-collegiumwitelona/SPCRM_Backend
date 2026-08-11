@@ -28,5 +28,6 @@ namespace Api.Mappers
         public partial AddContactCommand MapAdd(AddContactRequest request);
 
         public partial EditContactCommand MapEdit(EditContactRequest request);
+
     }
 }

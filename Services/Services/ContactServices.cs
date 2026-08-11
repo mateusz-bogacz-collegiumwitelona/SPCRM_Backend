@@ -4,7 +4,6 @@ using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command;
@@ -240,7 +239,7 @@ namespace Services.Services
 
             if (!CanModifyContact(currentUserId, contact.OwnerId))
             {
-                _logger.LogWarning("User with id {userId} cannot edit contact with this id", currentUserId, command.ContactId);
+                _logger.LogWarning("User with id {userId} cannot edit contact with this id {contactId}", currentUserId, command.ContactId);
                 return Result.Failure(
                     message: "You do not have permission to edit this contact",
                     statusCode: StatusCodes.Status403Forbidden,
@@ -314,6 +313,44 @@ namespace Services.Services
             return Result.Success(
                 message: "Contact updated successfully",
                 statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result<ContactDetailCommand>> GetContactDetailCommand(Guid contactId)
+        {
+            var contact = await _context.Contacts
+                .AsNoTracking()
+                .Include(c => c.ContactDetails)
+                .Where(c => c.Id == contactId)
+                .Select(c => new ContactDetailCommand
+                {
+                    ContactId = c.Id,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName,
+                    JobTitle = c.JobTitle ?? string.Empty,
+                    Details = c.ContactDetails.Select(cd => new ContactDetailDetailCommand
+                    {
+                        ContactDetailId = cd.Id,
+                        Label = cd.Label ?? string.Empty,
+                        Value = cd.Value,
+                        IsPrimary = cd.IsPrimary,
+                        Type = cd.Type.ToString()
+                    }).ToList()
+                })
+                .FirstOrDefaultAsync(); 
+
+            if (contact == null)
+            {
+                return Result<ContactDetailCommand>.Failure(
+                    message: "Contact not found",
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            return Result<ContactDetailCommand>.Success(
+                message: "Contact detail review successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: contact
             );
         }
 

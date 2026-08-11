@@ -1383,5 +1383,104 @@ namespace Tests.Services
             await Assert.That(addedDetail!.Type).IsEqualTo(ContactDetailTypeEnum.LINKEDIN);
             await Assert.That(addedDetail.Value).IsEqualTo("linkedin.com/in/test");
         }
+
+        // ─── GetContactDetailCommand ──────────────────────────────────────────
+
+        [Test]
+        public async Task GetContactDetailCommand_WhenContactExists_ReturnsContactDetailsSuccessfully()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Owner_{uniqueSuffix}",
+                NormalizedUserName = $"OWNER_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OWNER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var contactId = Guid.NewGuid();
+            var contact = new Contact
+            {
+                Id = contactId,
+                FirstName = "Andrzej",
+                LastName = "Nowak",
+                JobTitle = "Manager",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var detail = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Type = ContactDetailTypeEnum.EMAIL,
+                Value = "andrzej.nowak@test.pl",
+                Label = "Służbowy",
+                IsPrimary = true,
+                ContactId = contactId,
+                Contact = contact
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.ContactDetails.Add(detail);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _contactServicesMock.GetContactDetailCommand(contactId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.ContactId).IsEqualTo(contactId);
+            await Assert.That(data.FirstName).IsEqualTo("Andrzej");
+            await Assert.That(data.LastName).IsEqualTo("Nowak");
+            await Assert.That(data.JobTitle).IsEqualTo("Manager");
+
+            await Assert.That(data.Details).Count().IsEqualTo(1);
+            var mappedDetail = data.Details.First();
+            await Assert.That(mappedDetail.ContactDetailId).IsEqualTo(detail.Id);
+            await Assert.That(mappedDetail.Value).IsEqualTo("andrzej.nowak@test.pl");
+            await Assert.That(mappedDetail.Label).IsEqualTo("Służbowy");
+            await Assert.That(mappedDetail.IsPrimary).IsTrue();
+            await Assert.That(mappedDetail.Type).IsEqualTo(ContactDetailTypeEnum.EMAIL.ToString());
+        }
+
+        [Test]
+        public async Task GetContactDetailCommand_WhenContactDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentContactId = Guid.NewGuid();
+
+            // Act
+            var result = await _contactServicesMock.GetContactDetailCommand(nonExistentContactId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Contact not found");
+            await Assert.That(result.Data).IsNull();
+        }
     }
 }

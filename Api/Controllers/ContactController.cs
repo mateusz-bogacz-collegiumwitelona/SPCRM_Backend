@@ -124,5 +124,17 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [HttpGet("{contactId}/detail")]
+        [EndpointSummary("Get contact detail command")]
+        [EndpointDescription("Show detail command for a specific contact.")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetContactDetailCommandAsync(
+            [FromServices] IContactServices contact,
+            [FromRoute] Guid contactId
+            )
+        {
+            var result = await contact.GetContactDetailCommand(contactId);
+            return HandleResult(result);
+        }
     }
 }
