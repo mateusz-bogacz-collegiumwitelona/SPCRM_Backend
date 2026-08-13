@@ -354,6 +354,54 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result> SetPrimaryContactAsync(Guid contactId, Guid currentUserId)
+        {
+            var contact = await _context.Contacts.FirstOrDefaultAsync(c => c.Id == contactId);
+
+            if (contact == null)
+            {
+                _logger.LogError("Contact with id {ContactId} not found.", contactId);
+                return Result.Failure(
+                    message: "Contact not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
+                );
+            }
+
+            if (!CanModifyContact(currentUserId, contact.OwnerId))
+            {
+                _logger.LogWarning("User with id {userId} cannot edit contact with this id {contactId}", currentUserId, contactId);
+                return Result.Failure(
+                    message: "You do not have permission to edit this contact",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UnauthorizedAccess
+                );
+            }
+        
+            if (contact.IsPrimary)
+            {
+                return Result.Failure(
+                    message: "This contact is already the primary contact for the company.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.PrimaryContactDetailRequired
+                );
+            }
+
+            await _context.Contacts
+                .Where(c => c.CompanyId == contact.CompanyId && c.IsPrimary && c.Id != contactId)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.IsPrimary, false));
+
+            contact.IsPrimary = true;
+            contact.UpdateAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Contact changed to primary successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
         private ContactDetailTypeEnum ParseWithString(string? name)
             => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)
                 ? result

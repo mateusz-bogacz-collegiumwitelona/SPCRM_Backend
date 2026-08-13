@@ -1482,5 +1482,198 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Contact not found");
             await Assert.That(result.Data).IsNull();
         }
+
+        // ─── SetPrimaryContactAsync ──────────────────────────────────────────
+
+        [Test]
+        public async Task SetPrimaryContactAsync_WhenContactNotFound_Returns404()
+        {
+            // Arrange
+            var nonExistentContactId = Guid.NewGuid();
+            var currentUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _contactServicesMock.SetPrimaryContactAsync(nonExistentContactId, currentUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Contact not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task SetPrimaryContactAsync_WhenUserIsNotAuthorized_Returns403()
+        {
+            // Arrange
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = "Owner",
+                Email = "owner@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma",
+                NIP = "111",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Nowak",
+                IsPrimary = false,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _contactServicesMock.SetPrimaryContactAsync(contact.Id, unauthorizedUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.Message).IsEqualTo("You do not have permission to edit this contact");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+        }
+
+        [Test]
+        public async Task SetPrimaryContactAsync_WhenContactIsAlreadyPrimary_Returns400()
+        {
+            // Arrange
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = "Owner",
+                FirstName = "O",
+                LastName = "O"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma",
+                NIP = "111",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Nowak",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _contactServicesMock.SetPrimaryContactAsync(contact.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("This contact is already the primary contact for the company.");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PrimaryContactDetailRequired);
+        }
+
+        [Test]
+        public async Task SetPrimaryContactAsync_WhenValidRequest_SetsNewPrimaryAndUnsetsOldPrimary_Returns200()
+        {
+            // Arrange
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = "Owner",
+                FirstName = "O",
+                LastName = "O"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Testowa",
+                NIP = "111",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var oldPrimaryContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Stary",
+                LastName = "Główny",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var newPrimaryContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Nowy",
+                LastName = "Główny",
+                IsPrimary = false,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.AddRange(oldPrimaryContact, newPrimaryContact);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _contactServicesMock.SetPrimaryContactAsync(newPrimaryContact.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Contact changed to primary successfully");
+
+            var updatedOldPrimary = await _contextMock.Contacts.FindAsync(oldPrimaryContact.Id);
+            var updatedNewPrimary = await _contextMock.Contacts.FindAsync(newPrimaryContact.Id);
+
+            await Assert.That(updatedOldPrimary).IsNotNull();
+            await Assert.That(updatedOldPrimary!.IsPrimary).IsFalse(); // Został zdetronizowany
+
+            await Assert.That(updatedNewPrimary).IsNotNull();
+            await Assert.That(updatedNewPrimary!.IsPrimary).IsTrue(); // Stał się nowym głównym
+        }
     }
 }

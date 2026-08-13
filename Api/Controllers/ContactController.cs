@@ -136,5 +136,16 @@ namespace Api.Controllers
             var result = await contact.GetContactDetailCommand(contactId);
             return HandleResult(result);
         }
+
+        [HttpPatch("{contactId}/set-primary")]
+        [EndpointSummary("Set contact as primary")]
+        [EndpointDescription("Changes the specified contact to be the primary contact for their company.")]
+        public async Task<IActionResult> SetPrimaryContactAsync(
+            [FromServices] IContactServices contact,
+            [FromRoute] Guid contactId)
+        {
+            var result = await contact.SetPrimaryContactAsync(contactId, CurrentUserId);
+            return HandleResult(result);
+        } 
     }
 }

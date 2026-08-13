@@ -6,7 +6,7 @@ namespace Domain.Models
     {
         public required string FirstName { get; set; }
         public required string LastName { get; set; }
-        public required bool IsPrimary { get; init; }
+        public required bool IsPrimary { get; set; }
         public string? JobTitle { get; set; }
 
         public Guid CompanyId { get; set; }
