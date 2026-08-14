@@ -1,5 +1,6 @@
 ﻿using Domain.Enum;
 using Domain.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services.QueryExtension
 {
@@ -60,12 +61,18 @@ namespace Services.QueryExtension
         {
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                searchTerm = searchTerm.ToLower();
-                query = query.Where(d =>
-                    d.Name.ToLower().Contains(searchTerm) ||
-                    d.Company.Name.ToLower().Contains(searchTerm) ||
-                    d.Currency.Code.ToLower().Contains(searchTerm)
-                );
+                var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var term in terms)
+                {
+                    string wildcardTerm = $"%{term}%";
+
+                    query = query.Where(d =>
+                        EF.Functions.ILike(EF.Functions.Unaccent(d.Name), EF.Functions.Unaccent(wildcardTerm)) ||
+                        (d.Company != null && EF.Functions.ILike(EF.Functions.Unaccent(d.Company.Name), EF.Functions.Unaccent(wildcardTerm))) ||
+                        (d.Currency != null && EF.Functions.ILike(EF.Functions.Unaccent(d.Currency.Code), EF.Functions.Unaccent(wildcardTerm)))
+                    );
+                }
             }
             return query;
         }

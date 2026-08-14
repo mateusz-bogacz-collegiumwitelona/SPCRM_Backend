@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services.QueryExtension
 {
@@ -8,13 +9,21 @@ namespace Services.QueryExtension
         {
             if (!string.IsNullOrEmpty(searchTerm))
             {
-                searchTerm = searchTerm.ToLower();
+                var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                query = query.Where(n =>
-                    n.Title.ToLower().Contains(searchTerm) ||
-                    n.Content.ToLower().Contains(searchTerm) ||
-                    n.Author.FirstName.ToLower().Contains(searchTerm) ||
-                    n.Author.LastName.ToLower().Contains(searchTerm));
+                foreach (var term in terms)
+                {
+                    string wildcardTerm = $"%{term}%";
+
+                    query = query.Where(n =>
+                        EF.Functions.ILike(EF.Functions.Unaccent(n.Title), EF.Functions.Unaccent(wildcardTerm)) ||
+                        EF.Functions.ILike(EF.Functions.Unaccent(n.Content), EF.Functions.Unaccent(wildcardTerm)) ||
+                        (n.Author != null && (
+                            EF.Functions.ILike(EF.Functions.Unaccent(n.Author.FirstName), EF.Functions.Unaccent(wildcardTerm)) ||
+                            EF.Functions.ILike(EF.Functions.Unaccent(n.Author.LastName), EF.Functions.Unaccent(wildcardTerm))
+                        ))
+                    );
+                }
             }
 
             return query;

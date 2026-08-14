@@ -1,4 +1,5 @@
 ﻿using Domain.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services.QueryExtension
 {
@@ -31,15 +32,22 @@ namespace Services.QueryExtension
         {
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                searchTerm = searchTerm.ToLower();
+                var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                query = query.Where(c =>
-                    c.FirstName.ToLower().Contains(searchTerm) ||
-                    c.LastName.ToLower().Contains(searchTerm) ||
-                    c.Company.Name.ToLower().Contains(searchTerm) ||
-                    c.Owner.FirstName.ToLower().Contains(searchTerm) ||
-                    c.Owner.LastName.ToLower().Contains(searchTerm)
+                foreach (var term in terms)
+                {
+                    string wildcardTerm = $"%{term}%";
+
+                    query = query.Where(c =>
+                        EF.Functions.ILike(EF.Functions.Unaccent(c.FirstName), EF.Functions.Unaccent(wildcardTerm)) ||
+                        EF.Functions.ILike(EF.Functions.Unaccent(c.LastName), EF.Functions.Unaccent(wildcardTerm)) ||
+                        (c.Company != null && EF.Functions.ILike(EF.Functions.Unaccent(c.Company.Name), EF.Functions.Unaccent(wildcardTerm))) ||
+                        (c.Owner != null && (
+                            EF.Functions.ILike(EF.Functions.Unaccent(c.Owner.FirstName), EF.Functions.Unaccent(wildcardTerm)) ||
+                            EF.Functions.ILike(EF.Functions.Unaccent(c.Owner.LastName), EF.Functions.Unaccent(wildcardTerm))
+                        ))
                     );
+                }
             }
             return query;
         }

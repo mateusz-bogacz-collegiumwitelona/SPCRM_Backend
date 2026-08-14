@@ -34,6 +34,7 @@ namespace Infrastructure
             base.OnModelCreating(builder);
 
             builder.HasPostgresExtension("postgis");
+            builder.HasPostgresExtension("unaccent");
 
             builder.Entity<CompanyAdress>()
                 .Property(sa => sa.Location)

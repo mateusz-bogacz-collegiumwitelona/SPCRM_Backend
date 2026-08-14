@@ -36,15 +36,17 @@ namespace Tests.Services
 
             _connectionString = _dbContainer.GetConnectionString();
 
-
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE EXTENSION IF NOT EXISTS unaccent;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         [After(Class)]
         public static async Task CleanupClassAsync()
             => await _dbContainer.DisposeAsync();
-        
+
         [Before(Test)]
         public async Task SetupAsync()
         {

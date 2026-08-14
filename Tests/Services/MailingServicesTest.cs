@@ -46,6 +46,9 @@ namespace Tests.Services
 
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE EXTENSION IF NOT EXISTS unaccent;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         [After(Class)]
@@ -79,7 +82,7 @@ namespace Tests.Services
 
             var createScript = _contextMock.Database.GenerateCreateScript();
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
-            
+
             _loggerMock = new LoggerFactory().CreateLogger<MailingServices>();
             _fakeEmailSender = new FakeEmailSender();
 

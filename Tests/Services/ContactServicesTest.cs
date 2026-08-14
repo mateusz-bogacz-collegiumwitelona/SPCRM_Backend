@@ -31,12 +31,11 @@ namespace Tests.Services
         public static async Task SetupClassAsync()
         {
             _dbContainer = new PostgreSqlBuilder()
-                 .WithImage("postgis/postgis:18-3.6")
-                 .WithDatabase("testdb")
-                 .WithUsername("testuser")
-                 .WithPassword("testpassword")
-                 .WithExposedPort(1025)
-                 .Build();
+                .WithImage("postgis/postgis:18-3.6")
+                .WithDatabase("testdb")
+                .WithUsername("testuser")
+                .WithPassword("testpassword")
+                .Build();
 
             await _dbContainer.StartAsync();
 
@@ -44,6 +43,9 @@ namespace Tests.Services
 
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE EXTENSION IF NOT EXISTS unaccent;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         [After(Class)]
@@ -71,7 +73,7 @@ namespace Tests.Services
                     options.UseNetTopologySuite();
                     options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
-                .AddInterceptors(new SoftDeleteInterceptor()) 
+                .AddInterceptors(new SoftDeleteInterceptor())
                 .Options;
 
             _contextMock = new AppDbContext(dbOptions);
@@ -1670,10 +1672,10 @@ namespace Tests.Services
             var updatedNewPrimary = await _contextMock.Contacts.FindAsync(newPrimaryContact.Id);
 
             await Assert.That(updatedOldPrimary).IsNotNull();
-            await Assert.That(updatedOldPrimary!.IsPrimary).IsFalse(); // Został zdetronizowany
+            await Assert.That(updatedOldPrimary!.IsPrimary).IsFalse();
 
             await Assert.That(updatedNewPrimary).IsNotNull();
-            await Assert.That(updatedNewPrimary!.IsPrimary).IsTrue(); // Stał się nowym głównym
+            await Assert.That(updatedNewPrimary!.IsPrimary).IsTrue();
         }
     }
 }

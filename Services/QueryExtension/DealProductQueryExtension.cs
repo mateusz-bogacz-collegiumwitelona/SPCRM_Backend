@@ -1,4 +1,5 @@
 ﻿using Domain.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services.QueryExtension
 {
@@ -8,13 +9,22 @@ namespace Services.QueryExtension
         {
             if (string.IsNullOrWhiteSpace(searchTerm)) return query;
 
-            searchTerm = searchTerm.ToLower();
+            var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            return query.Where(dp =>
-                dp.Product.Name.ToLower().Contains(searchTerm) ||
-                dp.Product.SteelGrade.ToLower().Contains(searchTerm) ||
-                dp.Product.Category.ToString().ToLower().Contains(searchTerm)
-            );
+            foreach (var term in terms)
+            {
+                string wildcardTerm = $"%{term}%";
+
+                query = query.Where(dp =>
+                    (dp.Product != null && (
+                        EF.Functions.ILike(EF.Functions.Unaccent(dp.Product.Name), EF.Functions.Unaccent(wildcardTerm)) ||
+                        EF.Functions.ILike(EF.Functions.Unaccent(dp.Product.SteelGrade), EF.Functions.Unaccent(wildcardTerm)) ||
+                        EF.Functions.ILike(EF.Functions.Unaccent(dp.Product.Category.ToString()), EF.Functions.Unaccent(wildcardTerm))
+                    ))
+                );
+            }
+
+            return query;
         }
 
         internal static IQueryable<DealProduct> ApplyFilter(this IQueryable<DealProduct> query, string? productCategory, string? steelGrade)

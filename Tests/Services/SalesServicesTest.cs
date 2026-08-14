@@ -40,6 +40,9 @@ namespace Tests.Services
 
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE EXTENSION IF NOT EXISTS unaccent;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         [After(Class)]
@@ -934,7 +937,5 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items).IsEmpty();
         }
-
-
     }
 }

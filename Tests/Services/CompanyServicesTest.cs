@@ -41,6 +41,9 @@ namespace Tests.Services
 
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE EXTENSION IF NOT EXISTS unaccent;";
+            await cmd.ExecuteNonQueryAsync();
         }
 
         [After(Class)]
@@ -62,13 +65,13 @@ namespace Tests.Services
 
             var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
 
-             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql(schemaConnectionString, options =>
-                {
-                    options.UseNetTopologySuite();
-                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema); 
-                })
-                .Options;
+            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
+               .UseNpgsql(schemaConnectionString, options =>
+               {
+                   options.UseNetTopologySuite();
+                   options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
+               })
+               .Options;
 
             _contextMock = new AppDbContext(dbOptions);
 
@@ -856,6 +859,76 @@ namespace Tests.Services
             await Assert.That(items.Any(c => c.Id == deletedCompany.Id)).IsFalse();
             await Assert.That(items.Any(c => c.Id == oldCompany.Id)).IsFalse();
             await Assert.That(items.Any(c => c.Id == validCompany.Id)).IsTrue();
+        }
+
+        [Test]
+        public async Task GetCompanyListAsync_WhenMultiWordSearchTermProvided_FindsCompanyCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                NormalizedUserName = $"OWNER_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"owner_{uniqueSuffix}@TEST.PL",
+                FirstName = "Grzegorz",
+                LastName = "Brzęczyszczykiewicz",
+                EmailConfirmed = true
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"StalGuard",
+                NIP = "1234567890",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var address = new CompanyAdress
+            {
+                CompanyId = company.Id,
+                Company = company,
+                City = "Chrząszczyzewoszyce",
+                Street = "Polna 1",
+                ZipCode = "00-001",
+                AddressType = AddressTypeEnum.Headquarters
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.Add(address);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new CompanyListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                UserId = Guid.NewGuid(),
+                SearchTerm = $"Brzęczyszczykiewicz StalGuard"
+            };
+
+            // Act
+            var result = await _companyServicesMock.GetCompanyListAsync(command);
+
+            if (result.IsSuccess)
+            {
+                Console.WriteLine(result);
+            }
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var foundCompany = result.Data!.Items.FirstOrDefault(c => c.Id == company.Id);
+
+            await Assert.That(foundCompany).IsNotNull();
+            await Assert.That(foundCompany!.Name).IsEqualTo(company.Name);
         }
     }
 }
