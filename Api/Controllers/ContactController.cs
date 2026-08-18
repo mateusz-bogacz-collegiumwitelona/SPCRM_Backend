@@ -172,5 +172,15 @@ namespace Api.Controllers
             var result = await contact.ChangeContactOwnerAsync(mapper.MapChangeOwner(request));
             return HandleResult(result);
         }
+
+        [HttpGet("available-owners")]
+        [EndpointSummary("Get available owners")]
+        [EndpointDescription("Show all available owners.")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> GetAvailableOwnersAsync([FromServices] IContactServices contact)
+        {
+            var result = await contact.GetAvailableOwnersAsync();
+            return HandleResult(result);
+        }
     }
 }

@@ -461,6 +461,33 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync()
+        {
+            var owners = await _context.Users
+                .Where(u => !_context.UserRoles.Any(ur => 
+                    ur.UserId == u.Id && _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == "ADMIN"))
+                )
+                .Select(u => new OwnerResponse
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Role = _context.Roles
+                        .Where(r => _context.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == r.Id))
+                        .Select(r => r.Name)
+                        .FirstOrDefault() ?? "Brak"
+                })
+                .OrderBy(u => u.LastName)
+                .ThenBy(u => u.FirstName)
+                .ToListAsync();
+
+            return Result<List<OwnerResponse>>.Success(
+                message: "Available owners retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: owners
+            );
+        }
+
         private ContactDetailTypeEnum ParseWithString(string? name)
             => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)
                 ? result
