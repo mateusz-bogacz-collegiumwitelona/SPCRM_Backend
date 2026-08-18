@@ -12,6 +12,7 @@
             services.AddScoped<SalesMapper>();
             services.AddScoped<MailingMapper>();
             services.AddScoped<TaskMapper>();
+            services.AddScoped<PromotionMapper>();
 
             return services;
         }

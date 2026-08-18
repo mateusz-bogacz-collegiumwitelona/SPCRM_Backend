@@ -33,7 +33,17 @@ namespace Services.Services
                     Id = p.Id,
                     Name = p.Name,
                     DiscountPercentage = p.DiscountPercentage,
+
                     PromotionalPrice = p.PromotionalPrice,
+
+                    PromotionalPriceCode = p.Currency != null 
+                    ? p.Currency.Code 
+                    : null,
+                    
+                    PromotionalPriceDecimalPlace = p.Currency != null 
+                    ? (int?)p.Currency.DecimalPlaces 
+                    : null,
+
                     StartDate = p.StartDate,
                     EndDate = p.EndDate,
                     IsActive = p.IsActive

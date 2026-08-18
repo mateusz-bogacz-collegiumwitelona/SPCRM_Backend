@@ -4,7 +4,7 @@
     {
         public int? PageNumber { get; init; }
         public int? PageSize { get; init; }
-        public bool? IsActive { get; init; } = true;
+        public bool? IsActive { get; init; } 
         public DateTime? FromDate { get; init; }
         public DateTime? ToDate { get; init; }
         public decimal? DiscountPrecentageFrom { get; init; }

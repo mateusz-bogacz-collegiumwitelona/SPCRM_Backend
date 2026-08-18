@@ -24,16 +24,22 @@ namespace Services.QueryExtension
             return query;
         }
 
-        internal static IQueryable<Promotion> ApplyFilter(this IQueryable<Promotion> query,PromotionListCommand filter)
+        internal static IQueryable<Promotion> ApplyFilter(this IQueryable<Promotion> query, PromotionListCommand filter)
         {
             if (filter.IsActive.HasValue)
                 query = query.Where(c => c.IsActive == filter.IsActive.Value);
 
             if (filter.FromDate.HasValue)
-                query = query.Where(c => c.StartDate >= filter.FromDate);
+            {
+                var fromUtc = DateTime.SpecifyKind(filter.FromDate.Value, DateTimeKind.Utc);
+                query = query.Where(c => !c.EndDate.HasValue || c.EndDate >= fromUtc);
+            }
 
             if (filter.ToDate.HasValue)
-                query = query.Where(c => c.EndDate <= filter.ToDate);
+            {
+                var toUtc = DateTime.SpecifyKind(filter.ToDate.Value, DateTimeKind.Utc).AddDays(1).AddTicks(-1);
+                query = query.Where(c => !c.StartDate.HasValue || c.StartDate <= toUtc);
+            }
 
             if (filter.DiscountPrecentageFrom.HasValue)
                 query = query.Where(c => c.DiscountPercentage >= filter.DiscountPrecentageFrom);

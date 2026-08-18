@@ -9,5 +9,6 @@ namespace Domain.Models
         public int DecimalPlaces { get; set; }
 
         public ICollection<Deal> Deals { get; set; } = new List<Deal>();
+        public ICollection<Promotion> Promotions { get; set; } = new List<Promotion>();
     }
 }

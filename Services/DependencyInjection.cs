@@ -22,6 +22,7 @@ namespace Services
             services.AddScoped<ITaskServices, TaskServices>();
             services.AddScoped<IProductSevices, ProductSevices>();
             services.AddScoped<INoteServices, NoteServices>();
+            services.AddScoped<IPromotionServices, PromotionServices>();
 
             services.AddScoped<PromotionCleanupWorker>();
             services.AddScoped<OfferExpirationWorker>();

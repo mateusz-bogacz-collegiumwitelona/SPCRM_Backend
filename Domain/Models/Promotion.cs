@@ -10,7 +10,10 @@ namespace Domain.Models
         public DateTime? EndDate { get; set; }
 
         public decimal? DiscountPercentage { get; set; }
+
         public long? PromotionalPrice { get; set; }
+        public Guid? CurrencyId { get; set; }
+        public Currency? Currency { get; set; }
 
         public bool IsActive { get; set; }
 

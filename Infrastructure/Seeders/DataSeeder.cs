@@ -34,6 +34,8 @@ namespace Infrastructure.Seeders
             if (!await _context.Companies.AnyAsync()) await SeedCompaniesAndContactsAsync();
             if (!await _context.Products.AnyAsync()) await SeedProductsAsync();
 
+            if (!await _context.Promotions.AnyAsync()) await SeedPromotionsAsync();
+
             if (!await _context.Deals.AnyAsync()) await SeedDealsAndTasksAsync();
             if (!await _context.Tasks.AnyAsync(t => t.DealId == null)) await SeedStandaloneTasksAsync();
         }
@@ -671,6 +673,60 @@ namespace Infrastructure.Seeders
             await _context.Tasks.AddRangeAsync(tasks);
             await _context.SaveChangesAsync();
             Console.WriteLine("Standalone tasks for User and Manager seeded successfully.");
+        }
+
+        private async Task SeedPromotionsAsync()
+        {
+            var products = await _context.Products.ToListAsync();
+            var currencies = await _context.Currencies.ToListAsync();
+            var random = new Random();
+            var promotions = new List<Promotion>();
+
+            var productsForPromotion = products.OrderBy(x => random.Next()).Take(products.Count / 3).ToList();
+
+            int i = 1;
+            foreach (var product in productsForPromotion)
+            {
+                bool isActive = random.Next(100) < 70;
+                bool isPercentageDiscount = random.Next(100) < 50;
+
+                var promotion = new Promotion
+                {
+                    Name = $"Promocja {i++} na {product.Name.Split(' ')[0]}",
+                    IsActive = isActive,
+                    ProductId = product.Id,
+                    Product = product,
+                    StartDate = isActive ? DateTime.UtcNow.AddDays(-random.Next(1, 30)) : DateTime.UtcNow.AddDays(-random.Next(60, 90)),
+                    EndDate = isActive ? DateTime.UtcNow.AddDays(random.Next(10, 60)) : DateTime.UtcNow.AddDays(-random.Next(1, 30))
+                };
+
+                if (isPercentageDiscount)
+                {
+                    promotion.DiscountPercentage = random.Next(5, 30);
+                    promotion.PromotionalPrice = null;
+                    promotion.CurrencyId = null;
+                }
+                else
+                {
+                    var currency = currencies[random.Next(currencies.Count)];
+                    long currentPrice = product.PricePerUnit;
+
+                    long discountAmount = (long)(currentPrice * (random.Next(10, 20) / 100.0));
+
+                    promotion.PromotionalPrice = currentPrice - discountAmount;
+                    promotion.CurrencyId = currency.Id;
+                    promotion.Currency = currency;
+                }
+
+                if (random.Next(100) < 30) promotion.MinQuantity = random.Next(10, 100);
+
+                promotions.Add(promotion);
+                Console.WriteLine($"Prepared promotion: {promotion.Name} (Active: {promotion.IsActive})");
+            }
+
+            await _context.Promotions.AddRangeAsync(promotions);
+            await _context.SaveChangesAsync();
+            Console.WriteLine("All promotions seeded successfully.");
         }
     }
 }
