@@ -1,0 +1,394 @@
+﻿using Domain.Enum;
+using Domain.Models;
+using Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Npgsql;
+using Services.Command;
+using Services.Services;
+using Testcontainers.PostgreSql;
+
+namespace Tests.Services
+{
+    public class PromotionServicesTest
+    {
+        protected AppDbContext _contextMock = null!;
+        protected PromotionServices _promotionServicesMock = null!;
+        protected ILogger<PromotionServices> _loggerMock = null!;
+        private static PostgreSqlContainer _dbContainer = null!;
+        private static string _connectionString = null!;
+        private string _currentSchema = null!;
+
+        [Before(Class)]
+        [Obsolete]
+        public static async Task SetupClassAsync()
+        {
+            _dbContainer = new PostgreSqlBuilder()
+                .WithImage("postgis/postgis:18-3.6")
+                .WithDatabase("testdb")
+                .WithUsername("testuser")
+                .WithPassword("testpassword")
+                .Build();
+
+            await _dbContainer.StartAsync();
+
+            _connectionString = _dbContainer.GetConnectionString();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE EXTENSION IF NOT EXISTS unaccent;";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        [After(Class)]
+        public static async Task CleanupClassAsync()
+           => await _dbContainer.DisposeAsync();
+
+        [Before(Test)]
+        public async Task SetupAsync()
+        {
+            _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
+
+            using (var conn = new NpgsqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"CREATE SCHEMA IF NOT EXISTS {_currentSchema};";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
+
+            var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
+               .UseNpgsql(schemaConnectionString, options =>
+               {
+                   options.UseNetTopologySuite();
+                   options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
+               })
+               .Options;
+
+            _contextMock = new AppDbContext(dbOptions);
+
+            var createScript = _contextMock.Database.GenerateCreateScript();
+            await _contextMock.Database.ExecuteSqlRawAsync(createScript);
+
+            _loggerMock = new LoggerFactory().CreateLogger<PromotionServices>();
+
+            _promotionServicesMock = new PromotionServices(_contextMock, _loggerMock);
+        }
+
+        [After(Test)]
+        public async Task CleanupAsync()
+        {
+            await _contextMock.DisposeAsync();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private async Task<Product> CreateDummyProductAsync()
+        {
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt", BaseMultiplier = 1 };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Product",
+                SteelGrade = "S235",
+                Thickness = 10,
+                Width = 100,
+                Length = 1000,
+                Weight = 50,
+                PricePerUnit = 100000,
+                StockQuantity = 10,
+                Category = ProductCategoryEnum.Pipe,
+                UnitId = unit.Id,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+            return product;
+        }
+
+        // ─── GetPromotionListAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetPromotionListAsync_WhenNoFiltersApplied_ReturnsAllPromotionsAndMapsProperly()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var promo1 = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promo 1",
+                DiscountPercentage = 10,
+                PromotionalPrice = null,
+                StartDate = new DateTime(2023, 1, 1).ToUniversalTime(),
+                EndDate = new DateTime(2023, 12, 31).ToUniversalTime(),
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            var promo2 = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promo 2",
+                DiscountPercentage = null,
+                PromotionalPrice = 50000,
+                StartDate = null,
+                EndDate = null,
+                IsActive = false,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.AddRange(promo1, promo2);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PromotionListCommand { PageNumber = 1, PageSize = 10, IsActive = null };
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items.ToList();
+
+            await Assert.That(items).Count().IsEqualTo(2);
+
+            var mappedPromo1 = items.First(p => p.Id == promo1.Id);
+            await Assert.That(mappedPromo1.Name).IsEqualTo("Promo 1");
+            await Assert.That(mappedPromo1.DiscountPercentage).IsEqualTo(10);
+            await Assert.That(mappedPromo1.PromotionalPrice).IsNull();
+            await Assert.That(mappedPromo1.IsActive).IsTrue();
+        }
+
+        [Test]
+        public async Task GetPromotionListAsync_FiltersByIsActive()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var activePromo = new Promotion { Id = Guid.NewGuid(), Name = "Active", IsActive = true, ProductId = product.Id, Product = product };
+            var inactivePromo = new Promotion { Id = Guid.NewGuid(), Name = "Inactive", IsActive = false, ProductId = product.Id, Product = product };
+
+            _contextMock.Promotions.AddRange(activePromo, inactivePromo);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PromotionListCommand { PageNumber = 1, PageSize = 10, IsActive = true };
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionListAsync(command);
+
+            // Assert
+            var items = result.Data!.Items.ToList();
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().Id).IsEqualTo(activePromo.Id);
+        }
+
+        [Test]
+        public async Task GetPromotionListAsync_FiltersByDatesCorrectly()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var mayFirst = new DateTime(2024, 5, 1).ToUniversalTime();
+            var mayThirtyFirst = new DateTime(2024, 5, 31).ToUniversalTime();
+
+            var promoInMay = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "May Promo",
+                StartDate = mayFirst,
+                EndDate = mayThirtyFirst,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            var promoInJune = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "June Promo",
+                StartDate = new DateTime(2024, 6, 1).ToUniversalTime(),
+                EndDate = new DateTime(2024, 6, 30).ToUniversalTime(),
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.AddRange(promoInMay, promoInJune);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PromotionListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                IsActive = null,
+                FromDate = new DateTime(2024, 4, 1).ToUniversalTime(),
+                ToDate = new DateTime(2024, 6, 15).ToUniversalTime() 
+            };
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionListAsync(command);
+
+            // Assert
+            var items = result.Data!.Items.ToList();
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().Name).IsEqualTo("May Promo");
+        }
+
+        [Test]
+        public async Task GetPromotionListAsync_FiltersByDiscountAndPriceCorrectly()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var promoHighDiscount = new Promotion { 
+                Id = Guid.NewGuid(), 
+                Name = "50% off", 
+                DiscountPercentage = 50, 
+                PromotionalPrice = null, 
+                IsActive = true, 
+                ProductId = product.Id, 
+                Product = product 
+            };
+           
+            var promoLowDiscount = new Promotion { 
+                Id = Guid.NewGuid(), 
+                Name = "10% off", 
+                DiscountPercentage = 10, 
+                PromotionalPrice = null, 
+                IsActive = true, 
+                ProductId = product.Id, 
+                Product = product };
+            
+            var promoFixedPrice = new Promotion { 
+                Id = Guid.NewGuid(), 
+                Name = "Fixed Price", 
+                DiscountPercentage = null, 
+                PromotionalPrice = 10000, 
+                IsActive = true, 
+                ProductId = product.Id, 
+                Product = product };
+
+            _contextMock.Promotions.AddRange(promoHighDiscount, promoLowDiscount, promoFixedPrice);
+            await _contextMock.SaveChangesAsync();
+
+            // Act 1
+            var commandDiscount = new PromotionListCommand { PageNumber = 1, PageSize = 10, IsActive = null, DiscountPrecentageFrom = 20, DiscountPrecentageTo = 100 };
+            var resultDiscount = await _promotionServicesMock.GetPromotionListAsync(commandDiscount);
+
+            // Assert 1
+            await Assert.That(resultDiscount.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(resultDiscount.Data!.Items.First().Name).IsEqualTo("50% off");
+
+            // Act 2
+            var commandPrice = new PromotionListCommand { PageNumber = 1, PageSize = 10, IsActive = null, PromotionPriceFrom = 5000, PromotionPriceTo = 20000 };
+            var resultPrice = await _promotionServicesMock.GetPromotionListAsync(commandPrice);
+
+            // Assert 2
+            await Assert.That(resultPrice.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(resultPrice.Data!.Items.First().Name).IsEqualTo("Fixed Price");
+        }
+
+        [Test]
+        public async Task GetPromotionListAsync_AppliesSearchTermIgnoringAccentsAndCase()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var promo1 = new Promotion { 
+                Id = Guid.NewGuid(), 
+                Name = "Wiosenna Zniżka",
+                IsActive = true, 
+                ProductId = product.Id,
+                Product = product 
+            };
+            
+            var promo2 = new Promotion { 
+                Id = Guid.NewGuid(), 
+                Name = "Letnia Wyprzedaż", 
+                IsActive = true, 
+                ProductId = product.Id, 
+                Product = product 
+            };
+
+            _contextMock.Promotions.AddRange(promo1, promo2);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PromotionListCommand { PageNumber = 1, PageSize = 10, IsActive = null, SearchTerm = "znizka" };
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionListAsync(command);
+
+            // Assert
+            var items = result.Data!.Items.ToList();
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().Name).IsEqualTo("Wiosenna Zniżka");
+        }
+
+        [Test]
+        public async Task GetPromotionListAsync_AppliesSortingCorrectly()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var promo1 = new Promotion 
+            { 
+                Id = Guid.NewGuid(), 
+                Name = "A Promo", 
+                DiscountPercentage = 10, 
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+            
+            var promo2 = new Promotion { 
+                Id = Guid.NewGuid(),
+                Name = "B Promo", 
+                DiscountPercentage = 50, 
+                IsActive = true, 
+                ProductId = product.Id, 
+                Product = product 
+            };
+            
+            var promo3 = new Promotion {
+                Id = Guid.NewGuid(),
+                Name = "C Promo",
+                DiscountPercentage = 30,
+                IsActive = true, 
+                ProductId = product.Id,
+                Product = product 
+            };
+
+            _contextMock.Promotions.AddRange(promo1, promo2, promo3);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PromotionListCommand 
+            { 
+                PageNumber = 1, 
+                PageSize = 10, 
+                IsActive = null, 
+                SortBy = "discountPercentage", 
+                SortDescending = true 
+            };
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionListAsync(command);
+
+            // Assert
+            var items = result.Data!.Items.ToList();
+            await Assert.That(items).Count().IsEqualTo(3);
+            await Assert.That(items[0].Name).IsEqualTo("B Promo");
+            await Assert.That(items[1].Name).IsEqualTo("C Promo");
+            await Assert.That(items[2].Name).IsEqualTo("A Promo");
+        }
+    }
+}
