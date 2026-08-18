@@ -22,7 +22,8 @@ namespace Api.Mappers
             IsPrimary = filter.IsPrimary,
             SortBy = sorting.SortBy,
             SortDescending = sorting.SortDescending,
-            SearchTerm = search.SearchTerm
+            SearchTerm = search.SearchTerm,
+            OwnerId = filter.OwnerId
         };
 
         public partial AddContactCommand MapAdd(AddContactRequest request);

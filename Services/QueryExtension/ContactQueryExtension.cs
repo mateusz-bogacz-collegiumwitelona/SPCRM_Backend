@@ -16,7 +16,7 @@ namespace Services.QueryExtension
             };
         }
 
-        internal static IQueryable<Contact> ApplyFilter(this IQueryable<Contact> query, string? companyName, bool? isPrimary)
+        internal static IQueryable<Contact> ApplyFilter(this IQueryable<Contact> query, string? companyName, bool? isPrimary, Guid? ownerId)
         {
 
             if (!string.IsNullOrEmpty(companyName))
@@ -24,6 +24,9 @@ namespace Services.QueryExtension
 
             if (isPrimary.HasValue)
                 query = query.Where(c => c.IsPrimary == isPrimary.Value);
+
+            if (ownerId.HasValue)
+                query = query.Where(c => c.OwnerId == ownerId);
 
             return query;
         }

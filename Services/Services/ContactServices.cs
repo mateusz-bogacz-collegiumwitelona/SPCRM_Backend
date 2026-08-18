@@ -31,7 +31,7 @@ namespace Services.Services
                 .Include(c => c.Company)
                 .AsNoTracking()
                 .Distinct()
-                .ApplyFilter(command.ComapnyName, command.IsPrimary)
+                .ApplyFilter(command.ComapnyName, command.IsPrimary, command.OwnerId)
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .ApplySorting(command.SortBy, command.SortDescending)
                 .Select(c => new ContactsResponse
