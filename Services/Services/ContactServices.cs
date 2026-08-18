@@ -425,6 +425,42 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result> ChangeContactOwnerAsync(ChangeContactOwnerCommand command)
+        {
+            var contact = await _context.Contacts.FirstOrDefaultAsync(c => c.Id == command.ContactId);
+
+            if (contact == null)
+            {
+                _logger.LogError("Contact with id {ContactId} not found.", command.ContactId);
+                return Result.Failure(
+                    message: "Contact not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
+                );
+            }
+
+            var isNewOwnerExist = await _context.Users.AnyAsync(u => u.Id == command.NewOwnerId);
+
+            if (!isNewOwnerExist)
+            {
+                _logger.LogError("User with id {UserId} not found.", command.NewOwnerId);
+                return Result.Failure(
+                    message: "New owner not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound 
+                );
+            }
+
+            contact.OwnerId = command.NewOwnerId;
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Contact owner changed successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
         private ContactDetailTypeEnum ParseWithString(string? name)
             => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)
                 ? result

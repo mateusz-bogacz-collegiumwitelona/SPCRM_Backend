@@ -159,5 +159,18 @@ namespace Api.Controllers
             var result = await contact.DeleteContactAsync(contactId);
             return HandleResult(result);
         }
+
+        [HttpPatch("change-owner")]
+        [EndpointSummary("Change contact owner")]
+        [EndpointDescription("Change the owner of a contact.")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> ChangeContactOwnerAsync(
+            [FromServices] IContactServices contact,
+            [FromServices] ContactMapper mapper,
+            [FromBody] ChangeContactOwnerRequest request)
+        {
+            var result = await contact.ChangeContactOwnerAsync(mapper.MapChangeOwner(request));
+            return HandleResult(result);
+        }
     }
 }

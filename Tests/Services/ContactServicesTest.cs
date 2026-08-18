@@ -1762,5 +1762,166 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Contact not found");
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
         }
+
+        // ─── ChangeContactOwnerAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeContactOwnerAsync_WhenContactNotFound_Returns404()
+        {
+            // Arrange
+            var command = new ChangeContactOwnerCommand
+            {
+                ContactId = Guid.NewGuid(),
+                NewOwnerId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _contactServicesMock.ChangeContactOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Contact not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task ChangeContactOwnerAsync_WhenNewOwnerNotFound_Returns404()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var oldOwnerId = Guid.NewGuid();
+
+            var oldOwner = new ApplicationUser
+            {
+                Id = oldOwnerId,
+                UserName = $"OldOwner_{uniqueSuffix}",
+                NormalizedUserName = $"OLDOWNER_{uniqueSuffix}",
+                Email = $"old_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OLD_{uniqueSuffix}@TEST.PL",
+                FirstName = "Stary",
+                LastName = "Opiekun"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "111222333",
+                OwnerId = oldOwnerId,
+                Owner = oldOwner
+            };
+
+            var contactId = Guid.NewGuid();
+            var contact = new Contact
+            {
+                Id = contactId,
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = oldOwnerId,
+                Owner = oldOwner
+            };
+
+            _contextMock.Users.Add(oldOwner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ChangeContactOwnerCommand
+            {
+                ContactId = contactId,
+                NewOwnerId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _contactServicesMock.ChangeContactOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("New owner not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task ChangeContactOwnerAsync_WhenValidRequest_UpdatesOwnerAndReturns200()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var oldOwnerId = Guid.NewGuid();
+            var newOwnerId = Guid.NewGuid();
+
+            var oldOwner = new ApplicationUser
+            {
+                Id = oldOwnerId,
+                UserName = $"Old_{uniqueSuffix}",
+                NormalizedUserName = $"OLD_{uniqueSuffix}",
+                Email = $"old_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OLD_{uniqueSuffix}@TEST.PL",
+                FirstName = "Stary",
+                LastName = "Opiekun"
+            };
+
+            var newOwner = new ApplicationUser
+            {
+                Id = newOwnerId,
+                UserName = $"New_{uniqueSuffix}",
+                NormalizedUserName = $"NEW_{uniqueSuffix}",
+                Email = $"new_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"NEW_{uniqueSuffix}@TEST.PL",
+                FirstName = "Nowy",
+                LastName = "Opiekun"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "999888777",
+                OwnerId = oldOwnerId,
+                Owner = oldOwner
+            };
+
+            var contactId = Guid.NewGuid();
+            var contact = new Contact
+            {
+                Id = contactId,
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = oldOwnerId,
+                Owner = oldOwner
+            };
+
+            _contextMock.Users.AddRange(oldOwner, newOwner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeContactOwnerCommand
+            {
+                ContactId = contactId,
+                NewOwnerId = newOwnerId
+            };
+
+            // Act
+            var result = await _contactServicesMock.ChangeContactOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Contact owner changed successfully");
+
+            var updatedContact = await _contextMock.Contacts.FindAsync(contactId);
+            await Assert.That(updatedContact).IsNotNull();
+            await Assert.That(updatedContact!.OwnerId).IsEqualTo(newOwnerId);
+        }
     }
 }

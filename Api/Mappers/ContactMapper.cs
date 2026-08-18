@@ -29,5 +29,6 @@ namespace Api.Mappers
 
         public partial EditContactCommand MapEdit(EditContactRequest request);
 
+        public partial ChangeContactOwnerCommand MapChangeOwner(ChangeContactOwnerRequest request);
     }
 }
