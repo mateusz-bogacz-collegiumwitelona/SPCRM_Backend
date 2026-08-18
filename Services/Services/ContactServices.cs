@@ -402,6 +402,29 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result> DeleteContactAsync(Guid contactId)
+        {
+            var contact = await _context.Contacts.FirstOrDefaultAsync(c => c.Id == contactId);
+
+            if (contact == null)
+            {
+                _logger.LogError("Contact with id {ContactId} not found.", contactId);
+                return Result.Failure(
+                    message: "Contact not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
+                );
+            }
+            
+            _context.Contacts.Remove(contact);
+            await _context.SaveChangesAsync();  
+
+            return Result.Success(
+                message: "Contact deleted successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
         private ContactDetailTypeEnum ParseWithString(string? name)
             => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)
                 ? result

@@ -146,6 +146,18 @@ namespace Api.Controllers
         {
             var result = await contact.SetPrimaryContactAsync(contactId, CurrentUserId);
             return HandleResult(result);
-        } 
+        }
+
+        [HttpDelete("{contactId}")]
+        [EndpointSummary("Delete contact")]
+        [EndpointDescription("Delete an existing contact.")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> DeleteContactAsync(
+            [FromServices] IContactServices contact,
+            [FromRoute] Guid contactId)
+        {
+            var result = await contact.DeleteContactAsync(contactId);
+            return HandleResult(result);
+        }
     }
 }

@@ -1677,5 +1677,90 @@ namespace Tests.Services
             await Assert.That(updatedNewPrimary).IsNotNull();
             await Assert.That(updatedNewPrimary!.IsPrimary).IsTrue();
         }
+
+        // ─── DeleteContactAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteContactAsync_WhenContactExists_SoftDeletesContactAndReturns200()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Owner_{uniqueSuffix}",
+                NormalizedUserName = $"OWNER_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OWNER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var contactId = Guid.NewGuid();
+            var contact = new Contact
+            {
+                Id = contactId,
+                FirstName = "Do",
+                LastName = "Usunięcia",
+                JobTitle = "Manager",
+                IsPrimary = false,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _contactServicesMock.DeleteContactAsync(contactId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Contact deleted successfully");
+
+            var visibleContact = await _contextMock.Contacts.FirstOrDefaultAsync(c => c.Id == contactId);
+            await Assert.That(visibleContact).IsNull();
+
+            var softDeletedContact = await _contextMock.Contacts
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.Id == contactId);
+
+            await Assert.That(softDeletedContact).IsNotNull();
+            await Assert.That(softDeletedContact!.IsDeleted).IsTrue();
+        }
+
+        [Test]
+        public async Task DeleteContactAsync_WhenContactDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentContactId = Guid.NewGuid();
+
+            // Act
+            var result = await _contactServicesMock.DeleteContactAsync(nonExistentContactId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Contact not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
     }
 }
