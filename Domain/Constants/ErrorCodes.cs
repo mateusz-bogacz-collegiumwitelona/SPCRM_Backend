@@ -66,5 +66,12 @@
         public const string InvalidPromotionPrice = "PROMO_002";
         public const string PromotionNotFound = "PROMO_003";
         public const string ActivePromotionAlreadyExists = "PROMO_004";
+        public const string InvalidPromotionName = "PROM_005";
+        public const string InvalidPromotioMinQuantity = "PROM_006";
+        public const string InvalidPromotioMinWeight = "PROM_007";
+        public const string DiscountPercentageAndPriceCannotBothChoice = "PROM_008";
+
+        // Currency
+        public const string CurrencyNotFound = "CUR_01";
     }
 }

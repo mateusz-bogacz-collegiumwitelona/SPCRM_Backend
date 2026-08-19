@@ -86,5 +86,20 @@ namespace Api.Controllers
             var result = await promotionServices.DeletePromotionAsync(promotionId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Edit promotion")]
+        [EndpointDescription("Edits an existing promotion.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpPut("edit")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> EditPromotionAsync(
+            [FromServices] IPromotionServices promotionServices,
+            [FromServices] PromotionMapper mapper,
+            [FromBody] EditPromotionRequest request
+        )
+        {
+            var result = await promotionServices.EditPromotionAsync(mapper.MapEdit(request));
+            return HandleResult(result);
+        }
     }
 }

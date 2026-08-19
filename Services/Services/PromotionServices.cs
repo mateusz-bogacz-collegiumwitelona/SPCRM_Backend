@@ -260,5 +260,105 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
                 );
         }
+
+        public async Task<Result> EditPromotionAsync(EditPromotionCommand command)
+        {
+            var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.Id == command.Id);
+
+            if (promotion == null)
+            {
+                _logger.LogWarning("Promotion with ID {PromotionId} not found.", command.Id);
+                return Result.Failure(
+                    message: "Promotion not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.PromotionNotFound
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Name))
+            {
+                promotion.Name = command.Name.Trim();
+            }
+
+            if (command.StartDate.HasValue)
+            {
+                promotion.StartDate = command.StartDate.Value.ToUniversalTime();
+            }
+
+            if (command.EndDate.HasValue)
+            {
+                var newEndDate = command.EndDate.Value.ToUniversalTime();
+                var effectiveStartDate = promotion.StartDate ?? promotion.CreatedAt;
+
+                if (newEndDate < effectiveStartDate)
+                {
+                    return Result.Failure(
+                        message: "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia promocji.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.InvalidDate
+                    );
+                }
+
+                promotion.EndDate = newEndDate;
+            }
+
+            if (command.DiscountPercentage.HasValue)
+            {
+                promotion.DiscountPercentage = command.DiscountPercentage.Value;
+                promotion.PromotionalPrice = null;
+                promotion.CurrencyId = null;
+            }
+
+            if (command.PromotionalPrice.HasValue)
+            {
+                if (command.CurrencyId.HasValue)
+                {
+                    var currencyExists = await _context.Currencies.AnyAsync(c => c.Id == command.CurrencyId.Value);
+                    if (!currencyExists)
+                    {
+                        return Result.Failure(
+                            message: "Currency not found.",
+                            statusCode: StatusCodes.Status400BadRequest,
+                            errorCode: ErrorCodes.CurrencyNotFound
+                        );
+                    }
+                    promotion.CurrencyId = command.CurrencyId.Value;
+                }
+
+                promotion.PromotionalPrice = command.PromotionalPrice.Value;
+                promotion.DiscountPercentage = null;
+            }
+
+            if (command.ContactId.HasValue)
+            {
+                var contactExists = await _context.Contacts.AnyAsync(c => c.Id == command.ContactId.Value);
+                if (!contactExists)
+                {
+                    return Result.Failure(
+                        message: "Contact not found.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.ContactNotFound
+                    );
+                }
+                promotion.ContactId = command.ContactId.Value;
+            }
+
+            if (command.MinQuantity.HasValue)
+            {
+                promotion.MinQuantity = command.MinQuantity.Value;
+            }
+
+            if (command.MinWeight.HasValue)
+            {
+                promotion.MinWeight = command.MinWeight.Value;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Promotion updated successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

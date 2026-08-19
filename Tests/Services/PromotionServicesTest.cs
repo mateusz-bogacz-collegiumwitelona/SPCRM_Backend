@@ -844,5 +844,264 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(404);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
         }
+
+        // ─── EditPromotionAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task EditPromotionAsync_WhenUpdatingOnlyBasicFields_UpdatesOnlySpecifiedFields()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Stara Nazwa",
+                DiscountPercentage = 15,
+                MinQuantity = 10,
+                MinWeight = 20000,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditPromotionCommand
+            {
+                Id = promotion.Id,
+                Name = "Nowa Poprawiona Nazwa",
+                MinQuantity = 25
+            };
+
+            // Act
+            var result = await _promotionServicesMock.EditPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(200);
+
+            var updated = await _contextMock.Promotions.FindAsync(promotion.Id);
+            await Assert.That(updated!.Name).IsEqualTo("Nowa Poprawiona Nazwa");
+            await Assert.That(updated.MinQuantity).IsEqualTo(25);
+            await Assert.That(updated.DiscountPercentage).IsEqualTo(15);
+            await Assert.That(updated.MinWeight).IsEqualTo(20000);
+        }
+
+        [Test]
+        public async Task EditPromotionAsync_WhenSwitchingToPromotionalPrice_ClearsDiscountPercentageAndSetsCurrency()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            
+            var currency = new Currency { 
+                Id = Guid.NewGuid(), 
+                Name = "Polski Złoty", 
+                Code = "PLN", 
+                DecimalPlaces = 2 
+            };
+            
+            _contextMock.Currencies.Add(currency);
+
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja Procentowa",
+                DiscountPercentage = 20,
+                PromotionalPrice = null,
+                CurrencyId = null,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditPromotionCommand
+            {
+                Id = promotion.Id,
+                PromotionalPrice = 85000,
+                CurrencyId = currency.Id
+            };
+
+            // Act
+            var result = await _promotionServicesMock.EditPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+
+            var updated = await _contextMock.Promotions.FindAsync(promotion.Id);
+            await Assert.That(updated!.PromotionalPrice).IsEqualTo(85000);
+            await Assert.That(updated.CurrencyId).IsEqualTo(currency.Id);
+            await Assert.That(updated.DiscountPercentage).IsNull();
+        }
+
+        [Test]
+        public async Task EditPromotionAsync_WhenSwitchingToDiscountPercentage_ClearsPromotionalPriceAndCurrency()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            
+            var currency = new Currency { 
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty", 
+                Code = "PLN",
+                DecimalPlaces = 2 
+            };
+            _contextMock.Currencies.Add(currency);
+
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja Sztywnej Ceny",
+                DiscountPercentage = null,
+                PromotionalPrice = 50000,
+                CurrencyId = currency.Id,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditPromotionCommand
+            {
+                Id = promotion.Id,
+                DiscountPercentage = 30
+            };
+
+            // Act
+            var result = await _promotionServicesMock.EditPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+
+            var updated = await _contextMock.Promotions.FindAsync(promotion.Id);
+            await Assert.That(updated!.DiscountPercentage).IsEqualTo(30);
+            await Assert.That(updated.PromotionalPrice).IsNull();
+            await Assert.That(updated.CurrencyId).IsNull();
+        }
+
+        [Test]
+        public async Task EditPromotionAsync_WhenEndDateIsBeforeStartDate_Returns400BadRequest()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var startDate = new DateTime(2026, 6, 1).ToUniversalTime();
+
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja z datami",
+                StartDate = startDate,
+                EndDate = new DateTime(2026, 6, 30).ToUniversalTime(),
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditPromotionCommand
+            {
+                Id = promotion.Id,
+                EndDate = startDate.AddDays(-5)
+            };
+
+            // Act
+            var result = await _promotionServicesMock.EditPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(400);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidDate);
+        }
+
+        [Test]
+        public async Task EditPromotionAsync_WhenCurrencyDoesNotExist_Returns400BadRequest()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja",
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditPromotionCommand
+            {
+                Id = promotion.Id,
+                PromotionalPrice = 10000,
+                CurrencyId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _promotionServicesMock.EditPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(400);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNotFound);
+        }
+
+        [Test]
+        public async Task EditPromotionAsync_WhenContactDoesNotExist_Returns400BadRequest()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja",
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditPromotionCommand
+            {
+                Id = promotion.Id,
+                ContactId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _promotionServicesMock.EditPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(400);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task EditPromotionAsync_WhenPromotionDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new EditPromotionCommand
+            {
+                Id = Guid.NewGuid(),
+                Name = "Nieistniejąca"
+            };
+
+            // Act
+            var result = await _promotionServicesMock.EditPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(404);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
+        }
     }
 }
