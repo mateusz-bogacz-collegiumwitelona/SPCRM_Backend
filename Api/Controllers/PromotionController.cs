@@ -43,5 +43,19 @@ namespace Api.Controllers
             var result = await promotion.GetPromotionDetailAsync(promotionId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Deactivate promotion")]
+        [EndpointDescription("Deactivates an active promotion and sets its end date to now.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpPatch("{promotionId:guid}/deactivate")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> DeactivatePromotionAsync(
+            [FromServices] IPromotionServices promotionServices,
+            [FromRoute] Guid promotionId
+        )
+        {
+            var result = await promotionServices.DeactivatePromotionAsync(promotionId);
+            return HandleResult(result);
+        }
     }
 }

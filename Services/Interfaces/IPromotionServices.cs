@@ -8,6 +8,7 @@ namespace Services.Interfaces
     {
         Task<Result<PagedResult<PromotionResponse>>> GetPromotionListAsync(PromotionListCommand command);
         Task<Result<PromotionDetailResponse>> GetPromotionDetailAsync(Guid promotionId);
+        Task<Result> DeactivatePromotionAsync(Guid promotionId);
 
     }
 }

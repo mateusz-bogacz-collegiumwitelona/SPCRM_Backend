@@ -151,5 +151,38 @@ namespace Services.Services
                 data: response
             );
         }
+
+        public async Task<Result> DeactivatePromotionAsync(Guid promotionId)
+        {
+            var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.Id == promotionId);
+
+            if (promotion == null)
+            {
+                _logger.LogWarning("Promotion with id {promotionId} not found.", promotionId);
+                return Result.Failure(
+                    message: "Promotion not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.PromotionNotFound
+                    );
+            }
+
+            if (!promotion.IsActive)
+            {
+                return Result.Success(
+                    message: "Promotion is already deactivated.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+
+            promotion.IsActive = false;
+            promotion.EndDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Promotion deactivate successfully",
+                statusCode: StatusCodes.Status200OK
+                );
+        }
     }
 }

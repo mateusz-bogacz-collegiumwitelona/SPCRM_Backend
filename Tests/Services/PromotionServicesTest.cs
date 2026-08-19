@@ -1,6 +1,8 @@
-﻿using Domain.Enum;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -579,6 +581,76 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(404);
             await Assert.That(result.ErrorCode).IsEqualTo(Domain.Constants.ErrorCodes.PromotionNotFound);
+        }
+
+        // ─── DeactivatePromotionAsync ───────────────────────────────────────────────
+        [Test]
+        public async Task DeactivatePromotionAsync_WhenPromotionExistsAndIsActive_Return200()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "aaaaaaaadaadada",
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+            
+            _contextMock.Promotions.Add(promotion);
+            
+            await _contextMock.SaveChangesAsync();
+            
+            // Act
+            var result = await _promotionServicesMock.DeactivatePromotionAsync(promotion.Id);
+            
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(200);
+            
+            var updatedPromotion = await _contextMock.Promotions.FindAsync(promotion.Id);
+            
+            await Assert.That(updatedPromotion!.IsActive).IsFalse();
+        }
+
+
+        [Test]
+        public async Task DeactivatePromotionAsync_WhenPromotionIsAlreadyDeactivate_Return200()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "darereredaadada",
+                IsActive = false,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _promotionServicesMock.DeactivatePromotionAsync(promotion.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(200);
+        }
+
+        [Test]
+        public async Task DeactivatePromotionAsync_WhenPromotionDoesntExist_Return404()
+        {
+            // Act
+            var result = await _promotionServicesMock.DeactivatePromotionAsync(Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(404);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
         }
     }
 }
