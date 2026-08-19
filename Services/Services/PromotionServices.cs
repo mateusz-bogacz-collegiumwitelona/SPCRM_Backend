@@ -236,5 +236,29 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
                 );
         }
+
+        public async Task<Result> DeletePromotionAsync(Guid promotionId)
+        {
+            var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.Id == promotionId);
+
+            if (promotion == null)
+            {
+                _logger.LogWarning("Promotion with id {promotionId} not found.", promotionId);
+                return Result.Failure(
+                    message: "Promotion not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.PromotionNotFound
+                    );
+            }
+
+            _context.Promotions.Remove(promotion);
+            await _context.SaveChangesAsync();
+
+
+            return Result.Success(
+                message: "Promotion deleted successfully",
+                statusCode: StatusCodes.Status200OK
+                );
+        }
     }
 }

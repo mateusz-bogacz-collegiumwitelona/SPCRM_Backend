@@ -10,6 +10,7 @@ namespace Services.Interfaces
         Task<Result<PromotionDetailResponse>> GetPromotionDetailAsync(Guid promotionId);
         Task<Result> DeactivatePromotionAsync(Guid promotionId);
         Task<Result> ActivatePromotionAsync(ActivatePromotionCommand command);
+        Task<Result> DeletePromotionAsync(Guid promotionId);
 
     }
 }

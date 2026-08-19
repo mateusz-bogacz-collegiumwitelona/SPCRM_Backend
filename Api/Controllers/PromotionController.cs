@@ -71,6 +71,20 @@ namespace Api.Controllers
         {
             var result = await promotionServices.ActivatePromotionAsync(mapper.MapActivate(request));
             return HandleResult(result);
-        } 
+        }
+
+        [EndpointSummary("Delete promotion (Soft delete)")]
+        [EndpointDescription("Soft deletes a promotion.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpDelete("{promotionId:guid}")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> DeletePromotionAsync(
+            [FromServices] IPromotionServices promotionServices,
+            [FromRoute] Guid promotionId
+        )
+        {
+            var result = await promotionServices.DeletePromotionAsync(promotionId);
+            return HandleResult(result);
+        }
     }
 }

@@ -2,7 +2,7 @@
 using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
-using Microsoft.AspNetCore.Http;
+using Infrastructure.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -10,7 +10,7 @@ using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
-namespace Tests.Services
+namespace Tests.Services 
 {
     public class PromotionServicesTest
     {
@@ -68,6 +68,7 @@ namespace Tests.Services
                    options.UseNetTopologySuite();
                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                })
+               .AddInterceptors(new SoftDeleteInterceptor())
                .LogTo(Console.WriteLine, LogLevel.Warning) 
                .EnableSensitiveDataLogging()
                .EnableDetailedErrors()
@@ -784,6 +785,59 @@ namespace Tests.Services
 
             // Act
             var result = await _promotionServicesMock.ActivatePromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(404);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
+        }
+
+        // ─── DeletePromotionAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeletePromotionAsync_WhenPromotionExists_SoftDeletesPromotionAndHidesItFromQueries()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja do usunięcia",
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _promotionServicesMock.DeletePromotionAsync(promotion.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(200);
+
+            var hiddenPromotion = await _contextMock.Promotions.FirstOrDefaultAsync(p => p.Id == promotion.Id);
+            await Assert.That(hiddenPromotion).IsNull();
+
+            var softDeletedPromotion = await _contextMock.Promotions
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(p => p.Id == promotion.Id);
+
+            await Assert.That(softDeletedPromotion).IsNotNull();
+            await Assert.That(softDeletedPromotion!.IsDeleted).IsTrue();
+            await Assert.That(softDeletedPromotion.UpdateAt).IsNotNull();
+        }
+
+        [Test]
+        public async Task DeletePromotionAsync_WhenPromotionDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistingId = Guid.NewGuid();
+
+            // Act
+            var result = await _promotionServicesMock.DeletePromotionAsync(nonExistingId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
