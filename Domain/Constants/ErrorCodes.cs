@@ -65,5 +65,6 @@
         public const string InvalidPromotionDiscount = "PROMO_001";
         public const string InvalidPromotionPrice = "PROMO_002";
         public const string PromotionNotFound = "PROMO_003";
+        public const string ActivePromotionAlreadyExists = "PROMO_004";
     }
 }

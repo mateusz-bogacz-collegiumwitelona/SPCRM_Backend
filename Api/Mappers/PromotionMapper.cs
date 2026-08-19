@@ -8,5 +8,6 @@ namespace Api.Mappers
     public partial class PromotionMapper
     {
         public partial PromotionListCommand MapList(PromotionListRequest request);
+        public partial ActivatePromotionCommand MapActivate(ActivatePromotionRequest request);
     }
 }

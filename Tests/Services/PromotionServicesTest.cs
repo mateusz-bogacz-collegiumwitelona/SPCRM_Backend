@@ -652,5 +652,143 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(404);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
         }
+
+        // ─── ActivatePromotionAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task ActivatePromotionAsync_WhenPromotionExistsAndIsInactive_ActivatesPromotionAndSetsDates()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Wznowiona Promocja",
+                IsActive = false,
+                StartDate = DateTime.UtcNow.AddMonths(-2),
+                EndDate = DateTime.UtcNow.AddMonths(-1),
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var newEndDate = DateTime.UtcNow.AddMonths(1);
+            var command = new ActivatePromotionCommand
+            {
+                Id = promotion.Id,
+                EndDate = newEndDate
+            };
+
+            // Act
+            var result = await _promotionServicesMock.ActivatePromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(200);
+
+            var updatedPromotion = await _contextMock.Promotions.FindAsync(promotion.Id);
+            await Assert.That(updatedPromotion!.IsActive).IsTrue();
+            await Assert.That(updatedPromotion.EndDate).IsNotNull();
+            await Assert.That(updatedPromotion.StartDate).IsNotNull();
+        }
+
+        [Test]
+        public async Task ActivatePromotionAsync_WhenPromotionIsAlreadyActive_ReturnsSuccess200()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Ciągle Aktywna Promocja",
+                IsActive = true,
+                StartDate = DateTime.UtcNow.AddDays(-5),
+                EndDate = DateTime.UtcNow.AddDays(10),
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ActivatePromotionCommand
+            {
+                Id = promotion.Id,
+                EndDate = DateTime.UtcNow.AddMonths(2)
+            };
+
+            // Act
+            var result = await _promotionServicesMock.ActivatePromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(200);
+            await Assert.That(result.Message).IsEqualTo("Promotion is already activated.");
+        }
+
+        [Test]
+        public async Task ActivatePromotionAsync_WhenAnotherActivePromotionExistsForSameProduct_Returns409Conflict()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var activePromo = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Trwająca Promocja",
+                IsActive = true,
+                StartDate = DateTime.UtcNow.AddDays(-1),
+                EndDate = DateTime.UtcNow.AddDays(20),
+                ProductId = product.Id,
+                Product = product
+            };
+
+            var inactivePromo = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Próba Wznowienia",
+                IsActive = false,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            _contextMock.Promotions.AddRange(activePromo, inactivePromo);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ActivatePromotionCommand
+            {
+                Id = inactivePromo.Id,
+                EndDate = DateTime.UtcNow.AddDays(15)
+            };
+
+            // Act
+            var result = await _promotionServicesMock.ActivatePromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(409);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ActivePromotionAlreadyExists);
+        }
+
+        [Test]
+        public async Task ActivatePromotionAsync_WhenPromotionDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new ActivatePromotionCommand
+            {
+                Id = Guid.NewGuid(),
+                EndDate = DateTime.UtcNow.AddMonths(1)
+            };
+
+            // Act
+            var result = await _promotionServicesMock.ActivatePromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(404);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
+        }
     }
 }

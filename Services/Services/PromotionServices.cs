@@ -184,5 +184,57 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
                 );
         }
+
+        public async Task<Result> ActivatePromotionAsync(ActivatePromotionCommand command)
+        {
+            var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.Id == command.Id);
+
+            if (promotion == null)
+            {
+                _logger.LogWarning("Promotion with id {promotionId} not found.", command.Id);
+                return Result.Failure(
+                    message: "Promotion not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.PromotionNotFound
+                    );
+            }
+
+            if (promotion.IsActive)
+            {
+                return Result.Success(
+                    message: "Promotion is already activated.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+
+            DateTime now = DateTime.UtcNow;
+
+            var hasActivePromotion = await _context.Promotions
+                .AnyAsync(p => p.ProductId == promotion.ProductId
+                    && p.Id != promotion.Id
+                    && p.IsActive
+                    && (!p.EndDate.HasValue || p.EndDate >= now));
+
+            if (hasActivePromotion)
+            {
+                _logger.LogWarning("Product with id {productId} already has another active promotion.", promotion.ProductId);
+                return Result.Failure(
+                    message: "This product already has another active promotion.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    errorCode: ErrorCodes.ActivePromotionAlreadyExists
+                );
+            }
+
+            promotion.IsActive = true;
+            promotion.StartDate = now;
+            promotion.EndDate = command.EndDate;
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Promotion activate successfully",
+                statusCode: StatusCodes.Status200OK
+                );
+        }
     }
 }

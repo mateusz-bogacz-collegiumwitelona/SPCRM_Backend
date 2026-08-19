@@ -48,7 +48,7 @@ namespace Api.Controllers
         [EndpointDescription("Deactivates an active promotion and sets its end date to now.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpPatch("{promotionId:guid}/deactivate")]
-        [Authorize(Roles = "Manager,User")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeactivatePromotionAsync(
             [FromServices] IPromotionServices promotionServices,
             [FromRoute] Guid promotionId
@@ -57,5 +57,20 @@ namespace Api.Controllers
             var result = await promotionServices.DeactivatePromotionAsync(promotionId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Activate promotion")]
+        [EndpointDescription("Activates an inactive promotion and sets its start date to now.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpPatch("activate")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ActivatePromotionAsync(
+            [FromServices] IPromotionServices promotionServices,
+            [FromServices] PromotionMapper mapper,
+            [FromBody] ActivatePromotionRequest request 
+            )
+        {
+            var result = await promotionServices.ActivatePromotionAsync(mapper.MapActivate(request));
+            return HandleResult(result);
+        } 
     }
 }
