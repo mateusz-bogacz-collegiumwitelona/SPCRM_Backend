@@ -90,7 +90,7 @@ namespace Api.Controllers
         [EndpointSummary("Edit promotion")]
         [EndpointDescription("Edits an existing promotion.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpPut("edit")]
+        [HttpPatch("edit")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> EditPromotionAsync(
             [FromServices] IPromotionServices promotionServices,
