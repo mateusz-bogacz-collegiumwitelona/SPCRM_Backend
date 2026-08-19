@@ -29,5 +29,19 @@ namespace Api.Controllers
             var result = await promotion.GetPromotionListAsync(mapper.MapList(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get promotion detail")]
+        [EndpointDescription("Get detailed information about a specific promotion.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpGet("{promotionId:guid}")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> GetPromotionDetailAsync(
+            [FromServices] IPromotionServices promotion,
+            [FromRoute] Guid promotionId
+        )
+        {
+            var result = await promotion.GetPromotionDetailAsync(promotionId);
+            return HandleResult(result);
+        }
     }
 }

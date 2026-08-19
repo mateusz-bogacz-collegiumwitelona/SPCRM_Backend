@@ -1,5 +1,7 @@
 ﻿using Domain.Common;
+using Domain.Constants;
 using Infrastructure;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command;
@@ -36,12 +38,12 @@ namespace Services.Services
 
                     PromotionalPrice = p.PromotionalPrice,
 
-                    PromotionalPriceCode = p.Currency != null 
-                    ? p.Currency.Code 
+                    PromotionalPriceCode = p.Currency != null
+                    ? p.Currency.Code
                     : null,
-                    
-                    PromotionalPriceDecimalPlace = p.Currency != null 
-                    ? (int?)p.Currency.DecimalPlaces 
+
+                    PromotionalPriceDecimalPlace = p.Currency != null
+                    ? (int?)p.Currency.DecimalPlaces
                     : null,
 
                     StartDate = p.StartDate,
@@ -50,6 +52,104 @@ namespace Services.Services
                 });
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "promotions");
+        }
+
+        public async Task<Result<PromotionDetailResponse>> GetPromotionDetailAsync(Guid promotionId)
+        {
+            var rawData = await _context.Promotions
+                .AsNoTracking()
+                .Where(p => p.Id == promotionId)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.IsActive,
+                    p.StartDate,
+                    p.EndDate,
+                    p.DiscountPercentage,
+                    p.PromotionalPrice,
+                    CurrencyCode = p.Currency != null ? p.Currency.Code : null,
+                    CurrencyDecimalPlaces = p.Currency != null ? (int?)p.Currency.DecimalPlaces : null,
+                    p.MinQuantity,
+                    p.MinWeight,
+
+                    ProductId = p.Product.Id,
+                    ProductName = p.Product.Name,
+                    p.Product.SteelGrade,
+                    p.Product.Category,
+                    p.Product.Diameter,
+                    p.Product.Thickness,
+                    p.Product.Width,
+                    p.Product.Length,
+                    p.Product.PricePerUnit,
+                    p.Product.StockQuantity,
+                    UnitSymbol = p.Product.Unit != null ? p.Product.Unit.Symbol : "szt.",
+
+                    p.ContactId,
+                    ContactFirstName = p.Contact != null ? p.Contact.FirstName : null,
+                    ContactLastName = p.Contact != null ? p.Contact.LastName : null,
+                    ContactCompanyName = p.Contact != null && p.Contact.Company != null ? p.Contact.Company.Name : null,
+
+                    p.CreatedAt,
+                    p.UpdateAt
+                })
+                .FirstOrDefaultAsync();
+
+            if (rawData == null)
+            {
+                _logger.LogWarning("Promotion with ID {PromotionId} not found.", promotionId);
+                return Result<PromotionDetailResponse>.Failure(
+                    message: "Promotion not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.PromotionNotFound
+                );
+            }
+
+            var formattedDimensions = DimensionsFormatter.Format(
+                rawData.Category,
+                rawData.Diameter,
+                rawData.Thickness,
+                rawData.Width,
+                rawData.Length
+            );
+
+            var response = new PromotionDetailResponse
+            {
+                Id = rawData.Id,
+                Name = rawData.Name,
+                IsActive = rawData.IsActive,
+                StartDate = rawData.StartDate,
+                EndDate = rawData.EndDate,
+                DiscountPercentage = rawData.DiscountPercentage,
+                PromotionalPrice = rawData.PromotionalPrice,
+                CurrencyCode = rawData.CurrencyCode,
+                CurrencyDecimalPlaces = rawData.CurrencyDecimalPlaces,
+                MinQuantity = rawData.MinQuantity,
+                MinWeight = rawData.MinWeight,
+
+                ProductId = rawData.ProductId,
+                ProductName = rawData.ProductName,
+                SteelGrade = rawData.SteelGrade,
+                Category = rawData.Category.ToString(),
+                Dimensions = formattedDimensions,
+                ProductPricePerUnit = rawData.PricePerUnit,
+                ProductStockQuantity = rawData.StockQuantity,
+                UnitSymbol = rawData.UnitSymbol,
+
+                ContactId = rawData.ContactId,
+                ContactFirstName = rawData.ContactFirstName,
+                ContactLastName = rawData.ContactLastName,
+                ContactCompanyName = rawData.ContactCompanyName,
+
+                CreatedAt = rawData.CreatedAt,
+                UpdateAt = rawData.UpdateAt
+            };
+
+            return Result<PromotionDetailResponse>.Success(
+                message: "Promotion details retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+            );
         }
     }
 }

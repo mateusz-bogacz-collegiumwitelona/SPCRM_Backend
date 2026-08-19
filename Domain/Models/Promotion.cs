@@ -21,7 +21,9 @@ namespace Domain.Models
         public Product Product { get; set; } = null!;
 
         public Guid? ContactId { get; set; }
+        public Contact? Contact { get; set; }
+
         public int? MinQuantity { get; set; }
-        public int? MinWeight { get; set; }
+        public int? MinWeight { get; set; } // (kg * 1000)
     }
 }

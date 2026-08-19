@@ -66,6 +66,9 @@ namespace Tests.Services
                    options.UseNetTopologySuite();
                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                })
+               .LogTo(Console.WriteLine, LogLevel.Warning) 
+               .EnableSensitiveDataLogging()
+               .EnableDetailedErrors()
                .Options;
 
             _contextMock = new AppDbContext(dbOptions);
@@ -152,7 +155,8 @@ namespace Tests.Services
             _contextMock.Promotions.AddRange(promo1, promo2);
             await _contextMock.SaveChangesAsync();
 
-            var command = new PromotionListCommand { PageNumber = 1, PageSize = 10, IsActive = null };
+            var command = new PromotionListCommand {
+                PageNumber = 1, PageSize = 10, IsActive = null };
 
             // Act
             var result = await _promotionServicesMock.GetPromotionListAsync(command);
@@ -232,8 +236,8 @@ namespace Tests.Services
                 PageSize = 10,
                 IsActive = null,
                 FromDate = new DateTime(2024, 4, 1).ToUniversalTime(),
-                ToDate = new DateTime(2024, 6, 15).ToUniversalTime() 
-            };
+                ToDate = new DateTime(2024, 5, 31).ToUniversalTime()
+            }; ;
 
             // Act
             var result = await _promotionServicesMock.GetPromotionListAsync(command);
@@ -389,6 +393,192 @@ namespace Tests.Services
             await Assert.That(items[0].Name).IsEqualTo("B Promo");
             await Assert.That(items[1].Name).IsEqualTo("C Promo");
             await Assert.That(items[2].Name).IsEqualTo("A Promo");
+        }
+
+        // ─── GetPromotionDetailAsync ───────────────────────────────────────────────
+
+        [Test]
+        public async Task GetPromotionDetailAsync_WhenPromotionExistsWithFullData_ReturnsSuccessWithMappedDetails()
+        {
+            // Arrange
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Metr bieżący",
+                Symbol = "mb",
+                BaseMultiplier = 1
+            };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Rura Stalowa Precyzyjna",
+                SteelGrade = "S355J2H",
+                Thickness = 5,
+                Width = 0,
+                Length = 6000,
+                Diameter = 60,
+                Weight = 15000,
+                PricePerUnit = 250000,
+                StockQuantity = 120,
+                Category = ProductCategoryEnum.Pipe,
+                UnitId = unit.Id
+            };
+            _contextMock.Products.Add(product);
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+            _contextMock.Currencies.Add(currency);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var owner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U_{uniqueSuffix}",
+                NormalizedUserName = $"U_{uniqueSuffix}",
+                Email = $"e_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
+                FirstName = $"F_{uniqueSuffix}",
+                LastName = $"L_{uniqueSuffix}",
+            };
+            _contextMock.Users.Add(owner);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Budimex SA",
+                NIP = "1234567890",
+                OwnerId = owner.Id
+            };
+            _contextMock.Companies.Add(company);
+
+            await _contextMock.SaveChangesAsync();
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                Owner = owner
+            };
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Mega Promocja Rury",
+                IsActive = true,
+                StartDate = new DateTime(2026, 1, 1).ToUniversalTime(),
+                EndDate = new DateTime(2026, 12, 31).ToUniversalTime(),
+                DiscountPercentage = 15.5m,
+                PromotionalPrice = 211250,
+                CurrencyId = currency.Id,
+                MinQuantity = 10,
+                MinWeight = 150000,
+                ProductId = product.Id,
+                ContactId = contact.Id
+            };
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionDetailAsync(promotion.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var detail = result.Data!;
+
+            await Assert.That(detail.Id).IsEqualTo(promotion.Id);
+            await Assert.That(detail.Name).IsEqualTo("Mega Promocja Rury");
+            await Assert.That(detail.IsActive).IsTrue();
+            await Assert.That(detail.DiscountPercentage).IsEqualTo(15.5m);
+            await Assert.That(detail.PromotionalPrice).IsEqualTo(211250);
+            await Assert.That(detail.CurrencyCode).IsEqualTo("PLN");
+            await Assert.That(detail.CurrencyDecimalPlaces).IsEqualTo(2);
+            await Assert.That(detail.MinQuantity).IsEqualTo(10);
+            await Assert.That(detail.MinWeight).IsEqualTo(150000);
+            await Assert.That(detail.ProductId).IsEqualTo(product.Id);
+            await Assert.That(detail.ProductName).IsEqualTo("Rura Stalowa Precyzyjna");
+            await Assert.That(detail.SteelGrade).IsEqualTo("S355J2H");
+            await Assert.That(detail.Category).IsEqualTo(ProductCategoryEnum.Pipe.ToString());
+            await Assert.That(detail.ProductPricePerUnit).IsEqualTo(250000);
+            await Assert.That(detail.ProductStockQuantity).IsEqualTo(120);
+            await Assert.That(detail.UnitSymbol).IsEqualTo("mb");
+            await Assert.That(detail.Dimensions).IsNotEmpty();
+            await Assert.That(detail.ContactId).IsEqualTo(contact.Id);
+            await Assert.That(detail.ContactFirstName).IsEqualTo("Jan");
+            await Assert.That(detail.ContactLastName).IsEqualTo("Kowalski");
+            await Assert.That(detail.ContactCompanyName).IsEqualTo("Budimex SA");
+        }
+
+        [Test]
+        public async Task GetPromotionDetailAsync_WhenOptionalFieldsAreNull_ReturnsSuccessWithNulls()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Ogólna Promocja",
+                IsActive = true,
+                StartDate = null,
+                EndDate = null,
+                DiscountPercentage = null,
+                PromotionalPrice = null,
+                CurrencyId = null,
+                Currency = null,
+                MinQuantity = null,
+                MinWeight = null,
+                ProductId = product.Id,
+                Product = product,
+                ContactId = null,
+                Contact = null
+            };
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionDetailAsync(promotion.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var detail = result.Data!;
+
+            await Assert.That(detail.Id).IsEqualTo(promotion.Id);
+            await Assert.That(detail.CurrencyCode).IsNull();
+            await Assert.That(detail.CurrencyDecimalPlaces).IsNull();
+            await Assert.That(detail.ContactId).IsNull();
+            await Assert.That(detail.ContactFirstName).IsNull();
+            await Assert.That(detail.ContactLastName).IsNull();
+            await Assert.That(detail.ContactCompanyName).IsNull();
+            await Assert.That(detail.StartDate).IsNull();
+            await Assert.That(detail.EndDate).IsNull();
+        }
+
+        [Test]
+        public async Task GetPromotionDetailAsync_WhenPromotionDoesNotExist_ReturnsFailureNotFound()
+        {
+            // Arrange
+            var nonExistingId = Guid.NewGuid();
+
+            // Act
+            var result = await _promotionServicesMock.GetPromotionDetailAsync(nonExistingId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(404);
+            await Assert.That(result.ErrorCode).IsEqualTo(Domain.Constants.ErrorCodes.PromotionNotFound);
         }
     }
 }

@@ -4,7 +4,13 @@ namespace Services.Helpers
 {
     public static class DimensionsFormatter
     {
-        public static string Format(ProductCategoryEnum categoryCode, int? diameter, int thickness, int width, int length)
+        public static string Format(
+            ProductCategoryEnum categoryCode, 
+            int? diameter, 
+            int thickness, 
+            int width, 
+            int length
+            )
         {
             return categoryCode switch
             {

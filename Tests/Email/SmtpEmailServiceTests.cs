@@ -6,6 +6,7 @@ using Hangfire.Common;
 using Hangfire.States;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Tests.Email
 {
@@ -94,7 +95,7 @@ namespace Tests.Email
 
     public class FakeLogger<T> : ILogger<T>
     {
-        public List<string> LoggedMessages { get; } = new();
+        public ConcurrentBag<string> LoggedMessages { get; } = new();
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
