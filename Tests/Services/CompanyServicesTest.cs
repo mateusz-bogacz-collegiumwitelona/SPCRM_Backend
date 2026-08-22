@@ -1,6 +1,7 @@
 ﻿using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
+using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -71,6 +72,10 @@ namespace Tests.Services
                    options.UseNetTopologySuite();
                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                })
+               .AddInterceptors(new SoftDeleteInterceptor())
+               .LogTo(Console.WriteLine, LogLevel.Warning)
+               .EnableSensitiveDataLogging()
+               .EnableDetailedErrors()
                .Options;
 
             _contextMock = new AppDbContext(dbOptions);
@@ -651,6 +656,11 @@ namespace Tests.Services
 
             await _contextMock.SaveChangesAsync();
 
+            oldDeal.CreatedAt = oldDealDate;
+            newDeal.CreatedAt = newDealDate;
+            _contextMock.Deals.UpdateRange(oldDeal, newDeal);
+            await _contextMock.SaveChangesAsync();
+
             var command = new CompanyListCommand
             {
                 PageNumber = 1,
@@ -768,7 +778,8 @@ namespace Tests.Services
                 Email = $"f_{uniqueSuffix}@test.pl"
             };
 
-            var referenceDate = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+            var now = DateTime.UtcNow;
+            var referenceDate = now;
 
             var deletedCompany = new Company
             {
@@ -820,7 +831,7 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 IsDeleted = false,
-                CreatedAt = referenceDate.AddDays(-2)
+                CreatedAt = referenceDate
             };
 
             var validAddress = new CompanyAdress
@@ -838,12 +849,16 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.AddRange(deletedAddress, oldAddress, validAddress);
             await _contextMock.SaveChangesAsync();
 
+            oldCompany.CreatedAt = referenceDate.AddDays(-10);
+            _contextMock.Companies.Update(oldCompany);
+            await _contextMock.SaveChangesAsync();
+
             var command = new CompanyListCommand
             {
                 PageNumber = 1,
                 PageSize = 10,
-                CreatedAtFrom = referenceDate.AddDays(-5),
-                CreatedAtTo = referenceDate.AddDays(1),
+                CreatedAtFrom = referenceDate.AddMinutes(-1),
+                CreatedAtTo = referenceDate.AddMinutes(1),
                 UserId = userId
             };
 

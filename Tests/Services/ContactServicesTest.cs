@@ -73,8 +73,11 @@ namespace Tests.Services
                     options.UseNetTopologySuite();
                     options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
-                .AddInterceptors(new SoftDeleteInterceptor())
-                .Options;
+               .AddInterceptors(new SoftDeleteInterceptor())
+               .LogTo(Console.WriteLine, LogLevel.Warning)
+               .EnableSensitiveDataLogging()
+               .EnableDetailedErrors()
+               .Options;
 
             _contextMock = new AppDbContext(dbOptions);
 

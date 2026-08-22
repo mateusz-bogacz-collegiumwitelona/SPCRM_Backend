@@ -2,6 +2,7 @@
 using Domain.Constants;
 using Domain.Models;
 using Infrastructure;
+using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -74,7 +75,11 @@ namespace Tests.Services
                     options.UseNetTopologySuite();
                     options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
-                .Options;
+               .AddInterceptors(new SoftDeleteInterceptor())
+               .LogTo(Console.WriteLine, LogLevel.Warning)
+               .EnableSensitiveDataLogging()
+               .EnableDetailedErrors()
+               .Options;
 
             _contextMock = new AppDbContext(dbOptions);
 
@@ -358,6 +363,13 @@ namespace Tests.Services
             _contextMock.Notes.AddRange(oldNote, middleNote, newestNote);
             await _contextMock.SaveChangesAsync();
 
+            oldNote.CreatedAt = now.AddDays(-5);
+            middleNote.CreatedAt = now.AddDays(-2);
+            newestNote.CreatedAt = now;
+
+            _contextMock.Notes.UpdateRange(oldNote, middleNote, newestNote);
+            await _contextMock.SaveChangesAsync();
+
             var command = new NoteListCommand
             {
                 PageNumber = 1,
@@ -554,6 +566,12 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             _contextMock.Tasks.Add(task);
             _contextMock.Notes.AddRange(note1, note2, noteDeleted);
+            await _contextMock.SaveChangesAsync();
+
+            note1.CreatedAt = now.AddDays(-5);
+            note2.CreatedAt = now;
+
+            _contextMock.Notes.UpdateRange(note1, note2);
             await _contextMock.SaveChangesAsync();
 
             // Act
@@ -806,6 +824,13 @@ namespace Tests.Services
             _contextMock.Companies.Add(company);
             _contextMock.Deals.Add(deal);
             _contextMock.Notes.AddRange(oldNote, middleNote, newestNote);
+            await _contextMock.SaveChangesAsync();
+
+            oldNote.CreatedAt = now.AddDays(-5);
+            middleNote.CreatedAt = now.AddDays(-2);
+            newestNote.CreatedAt = now;
+
+            _contextMock.Notes.UpdateRange(oldNote, middleNote, newestNote);
             await _contextMock.SaveChangesAsync();
 
             // Act

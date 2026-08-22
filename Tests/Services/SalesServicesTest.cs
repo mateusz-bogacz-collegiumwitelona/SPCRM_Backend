@@ -1,6 +1,7 @@
 ﻿using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
+using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -70,7 +71,11 @@ namespace Tests.Services
                     options.UseNetTopologySuite();
                     options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
-                .Options;
+               .AddInterceptors(new SoftDeleteInterceptor())
+               .LogTo(Console.WriteLine, LogLevel.Warning)
+               .EnableSensitiveDataLogging()
+               .EnableDetailedErrors()
+               .Options;
 
             _contextMock = new AppDbContext(dbOptions);
 

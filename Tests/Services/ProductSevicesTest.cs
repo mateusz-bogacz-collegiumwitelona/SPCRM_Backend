@@ -1,6 +1,8 @@
-﻿using Domain.Enum;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
+using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -70,7 +72,11 @@ namespace Tests.Services
                     options.UseNetTopologySuite();
                     options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                 })
-                .Options;
+               .AddInterceptors(new SoftDeleteInterceptor())
+               .LogTo(Console.WriteLine, LogLevel.Warning)
+               .EnableSensitiveDataLogging()
+               .EnableDetailedErrors()
+               .Options;
 
             _contextMock = new AppDbContext(dbOptions);
 
@@ -657,6 +663,174 @@ namespace Tests.Services
             await Assert.That(items).Count().IsEqualTo(1);
             await Assert.That(items.First().ProductId).IsEqualTo(targetProduct.Id);
             await Assert.That(items.First().Name).Contains("Specjalny");
+        }
+
+        // ─── AddProductAsync ───────────────────────────────────────────
+        [Test]
+        public async Task AddProductAsync_SuccessfullyAddsProduct_WhenDataIsValid()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddProductCommand
+            {
+                Name = $"Product_{uniqueSuffix}",
+                SteelGrade = "S350",
+                Thickness = 10,
+                Width = 100,
+                Length = 1000,
+                Diameter = null,
+                Weight = 5000,
+                UnitId = unit.Id,
+                PricePerUnit = 150000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Bar.ToString() 
+            };
+
+            // Act
+            var result = await _productSevicesMock.AddProductAsync(command);
+            Console.WriteLine(result.Message);
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var dbProduct = await _contextMock.Products.FirstOrDefaultAsync(p => p.Name == command.Name);
+            await Assert.That(dbProduct).IsNotNull();
+            await Assert.That(dbProduct!.SteelGrade).IsEqualTo("S350");
+            await Assert.That(dbProduct.PricePerUnit).IsEqualTo(150000);
+        }
+
+        [Test]
+        public async Task AddProductAsync_Fails_WhenProductNameAlreadyExists()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            string productName = $"ExistingProduct_{uniqueSuffix}";
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var existingProduct = new Product
+            {
+                Name = productName,
+                SteelGrade = "S235",
+                Thickness = 5,
+                Width = 50,
+                Length = 500,
+                Weight = 1000,
+                UnitId = unit.Id,
+                PricePerUnit = 100000,
+                StockQuantity = 10,
+                Category = ProductCategoryEnum.Bar
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(existingProduct);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddProductCommand
+            {
+                Name = productName,
+                SteelGrade = "S350",
+                Thickness = 10,
+                Width = 100,
+                Length = 1000,
+                Weight = 5000,
+                UnitId = unit.Id,
+                PricePerUnit = 150000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Standard.ToString()
+            };
+
+            // Act
+            var result = await _productSevicesMock.AddProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductAlreadyExists);
+        }
+
+        [Test]
+        public async Task AddProductAsync_Fails_WhenUnitNotFound()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var command = new AddProductCommand
+            {
+                Name = $"Product_{uniqueSuffix}",
+                SteelGrade = "S350",
+                Thickness = 10,
+                Width = 100,
+                Length = 1000,
+                Weight = 5000,
+                UnitId = Guid.NewGuid(),
+                PricePerUnit = 150000,
+                StockQuantity = 50,
+                Category = "Plate"
+            };
+
+            // Act
+            var result = await _productSevicesMock.AddProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound);
+        }
+
+        [Test]
+        public async Task AddProductAsync_Fails_WhenCategoryIsInvalid()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddProductCommand
+            {
+                Name = $"Product_{uniqueSuffix}",
+                SteelGrade = "S350",
+                Thickness = 10,
+                Width = 100,
+                Length = 1000,
+                Weight = 5000,
+                UnitId = unit.Id,
+                PricePerUnit = 150000,
+                StockQuantity = 50,
+                Category = "InvalidCategoryName" 
+            };
+
+            // Act
+            var result = await _productSevicesMock.AddProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidCategory);
         }
     }
 }
