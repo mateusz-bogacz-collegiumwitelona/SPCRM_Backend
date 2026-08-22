@@ -53,6 +53,13 @@
         public const string ProductNotFound = "PROD_001";
         public const string ProductAlreadyExists = "PROD_002";
         public const string InvalidCategory = "PROD_003";
+        public const string InvalidProductName = "PROD_004";
+        public const string InvalidProductSteelGrade = "PROD_005";
+        public const string InvalidProductDimmension = "PROD_006";
+        public const string InvalidProductWeight = "PROD_007";
+        public const string InvalidProductPricePerUnit = "PROD_008";
+        public const string InvalidProductStockQuantity = "PROD_009";
+
 
         // Note
         public const string NoteNotFound = "NOTE_001";
