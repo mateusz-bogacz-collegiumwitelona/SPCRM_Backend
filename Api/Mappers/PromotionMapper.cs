@@ -10,5 +10,6 @@ namespace Api.Mappers
         public partial PromotionListCommand MapList(PromotionListRequest request);
         public partial ActivatePromotionCommand MapActivate(ActivatePromotionRequest request);
         public partial EditPromotionCommand MapEdit(EditPromotionRequest request);
+        public partial AddPromotionCommand MapAdd(AddPromotionRequest request);
     }
 }

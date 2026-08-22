@@ -101,5 +101,20 @@ namespace Api.Controllers
             var result = await promotionServices.EditPromotionAsync(mapper.MapEdit(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Create promotion")]
+        [EndpointDescription("Creates a new active promotion for a specific product.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [HttpPost]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> AddPromotionAsync(
+            [FromServices] IPromotionServices promotionServices,
+            [FromServices] PromotionMapper mapper,
+            [FromBody] AddPromotionRequest request
+        )
+        {
+            var result = await promotionServices.AddPromotionAsync(mapper.MapAdd(request));
+            return HandleResult(result);
+        }
     }
 }

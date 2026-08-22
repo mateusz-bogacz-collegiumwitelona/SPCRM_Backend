@@ -12,6 +12,6 @@ namespace Services.Interfaces
         Task<Result> ActivatePromotionAsync(ActivatePromotionCommand command);
         Task<Result> DeletePromotionAsync(Guid promotionId);
         Task<Result> EditPromotionAsync(EditPromotionCommand command);
-
+        Task<Result> AddPromotionAsync(AddPromotionCommand command);
     }
 }

@@ -3,6 +3,7 @@ using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -1102,6 +1103,133 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(404);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
+        }
+
+
+        // ─── AddPromotionAsync ────────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddPromotionAsync_WhenDataIsValid_CreatesPromotionAndReturnsCreated()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var command = new AddPromotionCommand
+            {
+                Name = "Letnia Promocja 2026",
+                ProductId = product.Id,
+                DiscountPercentage = 20,
+                MinQuantity = 5,
+                MinWeight = 10000
+            };
+
+            // Act
+            var result = await _promotionServicesMock.AddPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var createdPromotion = await _contextMock.Promotions.FirstOrDefaultAsync(p => p.ProductId == product.Id);
+            await Assert.That(createdPromotion).IsNotNull();
+            await Assert.That(createdPromotion!.Name).IsEqualTo("Letnia Promocja 2026");
+            await Assert.That(createdPromotion.DiscountPercentage).IsEqualTo(20);
+            await Assert.That(createdPromotion.IsActive).IsTrue();
+        }
+
+        [Test]
+        public async Task AddPromotionAsync_WhenProductDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new AddPromotionCommand
+            {
+                Name = "Promocja",
+                ProductId = Guid.NewGuid(), 
+                DiscountPercentage = 10
+            };
+
+            // Act
+            var result = await _promotionServicesMock.AddPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+        }
+
+        [Test]
+        public async Task AddPromotionAsync_WhenAnotherActivePromotionAlreadyExistsForProduct_Returns409Conflict()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var existingPromo = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Istniejąca Promocja",
+                ProductId = product.Id,
+                IsActive = true,
+                EndDate = DateTime.UtcNow.AddMonths(1)
+            };
+            _contextMock.Promotions.Add(existingPromo);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddPromotionCommand
+            {
+                Name = "Nowa Nakładająca Się Promocja",
+                ProductId = product.Id,
+                DiscountPercentage = 15
+            };
+
+            // Act
+            var result = await _promotionServicesMock.AddPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ActivePromotionAlreadyExists);
+        }
+
+        [Test]
+        public async Task AddPromotionAsync_WhenCurrencyDoesNotExist_Returns400BadRequest()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var command = new AddPromotionCommand
+            {
+                Name = "Promocja Sztywna Cena",
+                ProductId = product.Id,
+                PromotionalPrice = 50000,
+                CurrencyId = Guid.NewGuid() 
+            };
+
+            // Act
+            var result = await _promotionServicesMock.AddPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNotFound);
+        }
+
+        [Test]
+        public async Task AddPromotionAsync_WhenContactDoesNotExist_Returns400BadRequest()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+            var command = new AddPromotionCommand
+            {
+                Name = "Dedykowana Promocja",
+                ProductId = product.Id,
+                DiscountPercentage = 10,
+                ContactId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _promotionServicesMock.AddPromotionAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
         }
     }
 }

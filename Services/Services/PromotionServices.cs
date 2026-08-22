@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -358,6 +359,92 @@ namespace Services.Services
             return Result.Success(
                 message: "Promotion updated successfully.",
                 statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> AddPromotionAsync(AddPromotionCommand command)
+        {
+            var hasProductExitst = await _context.Products.AnyAsync(p => p.Id == command.ProductId);
+
+            if (!hasProductExitst)
+            {
+                _logger.LogWarning("Product with id {productId} not found.", command.ProductId);
+                return Result.Failure(
+                    message: "Product not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ProductNotFound
+                );
+            }
+            
+            if (command.CurrencyId.HasValue)
+            {
+                var currencyExists = await _context.Currencies.AnyAsync(c => c.Id == command.CurrencyId.Value);
+                if (!currencyExists)
+                {
+                    _logger.LogWarning("Currency with id {currencyId} not found.", command.CurrencyId.Value);
+                    return Result.Failure(
+                        message: "Currency not found.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.CurrencyNotFound
+                    );
+                }
+            }
+
+            if (command.ContactId.HasValue)
+            {
+                var contactExists = await _context.Contacts.AnyAsync(c => c.Id == command.ContactId.Value);
+                if (!contactExists)
+                {
+                    _logger.LogWarning("Contact with id {contactId} not found.", command.ContactId.Value);
+                    return Result.Failure(
+                        message: "Contact not found.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.ContactNotFound
+                    );
+                }
+            }
+
+            var now = DateTime.UtcNow;
+            var startDate = command.StartDate?.ToUniversalTime() ?? now;
+            var endDate = command.EndDate?.ToUniversalTime();
+
+            var hasConflict = await _context.Promotions.AnyAsync(p =>
+                p.ProductId == command.ProductId &&
+                p.IsActive &&
+                (!p.EndDate.HasValue || p.EndDate.Value > now)
+            );
+
+            if (hasConflict)
+            {
+                return Result.Failure(
+                    message: "An active promotion for this product already exists.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    errorCode: ErrorCodes.ActivePromotionAlreadyExists
+                );
+            }
+
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = command.Name.Trim(),
+                ProductId = command.ProductId,
+                StartDate = startDate,
+                EndDate = endDate,
+                DiscountPercentage = command.DiscountPercentage,
+                PromotionalPrice = command.PromotionalPrice,
+                CurrencyId = command.PromotionalPrice.HasValue ? command.CurrencyId : null,
+                ContactId = command.ContactId,
+                MinQuantity = command.MinQuantity,
+                MinWeight = command.MinWeight,
+                IsActive = true
+            };
+
+            _context.Promotions.Add(promotion);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Promotion added successfully.",
+                statusCode: StatusCodes.Status201Created
             );
         }
     }
