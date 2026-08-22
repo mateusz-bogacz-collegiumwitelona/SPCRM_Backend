@@ -5,10 +5,10 @@ namespace Services.Helpers
     public static class DimensionsFormatter
     {
         public static string Format(
-            ProductCategoryEnum categoryCode, 
-            int? diameter, 
-            int thickness, 
-            int width, 
+            ProductCategoryEnum categoryCode,
+            int? diameter,
+            int thickness,
+            int width,
             int length
             )
         {

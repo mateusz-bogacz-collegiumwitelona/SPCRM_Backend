@@ -293,8 +293,9 @@ namespace Services.Services
 
                 if (newEndDate < effectiveStartDate)
                 {
+                    _logger.LogError("The end date {EndDate} cannot be earlier than the start date {StartDate} of the promotion with ID {PromotionId}.", newEndDate, effectiveStartDate, command.Id);
                     return Result.Failure(
-                        message: "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia promocji.",
+                        message: "The end date cannot be earlier than the start date of the promotion.",
                         statusCode: StatusCodes.Status400BadRequest,
                         errorCode: ErrorCodes.InvalidDate
                     );
@@ -375,7 +376,7 @@ namespace Services.Services
                     errorCode: ErrorCodes.ProductNotFound
                 );
             }
-            
+
             if (command.CurrencyId.HasValue)
             {
                 var currencyExists = await _context.Currencies.AnyAsync(c => c.Id == command.CurrencyId.Value);

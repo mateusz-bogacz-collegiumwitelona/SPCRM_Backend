@@ -66,7 +66,7 @@ namespace Api.Controllers
         public async Task<IActionResult> ActivatePromotionAsync(
             [FromServices] IPromotionServices promotionServices,
             [FromServices] PromotionMapper mapper,
-            [FromBody] ActivatePromotionRequest request 
+            [FromBody] ActivatePromotionRequest request
             )
         {
             var result = await promotionServices.ActivatePromotionAsync(mapper.MapActivate(request));

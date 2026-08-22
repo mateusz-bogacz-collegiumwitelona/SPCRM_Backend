@@ -337,7 +337,7 @@ namespace Services.Services
                         Type = cd.Type.ToString()
                     }).ToList()
                 })
-                .FirstOrDefaultAsync(); 
+                .FirstOrDefaultAsync();
 
             if (contact == null)
             {
@@ -377,7 +377,7 @@ namespace Services.Services
                     errorCode: ErrorCodes.UnauthorizedAccess
                 );
             }
-        
+
             if (contact.IsPrimary)
             {
                 return Result.Failure(
@@ -415,9 +415,9 @@ namespace Services.Services
                     errorCode: ErrorCodes.ContactNotFound
                 );
             }
-            
+
             _context.Contacts.Remove(contact);
-            await _context.SaveChangesAsync();  
+            await _context.SaveChangesAsync();
 
             return Result.Success(
                 message: "Contact deleted successfully",
@@ -447,7 +447,7 @@ namespace Services.Services
                 return Result.Failure(
                     message: "New owner not found",
                     statusCode: StatusCodes.Status404NotFound,
-                    errorCode: ErrorCodes.UserNotFound 
+                    errorCode: ErrorCodes.UserNotFound
                 );
             }
 
@@ -464,7 +464,7 @@ namespace Services.Services
         public async Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync()
         {
             var owners = await _context.Users
-                .Where(u => !_context.UserRoles.Any(ur => 
+                .Where(u => !_context.UserRoles.Any(ur =>
                     ur.UserId == u.Id && _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == "ADMIN"))
                 )
                 .Select(u => new OwnerResponse

@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -112,8 +113,8 @@ namespace Services.Services
 
                     StockQuantity = p.StockQuantity,
                     UnitSymbol = p.Unit.Symbol,
-                    PricePerUnit = (decimal)p.PricePerUnit / 10000m,
-                    Weight = (decimal)p.Weight / 1000m,
+                    PricePerUnit = p.PricePerUnit,
+                    Weight = p.Weight,
 
                     ReservedQuantity = p.DealProducts
                         .Where(dp => dp.Deal.Status == DealsStatusEnum.ToDo || dp.Deal.Status == DealsStatusEnum.InProgress)
@@ -125,7 +126,7 @@ namespace Services.Services
                         {
                             Name = pr.Name,
                             DiscountPercentage = pr.DiscountPercentage,
-                            PromotionalPrice = pr.PromotionalPrice.HasValue ? (decimal)pr.PromotionalPrice.Value / 10000m : null,
+                            PromotionalPrice = pr.PromotionalPrice,
                             EndDate = pr.EndDate,
                             MinQuantity = pr.MinQuantity
                         })
@@ -181,6 +182,65 @@ namespace Services.Services
                         .FirstOrDefault()
                 });
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing products");
+        }
+
+        public async Task<Result> AddProductAsync(AddProductCommand command)
+        {
+            string trimName = command.Name.Trim();
+
+            if (await _context.Products.AnyAsync(p => p.Name == trimName))
+            {
+                _logger.LogWarning("Attempt to add a product with an existing name: {ProductName}", command.Name);
+                return Result.Failure(
+                    message: "Product with the same name already exists.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.ProductAlreadyExists
+                );
+            }
+
+            var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId);
+
+            if (unit == null)
+            {
+                _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId);
+                return Result.Failure(
+                    message: "Unit of measure not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NotFound
+                );
+            }
+            if (!Enum.TryParse<ProductCategoryEnum>(command.Category, true, out var category))
+            {
+                _logger.LogWarning("Invalid product category provided: {Category}", command.Category);
+                return Result.Failure(
+                    message: "Invalid product category.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidCategory
+                );
+            }
+
+            var product = new Product
+            {
+                Name = trimName,
+                SteelGrade = command.SteelGrade.Trim(),
+                Thickness = command.Thickness,
+                Width = command.Width,
+                Length = command.Length,
+                Diameter = command.Diameter,
+                Weight = command.Weight,
+                UnitId = command.UnitId,
+                PricePerUnit = command.PricePerUnit,
+                StockQuantity = command.StockQuantity,
+                Category = category
+            };
+
+            _context.Products.Add(product);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Product added successfully.",
+                statusCode: StatusCodes.Status201Created
+            );
         }
     }
 }

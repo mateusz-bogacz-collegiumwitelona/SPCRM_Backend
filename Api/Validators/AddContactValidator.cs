@@ -13,11 +13,11 @@ namespace Api.Validators
 
             RuleFor(x => x.FirstName)
                 .NotEmpty().WithErrorCode(ErrorCodes.NameRequired)
-                .ApplyNameRules(); 
+                .ApplyNameRules();
 
             RuleFor(x => x.LastName)
                 .NotEmpty().WithErrorCode(ErrorCodes.NameRequired)
-                .ApplyNameRules(); 
+                .ApplyNameRules();
 
             RuleFor(x => x.Details)
                 .NotEmpty()

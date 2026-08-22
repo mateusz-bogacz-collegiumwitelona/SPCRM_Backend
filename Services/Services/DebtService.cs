@@ -35,7 +35,7 @@ namespace Services.Services
                 {
                     CurrencyCode = g.Key.Code,
                     DecimalPlace = g.Key.DecimalPlaces,
-                    TotalAmount = (decimal)g.Sum(i => i.TotalAmount - i.PaidAmount) / 10000m
+                    TotalAmount = g.Sum(i => i.TotalAmount - i.PaidAmount)
                 })
                 .ToListAsync();
 
@@ -57,7 +57,7 @@ namespace Services.Services
                 {
                     Id = i.Id,
                     InvoiceNumber = i.InvoiceNumber,
-                    AmountLeft = (decimal)(i.TotalAmount - i.PaidAmount) / 10000m,
+                    AmountLeft = i.TotalAmount - i.PaidAmount,
                     CurrencyCode = i.Currency.Code,
                     DecimalPlaces = i.Currency.DecimalPlaces,
                     DueDate = i.DueDate,

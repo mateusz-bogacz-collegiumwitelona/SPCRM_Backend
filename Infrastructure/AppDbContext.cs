@@ -39,7 +39,7 @@ namespace Infrastructure
             builder.Entity<CompanyAdress>()
                 .Property(sa => sa.Location)
                 .HasColumnType("geometry(Point, 4326)");
-            
+
             builder.Entity<ApplicationUser>().ToTable("User");
 
             builder.Entity<Deal>()
@@ -47,7 +47,7 @@ namespace Infrastructure
                 .WithMany(u => u.Deals)
                 .HasForeignKey(d => d.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             builder.Entity<Tasks>()
                 .HasOne(t => t.AssignedTo)
                 .WithMany(u => u.Tasks)
@@ -63,7 +63,7 @@ namespace Infrastructure
             builder.Entity<CompanyAdress>()
                 .Property(a => a.AddressType)
                 .HasConversion<string>();
-            
+
             builder.Entity<Deal>()
                 .Property(d => d.Status)
                 .HasConversion<string>();
@@ -79,17 +79,17 @@ namespace Infrastructure
             builder.Entity<ContactDetail>()
                 .Property(t => t.Type)
                 .HasConversion<string>();
-            
+
             builder.Entity<Note>()
                 .HasDiscriminator<string>("NoteType")
                 .HasValue<ContactNote>("Contact")
                 .HasValue<DealNote>("Deal")
                 .HasValue<TaskNote>("Task");
-            
+
             builder.Entity<Product>()
                 .Property(p => p.Category)
                 .HasConversion<string>();
-            
+
             builder.Entity<Offer>()
                 .Property(o => o.Status)
                 .HasConversion<string>();
@@ -103,7 +103,7 @@ namespace Infrastructure
                 if (entityType.BaseType != null) continue;
 
                 var updateAtProp = entityType.FindProperty("UpdateAt");
-               
+
                 if (updateAtProp != null)
                 {
                     updateAtProp.IsConcurrencyToken = false;

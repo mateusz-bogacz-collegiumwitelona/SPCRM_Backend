@@ -49,7 +49,7 @@ namespace Services.Services
                     Name = d.Name,
                     Nip = d.Company.NIP,
                     CloseDate = d.CloseDate,
-                    Value = (decimal)d.Value / 10000m,
+                    Value = d.Value,
                     DecimalPlace = d.Currency.DecimalPlaces,
                     Currency = d.Currency.Name,
                     CompanyName = d.Company.Name,

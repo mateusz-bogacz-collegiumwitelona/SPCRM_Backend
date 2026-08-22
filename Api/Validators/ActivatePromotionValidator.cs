@@ -7,7 +7,7 @@ namespace Api.Validators
 {
     public class ActivatePromotionValidator : AbstractValidator<ActivatePromotionRequest>
     {
-        public ActivatePromotionValidator() 
+        public ActivatePromotionValidator()
         {
             RuleFor(x => x.Id).ApplyValidGuidRule();
 

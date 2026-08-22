@@ -6,7 +6,7 @@ namespace Api.Validators
 {
     public class ChangeContactOwnerValidator : AbstractValidator<ChangeContactOwnerRequest>
     {
-        public ChangeContactOwnerValidator() 
+        public ChangeContactOwnerValidator()
         {
             RuleFor(x => x.NewOwnerId).ApplyValidGuidRule();
             RuleFor(x => x.ContactId).ApplyValidGuidRule();

@@ -11,7 +11,7 @@ using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
-namespace Tests.Services 
+namespace Tests.Services
 {
     public class PromotionServicesTest
     {
@@ -70,7 +70,7 @@ namespace Tests.Services
                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                })
                .AddInterceptors(new SoftDeleteInterceptor())
-               .LogTo(Console.WriteLine, LogLevel.Warning) 
+               .LogTo(Console.WriteLine, LogLevel.Warning)
                .EnableSensitiveDataLogging()
                .EnableDetailedErrors()
                .Options;
@@ -159,8 +159,12 @@ namespace Tests.Services
             _contextMock.Promotions.AddRange(promo1, promo2);
             await _contextMock.SaveChangesAsync();
 
-            var command = new PromotionListCommand {
-                PageNumber = 1, PageSize = 10, IsActive = null };
+            var command = new PromotionListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                IsActive = null
+            };
 
             // Act
             var result = await _promotionServicesMock.GetPromotionListAsync(command);
@@ -258,33 +262,38 @@ namespace Tests.Services
             // Arrange
             var product = await CreateDummyProductAsync();
 
-            var promoHighDiscount = new Promotion { 
-                Id = Guid.NewGuid(), 
-                Name = "50% off", 
-                DiscountPercentage = 50, 
-                PromotionalPrice = null, 
-                IsActive = true, 
-                ProductId = product.Id, 
-                Product = product 
+            var promoHighDiscount = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "50% off",
+                DiscountPercentage = 50,
+                PromotionalPrice = null,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
             };
-           
-            var promoLowDiscount = new Promotion { 
-                Id = Guid.NewGuid(), 
-                Name = "10% off", 
-                DiscountPercentage = 10, 
-                PromotionalPrice = null, 
-                IsActive = true, 
-                ProductId = product.Id, 
-                Product = product };
-            
-            var promoFixedPrice = new Promotion { 
-                Id = Guid.NewGuid(), 
-                Name = "Fixed Price", 
-                DiscountPercentage = null, 
-                PromotionalPrice = 10000, 
-                IsActive = true, 
-                ProductId = product.Id, 
-                Product = product };
+
+            var promoLowDiscount = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "10% off",
+                DiscountPercentage = 10,
+                PromotionalPrice = null,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
+
+            var promoFixedPrice = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Fixed Price",
+                DiscountPercentage = null,
+                PromotionalPrice = 10000,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
+            };
 
             _contextMock.Promotions.AddRange(promoHighDiscount, promoLowDiscount, promoFixedPrice);
             await _contextMock.SaveChangesAsync();
@@ -312,20 +321,22 @@ namespace Tests.Services
             // Arrange
             var product = await CreateDummyProductAsync();
 
-            var promo1 = new Promotion { 
-                Id = Guid.NewGuid(), 
+            var promo1 = new Promotion
+            {
+                Id = Guid.NewGuid(),
                 Name = "Wiosenna Zniżka",
-                IsActive = true, 
+                IsActive = true,
                 ProductId = product.Id,
-                Product = product 
+                Product = product
             };
-            
-            var promo2 = new Promotion { 
-                Id = Guid.NewGuid(), 
-                Name = "Letnia Wyprzedaż", 
-                IsActive = true, 
-                ProductId = product.Id, 
-                Product = product 
+
+            var promo2 = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Letnia Wyprzedaż",
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
             };
 
             _contextMock.Promotions.AddRange(promo1, promo2);
@@ -348,44 +359,46 @@ namespace Tests.Services
             // Arrange
             var product = await CreateDummyProductAsync();
 
-            var promo1 = new Promotion 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "A Promo", 
-                DiscountPercentage = 10, 
+            var promo1 = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "A Promo",
+                DiscountPercentage = 10,
                 IsActive = true,
                 ProductId = product.Id,
                 Product = product
             };
-            
-            var promo2 = new Promotion { 
+
+            var promo2 = new Promotion
+            {
                 Id = Guid.NewGuid(),
-                Name = "B Promo", 
-                DiscountPercentage = 50, 
-                IsActive = true, 
-                ProductId = product.Id, 
-                Product = product 
+                Name = "B Promo",
+                DiscountPercentage = 50,
+                IsActive = true,
+                ProductId = product.Id,
+                Product = product
             };
-            
-            var promo3 = new Promotion {
+
+            var promo3 = new Promotion
+            {
                 Id = Guid.NewGuid(),
                 Name = "C Promo",
                 DiscountPercentage = 30,
-                IsActive = true, 
+                IsActive = true,
                 ProductId = product.Id,
-                Product = product 
+                Product = product
             };
 
             _contextMock.Promotions.AddRange(promo1, promo2, promo3);
             await _contextMock.SaveChangesAsync();
 
-            var command = new PromotionListCommand 
-            { 
-                PageNumber = 1, 
-                PageSize = 10, 
-                IsActive = null, 
-                SortBy = "discountPercentage", 
-                SortDescending = true 
+            var command = new PromotionListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                IsActive = null,
+                SortBy = "discountPercentage",
+                SortDescending = true
             };
 
             // Act
@@ -599,20 +612,20 @@ namespace Tests.Services
                 ProductId = product.Id,
                 Product = product
             };
-            
+
             _contextMock.Promotions.Add(promotion);
-            
+
             await _contextMock.SaveChangesAsync();
-            
+
             // Act
             var result = await _promotionServicesMock.DeactivatePromotionAsync(promotion.Id);
-            
+
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(200);
-            
+
             var updatedPromotion = await _contextMock.Promotions.FindAsync(promotion.Id);
-            
+
             await Assert.That(updatedPromotion!.IsActive).IsFalse();
         }
 
@@ -894,14 +907,15 @@ namespace Tests.Services
         {
             // Arrange
             var product = await CreateDummyProductAsync();
-            
-            var currency = new Currency { 
-                Id = Guid.NewGuid(), 
-                Name = "Polski Złoty", 
-                Code = "PLN", 
-                DecimalPlaces = 2 
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
             };
-            
+
             _contextMock.Currencies.Add(currency);
 
             var promotion = new Promotion
@@ -943,12 +957,13 @@ namespace Tests.Services
         {
             // Arrange
             var product = await CreateDummyProductAsync();
-            
-            var currency = new Currency { 
+
+            var currency = new Currency
+            {
                 Id = Guid.NewGuid(),
-                Name = "Polski Złoty", 
+                Name = "Polski Złoty",
                 Code = "PLN",
-                DecimalPlaces = 2 
+                DecimalPlaces = 2
             };
             _contextMock.Currencies.Add(currency);
 
@@ -1143,7 +1158,7 @@ namespace Tests.Services
             var command = new AddPromotionCommand
             {
                 Name = "Promocja",
-                ProductId = Guid.NewGuid(), 
+                ProductId = Guid.NewGuid(),
                 DiscountPercentage = 10
             };
 
@@ -1198,7 +1213,7 @@ namespace Tests.Services
                 Name = "Promocja Sztywna Cena",
                 ProductId = product.Id,
                 PromotionalPrice = 50000,
-                CurrencyId = Guid.NewGuid() 
+                CurrencyId = Guid.NewGuid()
             };
 
             // Act

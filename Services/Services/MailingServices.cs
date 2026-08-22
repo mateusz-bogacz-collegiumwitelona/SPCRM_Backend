@@ -192,7 +192,7 @@ namespace Services.Services
                     .Where(pr =>
                         !pr.ContactId.HasValue &&
                         (!pr.MinQuantity.HasValue || cmd.Quantity >= pr.MinQuantity.Value))
-                    .OrderByDescending(pr => pr.DiscountPercentage ?? 0) 
+                    .OrderByDescending(pr => pr.DiscountPercentage ?? 0)
                     .FirstOrDefault();
 
                 if (activePromotion != null)

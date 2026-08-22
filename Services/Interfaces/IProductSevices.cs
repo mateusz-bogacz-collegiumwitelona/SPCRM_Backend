@@ -11,5 +11,6 @@ namespace Services.Interfaces
         Task<Result<IEnumerable<string>>> GetSteelGradesAsync();
         Task<Result<ProductDetailResponse>> GetProductDetailsAsync(Guid productId);
         Task<Result<PagedResult<MailingProductResponse>>> GetMailingProductsAsync(SimpleListCommand command);
+        Task<Result> AddProductAsync(AddProductCommand command);
     }
 }

@@ -51,6 +51,8 @@
 
         // Product
         public const string ProductNotFound = "PROD_001";
+        public const string ProductAlreadyExists = "PROD_002";
+        public const string InvalidCategory = "PROD_003";
 
         // Note
         public const string NoteNotFound = "NOTE_001";
