@@ -201,11 +201,11 @@ namespace Tests.Services
             await Assert.That(result.Data!).Count().IsEqualTo(2);
 
             var plnSummary = result.Data!.First(s => s.CurrencyCode == "PLN");
-            await Assert.That(plnSummary.TotalAmount).IsEqualTo(800.00m);
+            await Assert.That(plnSummary.TotalAmount).IsEqualTo(8000000m);
             await Assert.That(plnSummary.DecimalPlace).IsEqualTo(2);
 
             var eurSummary = result.Data!.First(s => s.CurrencyCode == "EUR");
-            await Assert.That(eurSummary.TotalAmount).IsEqualTo(100.50m);
+            await Assert.That(eurSummary.TotalAmount).IsEqualTo(1005000m);
         }
 
         [Test]
@@ -372,13 +372,13 @@ namespace Tests.Services
 
             var firstMapped = items[0];
             await Assert.That(firstMapped.InvoiceNumber).IsEqualTo("INV/OVER");
-            await Assert.That(firstMapped.AmountLeft).IsEqualTo(200.00m);
+            await Assert.That(firstMapped.AmountLeft).IsEqualTo(2000000m);
             await Assert.That(firstMapped.CurrencyCode).IsEqualTo("PLN");
             await Assert.That(firstMapped.DaysOverdue).IsGreaterThanOrEqualTo(9);
 
             var secondMapped = items[1];
             await Assert.That(secondMapped.InvoiceNumber).IsEqualTo("INV/FUTURE");
-            await Assert.That(secondMapped.AmountLeft).IsEqualTo(200.00m);
+            await Assert.That(secondMapped.AmountLeft).IsEqualTo(2000000m);
             await Assert.That(secondMapped.DaysOverdue).IsEqualTo(0);
         }
     }

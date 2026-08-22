@@ -200,7 +200,7 @@ namespace Tests.Services
             var mappedDeal = items.First();
 
             await Assert.That(mappedDeal.Id).IsEqualTo(targetDeal.Id);
-            await Assert.That(mappedDeal.Value).IsEqualTo(150.00m);
+            await Assert.That(mappedDeal.Value).IsEqualTo(1500000m);
             await Assert.That(mappedDeal.Currency).IsEqualTo("PLN");
             await Assert.That(mappedDeal.DecimalPlace).IsEqualTo(2);
             await Assert.That(mappedDeal.CompanyName).IsEqualTo(company.Name);

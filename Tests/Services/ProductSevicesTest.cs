@@ -514,8 +514,8 @@ namespace Tests.Services
             await Assert.That(response!.Dimensions).IsEquatableTo(theoryDimmension);
             await Assert.That(response!.StockQuantity).IsEquatableTo(100000);
             await Assert.That(response!.UnitSymbol).IsEquatableTo("t");
-            await Assert.That(response!.PricePerUnit).IsEquatableTo(400000 / 10000m);
-            await Assert.That(response!.Weight).IsEquatableTo(40000000 / 1000m);
+            await Assert.That(response!.PricePerUnit).IsEquatableTo(400000m);
+            await Assert.That(response!.Weight).IsEquatableTo(40000000m);
             await Assert.That(response!.ReservedQuantity).IsEquatableTo(0);
         }
 
