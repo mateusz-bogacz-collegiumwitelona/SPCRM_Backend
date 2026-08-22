@@ -69,5 +69,20 @@ namespace Api.Controllers
             var result = await productServices.GetProductDetailsAsync(productId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Add product")]
+        [EndpointDescription("Add a new product.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpPost]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> AddProductAsync(
+            [FromServices] IProductSevices product,
+            [FromServices] ProductMapper mapper,
+            [FromBody] AddProductRequest request
+            )
+        {
+            var result = await product.AddProductAsync(mapper.MapAdd(request));
+            return HandleResult(result);
+        }
     }
 }
