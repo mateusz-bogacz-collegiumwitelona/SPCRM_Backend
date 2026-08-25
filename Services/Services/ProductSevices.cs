@@ -38,7 +38,7 @@ namespace Services.Services
                 {
                     Id = p.Id,
                     Name = p.Name,
-                    SteelGrade = p.SteelGrade,
+                    SteelGrade = p.SteelGrade.Name,
                     Category = p.Category.ToString(),
 
                     Dimensions = DimensionsFormatter.Format(
@@ -73,17 +73,19 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<IEnumerable<string>>> GetSteelGradesAsync()
+        public async Task<Result<IEnumerable<SteelGradeResponse>>> GetSteelGradesAsync()
         {
-            var query = await _context.Products
-                .AsNoTracking()
-                .Select(p => p.SteelGrade)
-                .Distinct()
-                .OrderBy(p => p)
+            var query = await _context.SteelGrades
+                .OrderBy(s => s.Name)
+                .Select(s => new SteelGradeResponse 
+                { 
+                    Id = s.Id, 
+                    Name = s.Name 
+                })
                 .ToListAsync();
 
-            return Result<IEnumerable<string>>.Success(
-                message: "Product categories reviewed successfully",
+            return Result<IEnumerable<SteelGradeResponse>>.Success(
+                message: "Steel grades retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
                 data: query
                 );
@@ -100,7 +102,7 @@ namespace Services.Services
                 {
                     Id = p.Id,
                     Name = p.Name,
-                    SteelGrade = p.SteelGrade,
+                    SteelGrade = p.SteelGrade.Name,
                     Category = p.Category.ToString(),
 
                     Dimensions = DimensionsFormatter.Format(
@@ -219,10 +221,23 @@ namespace Services.Services
                 );
             }
 
+            var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(sg => sg.Id == command.SteelGradeId);
+
+            if (steelGrade == null) 
+            { 
+                _logger.LogWarning("Steel grade with ID {SteelGradeId} not found.", command.SteelGradeId);
+                return Result.Failure(
+                    message: "Steel grade not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NotFound
+                );
+            }
+
             var product = new Product
             {
                 Name = trimName,
-                SteelGrade = command.SteelGrade.Trim(),
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = command.Thickness,
                 Width = command.Width,
                 Length = command.Length,
@@ -272,11 +287,6 @@ namespace Services.Services
                 product.Name = trimName;
             }
 
-            if (!string.IsNullOrWhiteSpace(command.SteelGrade))
-            {
-                product.SteelGrade = command.SteelGrade.Trim();
-            }
-
             if (command.Thickness.HasValue)
             {
                 product.Thickness = command.Thickness.Value;
@@ -300,21 +310,6 @@ namespace Services.Services
             if (command.Weight.HasValue)
             {
                 product.Weight = command.Weight.Value;
-            }
-
-            if (command.UnitId.HasValue)
-            {
-                var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId.Value);
-                if (unit == null)
-                {
-                    _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId.Value);
-                    return Result.Failure(
-                        message: "Unit of measure not found.",
-                        statusCode: StatusCodes.Status404NotFound,
-                        errorCode: ErrorCodes.NotFound
-                    );
-                }
-                product.UnitId = unit.Id;
             }
 
             if (command.PricePerUnit.HasValue)
@@ -342,6 +337,36 @@ namespace Services.Services
                         errorCode: ErrorCodes.InvalidCategory
                     );
                 }
+            }
+
+
+            if (command.UnitId.HasValue)
+            {
+                var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId.Value);
+                if (unit == null)
+                {
+                    _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId.Value);
+                    return Result.Failure(
+                        message: "Unit of measure not found.",
+                        statusCode: StatusCodes.Status404NotFound,
+                        errorCode: ErrorCodes.NotFound
+                    );
+                }
+                product.UnitId = unit.Id;
+            }
+
+            if (command.SteelGradeId.HasValue) {
+                var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(s => s.Id == command.SteelGradeId.Value);
+                if (steelGrade == null)
+                {
+                    _logger.LogWarning("Steel grade with ID {SteelGradeId} not found.", command.SteelGradeId.Value);
+                    return Result.Failure(
+                        message: "Steel grade not found.",
+                        statusCode: StatusCodes.Status404NotFound,
+                        errorCode: ErrorCodes.NotFound
+                    );
+                }
+                product.SteelGradeId = steelGrade.Id;
             }
 
             await _context.SaveChangesAsync();

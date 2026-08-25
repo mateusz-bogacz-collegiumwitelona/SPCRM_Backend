@@ -18,7 +18,7 @@ namespace Services.QueryExtension
                 query = query.Where(dp =>
                     (dp.Product != null && (
                         EF.Functions.ILike(EF.Functions.Unaccent(dp.Product.Name), EF.Functions.Unaccent(wildcardTerm)) ||
-                        EF.Functions.ILike(EF.Functions.Unaccent(dp.Product.SteelGrade), EF.Functions.Unaccent(wildcardTerm)) ||
+                        EF.Functions.ILike(EF.Functions.Unaccent(dp.Product.SteelGrade.Name), EF.Functions.Unaccent(wildcardTerm)) ||
                         EF.Functions.ILike(EF.Functions.Unaccent(dp.Product.Category.ToString()), EF.Functions.Unaccent(wildcardTerm))
                     ))
                 );
@@ -33,7 +33,7 @@ namespace Services.QueryExtension
                 query = query.Where(dp => dp.Product.Category.ToString().ToLower() == productCategory.ToLower());
 
             if (!string.IsNullOrWhiteSpace(steelGrade))
-                query = query.Where(dp => dp.Product.SteelGrade.ToLower() == steelGrade.ToLower());
+                query = query.Where(dp => dp.Product.SteelGrade.Name.ToLower() == steelGrade.ToLower());
 
             return query;
         }

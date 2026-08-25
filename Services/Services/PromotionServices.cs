@@ -130,7 +130,7 @@ namespace Services.Services
 
                 ProductId = rawData.ProductId,
                 ProductName = rawData.ProductName,
-                SteelGrade = rawData.SteelGrade,
+                SteelGrade = rawData.SteelGrade.Name,
                 Category = rawData.Category.ToString(),
                 Dimensions = formattedDimensions,
                 ProductPricePerUnit = rawData.PricePerUnit,

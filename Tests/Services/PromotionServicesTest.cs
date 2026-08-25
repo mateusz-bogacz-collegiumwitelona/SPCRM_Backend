@@ -102,11 +102,19 @@ namespace Tests.Services
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt", BaseMultiplier = 1 };
             _contextMock.UnitsOfMeasure.Add(unit);
 
+            var steelGrade = new SteelGrade { 
+                Id = Guid.NewGuid(), 
+                Name = "S235" 
+            };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = "Test Product",
-                SteelGrade = "S235",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -427,11 +435,18 @@ namespace Tests.Services
             };
             _contextMock.UnitsOfMeasure.Add(unit);
 
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = "S355J2H"
+            };
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = "Rura Stalowa Precyzyjna",
-                SteelGrade = "S355J2H",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
                 Thickness = 5,
                 Width = 0,
                 Length = 6000,

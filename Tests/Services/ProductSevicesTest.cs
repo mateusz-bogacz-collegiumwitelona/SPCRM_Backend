@@ -100,6 +100,17 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
+        private SteelGrade CreateDummySteelGrade(string? name = "S235")
+        {
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = name ?? $"S235_{Guid.NewGuid():N}",
+            };
+            _contextMock.SteelGrades.Add(steelGrade);
+            return steelGrade;
+        }
+
         // ─── GetProductListAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -115,12 +126,14 @@ namespace Tests.Services
                 Symbol = "szt"
             };
 
+            var steelGrade = CreateDummySteelGrade();
 
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"Rura Czarna_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 2,
                 Width = 0,
                 Length = 6000,
@@ -177,11 +190,14 @@ namespace Tests.Services
                 Symbol = "m"
             };
 
+            var steelGrade = CreateDummySteelGrade();
+
             var targetProduct = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"Profil Zamknięty_{uniqueSuffix}",
-                SteelGrade = "S355",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 3,
                 Width = 40,
                 Length = 6000,
@@ -193,11 +209,14 @@ namespace Tests.Services
                 Category = ProductCategoryEnum.Profile
             };
 
+
+
             var otherProduct = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"Blacha_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 5,
                 Width = 1000,
                 Length = 2000,
@@ -264,13 +283,15 @@ namespace Tests.Services
                 Name = "Sztuka",
                 Symbol = "szt"
             };
-
+            
+            var steelGrade = CreateDummySteelGrade();
 
             var p1 = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"A_Rura_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 2,
                 Width = 0,
                 Length = 6000,
@@ -284,7 +305,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"B_Rura_{uniqueSuffix}",
-                SteelGrade = "S355",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 5,
                 Width = 0,
                 Length = 6000,
@@ -298,7 +320,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"C_Profil_{uniqueSuffix}",
-                SteelGrade = "AW6060",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 2,
                 Width = 20,
                 Length = 6000,
@@ -384,12 +407,16 @@ namespace Tests.Services
                 Symbol = "szt"
             };
 
+            var gradeS355 = CreateDummySteelGrade($"S355_{uniqueSuffix}");
+            var gradeAW6060 = CreateDummySteelGrade($"AW6060_{uniqueSuffix}");
+            var gradeS235 = CreateDummySteelGrade($"S235_{uniqueSuffix}");
 
             var p1 = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = "P1",
-                SteelGrade = $"S355_{uniqueSuffix}",
+                SteelGrade = gradeS355,
+                SteelGradeId = gradeS355.Id,
                 UnitId = unit.Id,
                 Unit = unit,
                 Category = ProductCategoryEnum.Other,
@@ -402,7 +429,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = "P2",
-                SteelGrade = $"AW6060_{uniqueSuffix}",
+                SteelGrade = gradeAW6060,
+                SteelGradeId = gradeAW6060.Id,
                 UnitId = unit.Id,
                 Unit = unit,
                 Category = ProductCategoryEnum.Other,
@@ -415,7 +443,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = "P3",
-                SteelGrade = $"S355_{uniqueSuffix}",
+                SteelGrade = gradeS355,
+                SteelGradeId = gradeS355.Id,
                 UnitId = unit.Id,
                 Unit = unit,
                 Category = ProductCategoryEnum.Other,
@@ -428,7 +457,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = "P4",
-                SteelGrade = $"S235_{uniqueSuffix}",
+                SteelGrade = gradeS235,
+                SteelGradeId = gradeS235.Id,
                 UnitId = unit.Id,
                 Unit = unit,
                 Category = ProductCategoryEnum.Other,
@@ -448,17 +478,27 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
 
-            var myGrades = result.Data!.Where(g => g.EndsWith(uniqueSuffix)).ToList();
+            var myGrades = result.Data!
+                .Where(g => g.Name.EndsWith(uniqueSuffix))
+                .ToList();
 
             await Assert.That(myGrades).Count().IsEqualTo(3);
-            await Assert.That(myGrades[0]).IsEqualTo($"AW6060_{uniqueSuffix}");
-            await Assert.That(myGrades[1]).IsEqualTo($"S235_{uniqueSuffix}");
-            await Assert.That(myGrades[2]).IsEqualTo($"S355_{uniqueSuffix}");
+            await Assert.That(myGrades[0].Name).IsEqualTo($"AW6060_{uniqueSuffix}");
+            await Assert.That(myGrades[1].Name).IsEqualTo($"S235_{uniqueSuffix}");
+            await Assert.That(myGrades[2].Name).IsEqualTo($"S355_{uniqueSuffix}");
         }
 
+        // ───  GetSteelGradesAsync ─────────────────────────────────────────────────
+        
         [Test]
-        public async Task GetSteelGradesAsync_WhenCalled_ReturnsSuccessStatusAndNotNullData()
+        public async Task GetSteelGradesAsync_WhenExist_ReturnsSuccessStatusAndNotNullData()
         {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var grade = CreateDummySteelGrade($"S355_{uniqueSuffix}");
+
+            await _contextMock.SaveChangesAsync();
+
             // Act
             var result = await _productSevicesMock.GetSteelGradesAsync();
 
@@ -466,6 +506,19 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Any(g => g.Name == $"S355_{uniqueSuffix}")).IsTrue();
+        }
+
+        [Test]
+        public async Task GetSteelGradesAsync_WhenEmpty_ReturnsSuccessStatusAndEmptyData()
+        {
+            var result = await _productSevicesMock.GetSteelGradesAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data).IsEmpty();
         }
 
         // ───  GetProductDetailsAsync ─────────────────────────────────────────────────
@@ -483,11 +536,14 @@ namespace Tests.Services
 
             var productId = Guid.NewGuid();
 
+            var steelGrade = CreateDummySteelGrade("SRT345");
+
             var product = new Product
             {
                 Id = productId,
                 Name = "Test",
-                SteelGrade = "SRT345",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 20,
                 Width = 30,
                 Length = 40,
@@ -562,11 +618,14 @@ namespace Tests.Services
                 Symbol = "szt"
             };
 
+            var steelGrade = CreateDummySteelGrade("S355");
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"Blacha Mailingowa_{uniqueSuffix}",
-                SteelGrade = "S355",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 10,
                 Width = 1000,
                 Length = 2000,
@@ -618,12 +677,15 @@ namespace Tests.Services
                 Name = "Sztuka",
                 Symbol = "szt"
             };
+            
+            var steelGrade = CreateDummySteelGrade();
 
             var targetProduct = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"Ceownik Specjalny_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 5,
                 Width = 100,
                 Length = 3000,
@@ -639,7 +701,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"Kątownik zwykły_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 4,
                 Width = 50,
                 Length = 3000,
@@ -688,13 +751,15 @@ namespace Tests.Services
                 Symbol = "szt."
             };
 
+            var steelGrade = CreateDummySteelGrade("S350");
+
             _contextMock.UnitsOfMeasure.Add(unit);
             await _contextMock.SaveChangesAsync();
 
             var command = new AddProductCommand
             {
                 Name = $"Product_{uniqueSuffix}",
-                SteelGrade = "S350",
+                SteelGradeId = steelGrade.Id,
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -709,13 +774,19 @@ namespace Tests.Services
             // Act
             var result = await _productSevicesMock.AddProductAsync(command);
             Console.WriteLine(result.Message);
+
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
 
-            var dbProduct = await _contextMock.Products.FirstOrDefaultAsync(p => p.Name == command.Name);
+            var dbProduct = await _contextMock.Products
+                .Include(p => p.SteelGrade)
+                .FirstOrDefaultAsync(p => p.Name == command.Name);
+
             await Assert.That(dbProduct).IsNotNull();
-            await Assert.That(dbProduct!.SteelGrade).IsEqualTo("S350");
+
+            await Assert.That(dbProduct!.SteelGrade.Name).IsEqualTo("S350");
+            await Assert.That(dbProduct.SteelGradeId).IsEqualTo(steelGrade.Id);
             await Assert.That(dbProduct.PricePerUnit).IsEqualTo(150000);
         }
 
@@ -732,11 +803,18 @@ namespace Tests.Services
                 Name = $"Sztuka_{uniqueSuffix}",
                 Symbol = "szt."
             };
+            
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = "S235"
+            };
 
             var existingProduct = new Product
             {
                 Name = productName,
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 5,
                 Width = 50,
                 Length = 500,
@@ -754,7 +832,7 @@ namespace Tests.Services
             var command = new AddProductCommand
             {
                 Name = productName,
-                SteelGrade = "S350",
+                SteelGradeId = Guid.NewGuid(),
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -783,7 +861,7 @@ namespace Tests.Services
             var command = new AddProductCommand
             {
                 Name = $"Product_{uniqueSuffix}",
-                SteelGrade = "S350",
+                SteelGradeId = Guid.NewGuid(),
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -822,7 +900,7 @@ namespace Tests.Services
             var command = new AddProductCommand
             {
                 Name = $"Product_{uniqueSuffix}",
-                SteelGrade = "S350",
+                SteelGradeId = Guid.NewGuid(),
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -864,11 +942,14 @@ namespace Tests.Services
                 Symbol = "t"
             };
 
+            var steelGrade = CreateDummySteelGrade("S235");
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"StaraNazwa_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -889,7 +970,7 @@ namespace Tests.Services
             {
                 ProductId = product.Id,
                 Name = $"NowaNazwa_{uniqueSuffix}",
-                SteelGrade = "S355",
+                SteelGradeId = steelGrade.Id,
                 Thickness = 20,
                 Width = 200,
                 Length = 2000,
@@ -912,7 +993,7 @@ namespace Tests.Services
             var updatedProduct = await _contextMock.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
             await Assert.That(updatedProduct).IsNotNull();
             await Assert.That(updatedProduct!.Name).IsEqualTo(command.Name);
-            await Assert.That(updatedProduct.SteelGrade).IsEqualTo("S355");
+            await Assert.That(updatedProduct.SteelGradeId).IsEqualTo(steelGrade.Id);
             await Assert.That(updatedProduct.Thickness).IsEqualTo(20);
             await Assert.That(updatedProduct.Width).IsEqualTo(200);
             await Assert.That(updatedProduct.Length).IsEqualTo(2000);
@@ -937,11 +1018,14 @@ namespace Tests.Services
                 Symbol = "szt."
             };
 
+            var steelGrade = CreateDummySteelGrade("S235");
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"ProduktPrzedEdycja_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -961,7 +1045,6 @@ namespace Tests.Services
             {
                 ProductId = product.Id,
                 Name = null,
-                SteelGrade = "S355J2",
                 StockQuantity = 120
             };
 
@@ -975,7 +1058,6 @@ namespace Tests.Services
             var updatedProduct = await _contextMock.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
             await Assert.That(updatedProduct).IsNotNull();
             await Assert.That(updatedProduct!.Name).IsEqualTo($"ProduktPrzedEdycja_{uniqueSuffix}");
-            await Assert.That(updatedProduct.SteelGrade).IsEqualTo("S355J2");
             await Assert.That(updatedProduct.StockQuantity).IsEqualTo(120);
             await Assert.That(updatedProduct.Thickness).IsEqualTo(10);
             await Assert.That(updatedProduct.PricePerUnit).IsEqualTo(10000);
@@ -1014,11 +1096,14 @@ namespace Tests.Services
                 Symbol = "szt."
             };
 
+            var steelGrade = CreateDummySteelGrade("S235");
+
             var product1 = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = existingName,
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 1,
                 Width = 1,
                 Length = 1,
@@ -1031,7 +1116,8 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = $"InnaNazwa_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 1,
                 Width = 1,
                 Length = 1,
@@ -1073,11 +1159,14 @@ namespace Tests.Services
                 Symbol = "szt."
             };
 
+            var steelGrade = CreateDummySteelGrade("S355");
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = currentName,
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 1,
                 Width = 1,
                 Length = 1,
@@ -1094,7 +1183,7 @@ namespace Tests.Services
             {
                 ProductId = product.Id,
                 Name = $"   {currentName}   ",
-                SteelGrade = "S355"
+                SteelGradeId = steelGrade.Id
             };
 
             // Act
@@ -1118,11 +1207,14 @@ namespace Tests.Services
                 Symbol = "szt."
             };
 
+            var steelGrade = CreateDummySteelGrade("S235");
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"Produkt_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 1,
                 Width = 1,
                 Length = 1,
@@ -1163,11 +1255,14 @@ namespace Tests.Services
                 Symbol = "szt."
             };
 
+            var steelGrade = CreateDummySteelGrade("S235");
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = $"Produkt_{uniqueSuffix}",
-                SteelGrade = "S235",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
                 Thickness = 1,
                 Width = 1,
                 Length = 1,

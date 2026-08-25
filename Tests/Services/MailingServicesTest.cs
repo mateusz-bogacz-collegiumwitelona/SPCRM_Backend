@@ -254,11 +254,18 @@ namespace Tests.Services
             };
             _contextMock.UnitsOfMeasure.Add(unit);
 
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = "S235"
+            };
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = "Blacha stalowa",
-                SteelGrade = "S235",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
                 Thickness = 10,
                 Width = 1000,
                 Length = 2000,

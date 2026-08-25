@@ -162,10 +162,6 @@ namespace Services.Services
         {
             var query = _context.DealProducts
                 .AsNoTracking()
-                .Include(dp => dp.Product)
-                    .ThenInclude(p => p.Unit)
-                .Include(dp => dp.Deal)
-                    .ThenInclude(d => d.Currency)
                 .Where(dp => dp.DealId == dealId);
 
             query = query
@@ -173,13 +169,11 @@ namespace Services.Services
                 .ApplyFilter(command.ProductCategory, command.SteelGrade)
                 .ApplySorting(command.SortBy, command.SortDescending);
 
-            var pagedEntitiesResult = await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
-
-            return pagedEntitiesResult.MapData(dp => new DealProductResponse
+            var projectedQuery = query.Select(dp => new DealProductResponse
             {
                 ProductId = dp.ProductId,
                 Name = dp.Product.Name,
-                SteelGrade = dp.Product.SteelGrade,
+                SteelGrade = dp.Product.SteelGrade.Name,
 
                 Dimensions = DimensionsFormatter.Format(
                     dp.Product.Category,
@@ -197,6 +191,8 @@ namespace Services.Services
                 CurrencyCode = dp.Deal.Currency.Code,
                 DecimalPlaces = dp.Deal.Currency.DecimalPlaces
             });
+
+            return await projectedQuery.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
         }
     }
 }

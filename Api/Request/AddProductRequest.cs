@@ -3,7 +3,7 @@
     public record AddProductRequest
     {
         public required string Name { get; init; }
-        public required string SteelGrade { get; init; }
+        public required Guid SteelGradeId { get; init; }
         public int Thickness { get; init; }
         public int Width { get; init; }
         public int Length { get; init; }

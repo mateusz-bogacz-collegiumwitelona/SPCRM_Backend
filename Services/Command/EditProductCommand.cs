@@ -4,7 +4,7 @@
     {
         public required Guid ProductId { get; init; }
         public string? Name { get; init; }
-        public string? SteelGrade { get; init; }
+        public Guid? SteelGradeId { get; init; }
         public int? Thickness { get; init; }
         public int? Width { get; init; }
         public int? Length { get; init; }

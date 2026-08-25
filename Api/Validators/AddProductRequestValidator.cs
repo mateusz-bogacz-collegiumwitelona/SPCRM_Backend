@@ -11,8 +11,8 @@ namespace Api.Validators
             RuleFor(x => x.Name)
                 .ApplyProductNameRules();
 
-            RuleFor(x => x.SteelGrade)
-                .ApplyProductSteelGradeRules();
+            RuleFor(x => x.SteelGradeId).NotNull()
+                .ApplyValidGuidRule();
 
             RuleFor(x => x.Thickness)
                 .NotNull()

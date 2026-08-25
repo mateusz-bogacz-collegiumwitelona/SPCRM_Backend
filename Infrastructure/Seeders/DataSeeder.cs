@@ -30,6 +30,7 @@ namespace Infrastructure.Seeders
 
             if (!await _context.Currencies.AnyAsync()) await SeedCurrenciesAsync();
             if (!await _context.UnitsOfMeasure.AnyAsync()) await SeedUnitsAsync();
+            if (!await _context.SteelGrades.AnyAsync()) await SeedSteelGradesAsync();
 
             if (!await _context.Companies.AnyAsync()) await SeedCompaniesAndContactsAsync();
             if (!await _context.Products.AnyAsync()) await SeedProductsAsync();
@@ -66,15 +67,13 @@ namespace Infrastructure.Seeders
             }
         }
 
-
         private async Task SeedUserAsync()
         {
             try
             {
                 if (!await _roleManager.RoleExistsAsync("Admin") ||
                     !await _roleManager.RoleExistsAsync("Manager") ||
-                    !await _roleManager.RoleExistsAsync("User")
-                    )
+                    !await _roleManager.RoleExistsAsync("User"))
                 {
                     await SeedRoleAsync();
                 }
@@ -97,8 +96,7 @@ namespace Infrastructure.Seeders
             string password,
             string role,
             string firstName,
-            string lastName
-            )
+            string lastName)
         {
             var isUserExist = await _userManager.FindByEmailAsync(email);
 
@@ -133,7 +131,6 @@ namespace Infrastructure.Seeders
             }
         }
 
-
         private async Task SeedCurrenciesAsync()
         {
             var currencies = new List<Currency>
@@ -163,12 +160,133 @@ namespace Infrastructure.Seeders
             Console.WriteLine("All units of measure seeded successfully.");
         }
 
+        private async Task SeedSteelGradesAsync()
+        {
+            var steelGrades = new List<SteelGrade>
+            {
+                new() { Name = "S235JR", Standard = "EN 10025-2", Density = 7850 },
+                new() { Name = "S355J2", Standard = "EN 10025-2", Density = 7850 },
+                new() { Name = "DC01", Standard = "EN 10130", Density = 7850 },
+                new() { Name = "DX51D", Standard = "EN 10346", Density = 7850 },
+                new() { Name = "304L", Standard = "EN 10088-2", Density = 7900 },
+                new() { Name = "316L", Standard = "EN 10088-2", Density = 8000 },
+                new() { Name = "AW6060", Standard = "EN 573-3", Density = 2700 },
+                new() { Name = "C45", Standard = "EN 10083-2", Density = 7850 }
+            };
+
+            await _context.SteelGrades.AddRangeAsync(steelGrades);
+            await _context.SaveChangesAsync();
+            Console.WriteLine("All steel grades seeded successfully.");
+        }
+
+        private async Task SeedProductsAsync()
+        {
+            var units = await _context.UnitsOfMeasure.ToListAsync();
+            var steelGrades = await _context.SteelGrades.ToListAsync();
+            var random = new Random();
+            var products = new List<Product>();
+
+            var categories = Enum.GetValues<ProductCategoryEnum>();
+
+            for (int i = 1; i <= 60; i++)
+            {
+                var unit = units[random.Next(units.Count)];
+                var grade = steelGrades[random.Next(steelGrades.Count)];
+                var category = categories[random.Next(categories.Length)];
+
+                int thickness = 0;
+                int width = 0;
+                int length = 0;
+                int? diameter = null;
+
+                // Generowanie spójnych parametrów geometrycznych dla poszczególnych kategorii (wartości * 10)
+                switch (category)
+                {
+                    case ProductCategoryEnum.Sheet:
+                        thickness = random.Next(10, 300);       // 1.0 - 30.0 mm
+                        width = random.Next(10000, 20000);      // 1000 - 2000 mm
+                        length = random.Next(20000, 60000);     // 2000 - 6000 mm
+                        break;
+
+                    case ProductCategoryEnum.Pipe:
+                        diameter = random.Next(213, 5080);      // fi 21.3 - 508.0 mm
+                        thickness = random.Next(20, 125);       // 2.0 - 12.5 mm
+                        length = random.Next(60000, 120000);    // 6000 - 12000 mm
+                        break;
+
+                    case ProductCategoryEnum.Bar:
+                        bool isRound = random.Next(100) < 60;
+                        if (isRound)
+                        {
+                            diameter = random.Next(60, 2000);   // fi 6.0 - 200.0 mm
+                        }
+                        else
+                        {
+                            width = random.Next(200, 1500);     // 20.0 - 150.0 mm
+                            thickness = random.Next(50, 400);   // 5.0 - 40.0 mm
+                        }
+                        length = random.Next(30000, 60000);     // 3000 - 6000 mm
+                        break;
+
+                    case ProductCategoryEnum.Profile:
+                    case ProductCategoryEnum.Beam:
+                        width = random.Next(200, 3000);         // 20.0 - 300.0 mm
+                        thickness = random.Next(20, 100);       // 2.0 - 10.0 mm
+                        length = random.Next(60000, 120000);    // 6000 - 12000 mm
+                        break;
+
+                    case ProductCategoryEnum.Wire:
+                        diameter = random.Next(10, 120);        // fi 1.0 - 12.0 mm
+                        length = random.Next(10000, 100000);    // 1000 - 10000 mm
+                        break;
+
+                    case ProductCategoryEnum.Mesh:
+                        thickness = random.Next(40, 120);       // drut fi 4.0 - 12.0 mm
+                        width = random.Next(21500, 24000);      // 2150 - 2400 mm
+                        length = random.Next(50000, 60000);     // 5000 - 6000 mm
+                        break;
+
+                    case ProductCategoryEnum.Fitting:
+                    case ProductCategoryEnum.Other:
+                    default:
+                        diameter = random.Next(100) < 50 ? random.Next(200, 1000) : null;
+                        thickness = random.Next(20, 200);
+                        width = random.Next(100, 1000);
+                        length = random.Next(1000, 60000);
+                        break;
+                }
+
+                products.Add(new Product
+                {
+                    Name = $"{category} {grade.Name} #{i}",
+                    SteelGradeId = grade.Id,
+                    SteelGrade = grade,
+                    Thickness = thickness,
+                    Width = width,
+                    Length = length,
+                    Diameter = diameter,
+                    Weight = random.Next(100, 50000),             // waga
+                    Unit = unit,
+                    UnitId = unit.Id,
+                    PricePerUnit = random.Next(1000, 10000) * 10000L,
+                    StockQuantity = random.Next(5, 500),
+                    Category = category
+                });
+
+                Console.WriteLine($"Prepared product {i}: {products.Last().Name}");
+            }
+
+            await _context.Products.AddRangeAsync(products);
+            await _context.SaveChangesAsync();
+            Console.WriteLine("All products seeded successfully.");
+        }
+
         private async Task SeedCompaniesAndContactsAsync()
         {
             var user = await _userManager.FindByEmailAsync("user@example.pl")
-                ?? throw new InvalidOperationException("Seeding failed: Default user not found."); ;
+                ?? throw new InvalidOperationException("Seeding failed: Default user not found.");
             var manager = await _userManager.FindByEmailAsync("manager@example.pl")
-                ?? throw new InvalidOperationException("Seeding failed: Default admin not found."); ;
+                ?? throw new InvalidOperationException("Seeding failed: Default admin not found.");
 
             var companies = new List<Company>
             {
@@ -263,7 +381,7 @@ namespace Infrastructure.Seeders
                     LastName = "Nowak",
                     IsPrimary = true,
                     JobTitle = "Dyrektor ds. Zakupów",
-                    Company = companies[0], // Stal-Met
+                    Company = companies[0],
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.nowak@stalmet.pl", IsPrimary = true, Label = "Służbowy" },
@@ -282,7 +400,7 @@ namespace Infrastructure.Seeders
                     LastName = "Wiśniewska",
                     IsPrimary = false,
                     JobTitle = "Główna Księgowa",
-                    Company = companies[0], // Stal-Met
+                    Company = companies[0],
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.wisniewska@stalmet.pl", IsPrimary = true, Label = "Do e-faktur" },
@@ -303,7 +421,7 @@ namespace Infrastructure.Seeders
                     LastName = "Zieliński",
                     IsPrimary = false,
                     JobTitle = "Kierownik Magazynu",
-                    Company = companies[0], // Stal-Met
+                    Company = companies[0],
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 777 888 999", IsPrimary = true, Label = "Magazyn wysyłkowy" }
@@ -319,7 +437,7 @@ namespace Infrastructure.Seeders
                     LastName = "Kowalski",
                     IsPrimary = true,
                     JobTitle = "Kierownik Budowy",
-                    Company = companies[1], // BudowaX S.A.
+                    Company = companies[1],
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 600 700 800", IsPrimary = true, Label = "Kontener kierownika" },
@@ -332,7 +450,7 @@ namespace Infrastructure.Seeders
                     LastName = "Lewandowski",
                     IsPrimary = false,
                     JobTitle = "Inżynier Budowy",
-                    Company = companies[1], // BudowaX S.A.
+                    Company = companies[1],
                     Owner = user!,
                     ContactDetails = new List<ContactDetail>()
                 },
@@ -342,7 +460,7 @@ namespace Infrastructure.Seeders
                     LastName = "Kowal",
                     IsPrimary = true,
                     JobTitle = "Dyrektor Handlowy",
-                    Company = companies[2], // Huta Żelaza 'Odra'
+                    Company = companies[2],
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "k.kowal@hutaodra.pl", IsPrimary = true, Label = "Zapytania ofertowe" },
@@ -355,7 +473,7 @@ namespace Infrastructure.Seeders
                     LastName = "Zielińska",
                     IsPrimary = false,
                     JobTitle = "Specjalista ds. Logistyki",
-                    Company = companies[2], // Huta Żelaza 'Odra'
+                    Company = companies[2],
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "a.zielinska@hutaodra.pl", IsPrimary = true, Label = "Awizacje dostaw" },
@@ -369,7 +487,7 @@ namespace Infrastructure.Seeders
                     LastName = "Dąbrowska",
                     IsPrimary = false,
                     JobTitle = "Dział Kontroli Jakości",
-                    Company = companies[2], // Huta Żelaza 'Odra'
+                    Company = companies[2],
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "m.dabrowska@hutaodra.pl", IsPrimary = true, Label = "Atesty i reklamacje" }
@@ -385,7 +503,7 @@ namespace Infrastructure.Seeders
                     LastName = "Wójcik",
                     IsPrimary = true,
                     JobTitle = "Właściciel",
-                    Company = companies[3], // P.H.U. Konstrukcje Stalowe
+                    Company = companies[3],
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "p.wojcik@konstrukcje.pl", IsPrimary = true, Label = "Główny" },
@@ -398,7 +516,7 @@ namespace Infrastructure.Seeders
                     LastName = "Woźniak",
                     IsPrimary = false,
                     JobTitle = "Kosztorysant",
-                    Company = companies[3], // P.H.U. Konstrukcje Stalowe
+                    Company = companies[3],
                     Owner = user!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 444 555 666", IsPrimary = true, Label = "Komórka służbowa" },
@@ -412,7 +530,7 @@ namespace Infrastructure.Seeders
                     LastName = "Szymańska",
                     IsPrimary = true,
                     JobTitle = "Zaopatrzeniowiec",
-                    Company = companies[4], // Mega-Stal s.c.
+                    Company = companies[4],
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.EMAIL, Value = "b.szymanska@megastal.pl", IsPrimary = false, Label = "Zamówienia huta" },
@@ -425,7 +543,7 @@ namespace Infrastructure.Seeders
                     LastName = "Kamińska",
                     IsPrimary = false,
                     JobTitle = "Asystentka Zarządu",
-                    Company = companies[4], // Mega-Stal s.c.
+                    Company = companies[4],
                     Owner = manager!,
                     ContactDetails = new List<ContactDetail> {
                         new() { Type = ContactDetailTypeEnum.PHONE_MOBILE, Value = "+48 999 888 777", IsPrimary = true, Label = "Sekretariat" },
@@ -437,46 +555,6 @@ namespace Infrastructure.Seeders
             await _context.Contacts.AddRangeAsync(contacts);
             await _context.SaveChangesAsync();
             Console.WriteLine("All contacts seeded successfully.");
-        }
-
-        private async Task SeedProductsAsync()
-        {
-            var units = await _context.UnitsOfMeasure.ToListAsync();
-            var random = new Random();
-            var products = new List<Product>();
-
-            var grades = new[] { "S235JR", "S355J2", "DC01", "DX51D", "304L" };
-            var categories = Enum.GetValues(typeof(ProductCategoryEnum)).Cast<ProductCategoryEnum>().ToArray();
-
-            for (int i = 1; i <= 50; i++)
-            {
-                var unit = units[random.Next(units.Count)];
-                var grade = grades[random.Next(grades.Length)];
-                var category = categories[random.Next(categories.Length)];
-
-                bool isPipe = category == ProductCategoryEnum.Pipe;
-
-                products.Add(new Product
-                {
-                    Name = $"{category} {grade} Wymiar {random.Next(10, 200)}x{random.Next(10, 200)}",
-                    SteelGrade = grade,
-                    Thickness = random.Next(10, 500),
-                    Width = random.Next(100, 2000),
-                    Length = random.Next(1000, 12000),
-                    Diameter = isPipe ? random.Next(20, 800) : null,
-                    Weight = random.Next(10, 5000),
-                    Unit = unit,
-                    PricePerUnit = random.Next(1000, 10000) * 10000,
-                    StockQuantity = random.Next(0, 500),
-                    Category = category
-                });
-
-                Console.WriteLine($"Prepared product {i}: {products.Last().Name}");
-            }
-
-            await _context.Products.AddRangeAsync(products);
-            await _context.SaveChangesAsync();
-            Console.WriteLine("All products seeded successfully.");
         }
 
         private async Task SeedDealsAndTasksAsync()
@@ -491,9 +569,9 @@ namespace Infrastructure.Seeders
             var dealProducts = new List<DealProduct>();
             var tasks = new List<Tasks>();
 
-            var dealStatuses = Enum.GetValues(typeof(DealsStatusEnum)).Cast<DealsStatusEnum>().ToArray();
-            var taskStatuses = Enum.GetValues(typeof(TaskStatusEnum)).Cast<TaskStatusEnum>().ToArray();
-            var taskPriorities = Enum.GetValues(typeof(TaskPriorityEnum)).Cast<TaskPriorityEnum>().ToArray();
+            var dealStatuses = Enum.GetValues<DealsStatusEnum>();
+            var taskStatuses = Enum.GetValues<TaskStatusEnum>();
+            var taskPriorities = Enum.GetValues<TaskPriorityEnum>();
 
             for (int i = 1; i <= 100; i++)
             {
@@ -578,7 +656,6 @@ namespace Infrastructure.Seeders
                         Notes = new List<TaskNote>()
                     };
 
-
                     if (random.Next(100) < 25)
                     {
                         task.Notes.Add(new TaskNote
@@ -590,7 +667,6 @@ namespace Infrastructure.Seeders
                     }
 
                     tasks.Add(task);
-
                     Console.WriteLine($"  - Added task {t} to deal: {deal.Name}");
                 }
             }
@@ -614,12 +690,9 @@ namespace Infrastructure.Seeders
             double lng = minLng + (random.NextDouble() * (maxLng - minLng));
             double lat = minLat + (random.NextDouble() * (maxLat - minLat));
 
-
             Console.WriteLine($"Generated random point: ({lat}, {lng})");
-
             return new Point(lng, lat) { SRID = 4326 };
         }
-
 
         private async Task SeedStandaloneTasksAsync()
         {
@@ -631,8 +704,8 @@ namespace Infrastructure.Seeders
             var random = new Random();
             var tasks = new List<Tasks>();
 
-            var taskStatuses = Enum.GetValues(typeof(TaskStatusEnum)).Cast<TaskStatusEnum>().ToArray();
-            var taskPriorities = Enum.GetValues(typeof(TaskPriorityEnum)).Cast<TaskPriorityEnum>().ToArray();
+            var taskStatuses = Enum.GetValues<TaskStatusEnum>();
+            var taskPriorities = Enum.GetValues<TaskPriorityEnum>();
 
             var taskTitles = new[] {
                 "Zadzwonić do klienta", "Wysłać ofertę", "Spotkanie handlowe",

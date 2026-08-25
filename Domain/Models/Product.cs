@@ -6,7 +6,10 @@ namespace Domain.Models
     public class Product : BaseEntity
     {
         public required string Name { get; set; }
-        public required string SteelGrade { get; set; }
+        
+        public required Guid SteelGradeId { get; set; }
+        public required SteelGrade SteelGrade { get; set; }
+
         public int Thickness { get; set; } // mm * 10
         public int Width { get; set; } // mm * 10
         public int Length { get; set; } // mm * 10

@@ -215,7 +215,7 @@ namespace Services.Services
                 return new MailingProductItemDomain
                 {
                     ProductName = product.Name,
-                    SteelGrade = product.SteelGrade,
+                    SteelGrade = product.SteelGrade.Name,
                     FormattedDimensions = formatDimmension,
                     Weight = product.Weight,
                     UnitSymbol = product.Unit?.Symbol ?? "szt.",

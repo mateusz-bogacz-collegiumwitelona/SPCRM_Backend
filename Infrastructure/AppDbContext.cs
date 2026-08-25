@@ -28,6 +28,7 @@ namespace Infrastructure
         public DbSet<Promotion> Promotions { get; set; }
         public DbSet<Offer> Offers { get; set; }
         public DbSet<OfferProducts> OfferProducts { get; set; }
+        public DbSet<SteelGrade> SteelGrades { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -35,6 +36,10 @@ namespace Infrastructure
 
             builder.HasPostgresExtension("postgis");
             builder.HasPostgresExtension("unaccent");
+
+            builder.Entity<SteelGrade>()
+                .HasIndex(s => s.Name)
+                .IsUnique();
 
             builder.Entity<CompanyAdress>()
                 .Property(sa => sa.Location)

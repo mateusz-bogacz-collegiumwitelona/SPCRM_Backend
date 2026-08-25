@@ -734,13 +734,19 @@ namespace Tests.Services
                 Name = "Sztuka",
                 Symbol = "szt"
             };
-            ;
+            
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = "S235"
+            };
 
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = "Produkt A",
-                SteelGrade = "S235",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
                 Thickness = 2,
                 Width = 40,
                 Length = 6000,
@@ -761,6 +767,7 @@ namespace Tests.Services
                 UnitPrice = 12000
             };
 
+            _contextMock.SteelGrades.Add(steelGrade);
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
@@ -867,11 +874,18 @@ namespace Tests.Services
                 Symbol = "m"
             };
 
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = "S235"
+            };
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = "Prod B",
-                SteelGrade = "S355",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
                 UnitId = unit.Id,
                 Unit = unit,
                 Category = ProductCategoryEnum.Other
@@ -897,6 +911,7 @@ namespace Tests.Services
                 Quantity = 2
             };
 
+            _contextMock.SteelGrades.Add(steelGrade);
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
