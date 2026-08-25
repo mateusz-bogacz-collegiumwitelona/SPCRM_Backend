@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command;
+using Services.Helpers;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -129,7 +130,7 @@ namespace Tests.Services
                 StockQuantity = 100,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard
+                Category = ProductCategoryEnum.Other
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -157,7 +158,7 @@ namespace Tests.Services
             await Assert.That(mappedProduct!.Name).IsEqualTo(product.Name);
             await Assert.That(mappedProduct.SteelGrade).IsEqualTo("S235");
             await Assert.That(mappedProduct.StockQuantity).IsEqualTo(100);
-            await Assert.That(mappedProduct.Category).IsEqualTo(ProductCategoryEnum.Standard.ToString());
+            await Assert.That(mappedProduct.Category).IsEqualTo(ProductCategoryEnum.Other.ToString());
             await Assert.That(mappedProduct.UnitSymbol).IsEqualTo("szt");
             await Assert.That(mappedProduct.Dimensions).IsNotNull();
             await Assert.That(mappedProduct.Dimensions).IsNotEmpty();
@@ -205,7 +206,7 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard
+                Category = ProductCategoryEnum.Other
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -276,7 +277,7 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard
+                Category = ProductCategoryEnum.Other
             };
 
             var p2 = new Product
@@ -290,7 +291,7 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard
+                Category = ProductCategoryEnum.Other
             };
 
             var p3 = new Product
@@ -315,7 +316,7 @@ namespace Tests.Services
             {
                 PageNumber = 1,
                 PageSize = 10,
-                ProductCategory = ProductCategoryEnum.Standard.ToString(),
+                ProductCategory = ProductCategoryEnum.Other.ToString(),
                 SortBy = "quantity",
                 SortDescending = true,
                 SearchTerm = uniqueSuffix
@@ -391,7 +392,7 @@ namespace Tests.Services
                 SteelGrade = $"S355_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard,
+                Category = ProductCategoryEnum.Other,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -404,7 +405,7 @@ namespace Tests.Services
                 SteelGrade = $"AW6060_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard,
+                Category = ProductCategoryEnum.Other,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -417,7 +418,7 @@ namespace Tests.Services
                 SteelGrade = $"S355_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard,
+                Category = ProductCategoryEnum.Other,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -430,7 +431,7 @@ namespace Tests.Services
                 SteelGrade = $"S235_{uniqueSuffix}",
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard,
+                Category = ProductCategoryEnum.Other,
                 Thickness = 1,
                 Width = 1,
                 Length = 1
@@ -487,14 +488,14 @@ namespace Tests.Services
                 Id = productId,
                 Name = "Test",
                 SteelGrade = "SRT345",
-                Thickness = 2,
-                Width = 3,
-                Length = 4,
+                Thickness = 20,
+                Width = 30,
+                Length = 40,
                 Weight = 40000000,
                 Unit = unit,
                 PricePerUnit = 400000,
                 StockQuantity = 100000,
-                Category = ProductCategoryEnum.Standard
+                Category = ProductCategoryEnum.Other
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -511,13 +512,21 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
 
             var response = result.Data;
-            string theoryDimmension = $"{product.Thickness} x {product.Width} x {product.Length}";
+
+            string theoryDimmension = DimensionsFormatter.Format(
+                 product.Category,
+                 product.Diameter,
+                 product.Thickness,
+                 product.Width,
+                 product.Length
+             );
+
+            await Assert.That(response!.Dimensions).IsEquatableTo(theoryDimmension);
 
             await Assert.That(response!.Id).IsEquatableTo(productId);
             await Assert.That(response!.Name).IsEquatableTo("Test");
             await Assert.That(response!.SteelGrade).IsEquatableTo("SRT345");
-            await Assert.That(response!.Category).IsEquatableTo(ProductCategoryEnum.Standard.ToString());
-            await Assert.That(response!.Dimensions).IsEquatableTo(theoryDimmension);
+            await Assert.That(response!.Category).IsEquatableTo(ProductCategoryEnum.Other.ToString());
             await Assert.That(response!.StockQuantity).IsEquatableTo(100000);
             await Assert.That(response!.UnitSymbol).IsEquatableTo("t");
             await Assert.That(response!.PricePerUnit).IsEquatableTo(400000m);
@@ -753,7 +762,7 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 PricePerUnit = 150000,
                 StockQuantity = 50,
-                Category = ProductCategoryEnum.Standard.ToString()
+                Category = ProductCategoryEnum.Other.ToString()
             };
 
             // Act
@@ -826,6 +835,359 @@ namespace Tests.Services
 
             // Act
             var result = await _productSevicesMock.AddProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidCategory);
+        }
+
+        // ─── EditProductAsync ───────────────────────────────────────────
+
+        [Test]
+        public async Task EditProductAsync_SuccessfullyUpdatesAllFields_WhenDataIsValid()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var initialUnit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var newUnit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Tona_{uniqueSuffix}",
+                Symbol = "t"
+            };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"StaraNazwa_{uniqueSuffix}",
+                SteelGrade = "S235",
+                Thickness = 10,
+                Width = 100,
+                Length = 1000,
+                Diameter = null,
+                Weight = 1000,
+                PricePerUnit = 10000,
+                StockQuantity = 5,
+                UnitId = initialUnit.Id,
+                Unit = initialUnit,
+                Category = ProductCategoryEnum.Bar
+            };
+
+            _contextMock.UnitsOfMeasure.AddRange(initialUnit, newUnit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditProductCommand
+            {
+                ProductId = product.Id,
+                Name = $"NowaNazwa_{uniqueSuffix}",
+                SteelGrade = "S355",
+                Thickness = 20,
+                Width = 200,
+                Length = 2000,
+                Diameter = 50,
+                Weight = 2500,
+                UnitId = newUnit.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 15,
+                Category = ProductCategoryEnum.Pipe.ToString()
+            };
+
+            // Act
+            var result = await _productSevicesMock.EditProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Product updated successfully.");
+
+            var updatedProduct = await _contextMock.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
+            await Assert.That(updatedProduct).IsNotNull();
+            await Assert.That(updatedProduct!.Name).IsEqualTo(command.Name);
+            await Assert.That(updatedProduct.SteelGrade).IsEqualTo("S355");
+            await Assert.That(updatedProduct.Thickness).IsEqualTo(20);
+            await Assert.That(updatedProduct.Width).IsEqualTo(200);
+            await Assert.That(updatedProduct.Length).IsEqualTo(2000);
+            await Assert.That(updatedProduct.Diameter).IsEqualTo(50);
+            await Assert.That(updatedProduct.Weight).IsEqualTo(2500);
+            await Assert.That(updatedProduct.UnitId).IsEqualTo(newUnit.Id);
+            await Assert.That(updatedProduct.PricePerUnit).IsEqualTo(20000);
+            await Assert.That(updatedProduct.StockQuantity).IsEqualTo(15);
+            await Assert.That(updatedProduct.Category).IsEqualTo(ProductCategoryEnum.Pipe);
+        }
+
+        [Test]
+        public async Task EditProductAsync_WhenPartialDataProvided_UpdatesOnlySpecifiedFields()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"ProduktPrzedEdycja_{uniqueSuffix}",
+                SteelGrade = "S235",
+                Thickness = 10,
+                Width = 100,
+                Length = 1000,
+                Weight = 1000,
+                PricePerUnit = 10000,
+                StockQuantity = 50,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Bar
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditProductCommand
+            {
+                ProductId = product.Id,
+                Name = null,
+                SteelGrade = "S355J2",
+                StockQuantity = 120
+            };
+
+            // Act
+            var result = await _productSevicesMock.EditProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedProduct = await _contextMock.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
+            await Assert.That(updatedProduct).IsNotNull();
+            await Assert.That(updatedProduct!.Name).IsEqualTo($"ProduktPrzedEdycja_{uniqueSuffix}");
+            await Assert.That(updatedProduct.SteelGrade).IsEqualTo("S355J2");
+            await Assert.That(updatedProduct.StockQuantity).IsEqualTo(120);
+            await Assert.That(updatedProduct.Thickness).IsEqualTo(10);
+            await Assert.That(updatedProduct.PricePerUnit).IsEqualTo(10000);
+        }
+
+        [Test]
+        public async Task EditProductAsync_Fails_WhenProductDoesNotExist()
+        {
+            // Arrange
+            var command = new EditProductCommand
+            {
+                ProductId = Guid.NewGuid(),
+                Name = "Nieistniejacy"
+            };
+
+            // Act
+            var result = await _productSevicesMock.EditProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+        }
+
+        [Test]
+        public async Task EditProductAsync_Fails_WhenNewNameAlreadyExistsInAnotherProduct()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            string existingName = $"ZajetaNazwa_{uniqueSuffix}";
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var product1 = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = existingName,
+                SteelGrade = "S235",
+                Thickness = 1,
+                Width = 1,
+                Length = 1,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Other
+            };
+
+            var product2 = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"InnaNazwa_{uniqueSuffix}",
+                SteelGrade = "S235",
+                Thickness = 1,
+                Width = 1,
+                Length = 1,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Other
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.AddRange(product1, product2);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditProductCommand
+            {
+                ProductId = product2.Id,
+                Name = existingName
+            };
+
+            // Act
+            var result = await _productSevicesMock.EditProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductAlreadyExists);
+        }
+
+        [Test]
+        public async Task EditProductAsync_Succeeds_WhenKeepingSameNameForSameProduct()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            string currentName = $"TaSamaNazwa_{uniqueSuffix}";
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = currentName,
+                SteelGrade = "S235",
+                Thickness = 1,
+                Width = 1,
+                Length = 1,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Other
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditProductCommand
+            {
+                ProductId = product.Id,
+                Name = $"   {currentName}   ",
+                SteelGrade = "S355"
+            };
+
+            // Act
+            var result = await _productSevicesMock.EditProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+        }
+
+        [Test]
+        public async Task EditProductAsync_Fails_WhenUnitNotFound()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Produkt_{uniqueSuffix}",
+                SteelGrade = "S235",
+                Thickness = 1,
+                Width = 1,
+                Length = 1,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Other
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditProductCommand
+            {
+                ProductId = product.Id,
+                UnitId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _productSevicesMock.EditProductAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound);
+        }
+
+        [Test]
+        public async Task EditProductAsync_Fails_WhenCategoryIsInvalid()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Produkt_{uniqueSuffix}",
+                SteelGrade = "S235",
+                Thickness = 1,
+                Width = 1,
+                Length = 1,
+                UnitId = unit.Id,
+                Unit = unit,
+                Category = ProductCategoryEnum.Other
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditProductCommand
+            {
+                ProductId = product.Id,
+                Category = "NiepoprawnaKategoria"
+            };
+
+            // Act
+            var result = await _productSevicesMock.EditProductAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();

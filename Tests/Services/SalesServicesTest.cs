@@ -747,7 +747,7 @@ namespace Tests.Services
                 PricePerUnit = 10000,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard,
+                Category = ProductCategoryEnum.Other,
             };
 
             var dealProduct = new DealProduct
@@ -874,7 +874,7 @@ namespace Tests.Services
                 SteelGrade = "S355",
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Standard
+                Category = ProductCategoryEnum.Other
             };
 
             var targetDealProduct = new DealProduct

@@ -242,5 +242,114 @@ namespace Services.Services
                 statusCode: StatusCodes.Status201Created
             );
         }
+
+        public async Task<Result> EditProductAsync(EditProductCommand command)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == command.ProductId);
+
+            if (product == null)
+            {
+                _logger.LogWarning("Product with ID {ProductId} not found for editing.", command.ProductId);
+                return Result.Failure(
+                    message: "Product not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ProductNotFound
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Name))
+            {
+                string trimName = command.Name.Trim();
+                if (await _context.Products.AnyAsync(p => p.Name == trimName && p.Id != command.ProductId))
+                {
+                    _logger.LogWarning("Attempt to edit product with an existing name: {ProductName}", command.Name);
+                    return Result.Failure(
+                        message: "Another product with the same name already exists.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.ProductAlreadyExists
+                    );
+                }
+                product.Name = trimName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.SteelGrade))
+            {
+                product.SteelGrade = command.SteelGrade.Trim();
+            }
+
+            if (command.Thickness.HasValue)
+            {
+                product.Thickness = command.Thickness.Value;
+            }
+
+            if (command.Width.HasValue)
+            {
+                product.Width = command.Width.Value;
+            }
+
+            if (command.Length.HasValue)
+            {
+                product.Length = command.Length.Value;
+            }
+
+            if (command.Diameter.HasValue)
+            {
+                product.Diameter = command.Diameter.Value;
+            }
+
+            if (command.Weight.HasValue)
+            {
+                product.Weight = command.Weight.Value;
+            }
+
+            if (command.UnitId.HasValue)
+            {
+                var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId.Value);
+                if (unit == null)
+                {
+                    _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId.Value);
+                    return Result.Failure(
+                        message: "Unit of measure not found.",
+                        statusCode: StatusCodes.Status404NotFound,
+                        errorCode: ErrorCodes.NotFound
+                    );
+                }
+                product.UnitId = unit.Id;
+            }
+
+            if (command.PricePerUnit.HasValue)
+            {
+                product.PricePerUnit = command.PricePerUnit.Value;
+            }
+
+            if (command.StockQuantity.HasValue)
+            {
+                product.StockQuantity = command.StockQuantity.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Category))
+            {
+                if (Enum.TryParse<ProductCategoryEnum>(command.Category, true, out var category))
+                {
+                    product.Category = category;
+                }
+                else
+                {
+                    _logger.LogWarning("Invalid product category provided for editing: {Category}", command.Category);
+                    return Result.Failure(
+                        message: "Invalid product category.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.InvalidCategory
+                    );
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Product updated successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

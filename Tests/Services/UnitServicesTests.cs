@@ -1,5 +1,4 @@
-﻿using Domain.Models;
-using Infrastructure;
+﻿using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
