@@ -25,12 +25,12 @@ namespace Api.Mappers
                 HasActivePromotion = filter.HasActivePromotion
             };
 
+        [MapProperty(nameof(AddProductRequest.Thickness), nameof(AddProductCommand.Thickness), Use = nameof(MapDecimalDimensionToDatabase))]
+        [MapProperty(nameof(AddProductRequest.Width), nameof(AddProductCommand.Width), Use = nameof(MapDecimalDimensionToDatabase))]
+        [MapProperty(nameof(AddProductRequest.Length), nameof(AddProductCommand.Length), Use = nameof(MapDecimalDimensionToDatabase))]
+        [MapProperty(nameof(AddProductRequest.Diameter), nameof(AddProductCommand.Diameter), Use = nameof(MapOptionalDecimalDimensionToDatabase))]
         [MapProperty(nameof(AddProductRequest.PricePerUnit), nameof(AddProductCommand.PricePerUnit), Use = nameof(MapPriceToDatabase))]
         [MapProperty(nameof(AddProductRequest.Weight), nameof(AddProductCommand.Weight), Use = nameof(MapWeightToGrams))]
-        [MapProperty(nameof(AddProductRequest.Thickness), nameof(AddProductCommand.Thickness), Use = nameof(MapDimensionToDatabase))]
-        [MapProperty(nameof(AddProductRequest.Width), nameof(AddProductCommand.Width), Use = nameof(MapDimensionToDatabase))]
-        [MapProperty(nameof(AddProductRequest.Length), nameof(AddProductCommand.Length), Use = nameof(MapDimensionToDatabase))]
-        [MapProperty(nameof(AddProductRequest.Diameter), nameof(AddProductCommand.Diameter), Use = nameof(MapOptionalIntDimensionToDatabase))]
         public partial AddProductCommand MapAdd(AddProductRequest request);
 
         [MapProperty(nameof(EditProductRequest.PricePerUnit), nameof(EditProductCommand.PricePerUnit), Use = nameof(MapOptionalPriceToDatabase))]
@@ -40,6 +40,10 @@ namespace Api.Mappers
         [MapProperty(nameof(EditProductRequest.Length), nameof(EditProductCommand.Length), Use = nameof(MapOptionalDecimalDimensionToDatabase))]
         [MapProperty(nameof(EditProductRequest.Diameter), nameof(EditProductCommand.Diameter), Use = nameof(MapOptionalDecimalDimensionToDatabase))]
         public partial EditProductCommand MapEdit(EditProductRequest request);
+
+
+        private int MapDecimalDimensionToDatabase(decimal dimension)
+            => (int)Math.Round(dimension * 10m);
 
         private long? MapOptionalPriceToDatabase(decimal? price)
             => price.HasValue ? (long)Math.Round(price.Value * 10000m) : null;

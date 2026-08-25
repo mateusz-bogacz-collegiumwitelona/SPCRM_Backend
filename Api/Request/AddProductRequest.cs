@@ -6,10 +6,10 @@ namespace Api.Request
     {
         public required string Name { get; init; }
         public required Guid SteelGradeId { get; init; }
-        public int Thickness { get; init; }
-        public int Width { get; init; }
-        public int Length { get; init; }
-        public int? Diameter { get; init; }
+        public decimal Thickness { get; init; }
+        public decimal Width { get; init; }
+        public decimal Length { get; init; }
+        public decimal? Diameter { get; init; }
         public decimal Weight { get; init; }
         public required Guid UnitId { get; init; }
         public decimal PricePerUnit { get; init; }
