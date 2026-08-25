@@ -1,4 +1,7 @@
-﻿using Domain.Constants;
+﻿using System.Numerics;
+using Api.Request.Contract;
+using Domain.Constants;
+using Domain.Enum;
 using FluentValidation;
 
 namespace Api.Validators.Rule
@@ -20,45 +23,92 @@ namespace Api.Validators.Rule
                 .MaximumLength(50)
                 .WithErrorCode(ErrorCodes.InvalidProductSteelGrade);
 
-        // Wersje dla int (nullable i non-nullable)
-        public static IRuleBuilderOptions<T, int?> ApplyProductDimmensionRule<T>(this IRuleBuilder<T, int?> ruleBuilder)
-            => ruleBuilder
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidProductDimmension);
-
-        public static IRuleBuilderOptions<T, int> ApplyProductDimmensionRule<T>(this IRuleBuilder<T, int> ruleBuilder)
-            => ruleBuilder
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidProductDimmension);
-
-        public static IRuleBuilderOptions<T, decimal?> ApplyProductWeightRule<T>(this IRuleBuilder<T, decimal?> ruleBuilder)
-            => ruleBuilder
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidProductWeight);
-
-        public static IRuleBuilderOptions<T, decimal> ApplyProductWeightRule<T>(this IRuleBuilder<T, decimal> ruleBuilder)
-            => ruleBuilder
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidProductWeight);
-
-        public static IRuleBuilderOptions<T, decimal?> ApplyProductPricePerUnitRule<T>(this IRuleBuilder<T, decimal?> ruleBuilder)
-            => ruleBuilder
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidProductPricePerUnit);
-
-        public static IRuleBuilderOptions<T, decimal> ApplyProductPricePerUnitRule<T>(this IRuleBuilder<T, decimal> ruleBuilder)
-            => ruleBuilder
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidProductPricePerUnit);
-
-        public static IRuleBuilderOptions<T, int?> ApplyProductStockQuantityRule<T>(this IRuleBuilder<T, int?> ruleBuilder)
-            => ruleBuilder
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidProductStockQuantity);
-
         public static IRuleBuilderOptions<T, string?> ApplyProductCategoryRule<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty()
                 .WithErrorCode(ErrorCodes.InvalidCategory);
+
+        public static IRuleBuilderOptions<T, TProperty> ApplyProductDimmensionRule<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductDimmension);
+
+        public static IRuleBuilderOptions<T, TProperty?> ApplyProductDimmensionRule<T, TProperty>(this IRuleBuilder<T, TProperty?> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductDimmension);
+
+        public static IRuleBuilderOptions<T, TProperty> ApplyProductWeightRule<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductWeight);
+
+        public static IRuleBuilderOptions<T, TProperty?> ApplyProductWeightRule<T, TProperty>(this IRuleBuilder<T, TProperty?> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductWeight);
+
+        public static IRuleBuilderOptions<T, TProperty> ApplyProductPricePerUnitRule<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductPricePerUnit);
+
+        public static IRuleBuilderOptions<T, TProperty?> ApplyProductPricePerUnitRule<T, TProperty>(this IRuleBuilder<T, TProperty?> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductPricePerUnit);
+
+        public static IRuleBuilderOptions<T, TProperty> ApplyProductStockQuantityRule<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductStockQuantity);
+
+        public static IRuleBuilderOptions<T, TProperty?> ApplyProductStockQuantityRule<T, TProperty>(this IRuleBuilder<T, TProperty?> ruleBuilder)
+            where TProperty : struct, INumber<TProperty>
+            => ruleBuilder
+                .GreaterThan(TProperty.Zero)
+                .WithErrorCode(ErrorCodes.InvalidProductStockQuantity);
+
+        // Dla AddProduct
+        public static void ApplyProductCategoryDimensionsRules<T>(this AbstractValidator<T> validator)
+            where T : IAddProductDimensionsContract
+        {
+            validator.RuleFor(x => x.Diameter)
+                .NotNull()
+                .GreaterThan(0)
+                .WithErrorCode(ErrorCodes.DiameterIsRequiredForPipeAndWire)
+                .When(x => string.Equals(x.Category, ProductCategoryEnum.Pipe.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(x.Category, ProductCategoryEnum.Wire.ToString(), StringComparison.OrdinalIgnoreCase));
+
+            validator.RuleFor(x => x)
+                .Must(x => (x.Diameter.HasValue && x.Diameter.Value > 0) || (x.Width > 0 && x.Thickness > 0))
+                .WithErrorCode(ErrorCodes.DiameterIsRequiredForPipeAndWire)
+                .When(x => string.Equals(x.Category, ProductCategoryEnum.Bar.ToString(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Dla EditProduct
+        public static void ApplyEditProductCategoryDimensionsRules<T>(this AbstractValidator<T> validator)
+            where T : IEditProductDimensionsContract
+        {
+            validator.RuleFor(x => x.Diameter)
+                .NotNull()
+                .GreaterThan(0)
+                .WithErrorCode(ErrorCodes.DiameterIsRequiredForPipeAndWire)
+                .When(x => string.Equals(x.Category, ProductCategoryEnum.Pipe.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(x.Category, ProductCategoryEnum.Wire.ToString(), StringComparison.OrdinalIgnoreCase));
+
+            validator.RuleFor(x => x)
+                .Must(x => (x.Diameter.HasValue && x.Diameter.Value > 0) ||
+                           (x.Width.HasValue && x.Width.Value > 0 && x.Thickness.HasValue && x.Thickness.Value > 0))
+                .WithErrorCode(ErrorCodes.DiameterIsRequiredForPipeAndWire)
+                .When(x => string.Equals(x.Category, ProductCategoryEnum.Bar.ToString(), StringComparison.OrdinalIgnoreCase));
+        }
     }
 }

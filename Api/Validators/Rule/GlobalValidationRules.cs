@@ -14,6 +14,13 @@ namespace Api.Validators.Rule
                 .NotEqual(Guid.Empty)
                 .WithErrorCode(ErrorCodes.GuidInvalid);
 
+        public static IRuleBuilderOptions<T, Guid?> ApplyValidGuidRule<T>(
+            this IRuleBuilder<T, Guid?> ruleBuilder,
+            string errorCode = ErrorCodes.ValidationError)
+            => ruleBuilder
+                .Must(id => !id.HasValue || id.Value != Guid.Empty)
+                .WithErrorCode(ErrorCodes.GuidInvalid);
+
         public static IRuleBuilderOptions<T, int?> ApplyPageNumberRules<T>(
             this IRuleBuilder<T, int?> ruleBuilder,
             string errorCode = ErrorCodes.ValidationError)

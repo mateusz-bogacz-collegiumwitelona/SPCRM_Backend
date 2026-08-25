@@ -84,5 +84,35 @@ namespace Api.Controllers
             var result = await product.AddProductAsync(mapper.MapAdd(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Update product")]
+        [EndpointDescription("Update an existing product.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpPut("{productId:guid}")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> UpdateProductAsync(
+            [FromServices] IProductSevices product,
+            [FromServices] ProductMapper mapper,
+            [FromRoute] Guid productId,
+            [FromBody] EditProductRequest request
+            )
+        {
+            var result = await product.EditProductAsync(mapper.MapEdit(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get product details for editing")]
+        [EndpointDescription("Get product details for editing by product id.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpGet("edit/{productId:guid}")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> GetProductEditDetailAsync(
+            [FromServices] IProductSevices productServices,
+            [FromRoute] Guid productId
+            )
+        {
+            var result = await productServices.GetProductEditDetailAsync(productId);
+            return HandleResult(result);
+        }
     }
 }

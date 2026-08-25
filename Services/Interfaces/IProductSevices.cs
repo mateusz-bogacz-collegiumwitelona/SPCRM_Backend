@@ -12,5 +12,7 @@ namespace Services.Interfaces
         Task<Result<ProductDetailResponse>> GetProductDetailsAsync(Guid productId);
         Task<Result<PagedResult<MailingProductResponse>>> GetMailingProductsAsync(SimpleListCommand command);
         Task<Result> AddProductAsync(AddProductCommand command);
+        Task<Result> EditProductAsync(EditProductCommand command);
+        Task<Result<EditProductDetailResponse>> GetProductEditDetailAsync(Guid id);
     }
 }

@@ -1280,5 +1280,134 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidCategory);
         }
+
+        // ─── GetProductEditDetailAsync ──────────────────────────────────
+
+        [Test]
+        public async Task GetProductEditDetailAsync_WhenProductExists_ReturnsSuccessAndScalesValuesCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var steelGrade = CreateDummySteelGrade("S355");
+            var currency = CreateDummyCurrency("Polski Złoty", "PLN");
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"ProduktDoEdycji_{uniqueSuffix}",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                Category = ProductCategoryEnum.Pipe,
+                Thickness = 125,
+                Width = 2000,
+                Length = 60000,
+                Diameter = 500,
+                Weight = 15500,
+                PricePerUnit = 255000,
+                StockQuantity = 42
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _productSevicesMock.GetProductEditDetailAsync(product.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.ProductId).IsEqualTo(product.Id);
+            await Assert.That(data.Name).IsEqualTo(product.Name);
+            await Assert.That(data.SteelGradeId).IsEqualTo(steelGrade.Id);
+            await Assert.That(data.UnitId).IsEqualTo(unit.Id);
+            await Assert.That(data.CurrencyId).IsEqualTo(currency.Id);
+            await Assert.That(data.Category).IsEqualTo(ProductCategoryEnum.Pipe.ToString());
+
+            await Assert.That(data.Thickness).IsEqualTo(12.5m);
+            await Assert.That(data.Width).IsEqualTo(200.0m);
+            await Assert.That(data.Length).IsEqualTo(6000.0m);
+            await Assert.That(data.Diameter).IsEqualTo(50.0m);
+            await Assert.That(data.Weight).IsEqualTo(15.5m);
+            await Assert.That(data.PricePerUnit).IsEqualTo(25.5m);
+            await Assert.That(data.StockQuantity).IsEqualTo(42);
+        }
+
+        [Test]
+        public async Task GetProductEditDetailAsync_WhenProductHasNullDiameter_ReturnsNullDiameter()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Metr_{uniqueSuffix}",
+                Symbol = "m"
+            };
+
+            var steelGrade = CreateDummySteelGrade("S235");
+            var currency = CreateDummyCurrency();
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"BlachaBezSrednicy_{uniqueSuffix}",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                Category = ProductCategoryEnum.Sheet,
+                Thickness = 50,
+                Width = 10000,
+                Length = 20000,
+                Diameter = null,
+                Weight = 100000,
+                PricePerUnit = 500000,
+                StockQuantity = 10
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _productSevicesMock.GetProductEditDetailAsync(product.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Diameter).IsNull();
+        }
+
+        [Test]
+        public async Task GetProductEditDetailAsync_WhenProductDoesNotExist_Returns404NotFound()
+        {
+            // Act
+            var result = await _productSevicesMock.GetProductEditDetailAsync(Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+            await Assert.That(result.Data).IsNull();
+        }
     }
 }

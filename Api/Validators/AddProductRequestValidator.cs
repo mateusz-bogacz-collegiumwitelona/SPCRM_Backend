@@ -11,26 +11,28 @@ namespace Api.Validators
             RuleFor(x => x.Name)
                 .ApplyProductNameRules();
 
-            RuleFor(x => x.SteelGradeId).NotNull()
+            RuleFor(x => x.SteelGradeId)
                 .ApplyValidGuidRule();
 
             RuleFor(x => x.Thickness)
-                .NotNull()
                 .ApplyProductDimmensionRule();
 
             RuleFor(x => x.Weight)
-                .NotNull()
                 .ApplyProductWeightRule();
 
             RuleFor(x => x.UnitId)
                 .ApplyValidGuidRule();
 
             RuleFor(x => x.PricePerUnit)
-                .NotNull()
                 .ApplyProductPricePerUnitRule();
+
+            RuleFor(x => x.StockQuantity)
+                .ApplyProductStockQuantityRule();
 
             RuleFor(x => x.Category)
                 .ApplyProductCategoryRule();
+
+            this.ApplyProductCategoryDimensionsRules();
         }
     }
 }

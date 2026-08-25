@@ -1,6 +1,8 @@
-﻿namespace Api.Request
+﻿using Api.Request.Contract;
+
+namespace Api.Request
 {
-    public record AddProductRequest
+    public record AddProductRequest : IAddProductDimensionsContract
     {
         public required string Name { get; init; }
         public required Guid SteelGradeId { get; init; }

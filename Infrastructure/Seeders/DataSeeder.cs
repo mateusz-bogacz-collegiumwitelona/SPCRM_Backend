@@ -183,6 +183,7 @@ namespace Infrastructure.Seeders
         {
             var units = await _context.UnitsOfMeasure.ToListAsync();
             var steelGrades = await _context.SteelGrades.ToListAsync();
+            var currencies = await _context.Currencies.ToListAsync();
             var random = new Random();
             var products = new List<Product>();
 
@@ -192,6 +193,7 @@ namespace Infrastructure.Seeders
             {
                 var unit = units[random.Next(units.Count)];
                 var grade = steelGrades[random.Next(steelGrades.Count)];
+                var currency = currencies[random.Next(currencies.Count)];
                 var category = categories[random.Next(categories.Length)];
 
                 int thickness = 0;
@@ -199,51 +201,50 @@ namespace Infrastructure.Seeders
                 int length = 0;
                 int? diameter = null;
 
-                // Generowanie spójnych parametrów geometrycznych dla poszczególnych kategorii (wartości * 10)
                 switch (category)
                 {
                     case ProductCategoryEnum.Sheet:
-                        thickness = random.Next(10, 300);       // 1.0 - 30.0 mm
-                        width = random.Next(10000, 20000);      // 1000 - 2000 mm
-                        length = random.Next(20000, 60000);     // 2000 - 6000 mm
+                        thickness = random.Next(10, 300);
+                        width = random.Next(10000, 20000);
+                        length = random.Next(20000, 60000);
                         break;
 
                     case ProductCategoryEnum.Pipe:
-                        diameter = random.Next(213, 5080);      // fi 21.3 - 508.0 mm
-                        thickness = random.Next(20, 125);       // 2.0 - 12.5 mm
-                        length = random.Next(60000, 120000);    // 6000 - 12000 mm
+                        diameter = random.Next(213, 5080);
+                        thickness = random.Next(20, 125);
+                        length = random.Next(60000, 120000);
                         break;
 
                     case ProductCategoryEnum.Bar:
                         bool isRound = random.Next(100) < 60;
                         if (isRound)
                         {
-                            diameter = random.Next(60, 2000);   // fi 6.0 - 200.0 mm
+                            diameter = random.Next(60, 2000);
                         }
                         else
                         {
-                            width = random.Next(200, 1500);     // 20.0 - 150.0 mm
-                            thickness = random.Next(50, 400);   // 5.0 - 40.0 mm
+                            width = random.Next(200, 1500);
+                            thickness = random.Next(50, 400);
                         }
-                        length = random.Next(30000, 60000);     // 3000 - 6000 mm
+                        length = random.Next(30000, 60000);
                         break;
 
                     case ProductCategoryEnum.Profile:
                     case ProductCategoryEnum.Beam:
-                        width = random.Next(200, 3000);         // 20.0 - 300.0 mm
-                        thickness = random.Next(20, 100);       // 2.0 - 10.0 mm
-                        length = random.Next(60000, 120000);    // 6000 - 12000 mm
+                        width = random.Next(200, 3000);
+                        thickness = random.Next(20, 100);
+                        length = random.Next(60000, 120000);
                         break;
 
                     case ProductCategoryEnum.Wire:
-                        diameter = random.Next(10, 120);        // fi 1.0 - 12.0 mm
-                        length = random.Next(10000, 100000);    // 1000 - 10000 mm
+                        diameter = random.Next(10, 120);
+                        length = random.Next(10000, 100000);
                         break;
 
                     case ProductCategoryEnum.Mesh:
-                        thickness = random.Next(40, 120);       // drut fi 4.0 - 12.0 mm
-                        width = random.Next(21500, 24000);      // 2150 - 2400 mm
-                        length = random.Next(50000, 60000);     // 5000 - 6000 mm
+                        thickness = random.Next(40, 120);
+                        width = random.Next(21500, 24000);
+                        length = random.Next(50000, 60000);
                         break;
 
                     case ProductCategoryEnum.Fitting:
@@ -265,9 +266,11 @@ namespace Infrastructure.Seeders
                     Width = width,
                     Length = length,
                     Diameter = diameter,
-                    Weight = random.Next(100, 50000),             // waga
+                    Weight = random.Next(100, 50000),
                     Unit = unit,
                     UnitId = unit.Id,
+                    Currency = currency,
+                    CurrencyId = currency.Id,
                     PricePerUnit = random.Next(1000, 10000) * 10000L,
                     StockQuantity = random.Next(5, 500),
                     Category = category

@@ -59,7 +59,7 @@
         public const string InvalidProductWeight = "PROD_007";
         public const string InvalidProductPricePerUnit = "PROD_008";
         public const string InvalidProductStockQuantity = "PROD_009";
-
+        public const string DiameterIsRequiredForPipeAndWire = "PROD_010";
 
         // Note
         public const string NoteNotFound = "NOTE_001";

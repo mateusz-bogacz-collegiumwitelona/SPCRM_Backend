@@ -116,6 +116,9 @@ namespace Services.Services
                     StockQuantity = p.StockQuantity,
                     UnitSymbol = p.Unit.Symbol,
                     PricePerUnit = p.PricePerUnit,
+                    CurrencyCode = p.Currency.Code,
+                    DecimalPlaces = p.Currency.DecimalPlaces,
+
                     Weight = p.Weight,
 
                     ReservedQuantity = p.DealProducts
@@ -232,7 +235,6 @@ namespace Services.Services
                 );
             }
 
-            // Walidacja Currency
             var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId);
             if (currency == null)
             {
@@ -402,6 +404,47 @@ namespace Services.Services
             return Result.Success(
                 message: "Product updated successfully.",
                 statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result<EditProductDetailResponse>> GetProductEditDetailAsync(Guid id)
+        {
+            var product = await _context.Products
+                .AsNoTracking()
+                .Where(p => p.Id == id)
+                .Select(p => new EditProductDetailResponse
+                {
+                    ProductId = p.Id,
+                    Name = p.Name,
+                    SteelGradeId = p.SteelGradeId,
+                    UnitId = p.UnitId,
+                    CurrencyId = p.CurrencyId,
+                    Category = p.Category.ToString(),
+
+                    Thickness = p.Thickness / 10m,
+                    Width = p.Width / 10m,
+                    Length = p.Length / 10m,
+                    Diameter = p.Diameter.HasValue ? p.Diameter.Value / 10m : null,
+                    Weight = p.Weight / 1000m,
+                    PricePerUnit = p.PricePerUnit / 10000m,
+                    StockQuantity = p.StockQuantity
+                })
+                .FirstOrDefaultAsync();
+
+            if (product == null)
+            {
+                _logger.LogWarning("Product with ID {ProductId} not found for edit.", id);
+                return Result<EditProductDetailResponse>.Failure(
+                    message: "Product not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ProductNotFound
+                );
+            }
+
+            return Result<EditProductDetailResponse>.Success(
+                message: "Product details retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: product
             );
         }
     }

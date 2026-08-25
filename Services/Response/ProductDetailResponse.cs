@@ -8,6 +8,9 @@
         public required string Category { get; init; }
         public required string Dimensions { get; init; }
         public required int StockQuantity { get; init; }
+        public required int DecimalPlaces { get; init; }
+        public required string CurrencyCode { get; init; }
+
         public required string UnitSymbol { get; init; }
         public required decimal PricePerUnit { get; init; }
         public required decimal Weight { get; init; }
