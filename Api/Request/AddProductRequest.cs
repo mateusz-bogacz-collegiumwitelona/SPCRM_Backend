@@ -11,6 +11,7 @@
         public decimal Weight { get; init; }
         public required Guid UnitId { get; init; }
         public decimal PricePerUnit { get; init; }
+        public required Guid CurrencyId { get; init; }
         public int StockQuantity { get; init; }
         public required string Category { get; init; }
     }

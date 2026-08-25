@@ -273,7 +273,8 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 PricePerUnit = 500000,
                 StockQuantity = 100,
-                Category = Domain.Enum.ProductCategoryEnum.Profile
+                Category = Domain.Enum.ProductCategoryEnum.Profile,
+                CurrencyId = currency.Id
             };
             _contextMock.Products.Add(product);
 

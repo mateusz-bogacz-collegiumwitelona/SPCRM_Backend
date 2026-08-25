@@ -19,6 +19,9 @@ namespace Domain.Models
         public UnitOfMeasure Unit { get; set; } = null!;
 
         public long PricePerUnit { get; set; }
+        public Guid CurrencyId { get; set; }
+        public Currency Currency { get; set; } = null!;
+
         public int StockQuantity { get; set; }
 
         public ProductCategoryEnum Category { get; set; }

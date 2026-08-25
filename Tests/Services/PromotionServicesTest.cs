@@ -102,12 +102,21 @@ namespace Tests.Services
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt", BaseMultiplier = 1 };
             _contextMock.UnitsOfMeasure.Add(unit);
 
-            var steelGrade = new SteelGrade { 
-                Id = Guid.NewGuid(), 
-                Name = "S235" 
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = "S235"
             };
             _contextMock.SteelGrades.Add(steelGrade);
 
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+            _contextMock.Currencies.Add(currency);
 
             var product = new Product
             {
@@ -123,7 +132,9 @@ namespace Tests.Services
                 StockQuantity = 10,
                 Category = ProductCategoryEnum.Pipe,
                 UnitId = unit.Id,
-                Unit = unit
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
             _contextMock.Products.Add(product);
             await _contextMock.SaveChangesAsync();
@@ -441,6 +452,15 @@ namespace Tests.Services
                 Name = "S355J2H"
             };
 
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+            _contextMock.Currencies.Add(currency);
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
@@ -455,18 +475,12 @@ namespace Tests.Services
                 PricePerUnit = 250000,
                 StockQuantity = 120,
                 Category = ProductCategoryEnum.Pipe,
-                UnitId = unit.Id
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
             _contextMock.Products.Add(product);
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Polski Złoty",
-                Code = "PLN",
-                DecimalPlaces = 2
-            };
-            _contextMock.Currencies.Add(currency);
 
             var uniqueSuffix = Guid.NewGuid().ToString("N");
             var owner = new ApplicationUser

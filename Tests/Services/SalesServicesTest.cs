@@ -678,7 +678,6 @@ namespace Tests.Services
         }
 
         // ─── GetDealProductAsync ─────────────────────────────────────────────────
-
         [Test]
         public async Task GetDealProductAsync_MapsDeepRelationsAndCalculatesTotalsCorrectly()
         {
@@ -734,7 +733,7 @@ namespace Tests.Services
                 Name = "Sztuka",
                 Symbol = "szt"
             };
-            
+
             var steelGrade = new SteelGrade
             {
                 Id = Guid.NewGuid(),
@@ -754,6 +753,8 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 Unit = unit,
                 Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             var dealProduct = new DealProduct
@@ -888,7 +889,9 @@ namespace Tests.Services
                 SteelGrade = steelGrade,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             var targetDealProduct = new DealProduct

@@ -12,6 +12,7 @@
         public int? Weight { get; init; } // kg * 1000
         public Guid? UnitId { get; init; }
         public long? PricePerUnit { get; init; }
+        public Guid? CurrencyId { get; init; }
         public int? StockQuantity { get; init; }
         public string?  Category { get; init; }
     }

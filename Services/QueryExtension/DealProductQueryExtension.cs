@@ -47,8 +47,8 @@ namespace Services.QueryExtension
                     : query.OrderBy(dp => dp.Product.Name),
 
                 "steelgrade" => sortDescending
-                    ? query.OrderByDescending(dp => dp.Product.SteelGrade)
-                    : query.OrderBy(dp => dp.Product.SteelGrade),
+                ? query.OrderByDescending(p => p.Product.SteelGrade.Name)
+                : query.OrderBy(p => p.Product.SteelGrade.Name),
 
                 "quantity" => sortDescending
                     ? query.OrderByDescending(dp => dp.Quantity)

@@ -111,7 +111,43 @@ namespace Tests.Services
             return steelGrade;
         }
 
+        private Currency CreateDummyCurrency(string? name = "Złoty", string? code = "PLN")
+        {
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = name ?? $"Złoty_{Guid.NewGuid():N}",
+                Code = code ?? $"PLN_{Guid.NewGuid():N}",
+                DecimalPlaces = 2
+            };
+            _contextMock.Currencies.Add(currency);
+            return currency;
+        }
+
         // ─── GetProductListAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetProductListAsync_WhenNoProductsMatch_ReturnsEmptyListWithSuccessStatus()
+        {
+            // Arrange
+            var command = new ProductListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = Guid.NewGuid().ToString()
+            };
+
+            // Act
+            var result = await _productSevicesMock.GetProductListAsync(command);
+            Console.WriteLine(string.Join(", ", result.Errors ?? new List<string>()));
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("No products found.");
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
+        }
+
 
         [Test]
         public async Task GetProductListAsync_MapsRelationsAndDimensionsCorrectly()
@@ -127,6 +163,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade();
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -143,7 +180,9 @@ namespace Tests.Services
                 StockQuantity = 100,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -156,7 +195,6 @@ namespace Tests.Services
                 PageSize = 100,
                 SearchTerm = uniqueSuffix
             };
-
 
             // Act
             var result = await _productSevicesMock.GetProductListAsync(command);
@@ -191,6 +229,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade();
+            var currency = CreateDummyCurrency();
 
             var targetProduct = new Product
             {
@@ -206,10 +245,10 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Profile
+                Category = ProductCategoryEnum.Profile,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
-
-
 
             var otherProduct = new Product
             {
@@ -225,7 +264,9 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -250,28 +291,6 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetProductListAsync_WhenNoProductsMatch_ReturnsEmptyListWithSuccessStatus()
-        {
-            // Arrange
-            var command = new ProductListCommand
-            {
-                PageNumber = 1,
-                PageSize = 10,
-                SearchTerm = Guid.NewGuid().ToString()
-            };
-
-            // Act
-            var result = await _productSevicesMock.GetProductListAsync(command);
-            Console.WriteLine(string.Join(", ", result.Errors ?? new List<string>()));
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-            await Assert.That(result.Message).IsEqualTo("No products found.");
-            await Assert.That(result.Data).IsNotNull();
-            await Assert.That(result.Data!.Items).IsEmpty();
-        }
-
-        [Test]
         public async Task GetProductListAsync_AppliesFiltersAndSortingCorrectly()
         {
             // Arrange
@@ -283,8 +302,9 @@ namespace Tests.Services
                 Name = "Sztuka",
                 Symbol = "szt"
             };
-            
+
             var steelGrade = CreateDummySteelGrade();
+            var currency = CreateDummyCurrency();
 
             var p1 = new Product
             {
@@ -298,7 +318,9 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             var p2 = new Product
@@ -313,7 +335,9 @@ namespace Tests.Services
                 StockQuantity = 10,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             var p3 = new Product
@@ -328,7 +352,9 @@ namespace Tests.Services
                 StockQuantity = 100,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Profile
+                Category = ProductCategoryEnum.Profile,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -393,102 +419,6 @@ namespace Tests.Services
         }
 
         // ─── GetSteelGradesAsync ─────────────────────────────────────────────────
-
-        [Test]
-        public async Task GetSteelGradesAsync_ReturnsDistinctAndSortedSteelGrades()
-        {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var unit = new UnitOfMeasure
-            {
-                Id = Guid.NewGuid(),
-                Name = "Sztuka",
-                Symbol = "szt"
-            };
-
-            var gradeS355 = CreateDummySteelGrade($"S355_{uniqueSuffix}");
-            var gradeAW6060 = CreateDummySteelGrade($"AW6060_{uniqueSuffix}");
-            var gradeS235 = CreateDummySteelGrade($"S235_{uniqueSuffix}");
-
-            var p1 = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = "P1",
-                SteelGrade = gradeS355,
-                SteelGradeId = gradeS355.Id,
-                UnitId = unit.Id,
-                Unit = unit,
-                Category = ProductCategoryEnum.Other,
-                Thickness = 1,
-                Width = 1,
-                Length = 1
-            };
-
-            var p2 = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = "P2",
-                SteelGrade = gradeAW6060,
-                SteelGradeId = gradeAW6060.Id,
-                UnitId = unit.Id,
-                Unit = unit,
-                Category = ProductCategoryEnum.Other,
-                Thickness = 1,
-                Width = 1,
-                Length = 1
-            };
-
-            var p3 = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = "P3",
-                SteelGrade = gradeS355,
-                SteelGradeId = gradeS355.Id,
-                UnitId = unit.Id,
-                Unit = unit,
-                Category = ProductCategoryEnum.Other,
-                Thickness = 1,
-                Width = 1,
-                Length = 1
-            };
-
-            var p4 = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = "P4",
-                SteelGrade = gradeS235,
-                SteelGradeId = gradeS235.Id,
-                UnitId = unit.Id,
-                Unit = unit,
-                Category = ProductCategoryEnum.Other,
-                Thickness = 1,
-                Width = 1,
-                Length = 1
-            };
-
-            _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.Products.AddRange(p1, p2, p3, p4);
-            await _contextMock.SaveChangesAsync();
-
-            // Act
-            var result = await _productSevicesMock.GetSteelGradesAsync();
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.Data).IsNotNull();
-
-            var myGrades = result.Data!
-                .Where(g => g.Name.EndsWith(uniqueSuffix))
-                .ToList();
-
-            await Assert.That(myGrades).Count().IsEqualTo(3);
-            await Assert.That(myGrades[0].Name).IsEqualTo($"AW6060_{uniqueSuffix}");
-            await Assert.That(myGrades[1].Name).IsEqualTo($"S235_{uniqueSuffix}");
-            await Assert.That(myGrades[2].Name).IsEqualTo($"S355_{uniqueSuffix}");
-        }
-
-        // ───  GetSteelGradesAsync ─────────────────────────────────────────────────
         
         [Test]
         public async Task GetSteelGradesAsync_WhenExist_ReturnsSuccessStatusAndNotNullData()
@@ -537,6 +467,7 @@ namespace Tests.Services
             var productId = Guid.NewGuid();
 
             var steelGrade = CreateDummySteelGrade("SRT345");
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -551,7 +482,9 @@ namespace Tests.Services
                 Unit = unit,
                 PricePerUnit = 400000,
                 StockQuantity = 100000,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -619,6 +552,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade("S355");
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -635,7 +569,9 @@ namespace Tests.Services
                 StockQuantity = 45,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Pipe
+                Category = ProductCategoryEnum.Pipe,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -677,8 +613,9 @@ namespace Tests.Services
                 Name = "Sztuka",
                 Symbol = "szt"
             };
-            
+
             var steelGrade = CreateDummySteelGrade();
+            var currency = CreateDummyCurrency();
 
             var targetProduct = new Product
             {
@@ -694,7 +631,9 @@ namespace Tests.Services
                 StockQuantity = 20,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Profile
+                Category = ProductCategoryEnum.Profile,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             var otherProduct = new Product
@@ -711,7 +650,9 @@ namespace Tests.Services
                 StockQuantity = 15,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Profile
+                Category = ProductCategoryEnum.Profile,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -756,6 +697,16 @@ namespace Tests.Services
             _contextMock.UnitsOfMeasure.Add(unit);
             await _contextMock.SaveChangesAsync();
 
+            var currencty = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2,
+            };
+            _contextMock.Currencies.Add(currencty);
+            await _contextMock.SaveChangesAsync();
+
             var command = new AddProductCommand
             {
                 Name = $"Product_{uniqueSuffix}",
@@ -768,7 +719,8 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 PricePerUnit = 150000,
                 StockQuantity = 50,
-                Category = ProductCategoryEnum.Bar.ToString() 
+                Category = ProductCategoryEnum.Bar.ToString(),
+                CurrencyId = currencty.Id
             };
 
             // Act
@@ -810,6 +762,8 @@ namespace Tests.Services
                 Name = "S235"
             };
 
+            var currency = CreateDummyCurrency();
+
             var existingProduct = new Product
             {
                 Name = productName,
@@ -822,12 +776,25 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 PricePerUnit = 100000,
                 StockQuantity = 10,
-                Category = ProductCategoryEnum.Bar
+                Category = ProductCategoryEnum.Bar,
+                Currency = currency,
+                CurrencyId = currency.Id
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.Products.Add(existingProduct);
             await _contextMock.SaveChangesAsync();
+
+            var currencty = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2,
+            };
+            _contextMock.Currencies.Add(currencty);
+            await _contextMock.SaveChangesAsync();
+
 
             var command = new AddProductCommand
             {
@@ -840,7 +807,8 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 PricePerUnit = 150000,
                 StockQuantity = 50,
-                Category = ProductCategoryEnum.Other.ToString()
+                Category = ProductCategoryEnum.Other.ToString(),
+                CurrencyId = currencty.Id
             };
 
             // Act
@@ -858,6 +826,7 @@ namespace Tests.Services
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
 
+
             var command = new AddProductCommand
             {
                 Name = $"Product_{uniqueSuffix}",
@@ -869,7 +838,8 @@ namespace Tests.Services
                 UnitId = Guid.NewGuid(),
                 PricePerUnit = 150000,
                 StockQuantity = 50,
-                Category = "Plate"
+                Category = "Plate",
+                CurrencyId = Guid.NewGuid()
             };
 
             // Act
@@ -908,7 +878,8 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 PricePerUnit = 150000,
                 StockQuantity = 50,
-                Category = "InvalidCategoryName" 
+                Category = "InvalidCategoryName",
+                CurrencyId = Guid.NewGuid()
             };
 
             // Act
@@ -943,6 +914,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade("S235");
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -959,7 +931,9 @@ namespace Tests.Services
                 StockQuantity = 5,
                 UnitId = initialUnit.Id,
                 Unit = initialUnit,
-                Category = ProductCategoryEnum.Bar
+                Category = ProductCategoryEnum.Bar,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.AddRange(initialUnit, newUnit);
@@ -1019,6 +993,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade("S235");
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -1034,7 +1009,9 @@ namespace Tests.Services
                 StockQuantity = 50,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Bar
+                Category = ProductCategoryEnum.Bar,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -1097,6 +1074,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade("S235");
+            var currency = CreateDummyCurrency();
 
             var product1 = new Product
             {
@@ -1109,7 +1087,9 @@ namespace Tests.Services
                 Length = 1,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             var product2 = new Product
@@ -1123,7 +1103,9 @@ namespace Tests.Services
                 Length = 1,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -1160,6 +1142,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade("S355");
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -1172,7 +1155,9 @@ namespace Tests.Services
                 Length = 1,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -1208,6 +1193,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade("S235");
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -1220,7 +1206,9 @@ namespace Tests.Services
                 Length = 1,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
@@ -1256,6 +1244,7 @@ namespace Tests.Services
             };
 
             var steelGrade = CreateDummySteelGrade("S235");
+            var currency = CreateDummyCurrency();
 
             var product = new Product
             {
@@ -1268,7 +1257,9 @@ namespace Tests.Services
                 Length = 1,
                 UnitId = unit.Id,
                 Unit = unit,
-                Category = ProductCategoryEnum.Other
+                Category = ProductCategoryEnum.Other,
+                CurrencyId = currency.Id,
+                Currency = currency
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);

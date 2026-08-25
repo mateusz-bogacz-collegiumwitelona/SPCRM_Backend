@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Enum;
+using Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Services.QueryExtension
@@ -32,8 +33,11 @@ namespace Services.QueryExtension
             bool? hasActivePromotion = null
             )
         {
-            if (!string.IsNullOrWhiteSpace(productCategory))
-                query = query.Where(p => p.Category.ToString().ToLower() == productCategory.ToLower());
+            if (!string.IsNullOrWhiteSpace(productCategory) &&
+                Enum.TryParse<ProductCategoryEnum>(productCategory, true, out var categoryEnum))
+            {
+                query = query.Where(p => p.Category == categoryEnum);
+            }
 
             if (!string.IsNullOrWhiteSpace(steelGrade))
                 query = query.Where(p => p.SteelGrade.Name.ToLower() == steelGrade.ToLower());
@@ -59,8 +63,8 @@ namespace Services.QueryExtension
                     : query.OrderBy(p => p.Name),
 
                 "steelgrade" => sortDescending
-                    ? query.OrderByDescending(p => p.SteelGrade)
-                    : query.OrderBy(p => p.SteelGrade),
+                    ? query.OrderByDescending(p => p.SteelGrade.Name)
+                    : query.OrderBy(p => p.SteelGrade.Name),
 
                 "quantity" => sortDescending
                     ? query.OrderByDescending(p => p.StockQuantity)

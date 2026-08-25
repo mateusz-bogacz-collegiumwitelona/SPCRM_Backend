@@ -10,5 +10,7 @@ namespace Domain.Models
 
         public ICollection<Deal> Deals { get; set; } = new List<Deal>();
         public ICollection<Promotion> Promotions { get; set; } = new List<Promotion>();
+        public ICollection<OfferProducts> OfferProducts { get; set; } = new List<OfferProducts>();
+        public ICollection<Product> Products { get; set; } = new List<Product>();
     }
 }

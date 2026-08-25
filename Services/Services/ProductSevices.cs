@@ -201,7 +201,6 @@ namespace Services.Services
             }
 
             var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId);
-
             if (unit == null)
             {
                 _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId);
@@ -211,6 +210,7 @@ namespace Services.Services
                     errorCode: ErrorCodes.NotFound
                 );
             }
+
             if (!Enum.TryParse<ProductCategoryEnum>(command.Category, true, out var category))
             {
                 _logger.LogWarning("Invalid product category provided: {Category}", command.Category);
@@ -222,12 +222,23 @@ namespace Services.Services
             }
 
             var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(sg => sg.Id == command.SteelGradeId);
-
-            if (steelGrade == null) 
-            { 
+            if (steelGrade == null)
+            {
                 _logger.LogWarning("Steel grade with ID {SteelGradeId} not found.", command.SteelGradeId);
                 return Result.Failure(
                     message: "Steel grade not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NotFound
+                );
+            }
+
+            // Walidacja Currency
+            var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId);
+            if (currency == null)
+            {
+                _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId);
+                return Result.Failure(
+                    message: "Currency not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.NotFound
                 );
@@ -245,6 +256,8 @@ namespace Services.Services
                 Weight = command.Weight,
                 UnitId = command.UnitId,
                 PricePerUnit = command.PricePerUnit,
+                CurrencyId = currency.Id,
+                Currency = currency,
                 StockQuantity = command.StockQuantity,
                 Category = category
             };
@@ -368,6 +381,21 @@ namespace Services.Services
                 }
                 product.SteelGradeId = steelGrade.Id;
             }
+
+            if (command.CurrencyId.HasValue)
+    {
+        var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId.Value);
+        if (currency == null)
+        {
+            _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId.Value);
+            return Result.Failure(
+                message: "Currency not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                errorCode: ErrorCodes.NotFound
+            );
+        }
+        product.CurrencyId = currency.Id;
+    }
 
             await _context.SaveChangesAsync();
 
