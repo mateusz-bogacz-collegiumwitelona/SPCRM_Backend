@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -107,6 +108,19 @@ namespace Tests.Services
             return steelGrade;
         }
 
+        private SteelGrade CreateDummySteelGradeWithDetails(string name, string standard, int density)
+        {
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                Standard = standard,
+                Density = density
+            };
+            _contextMock.SteelGrades.Add(steelGrade);
+            return steelGrade;
+        }
+
         // ─── GetSteelGradesAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -138,6 +152,108 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data).IsEmpty();
+        }
+
+        // ─── GetSteelGradeList ──────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetSteelGradeList_WhenStandardRequest_ReturnsPagedResult()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            CreateDummySteelGradeWithDetails($"1.4301_{uniqueSuffix}", "EN 10088", 79);
+            CreateDummySteelGradeWithDetails($"1.4404_{uniqueSuffix}", "EN 10088", 80);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SteelGradeListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = uniqueSuffix
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.GetSteelGradeList(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items.Count()).IsEqualTo(2);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task GetSteelGradeList_WhenSearchApplied_FiltersByNameStandardOrDensity()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            CreateDummySteelGradeWithDetails($"GradeA_{uniqueSuffix}", "DIN 17100", 785);
+            CreateDummySteelGradeWithDetails($"GradeB_{uniqueSuffix}", "SPECIAL_NORM", 795);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SteelGradeListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "SPECIAL_NORM"
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.GetSteelGradeList(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.Items.Count()).IsEqualTo(1);
+            await Assert.That(result.Data.Items.First().Name).IsEqualTo($"GradeB_{uniqueSuffix}");
+        }
+
+        [Test]
+        public async Task GetSteelGradeList_WhenSortingByDensityDescending_OrdersCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            CreateDummySteelGradeWithDetails($"LowDensity_{uniqueSuffix}", "STD", 71);
+            CreateDummySteelGradeWithDetails($"HighDensity_{uniqueSuffix}", "STD", 85);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SteelGradeListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = uniqueSuffix,
+                SortBy = "density",
+                SortDescending = true
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.GetSteelGradeList(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items.ToList();
+            await Assert.That(items.First().Name).IsEqualTo($"HighDensity_{uniqueSuffix}");
+            await Assert.That(items.Last().Name).IsEqualTo($"LowDensity_{uniqueSuffix}");
+        }
+
+        [Test]
+        public async Task GetSteelGradeList_WhenEmpty_ReturnsEmptyPagedResult()
+        {
+            // Arrange
+            var command = new SteelGradeListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "non_existing_steel_grade_name"
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.GetSteelGradeList(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
     }
 }
