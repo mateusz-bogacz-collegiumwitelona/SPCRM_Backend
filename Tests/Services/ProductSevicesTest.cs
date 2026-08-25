@@ -417,38 +417,6 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
         }
 
-        // ─── GetSteelGradesAsync ─────────────────────────────────────────────────
-        
-        [Test]
-        public async Task GetSteelGradesAsync_WhenExist_ReturnsSuccessStatusAndNotNullData()
-        {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var grade = CreateDummySteelGrade($"S355_{uniqueSuffix}");
-
-            await _contextMock.SaveChangesAsync();
-
-            // Act
-            var result = await _productSevicesMock.GetSteelGradesAsync();
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-            await Assert.That(result.Data).IsNotNull();
-            await Assert.That(result.Data!.Any(g => g.Name == $"S355_{uniqueSuffix}")).IsTrue();
-        }
-
-        [Test]
-        public async Task GetSteelGradesAsync_WhenEmpty_ReturnsSuccessStatusAndEmptyData()
-        {
-            var result = await _productSevicesMock.GetSteelGradesAsync();
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-            await Assert.That(result.Data).IsNotNull();
-            await Assert.That(result.Data).IsEmpty();
-        }
 
         // ───  GetProductDetailsAsync ─────────────────────────────────────────────────
 

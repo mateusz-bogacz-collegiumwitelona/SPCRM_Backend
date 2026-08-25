@@ -20,7 +20,7 @@ namespace Api.Controllers
         [EndpointDescription("Get product list with pagination, sorting and filtering.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("")]
-        [Authorize(Roles = "Manager,User")]
+        [Authorize]
         public async Task<IActionResult> GetProductListAsync(
             [FromServices] IProductSevices productServices,
             [FromServices] ProductMapper mapper,
@@ -38,7 +38,7 @@ namespace Api.Controllers
         [EndpointDescription("Get a list of all product categories.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("categories")]
-        [Authorize(Roles = "Manager,User")]
+        [Authorize]
         public async Task<IActionResult> GetProductCategoryAsync([FromServices] IProductSevices productServices)
         {
             var result = await productServices.GetProductCategoryAsync();
@@ -49,10 +49,10 @@ namespace Api.Controllers
         [EndpointDescription("Get a list of all product steel grades.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("steel-grades")]
-        [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> GetSteelGradesAsync([FromServices] IProductSevices productServices)
+        [Authorize]
+        public async Task<IActionResult> GetSteelGradesAsync([FromServices] ISteelGradeServices steelGradeServices)
         {
-            var result = await productServices.GetSteelGradesAsync();
+            var result = await steelGradeServices.GetSteelGradesAsync();
             return HandleResult(result);
         }
 
@@ -60,7 +60,7 @@ namespace Api.Controllers
         [EndpointDescription("Get product details by product id.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{productId:guid}")]
-        [Authorize(Roles = "Manager,User")]
+        [Authorize]
         public async Task<IActionResult> GetProductDetailsAsync(
             [FromServices] IProductSevices productServices,
             [FromRoute] Guid productId
@@ -74,7 +74,7 @@ namespace Api.Controllers
         [EndpointDescription("Add a new product.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpPost]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddProductAsync(
             [FromServices] IProductSevices product,
             [FromServices] ProductMapper mapper,
@@ -89,7 +89,7 @@ namespace Api.Controllers
         [EndpointDescription("Update an existing product.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpPut("{productId:guid}")]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateProductAsync(
             [FromServices] IProductSevices product,
             [FromServices] ProductMapper mapper,
@@ -105,7 +105,7 @@ namespace Api.Controllers
         [EndpointDescription("Get product details for editing by product id.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("edit/{productId:guid}")]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetProductEditDetailAsync(
             [FromServices] IProductSevices productServices,
             [FromRoute] Guid productId
@@ -119,7 +119,7 @@ namespace Api.Controllers
         [EndpointDescription("Delete a product by product id.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpDelete("{productId:guid}")]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteProductAsync(
             [FromServices] IProductSevices productServices,
             [FromRoute] Guid productId

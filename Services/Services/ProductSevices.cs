@@ -73,23 +73,7 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<IEnumerable<SteelGradeResponse>>> GetSteelGradesAsync()
-        {
-            var query = await _context.SteelGrades
-                .OrderBy(s => s.Name)
-                .Select(s => new SteelGradeResponse
-                {
-                    Id = s.Id,
-                    Name = s.Name
-                })
-                .ToListAsync();
-
-            return Result<IEnumerable<SteelGradeResponse>>.Success(
-                message: "Steel grades retrieved successfully",
-                statusCode: StatusCodes.Status200OK,
-                data: query
-                );
-        }
+        
 
         public async Task<Result<ProductDetailResponse>> GetProductDetailsAsync(Guid productId)
         {
