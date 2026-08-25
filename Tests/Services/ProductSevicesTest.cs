@@ -148,7 +148,6 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).IsEmpty();
         }
 
-
         [Test]
         public async Task GetProductListAsync_MapsRelationsAndDimensionsCorrectly()
         {
@@ -1408,6 +1407,84 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
             await Assert.That(result.Data).IsNull();
+        }
+
+        // ─── DeleteProductAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteProductAsync_WhenProductExists_AppliesSoftDeleteAndSetsCorrectFlags()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var productId = Guid.NewGuid();
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{uniqueSuffix}",
+                Symbol = "szt."
+            };
+
+            var steelGrade = CreateDummySteelGrade("S355");
+            var currency = CreateDummyCurrency("Polski Złoty", "PLN");
+
+            var product = new Product
+            {
+                Id = productId,
+                Name = $"ProduktDoUsuniecia_{uniqueSuffix}",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                Category = ProductCategoryEnum.Pipe,
+                Thickness = 125,
+                Width = 2000,
+                Length = 60000,
+                Diameter = 500,
+                Weight = 15500,
+                PricePerUnit = 255000,
+                StockQuantity = 42
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+
+            var beforeDeleteTime = DateTime.UtcNow.AddSeconds(-1);
+
+            // Act
+            var result = await _productSevicesMock.DeleteProductAsync(productId);
+
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Product deleted successfully.");
+
+            var standardQueriedProduct = await _contextMock.Products
+                .FirstOrDefaultAsync(p => p.Id == productId);
+            await Assert.That(standardQueriedProduct).IsNull();
+
+            var rawDeletedProduct = await _contextMock.Products
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(p => p.Id == productId);
+
+            await Assert.That(rawDeletedProduct).IsNotNull();
+            await Assert.That(rawDeletedProduct!.IsDeleted).IsTrue();
+            await Assert.That(rawDeletedProduct.UpdateAt).IsNotNull();
+            await Assert.That(rawDeletedProduct.UpdateAt!.Value).IsGreaterThanOrEqualTo(beforeDeleteTime);
+        }
+
+        [Test]
+        public async Task DeleteProductAsync_WhenProductDoesntExists_Return404()
+        {
+            // Act
+            var result = await _productSevicesMock.DeleteProductAsync(Guid.NewGuid());
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+            await Assert.That(result.Message).IsEqualTo("Product not found.");
         }
     }
 }

@@ -14,5 +14,6 @@ namespace Services.Interfaces
         Task<Result> AddProductAsync(AddProductCommand command);
         Task<Result> EditProductAsync(EditProductCommand command);
         Task<Result<EditProductDetailResponse>> GetProductEditDetailAsync(Guid id);
+        Task<Result> DeleteProductAsync(Guid id);
     }
 }

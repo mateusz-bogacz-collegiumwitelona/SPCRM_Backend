@@ -114,5 +114,19 @@ namespace Api.Controllers
             var result = await productServices.GetProductEditDetailAsync(productId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Delete product")]
+        [EndpointDescription("Delete a product by product id.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpDelete("{productId:guid}")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> DeleteProductAsync(
+            [FromServices] IProductSevices productServices,
+            [FromRoute] Guid productId
+            )
+        {
+            var result = await productServices.DeleteProductAsync(productId);
+            return HandleResult(result);
+        }
     }
 }

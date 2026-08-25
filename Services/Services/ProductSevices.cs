@@ -77,10 +77,10 @@ namespace Services.Services
         {
             var query = await _context.SteelGrades
                 .OrderBy(s => s.Name)
-                .Select(s => new SteelGradeResponse 
-                { 
-                    Id = s.Id, 
-                    Name = s.Name 
+                .Select(s => new SteelGradeResponse
+                {
+                    Id = s.Id,
+                    Name = s.Name
                 })
                 .ToListAsync();
 
@@ -370,7 +370,8 @@ namespace Services.Services
                 product.UnitId = unit.Id;
             }
 
-            if (command.SteelGradeId.HasValue) {
+            if (command.SteelGradeId.HasValue)
+            {
                 var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(s => s.Id == command.SteelGradeId.Value);
                 if (steelGrade == null)
                 {
@@ -385,19 +386,19 @@ namespace Services.Services
             }
 
             if (command.CurrencyId.HasValue)
-    {
-        var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId.Value);
-        if (currency == null)
-        {
-            _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId.Value);
-            return Result.Failure(
-                message: "Currency not found.",
-                statusCode: StatusCodes.Status404NotFound,
-                errorCode: ErrorCodes.NotFound
-            );
-        }
-        product.CurrencyId = currency.Id;
-    }
+            {
+                var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId.Value);
+                if (currency == null)
+                {
+                    _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId.Value);
+                    return Result.Failure(
+                        message: "Currency not found.",
+                        statusCode: StatusCodes.Status404NotFound,
+                        errorCode: ErrorCodes.NotFound
+                    );
+                }
+                product.CurrencyId = currency.Id;
+            }
 
             await _context.SaveChangesAsync();
 
@@ -446,6 +447,29 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK,
                 data: product
             );
+        }
+
+        public async Task<Result> DeleteProductAsync(Guid id)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+            {
+                _logger.LogWarning("Product with this id {id} not found.", id);
+                return Result.Failure(
+                    message: "Product not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ProductNotFound
+                    );
+            }
+
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Product deleted successfully.",
+                statusCode: StatusCodes.Status200OK
+                );
         }
     }
 }
