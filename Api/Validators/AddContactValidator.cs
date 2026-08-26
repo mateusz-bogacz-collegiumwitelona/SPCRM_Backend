@@ -28,7 +28,7 @@ namespace Api.Validators
                 .WithErrorCode(ErrorCodes.PrimaryContactDetailRequired);
 
             RuleForEach(x => x.Details)
-                .SetValidator(new AddContactDetailCommandValidator());
+                .SetValidator(new AddContactDetailValidator());
         }
     }
 }

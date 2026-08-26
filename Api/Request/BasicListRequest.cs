@@ -1,6 +1,6 @@
-﻿namespace Services.Command
+﻿namespace Api.Request
 {
-    public class SteelGradeListCommand
+    public record BasicListRequest
     {
         public int? PageNumber { get; init; }
         public int? PageSize { get; init; }

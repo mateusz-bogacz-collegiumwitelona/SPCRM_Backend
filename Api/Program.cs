@@ -31,7 +31,7 @@ try
     // Add services to the container.
     builder.Services.AddControllers();
 
-    builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+    builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
 
     builder.Services.AddFluentValidationAutoValidation(configuration =>
     {

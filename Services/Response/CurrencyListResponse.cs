@@ -1,6 +1,6 @@
 ﻿namespace Services.Response
 {
-    public record CurrencySimpleListResponse
+    public record CurrencyListResponse
     {
         public required Guid CurrencyId { get; init; }
         public required string Name { get; init; }

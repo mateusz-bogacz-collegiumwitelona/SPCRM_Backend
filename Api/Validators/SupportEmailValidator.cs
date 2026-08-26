@@ -4,9 +4,9 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class SupportEmailRequestValidator : AbstractValidator<SupportEmailRequest>
+    public class SupportEmailValidator : AbstractValidator<SupportEmailRequest>
     {
-        public SupportEmailRequestValidator()
+        public SupportEmailValidator()
         {
             RuleFor(x => x.Email)
                 .NotEmpty().WithErrorCode(ErrorCodes.EmailRequired)

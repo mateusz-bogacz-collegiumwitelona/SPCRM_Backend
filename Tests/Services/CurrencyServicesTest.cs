@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -157,6 +158,153 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!).IsEmpty();
+        }
+
+        // ─── GetCurrenyListAsync ────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetCurrenyListAsync_WhenStandardRequest_ReturnsPagedResult()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var currency1 = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Złoty_{uniqueSuffix}",
+                Code = $"PLN_{uniqueSuffix}",
+                DecimalPlaces = 2
+            };
+
+            var currency2 = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Euro_{uniqueSuffix}",
+                Code = $"EUR_{uniqueSuffix}",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.AddRange(currency1, currency2);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new BasicListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = uniqueSuffix
+            };
+
+            // Act
+            var result = await _currencyServicesMock.GetCurrenyListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items.Count()).IsEqualTo(2);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task GetCurrenyListAsync_WhenSearchApplied_FiltersByNameOrCode()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var currency1 = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Funt_{uniqueSuffix}",
+                Code = $"GBP_{uniqueSuffix}",
+                DecimalPlaces = 2
+            };
+
+            var currency2 = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Frank_{uniqueSuffix}",
+                Code = $"CHF_{uniqueSuffix}",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.AddRange(currency1, currency2);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new BasicListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = $"GBP_{uniqueSuffix}"
+            };
+
+            // Act
+            var result = await _currencyServicesMock.GetCurrenyListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.Items.Count()).IsEqualTo(1);
+            await Assert.That(result.Data.Items.First().Code).IsEqualTo($"GBP_{uniqueSuffix}");
+        }
+
+        [Test]
+        public async Task GetCurrenyListAsync_WhenSortingApplied_OrdersCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var currencyA = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = $"A_Waluta_{uniqueSuffix}",
+                Code = $"AAA_{uniqueSuffix}",
+                DecimalPlaces = 2
+            };
+
+            var currencyZ = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Z_Waluta_{uniqueSuffix}",
+                Code = $"ZZZ_{uniqueSuffix}",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.AddRange(currencyA, currencyZ);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new BasicListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = uniqueSuffix,
+                SortBy = "name",
+                SortDescending = true
+            };
+
+            // Act
+            var result = await _currencyServicesMock.GetCurrenyListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items.ToList();
+            await Assert.That(items.First().Name).IsEqualTo($"Z_Waluta_{uniqueSuffix}");
+            await Assert.That(items.Last().Name).IsEqualTo($"A_Waluta_{uniqueSuffix}");
+        }
+
+        [Test]
+        public async Task GetCurrenyListAsync_WhenEmpty_ReturnsEmptyPagedResult()
+        {
+            // Arrange
+            var command = new BasicListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "non_existent_currency_search_term"
+            };
+
+            // Act
+            var result = await _currencyServicesMock.GetCurrenyListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
     }
 }

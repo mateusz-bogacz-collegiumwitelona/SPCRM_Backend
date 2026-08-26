@@ -4,9 +4,9 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class LoginRequestValidator : AbstractValidator<LoginRequest>
+    public class LoginValidator : AbstractValidator<LoginRequest>
     {
-        public LoginRequestValidator()
+        public LoginValidator()
         {
             RuleFor(x => x.Name)
                 .NotEmpty()

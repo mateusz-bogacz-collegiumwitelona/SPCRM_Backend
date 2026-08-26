@@ -5,9 +5,9 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class PromotionListRequestValidator : AbstractValidator<PromotionListRequest>
+    public class PromotionListValidator : AbstractValidator<PromotionListRequest>
     {
-        public PromotionListRequestValidator()
+        public PromotionListValidator()
         {
             RuleFor(x => x.PageNumber).ApplyPageNumberRules();
             RuleFor(x => x.PageSize).ApplyPageSizeRules();

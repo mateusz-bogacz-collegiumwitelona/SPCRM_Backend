@@ -5,9 +5,9 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class AddContactDetailCommandValidator : AbstractValidator<AddContactDetailRequest>
+    public class AddContactDetailValidator : AbstractValidator<AddContactDetailRequest>
     {
-        public AddContactDetailCommandValidator()
+        public AddContactDetailValidator()
         {
             RuleFor(x => x.Type)
                 .NotEmpty()

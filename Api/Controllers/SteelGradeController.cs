@@ -22,8 +22,8 @@ namespace Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetSteelGradeListAsync(
             [FromServices] ISteelGradeServices steelGrade,
-            [FromServices] SteelGradeMapper mapper,
-            [FromQuery] SteelGradeListRequest request
+            [FromServices] ApiMapper mapper,
+            [FromQuery] BasicListRequest request
             )
         {
             var result = await steelGrade.GetSteelGradeListAsync(mapper.MapList(request));

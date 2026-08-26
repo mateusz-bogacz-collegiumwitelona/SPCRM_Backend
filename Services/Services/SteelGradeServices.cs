@@ -42,7 +42,7 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeListAsync(SteelGradeListCommand command)
+        public async Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeListAsync(BasicListCommand command)
         {
             var query = _context.SteelGrades
                 .AsNoTracking()

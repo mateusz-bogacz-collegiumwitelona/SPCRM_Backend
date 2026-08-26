@@ -4,9 +4,9 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class ProductReassignmentRequestValidator : AbstractValidator<ProductReassignmentRequest>
+    public class ProductReassignmentValidator : AbstractValidator<ProductReassignmentRequest>
     {
-        public ProductReassignmentRequestValidator()
+        public ProductReassignmentValidator()
         {
             RuleFor(x => x.ProductId)
                 .ApplyValidGuidRule();

@@ -1,4 +1,6 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +23,20 @@ namespace Api.Controllers
         public async Task<IActionResult> GetCurrencySimpleListAsync([FromServices] ICurrencyServices currency)
         {
             var result = await currency.GetCurrencySimpleListAsync();
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get currency list with pagination, sorting and filtering")]
+        [EndpointDescription("Get currency list with pagination, sorting and filtering.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetCurrenyListAsync(
+            [FromServices] ICurrencyServices currency,
+            [FromServices] ApiMapper mapper,
+            [FromQuery] BasicListRequest request)
+        {
+            var result = await currency.GetCurrenyListAsync(mapper.MapList(request));
             return HandleResult(result);
         }
     }

@@ -4,12 +4,12 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class DeleteSteelGradeRequestValidator : AbstractValidator<DeleteSteelGradeRequest>
+    public class DeleteSteelGradeValidator : AbstractValidator<DeleteSteelGradeRequest>
     {
-        public DeleteSteelGradeRequestValidator()
+        public DeleteSteelGradeValidator()
         {
             RuleForEach(x => x.Reassignments)
-                .SetValidator(new ProductReassignmentRequestValidator());
+                .SetValidator(new ProductReassignmentValidator());
 
             RuleFor(x => x.Reassignments)
                 .Must(reassignments => reassignments == null ||

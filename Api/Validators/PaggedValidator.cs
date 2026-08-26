@@ -4,9 +4,9 @@ using FluentValidation;
 
 namespace Api.Validators
 {
-    public class PaggedRequestValidator : AbstractValidator<PaggedRequest>
+    public class PaggedValidator : AbstractValidator<PaggedRequest>
     {
-        public PaggedRequestValidator()
+        public PaggedValidator()
         {
             RuleFor(x => x.PageSize).ApplyPageSizeRules();
             RuleFor(x => x.PageNumber).ApplyPageNumberRules();

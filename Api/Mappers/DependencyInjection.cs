@@ -14,6 +14,7 @@
             services.AddScoped<TaskMapper>();
             services.AddScoped<PromotionMapper>();
             services.AddScoped<SteelGradeMapper>();
+            services.AddScoped<ApiMapper>();
 
             return services;
         }

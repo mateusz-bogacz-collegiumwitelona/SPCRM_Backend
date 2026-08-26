@@ -214,7 +214,7 @@ namespace Tests.Services
             CreateDummySteelGradeWithDetails($"1.4404_{uniqueSuffix}", "EN 10088", 8000);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SteelGradeListCommand
+            var command = new BasicListCommand
             {
                 PageNumber = 1,
                 PageSize = 10,
@@ -241,7 +241,7 @@ namespace Tests.Services
             CreateDummySteelGradeWithDetails($"GradeB_{uniqueSuffix}", "SPECIAL_NORM", 7950);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SteelGradeListCommand
+            var command = new BasicListCommand
             {
                 PageNumber = 1,
                 PageSize = 10,
@@ -266,7 +266,7 @@ namespace Tests.Services
             CreateDummySteelGradeWithDetails($"HighDensity_{uniqueSuffix}", "STD", 8500);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SteelGradeListCommand
+            var command = new BasicListCommand
             {
                 PageNumber = 1,
                 PageSize = 10,
