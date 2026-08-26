@@ -13,6 +13,7 @@
             services.AddScoped<MailingMapper>();
             services.AddScoped<TaskMapper>();
             services.AddScoped<PromotionMapper>();
+            services.AddScoped<SteelGradeMapper>();
 
             return services;
         }

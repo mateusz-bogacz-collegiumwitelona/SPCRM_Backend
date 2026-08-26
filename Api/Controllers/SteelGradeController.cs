@@ -29,5 +29,18 @@ namespace Api.Controllers
             var result = await steelGrade.GetSteelGradeListAsync(mapper.MapList(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Delete steel grade")]
+        [EndpointDescription("Delete steel grade by id.")]
+        [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteSteelGradeAsync(
+            [FromServices] ISteelGradeServices steelGrade,
+            [FromRoute] Guid id
+            )
+        {
+            var result = await steelGrade.DeleteSteelGradeAsync(id);
+            return HandleResult(result);
+        }
     }
 }

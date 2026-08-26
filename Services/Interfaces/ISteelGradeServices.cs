@@ -7,6 +7,7 @@ namespace Services.Interfaces
     public interface ISteelGradeServices
     {
         Task<Result<IEnumerable<SteelGradeResponse>>> GetSteelGradesAsync();
-        Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeList(SteelGradeListCommand command);
+        Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeListAsync(SteelGradeListCommand command);
+        Task<Result> DeleteSteelGradeAsync(Guid id);
     }
 }

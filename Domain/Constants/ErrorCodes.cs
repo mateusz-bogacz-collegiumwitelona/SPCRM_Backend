@@ -81,6 +81,9 @@
         public const string DiscountPercentageAndPriceCannotBothChoice = "PROM_008";
 
         // Currency
-        public const string CurrencyNotFound = "CUR_01";
+        public const string CurrencyNotFound = "CUR_001";
+
+        // Steel Grade
+        public const string SteelGradeInUse = "ST_001";
     }
 }

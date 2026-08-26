@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Constants;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +41,7 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeList(SteelGradeListCommand command)
+        public async Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeListAsync(SteelGradeListCommand command)
         {
             var query = _context.SteelGrades
                 .AsNoTracking()
@@ -55,6 +56,41 @@ namespace Services.Services
                 });
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "steel-grade");
+        }
+
+        public async Task<Result> DeleteSteelGradeAsync(Guid id)
+        {
+            var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(st => st.Id == id);
+
+            if (steelGrade == null)
+            {
+                _logger.LogWarning("Steel grade with this id: {id} not found", id);
+                return Result.Failure(
+                    message: "Steel grade not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NotFound
+                    );
+            }
+
+            bool hasProducts = await _context.Products.AnyAsync(p => p.SteelGradeId == steelGrade.Id);
+
+            if (hasProducts)
+            {
+                _logger.LogWarning("Steel grade with this id: {id} has associated products and cannot be deleted", id);
+                return Result.Failure(
+                    message: "Steel grade has associated products and cannot be deleted",
+                    statusCode: StatusCodes.Status409Conflict,
+                    errorCode: ErrorCodes.SteelGradeInUse
+                    );
+            }
+
+            _context.SteelGrades.Remove(steelGrade);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Steel grade deleted successfully",
+                statusCode: StatusCodes.Status200OK
+                );
         }
     }
 }
