@@ -55,8 +55,7 @@ namespace Services.QueryExtension
         }
 
         internal static IQueryable<Product> ApplySorting(this IQueryable<Product> query, string? sortBy, bool sortDescending)
-        {
-            return sortBy?.ToLower() switch
+            => sortBy?.ToLower() switch
             {
                 "name" => sortDescending
                     ? query.OrderByDescending(p => p.Name)
@@ -72,6 +71,5 @@ namespace Services.QueryExtension
 
                 _ => query.OrderBy(p => p.Name)
             };
-        }
     }
 }

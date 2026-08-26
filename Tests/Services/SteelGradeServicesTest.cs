@@ -576,7 +576,7 @@ namespace Tests.Services
             var command = new EditSteelGradeCommand
             {
                 Id = grade2.Id,
-                Name = $"GradeOne_{uniqueSuffix}" 
+                Name = $"GradeOne_{uniqueSuffix}"
             };
 
             // Act
@@ -604,7 +604,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound); 
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound);
         }
 
         // ─── AddSteelGradeAsync ─────────────────────────────────────────────────

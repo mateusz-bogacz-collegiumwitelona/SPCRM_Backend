@@ -27,18 +27,18 @@ namespace Services.QueryExtension
             this IQueryable<Currency> query,
             string? sortBy,
             bool sortDescending)
-        {
-            return sortBy?.ToLower() switch
+            => sortBy?.ToLower() switch
             {
                 "name" => sortDescending
                     ? query.OrderByDescending(c => c.Name)
                     : query.OrderBy(c => c.Name),
+
                 "code" => sortDescending
                     ? query.OrderByDescending(c => c.Code)
                     : query.OrderBy(c => c.Code),
 
+
                 _ => query.OrderBy(c => c.Name),
             };
-        }
     }
 }

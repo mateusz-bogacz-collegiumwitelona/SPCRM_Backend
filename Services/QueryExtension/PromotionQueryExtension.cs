@@ -60,8 +60,7 @@ namespace Services.QueryExtension
             this IQueryable<Promotion> query,
             string? sortBy,
             bool sortDescending)
-        {
-            return sortBy?.ToLower() switch
+            => sortBy?.ToLower() switch
             {
                 "name" => sortDescending
                     ? query.OrderByDescending(c => c.Name)
@@ -85,6 +84,5 @@ namespace Services.QueryExtension
 
                 _ => query.OrderBy(x => x.EndDate)
             };
-        }
     }
 }

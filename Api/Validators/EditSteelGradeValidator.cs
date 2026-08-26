@@ -6,7 +6,7 @@ namespace Api.Validators
 {
     public class EditSteelGradeValidator : AbstractValidator<EditSteelGradeRequest>
     {
-        public EditSteelGradeValidator ()
+        public EditSteelGradeValidator()
         {
             RuleFor(x => x.Id)
                 .ApplyValidGuidRule();

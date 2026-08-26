@@ -39,27 +39,25 @@ namespace Services.QueryExtension
         }
 
         internal static IQueryable<DealProduct> ApplySorting(this IQueryable<DealProduct> query, string? sortBy, bool sortDescending)
+        => sortBy?.ToLower() switch
         {
-            return sortBy?.ToLower() switch
-            {
-                "name" => sortDescending
-                    ? query.OrderByDescending(dp => dp.Product.Name)
-                    : query.OrderBy(dp => dp.Product.Name),
+            "name" => sortDescending
+                ? query.OrderByDescending(dp => dp.Product.Name)
+                : query.OrderBy(dp => dp.Product.Name),
 
-                "steelgrade" => sortDescending
-                ? query.OrderByDescending(p => p.Product.SteelGrade.Name)
-                : query.OrderBy(p => p.Product.SteelGrade.Name),
+            "steelgrade" => sortDescending
+            ? query.OrderByDescending(p => p.Product.SteelGrade.Name)
+            : query.OrderBy(p => p.Product.SteelGrade.Name),
 
-                "quantity" => sortDescending
-                    ? query.OrderByDescending(dp => dp.Quantity)
-                    : query.OrderBy(dp => dp.Quantity),
+            "quantity" => sortDescending
+                ? query.OrderByDescending(dp => dp.Quantity)
+                : query.OrderBy(dp => dp.Quantity),
 
-                "totalprice" => sortDescending
-                    ? query.OrderByDescending(dp => dp.Quantity * dp.UnitPrice)
-                    : query.OrderBy(dp => dp.Quantity * dp.UnitPrice),
+            "totalprice" => sortDescending
+                ? query.OrderByDescending(dp => dp.Quantity * dp.UnitPrice)
+                : query.OrderBy(dp => dp.Quantity * dp.UnitPrice),
 
-                _ => query.OrderBy(dp => dp.Product.Name)
-            };
-        }
+            _ => query.OrderBy(dp => dp.Product.Name)
+        };
     }
 }

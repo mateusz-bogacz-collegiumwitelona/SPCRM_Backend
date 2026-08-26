@@ -26,28 +26,26 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command)
-        {
-            var query = _context.Contacts
-                .Include(c => c.Company)
-                .AsNoTracking()
-                .Distinct()
-                .ApplyFilter(command.ComapnyName, command.IsPrimary, command.OwnerId)
-                .ApplySearch(command.SearchTerm ?? string.Empty)
-                .ApplySorting(command.SortBy, command.SortDescending)
-                .Select(c => new ContactsResponse
-                {
-                    Id = c.Id,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName,
-                    JobTitle = c.JobTitle ?? "",
-                    CompanyName = c.Company.Name,
-                    OwnerFirstName = c.Owner.FirstName,
-                    OwnerLastName = c.Owner.LastName,
-                    IsPrimary = c.IsPrimary
-                });
+            => await _context.Contacts
+                    .Include(c => c.Company)
+                    .AsNoTracking()
+                    .Distinct()
+                    .ApplyFilter(command.ComapnyName, command.IsPrimary, command.OwnerId)
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .ApplySorting(command.SortBy, command.SortDescending)
+                    .Select(c => new ContactsResponse
+                    {
+                        Id = c.Id,
+                        FirstName = c.FirstName,
+                        LastName = c.LastName,
+                        JobTitle = c.JobTitle ?? "",
+                        CompanyName = c.Company.Name,
+                        OwnerFirstName = c.Owner.FirstName,
+                        OwnerLastName = c.Owner.LastName,
+                        IsPrimary = c.IsPrimary
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts");
 
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts");
-        }
 
         public async Task<Result<List<string>>> GetCompaniesAsync()
         {
@@ -64,24 +62,21 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(CompanyCommand command)
-        {
-            var query = _context.Contacts
-                .Where(c => c.CompanyId == command.CompanyId)
-                .Distinct()
-                .AsNoTracking()
-                .Select(c => new CompanyContactResponse
-                {
-                    Id = c.Id,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName,
-                    JobTitle = c.JobTitle ?? "",
-                    IsPrimary = c.IsPrimary,
-                    OwnerFirstName = c.Owner.FirstName ?? "",
-                    OwnerLastName = c.Owner.LastName ?? ""
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_contacts");
-        }
+            => await _context.Contacts
+                    .Where(c => c.CompanyId == command.CompanyId)
+                    .Distinct()
+                    .AsNoTracking()
+                    .Select(c => new CompanyContactResponse
+                    {
+                        Id = c.Id,
+                        FirstName = c.FirstName,
+                        LastName = c.LastName,
+                        JobTitle = c.JobTitle ?? "",
+                        IsPrimary = c.IsPrimary,
+                        OwnerFirstName = c.Owner.FirstName ?? "",
+                        OwnerLastName = c.Owner.LastName ?? ""
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_contacts");
 
         public async Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId)
         {
@@ -130,24 +125,21 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<MailingClientResponse>>> GetClientDataToMailingAsync(SimpleListCommand command)
-        {
-            var query = _context.Contacts
-                .Include(c => c.Company)
-                .AsNoTracking()
-                .Distinct()
-                .Where(c => c.IsPrimary)
-                .ApplySearch(command.SearchTerm ?? string.Empty)
-                .Select(c => new MailingClientResponse
-                {
-                    CompanyName = c.Company.Name,
-                    Nip = c.Company.NIP,
-                    ContactFirstName = c.FirstName,
-                    ContactLastName = c.LastName,
-                    ContactId = c.Id
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing_clients");
-        }
+            => await _context.Contacts
+                    .Include(c => c.Company)
+                    .AsNoTracking()
+                    .Distinct()
+                    .Where(c => c.IsPrimary)
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .Select(c => new MailingClientResponse
+                    {
+                        CompanyName = c.Company.Name,
+                        Nip = c.Company.NIP,
+                        ContactFirstName = c.FirstName,
+                        ContactLastName = c.LastName,
+                        ContactId = c.Id
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing_clients");
 
         public async Task<Result> AddContactAsync(AddContactCommand command, Guid userId)
         {

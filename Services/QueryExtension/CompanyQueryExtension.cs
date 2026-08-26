@@ -74,8 +74,7 @@ namespace Services.QueryExtension
             string? sortBy,
             bool sortDescending
             )
-        {
-            return sortBy?.ToLower() switch
+            => sortBy?.ToLower() switch
             {
                 "name" => sortDescending
                     ? query.OrderByDescending(x => x.Name)
@@ -111,6 +110,5 @@ namespace Services.QueryExtension
 
                 _ => query.OrderBy(x => x.Name)
             };
-        }
     }
 }

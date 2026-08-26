@@ -28,36 +28,33 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(Guid userId, SalesListCommand command)
-        {
-            var query = _context.Deals
-                .AsNoTracking()
-                .Include(d => d.Company)
-                .Include(d => d.Currency)
-                .Where(d => d.OwnerId == userId)
-                .ApplyFilter(
-                    command.CompanyName,
-                    command.Value,
-                    command.DateFrom,
-                    command.DateTo,
-                    command.StatusType
-                )
-                .ApplySorting(command.SortBy, command.SortDescending)
-                .ApplySearch(command.SearchTerm ?? string.Empty)
-                .Select(d => new UserSalesResponse
-                {
-                    Id = d.Id,
-                    Name = d.Name,
-                    Nip = d.Company.NIP,
-                    CloseDate = d.CloseDate,
-                    Value = d.Value,
-                    DecimalPlace = d.Currency.DecimalPlaces,
-                    Currency = d.Currency.Name,
-                    CompanyName = d.Company.Name,
-                    Status = d.Status.ToString()
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
-        }
+            => await _context.Deals
+                    .AsNoTracking()
+                    .Include(d => d.Company)
+                    .Include(d => d.Currency)
+                    .Where(d => d.OwnerId == userId)
+                    .ApplyFilter(
+                        command.CompanyName,
+                        command.Value,
+                        command.DateFrom,
+                        command.DateTo,
+                        command.StatusType
+                    )
+                    .ApplySorting(command.SortBy, command.SortDescending)
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .Select(d => new UserSalesResponse
+                    {
+                        Id = d.Id,
+                        Name = d.Name,
+                        Nip = d.Company.NIP,
+                        CloseDate = d.CloseDate,
+                        Value = d.Value,
+                        DecimalPlace = d.Currency.DecimalPlaces,
+                        Currency = d.Currency.Name,
+                        CompanyName = d.Company.Name,
+                        Status = d.Status.ToString()
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
 
         public async Task<Result<List<string>>> GetSalesStatus()
         {
@@ -71,25 +68,22 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command)
-        {
-            var query = _context.Deals
-                .Where(d => d.CompanyId == command.CompanyId)
-                .Select(d => new CompanySalesResponse
-                {
-                    Id = d.Id,
-                    SalesmanFirstName = d.Owner.FirstName,
-                    SalesmanLastName = d.Owner.LastName,
-                    Name = d.Name,
-                    Value = (decimal)d.Value / 10000m,
-                    Code = d.Currency.Code,
-                    DecimalPlaces = d.Currency.DecimalPlaces,
-                    Status = d.Status.ToString(),
-                    CloseDate = d.CloseDate,
-                    CreatedAt = d.CreatedAt
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_sales");
-        }
+            => await _context.Deals
+                    .Where(d => d.CompanyId == command.CompanyId)
+                    .Select(d => new CompanySalesResponse
+                    {
+                        Id = d.Id,
+                        SalesmanFirstName = d.Owner.FirstName,
+                        SalesmanLastName = d.Owner.LastName,
+                        Name = d.Name,
+                        Value = (decimal)d.Value / 10000m,
+                        Code = d.Currency.Code,
+                        DecimalPlaces = d.Currency.DecimalPlaces,
+                        Status = d.Status.ToString(),
+                        CloseDate = d.CloseDate,
+                        CreatedAt = d.CreatedAt
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_sales");
 
         public async Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId)
         {
@@ -159,40 +153,33 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, ProductListCommand command)
-        {
-            var query = _context.DealProducts
-                .AsNoTracking()
-                .Where(dp => dp.DealId == dealId);
+            => await _context.DealProducts
+                    .AsNoTracking()
+                    .Where(dp => dp.DealId == dealId)
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .ApplyFilter(command.ProductCategory, command.SteelGrade)
+                    .ApplySorting(command.SortBy, command.SortDescending)
+                    .Select(dp => new DealProductResponse
+                    {
+                        ProductId = dp.ProductId,
+                        Name = dp.Product.Name,
+                        SteelGrade = dp.Product.SteelGrade.Name,
 
-            query = query
-                .ApplySearch(command.SearchTerm ?? string.Empty)
-                .ApplyFilter(command.ProductCategory, command.SteelGrade)
-                .ApplySorting(command.SortBy, command.SortDescending);
+                        Dimensions = DimensionsFormatter.Format(
+                        dp.Product.Category,
+                        dp.Product.Diameter,
+                        dp.Product.Thickness,
+                        dp.Product.Width,
+                        dp.Product.Length
+                    ),
 
-            var projectedQuery = query.Select(dp => new DealProductResponse
-            {
-                ProductId = dp.ProductId,
-                Name = dp.Product.Name,
-                SteelGrade = dp.Product.SteelGrade.Name,
-
-                Dimensions = DimensionsFormatter.Format(
-                    dp.Product.Category,
-                    dp.Product.Diameter,
-                    dp.Product.Thickness,
-                    dp.Product.Width,
-                    dp.Product.Length
-                ),
-
-                Quantity = dp.Quantity,
-                UnitSymbol = dp.Product.Unit.Symbol,
-                BaseUnitPrice = dp.Product.PricePerUnit,
-                UnitPrice = dp.UnitPrice,
-                TotalPrice = dp.Quantity * dp.UnitPrice,
-                CurrencyCode = dp.Deal.Currency.Code,
-                DecimalPlaces = dp.Deal.Currency.DecimalPlaces
-            });
-
-            return await projectedQuery.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
-        }
+                        Quantity = dp.Quantity,
+                        UnitSymbol = dp.Product.Unit.Symbol,
+                        BaseUnitPrice = dp.Product.PricePerUnit,
+                        UnitPrice = dp.UnitPrice,
+                        TotalPrice = dp.Quantity * dp.UnitPrice,
+                        CurrencyCode = dp.Deal.Currency.Code,
+                        DecimalPlaces = dp.Deal.Currency.DecimalPlaces
+                    }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
     }
 }

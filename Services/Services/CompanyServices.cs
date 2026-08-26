@@ -113,46 +113,43 @@ namespace Services.Services
 
 
         public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command)
-        {
-            var query = _context.Companies
-                .ApplyFiler(command.IsYour, command.CreatedAtFrom, command.CreatedAtTo, command.UserId)
-                .ApplySearch(command.SearchTerm ?? string.Empty)
-                .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
-                .ApplySorting(command.SortBy, command.SortDescending)
-                .Select(c => new CompanyResponse
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Nip = c.NIP,
+            => await _context.Companies
+                    .ApplyFiler(command.IsYour, command.CreatedAtFrom, command.CreatedAtTo, command.UserId)
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
+                    .ApplySorting(command.SortBy, command.SortDescending)
+                    .Select(c => new CompanyResponse
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Nip = c.NIP,
 
-                    LastDealDate = c.Deals
-                        .OrderByDescending(d => d.CreatedAt)
-                        .Select(d => (DateTime?)d.CreatedAt)
-                        .FirstOrDefault(),
+                        LastDealDate = c.Deals
+                            .OrderByDescending(d => d.CreatedAt)
+                            .Select(d => (DateTime?)d.CreatedAt)
+                            .FirstOrDefault(),
 
-                    IsYour = c.OwnerId == command.UserId,
-                    OwnerFirstName = c.OwnerId == command.UserId ? null : c.Owner.FirstName,
-                    OwnerLastName = c.OwnerId == command.UserId ? null : c.Owner.LastName,
+                        IsYour = c.OwnerId == command.UserId,
+                        OwnerFirstName = c.OwnerId == command.UserId ? null : c.Owner.FirstName,
+                        OwnerLastName = c.OwnerId == command.UserId ? null : c.Owner.LastName,
 
-                    City = c.CompanyAdresses
-                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
-                        .Select(ca => ca.City)
-                        .FirstOrDefault() ?? string.Empty,
+                        City = c.CompanyAdresses
+                            .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                            .Select(ca => ca.City)
+                            .FirstOrDefault() ?? string.Empty,
 
-                    Street = c.CompanyAdresses
-                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
-                        .Select(ca => ca.Street)
-                        .FirstOrDefault() ?? string.Empty,
+                        Street = c.CompanyAdresses
+                            .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                            .Select(ca => ca.Street)
+                            .FirstOrDefault() ?? string.Empty,
 
-                    ZipCode = c.CompanyAdresses
-                        .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
-                        .Select(ca => ca.ZipCode)
-                        .FirstOrDefault() ?? string.Empty,
+                        ZipCode = c.CompanyAdresses
+                            .Where(ca => ca.AddressType == AddressTypeEnum.Headquarters)
+                            .Select(ca => ca.ZipCode)
+                            .FirstOrDefault() ?? string.Empty,
 
-                    CreatedAt = c.CreatedAt,
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies");
-        }
+                        CreatedAt = c.CreatedAt,
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies");
     }
 }

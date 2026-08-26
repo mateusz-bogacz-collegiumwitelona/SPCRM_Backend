@@ -25,35 +25,33 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<PromotionResponse>>> GetPromotionListAsync(PromotionListCommand command)
-        {
-            var query = _context.Promotions
-                .AsNoTracking()
-                .ApplyFilter(command)
-                .ApplySearch(command.SearchTerm ?? string.Empty)
-                .ApplySorting(command.SortBy, command.SortDescending)
-                .Select(p => new PromotionResponse
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    DiscountPercentage = p.DiscountPercentage,
+            => await _context.Promotions
+                    .AsNoTracking()
+                    .ApplyFilter(command)
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .ApplySorting(command.SortBy, command.SortDescending)
+                    .Select(p => new PromotionResponse
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        DiscountPercentage = p.DiscountPercentage,
 
-                    PromotionalPrice = p.PromotionalPrice,
+                        PromotionalPrice = p.PromotionalPrice,
 
-                    PromotionalPriceCode = p.Currency != null
-                    ? p.Currency.Code
-                    : null,
+                        PromotionalPriceCode = p.Currency != null
+                        ? p.Currency.Code
+                        : null,
 
-                    PromotionalPriceDecimalPlace = p.Currency != null
-                    ? (int?)p.Currency.DecimalPlaces
-                    : null,
+                        PromotionalPriceDecimalPlace = p.Currency != null
+                        ? (int?)p.Currency.DecimalPlaces
+                        : null,
 
-                    StartDate = p.StartDate,
-                    EndDate = p.EndDate,
-                    IsActive = p.IsActive
-                });
+                        StartDate = p.StartDate,
+                        EndDate = p.EndDate,
+                        IsActive = p.IsActive
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "promotions");
 
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "promotions");
-        }
 
         public async Task<Result<PromotionDetailResponse>> GetPromotionDetailAsync(Guid promotionId)
         {

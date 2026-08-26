@@ -43,21 +43,18 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeListAsync(BasicListCommand command)
-        {
-            var query = _context.SteelGrades
-                .AsNoTracking()
-                .ApplySeatch(command.SearchTerm ?? string.Empty)
-                .ApplySorting(command.SortBy, command.SortDescending)
-                .Select(st => new SteelGradeListResponse
-                {
-                    Id = st.Id,
-                    Name = st.Name,
-                    Standard = st.Standard,
-                    Density = st.Density / 1000m
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "steel-grade");
-        }
+            => await _context.SteelGrades
+                    .AsNoTracking()
+                    .ApplySeatch(command.SearchTerm ?? string.Empty)
+                    .ApplySorting(command.SortBy, command.SortDescending)
+                    .Select(st => new SteelGradeListResponse
+                    {
+                        Id = st.Id,
+                        Name = st.Name,
+                        Standard = st.Standard,
+                        Density = st.Density / 1000m
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "steel-grade");
 
         public async Task<Result<List<ProductSimpleResponse>>> GetAssociatedProductsAsync(Guid steelGradeId)
         {
