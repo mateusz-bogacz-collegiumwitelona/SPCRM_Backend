@@ -11,7 +11,6 @@ using Services.Command;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
-
 namespace Tests.Services
 {
     public class SteelGradeServicesTest
@@ -136,6 +135,41 @@ namespace Tests.Services
             return steelGrade;
         }
 
+        private Product CreateDummyProduct(SteelGrade steelGrade, string name = "Produkt")
+        {
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Sztuka_{Guid.NewGuid():N}",
+                Symbol = "szt."
+            };
+            var currency = CreateDummyCurrency();
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                Category = ProductCategoryEnum.Sheet,
+                Thickness = 20,
+                Width = 1000,
+                Length = 2000,
+                Diameter = null,
+                Weight = 50000,
+                PricePerUnit = 100000,
+                StockQuantity = 10
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            return product;
+        }
+
         // ─── GetSteelGradesAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -143,8 +177,7 @@ namespace Tests.Services
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var grade = CreateDummySteelGrade($"S355_{uniqueSuffix}");
-
+            CreateDummySteelGrade($"S355_{uniqueSuffix}");
             await _contextMock.SaveChangesAsync();
 
             // Act
@@ -160,6 +193,7 @@ namespace Tests.Services
         [Test]
         public async Task GetSteelGradesAsync_WhenEmpty_ReturnsSuccessStatusAndEmptyData()
         {
+            // Act
             var result = await _steelGradeServicesMock.GetSteelGradesAsync();
 
             // Assert
@@ -169,15 +203,15 @@ namespace Tests.Services
             await Assert.That(result.Data).IsEmpty();
         }
 
-        // ─── GetSteelGradeList ──────────────────────────────────────────────────
+        // ─── GetSteelGradeListAsync ──────────────────────────────────────────────
 
         [Test]
         public async Task GetSteelGradeList_WhenStandardRequest_ReturnsPagedResult()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
-            CreateDummySteelGradeWithDetails($"1.4301_{uniqueSuffix}", "EN 10088", 79);
-            CreateDummySteelGradeWithDetails($"1.4404_{uniqueSuffix}", "EN 10088", 80);
+            CreateDummySteelGradeWithDetails($"1.4301_{uniqueSuffix}", "EN 10088", 7900);
+            CreateDummySteelGradeWithDetails($"1.4404_{uniqueSuffix}", "EN 10088", 8000);
             await _contextMock.SaveChangesAsync();
 
             var command = new SteelGradeListCommand
@@ -203,8 +237,8 @@ namespace Tests.Services
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
-            CreateDummySteelGradeWithDetails($"GradeA_{uniqueSuffix}", "DIN 17100", 785);
-            CreateDummySteelGradeWithDetails($"GradeB_{uniqueSuffix}", "SPECIAL_NORM", 795);
+            CreateDummySteelGradeWithDetails($"GradeA_{uniqueSuffix}", "DIN 17100", 7850);
+            CreateDummySteelGradeWithDetails($"GradeB_{uniqueSuffix}", "SPECIAL_NORM", 7950);
             await _contextMock.SaveChangesAsync();
 
             var command = new SteelGradeListCommand
@@ -228,8 +262,8 @@ namespace Tests.Services
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
-            CreateDummySteelGradeWithDetails($"LowDensity_{uniqueSuffix}", "STD", 71);
-            CreateDummySteelGradeWithDetails($"HighDensity_{uniqueSuffix}", "STD", 85);
+            CreateDummySteelGradeWithDetails($"LowDensity_{uniqueSuffix}", "STD", 7100);
+            CreateDummySteelGradeWithDetails($"HighDensity_{uniqueSuffix}", "STD", 8500);
             await _contextMock.SaveChangesAsync();
 
             var command = new SteelGradeListCommand
@@ -246,35 +280,56 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
+            
             var items = result.Data!.Items.ToList();
             await Assert.That(items.First().Name).IsEqualTo($"HighDensity_{uniqueSuffix}");
             await Assert.That(items.Last().Name).IsEqualTo($"LowDensity_{uniqueSuffix}");
         }
 
+        // ─── GetAssociatedProductsAsync ──────────────────────────────────────────
+
         [Test]
-        public async Task GetSteelGradeList_WhenEmpty_ReturnsEmptyPagedResult()
+        public async Task GetAssociatedProductsAsync_WhenProductsExist_ReturnsListOfProducts()
         {
             // Arrange
-            var command = new SteelGradeListCommand
-            {
-                PageNumber = 1,
-                PageSize = 10,
-                SearchTerm = "non_existing_steel_grade_name"
-            };
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var steelGrade = CreateDummySteelGrade($"Grade_{uniqueSuffix}");
+            var product1 = CreateDummyProduct(steelGrade, $"Blacha_{uniqueSuffix}");
+            var product2 = CreateDummyProduct(steelGrade, $"Rura_{uniqueSuffix}");
+            await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _steelGradeServicesMock.GetSteelGradeListAsync(command);
+            var result = await _steelGradeServicesMock.GetAssociatedProductsAsync(steelGrade.Id);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.Data!.Items).IsEmpty();
-            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Count).IsEqualTo(2);
+            await Assert.That(result.Data.Any(p => p.Id == product1.Id)).IsTrue();
+            await Assert.That(result.Data.Any(p => p.Id == product2.Id)).IsTrue();
+        }
+
+        [Test]
+        public async Task GetAssociatedProductsAsync_WhenNoProductsExist_ReturnsEmptyList()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade();
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _steelGradeServicesMock.GetAssociatedProductsAsync(steelGrade.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Count).IsEqualTo(0);
         }
 
         // ─── DeleteSteelGradeAsync ───────────────────────────────────────────────
 
         [Test]
-        public async Task DeleteSteelGradeAsync_WhenGradeExistsWithoutProducts_DeletesSuccessfullyAndAppliesSoftDelete()
+        public async Task DeleteSteelGradeAsync_WhenGradeExistsWithoutProducts_DeletesSuccessfully()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -284,12 +339,11 @@ namespace Tests.Services
             var beforeDeleteTime = DateTime.UtcNow.AddSeconds(-1);
 
             // Act
-            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id);
+            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id, null);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-            await Assert.That(result.Message).IsEqualTo("Steel grade deleted successfully");
 
             var standardQueriedGrade = await _contextMock.SteelGrades
                 .FirstOrDefaultAsync(s => s.Id == steelGrade.Id);
@@ -306,66 +360,120 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task DeleteSteelGradeAsync_WhenGradeHasAssociatedProducts_ReturnsConflict()
+        public async Task DeleteSteelGradeAsync_WhenGradeHasProductsAndNoReassignments_ReturnsBadRequest()
         {
             // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var steelGrade = CreateDummySteelGrade($"S235_{uniqueSuffix}");
-
-            var unit = new UnitOfMeasure
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Sztuka_{uniqueSuffix}",
-                Symbol = "szt."
-            };
-
-            var currency = CreateDummyCurrency("Polski Złoty", "PLN");
-
-            var product = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = $"ProduktTestowy_{uniqueSuffix}",
-                SteelGradeId = steelGrade.Id,
-                SteelGrade = steelGrade,
-                UnitId = unit.Id,
-                Unit = unit,
-                CurrencyId = currency.Id,
-                Currency = currency,
-                Category = ProductCategoryEnum.Sheet,
-                Thickness = 20,
-                Width = 1000,
-                Length = 2000,
-                Diameter = null,
-                Weight = 50000,
-                PricePerUnit = 100000,
-                StockQuantity = 10
-            };
-
-            _contextMock.UnitsOfMeasure.Add(unit);
-            _contextMock.Products.Add(product);
+            var steelGrade = CreateDummySteelGrade();
+            CreateDummyProduct(steelGrade);
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id);
+            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id, null);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.SteelGradeInUse);
+        }
 
-            var gradeInDb = await _contextMock.SteelGrades.FirstOrDefaultAsync(s => s.Id == steelGrade.Id);
-            await Assert.That(gradeInDb).IsNotNull();
-            await Assert.That(gradeInDb!.IsDeleted).IsFalse();
+        [Test]
+        public async Task DeleteSteelGradeAsync_WhenGradeHasProductsAndReassignmentsGiven_ReassignsProductsAndDeletesGrade()
+        {
+            // Arrange
+            var sourceGrade = CreateDummySteelGrade("SourceGrade");
+            var targetGrade1 = CreateDummySteelGrade("TargetGrade1");
+            var targetGrade2 = CreateDummySteelGrade("TargetGrade2");
+
+            var product1 = CreateDummyProduct(sourceGrade, "Prod1");
+            var product2 = CreateDummyProduct(sourceGrade, "Prod2");
+            await _contextMock.SaveChangesAsync();
+
+            var reassignments = new List<ProductReassignmentCommand>
+            {
+                new() 
+                { 
+                    ProductId = 
+                    product1.Id, 
+                    NewSteelGradeId = 
+                    targetGrade1.Id 
+                },
+                new() 
+                { 
+                    ProductId = product2.Id, 
+                    NewSteelGradeId = targetGrade2.Id 
+                }
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(sourceGrade.Id, reassignments);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedProduct1 = await _contextMock.Products.FindAsync(product1.Id);
+            var updatedProduct2 = await _contextMock.Products.FindAsync(product2.Id);
+
+            await Assert.That(updatedProduct1!.SteelGradeId).IsEqualTo(targetGrade1.Id);
+            await Assert.That(updatedProduct2!.SteelGradeId).IsEqualTo(targetGrade2.Id);
+
+            var rawSourceGrade = await _contextMock.SteelGrades.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.Id == sourceGrade.Id);
+            await Assert.That(rawSourceGrade!.IsDeleted).IsTrue();
+        }
+
+        [Test]
+        public async Task DeleteSteelGradeAsync_WhenTargetGradeIsTheSameAsDeletedGrade_ReturnsBadRequest()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade();
+            var product = CreateDummyProduct(steelGrade);
+            await _contextMock.SaveChangesAsync();
+
+            var reassignments = new List<ProductReassignmentCommand>
+            {
+                new() { ProductId = product.Id, NewSteelGradeId = steelGrade.Id }
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id, reassignments);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.BadRequest);
+        }
+
+        [Test]
+        public async Task DeleteSteelGradeAsync_WhenTargetGradeDoesNotExist_ReturnsBadRequest()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade();
+            var product = CreateDummyProduct(steelGrade);
+            await _contextMock.SaveChangesAsync();
+
+            var nonExistingTargetId = Guid.NewGuid();
+            var reassignments = new List<ProductReassignmentCommand>
+            {
+                new() { ProductId = product.Id, NewSteelGradeId = nonExistingTargetId }
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id, reassignments);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.BadRequest);
         }
 
         [Test]
         public async Task DeleteSteelGradeAsync_WhenGradeDoesNotExist_Returns404NotFound()
         {
-            // Arrange
+            // Arrange 
             var nonExistingId = Guid.NewGuid();
 
             // Act
-            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(nonExistingId);
+            var result = await _steelGradeServicesMock.DeleteSteelGradeAsync(nonExistingId, null);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
