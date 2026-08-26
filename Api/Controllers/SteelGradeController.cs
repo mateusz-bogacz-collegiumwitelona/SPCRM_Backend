@@ -61,7 +61,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit a steel grade")]
         [EndpointDescription("Edit the details of an existing steel grade.")]
-        [HttpPut]
+        [HttpPatch]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> EditSteelGradeAsync(
             [FromServices] ISteelGradeServices steelGradeServices,
