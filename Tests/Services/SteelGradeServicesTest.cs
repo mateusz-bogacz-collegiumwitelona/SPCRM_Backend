@@ -480,5 +480,131 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound);
         }
+
+        // ─── EditSteelGradeAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task EditSteelGradeAsync_WhenAllFieldsProvided_UpdatesSuccessfully()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var steelGrade = CreateDummySteelGradeWithDetails($"OldName_{uniqueSuffix}", "OldStandard", 7850);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditSteelGradeCommand
+            {
+                Id = steelGrade.Id,
+                Name = $"NewName_{uniqueSuffix}",
+                Standard = "NewStandard",
+                Density = 8000
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.EditSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Steel grade updated successfully");
+
+            var updatedInDb = await _contextMock.SteelGrades.FindAsync(steelGrade.Id);
+            await Assert.That(updatedInDb).IsNotNull();
+            await Assert.That(updatedInDb!.Name).IsEqualTo($"NewName_{uniqueSuffix}");
+            await Assert.That(updatedInDb.Standard).IsEqualTo("NewStandard");
+            await Assert.That(updatedInDb.Density).IsEqualTo(8000);
+        }
+
+        [Test]
+        public async Task EditSteelGradeAsync_WhenStandardIsEmptyOrWhitespace_ClearsStandardToNull()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var steelGrade = CreateDummySteelGradeWithDetails($"Grade_{uniqueSuffix}", "StandardToClear", 7850);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditSteelGradeCommand
+            {
+                Id = steelGrade.Id,
+                Standard = "   "
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.EditSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+
+            var updatedInDb = await _contextMock.SteelGrades.FindAsync(steelGrade.Id);
+            await Assert.That(updatedInDb!.Standard).IsNull();
+        }
+
+        [Test]
+        public async Task EditSteelGradeAsync_WhenSameNameProvided_DoesNotTriggerDuplicateError()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var steelGrade = CreateDummySteelGradeWithDetails($"UniqueName_{uniqueSuffix}", "Standard", 7850);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditSteelGradeCommand
+            {
+                Id = steelGrade.Id,
+                Name = $"UniqueName_{uniqueSuffix}",
+                Density = 7900
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.EditSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedInDb = await _contextMock.SteelGrades.FindAsync(steelGrade.Id);
+            await Assert.That(updatedInDb!.Density).IsEqualTo(7900);
+        }
+
+        [Test]
+        public async Task EditSteelGradeAsync_WhenNameCollidesWithAnotherGrade_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var grade1 = CreateDummySteelGradeWithDetails($"GradeOne_{uniqueSuffix}", "STD", 7850);
+            var grade2 = CreateDummySteelGradeWithDetails($"GradeTwo_{uniqueSuffix}", "STD", 7850);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditSteelGradeCommand
+            {
+                Id = grade2.Id,
+                Name = $"GradeOne_{uniqueSuffix}" 
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.EditSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.SteelGradeAlreadyExist);
+        }
+
+        [Test]
+        public async Task EditSteelGradeAsync_WhenGradeDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new EditSteelGradeCommand
+            {
+                Id = Guid.NewGuid(),
+                Name = "NonExistent"
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.EditSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound); 
+        }
     }
 }

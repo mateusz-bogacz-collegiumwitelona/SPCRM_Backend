@@ -30,6 +30,8 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get associated products for a steel grade")]
+        [EndpointDescription("Get a list of products associated with a specific steel grade.")]
         [HttpGet("{steelGradeId:guid}/products")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAssociatedProductsAsync(
@@ -40,6 +42,8 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Delete a steel grade")]
+        [EndpointDescription("Delete a steel grade and update related products.")]
         [HttpDelete("{steelGradeId:guid}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteSteelGradeAsync(
@@ -52,6 +56,19 @@ namespace Api.Controllers
                 steelGradeId,
                 mapper.MapReassignments(request?.Reassignments)
                 );
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Edit a steel grade")]
+        [EndpointDescription("Edit the details of an existing steel grade.")]
+        [HttpPut]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditSteelGradeAsync(
+            [FromServices] ISteelGradeServices steelGradeServices,
+            [FromServices] SteelGradeMapper mapper,
+            [FromBody] EditSteelGradeRequest request)
+        {
+            var result = await steelGradeServices.EditSteelGradeAsync(mapper.MapEdit(request));
             return HandleResult(result);
         }
     }

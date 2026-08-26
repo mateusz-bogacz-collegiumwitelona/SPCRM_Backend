@@ -10,5 +10,6 @@ namespace Services.Interfaces
         Task<Result<PagedResult<SteelGradeListResponse>>> GetSteelGradeListAsync(SteelGradeListCommand command);
         Task<Result<List<ProductSimpleResponse>>> GetAssociatedProductsAsync(Guid steelGradeId);
         Task<Result> DeleteSteelGradeAsync(Guid id, List<ProductReassignmentCommand>? reassignments);
+        Task<Result> EditSteelGradeAsync(EditSteelGradeCommand command);
     }
 }

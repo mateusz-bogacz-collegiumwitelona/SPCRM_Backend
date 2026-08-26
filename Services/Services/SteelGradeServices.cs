@@ -156,5 +156,61 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result> EditSteelGradeAsync(EditSteelGradeCommand command)
+        {
+            var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(s => s.Id == command.Id);
+
+            if (steelGrade == null)
+            {
+                _logger.LogWarning("Attempted to edit non-existent steel grade with ID: {SteelGradeId}", command.Id);
+                return Result.Failure(
+                    message: "Steel grade not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NotFound
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Name))
+            {
+                string name = command.Name.Trim();
+
+                if (!string.Equals(steelGrade.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    var isExist = await _context.SteelGrades
+                        .AnyAsync(s => s.Id != command.Id && s.Name.ToLower() == name.ToLower());
+
+                    if (isExist)
+                    {
+                        _logger.LogWarning("Steel grade with this name: {name} already exist", name);
+                        return Result.Failure(
+                            message: "Steel grade with this name already exist",
+                            statusCode: StatusCodes.Status400BadRequest,
+                            errorCode: ErrorCodes.SteelGradeAlreadyExist
+                        );
+                    }
+
+                    steelGrade.Name = name;
+                }
+            }
+
+            if (command.Standard != null)
+            {
+                steelGrade.Standard = string.IsNullOrWhiteSpace(command.Standard)
+                    ? null
+                    : command.Standard.Trim();
+            }
+
+            if (command.Density.HasValue)
+            {
+                steelGrade.Density = command.Density.Value;
+            }
+
+            await _context.SaveChangesAsync();
+            return Result.Success(
+                message: "Steel grade updated successfully",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }
