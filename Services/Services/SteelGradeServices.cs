@@ -58,39 +58,103 @@ namespace Services.Services
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "steel-grade");
         }
 
-        public async Task<Result> DeleteSteelGradeAsync(Guid id)
+        public async Task<Result<List<ProductSimpleResponse>>> GetAssociatedProductsAsync(Guid steelGradeId)
         {
-            var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(st => st.Id == id);
+            var products = await _context.Products
+                .Where(p => p.SteelGradeId == steelGradeId)
+                .Select(p => new ProductSimpleResponse
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Category = p.Category.ToString()
+                })
+                .ToListAsync();
 
+            return Result<List<ProductSimpleResponse>>.Success(
+                message: "Products retrieved",
+                statusCode: StatusCodes.Status200OK,
+                data: products
+            );
+        }
+
+        public async Task<Result> DeleteSteelGradeAsync(Guid id, List<ProductReassignmentCommand>? reassignments)
+        {
+            var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(s => s.Id == id);
             if (steelGrade == null)
             {
-                _logger.LogWarning("Steel grade with this id: {id} not found", id);
+                _logger.LogWarning("Attempted to delete non-existent steel grade with ID: {SteelGradeId}", id);
                 return Result.Failure(
                     message: "Steel grade not found",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.NotFound
-                    );
+                );
             }
 
-            bool hasProducts = await _context.Products.AnyAsync(p => p.SteelGradeId == steelGrade.Id);
+            var affectedProducts = await _context.Products
+                .Where(p => p.SteelGradeId == id)
+                .ToListAsync();
 
-            if (hasProducts)
+            if (affectedProducts.Count > 0)
             {
-                _logger.LogWarning("Steel grade with this id: {id} has associated products and cannot be deleted", id);
-                return Result.Failure(
-                    message: "Steel grade has associated products and cannot be deleted",
-                    statusCode: StatusCodes.Status409Conflict,
-                    errorCode: ErrorCodes.SteelGradeInUse
+                reassignments ??= new List<ProductReassignmentCommand>();
+
+                var missingProductIds = affectedProducts
+                    .Select(p => p.Id)
+                    .Except(reassignments.Select(r => r.ProductId))
+                    .ToList();
+
+                if (missingProductIds.Count > 0)
+                {
+                    _logger.LogWarning("Not all products have a choice of new steel grade. Missing product IDs: {MissingProductIds}", string.Join(", ", missingProductIds));
+                    return Result.Failure(
+                        message: $"Not all products have a choice of new steel grade (remaining: {missingProductIds.Count}).",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.SteelGradeInUse
                     );
+                }
+
+                if (reassignments.Any(r => r.NewSteelGradeId == id))
+                {
+                    _logger.LogWarning("The target species cannot be the species being removed. Steel grade ID: {SteelGradeId}", id);
+                    return Result.Failure(
+                        message: "The target species cannot be the species being removed.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.BadRequest
+                    );
+                }
+
+                var targetGradeIds = reassignments.Select(r => r.NewSteelGradeId).Distinct().ToList();
+
+                var existingGradesCount = await _context.SteelGrades
+                    .CountAsync(s => targetGradeIds.Contains(s.Id));
+
+                if (existingGradesCount != targetGradeIds.Count)
+                {
+                    _logger.LogWarning("One or more selected target steel grades do not exist.");
+                    return Result.Failure(
+                        message: "One or more selected target steel grades do not exist.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.BadRequest
+                    );
+                }
+
+                var reassignmentMap = reassignments.ToDictionary(r => r.ProductId, r => r.NewSteelGradeId);
+                foreach (var product in affectedProducts)
+                {
+                    if (reassignmentMap.TryGetValue(product.Id, out var newGradeId))
+                    {
+                        product.SteelGradeId = newGradeId;
+                    }
+                }
             }
 
             _context.SteelGrades.Remove(steelGrade);
             await _context.SaveChangesAsync();
 
             return Result.Success(
-                message: "Steel grade deleted successfully",
+                message: "The steel grade has been removed, and the related products have been updated.",
                 statusCode: StatusCodes.Status200OK
-                );
+            );
         }
     }
 }

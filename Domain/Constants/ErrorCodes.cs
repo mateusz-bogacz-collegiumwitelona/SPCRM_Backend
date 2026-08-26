@@ -85,5 +85,6 @@
 
         // Steel Grade
         public const string SteelGradeInUse = "ST_001";
+        public const string DuplicateProductReassignment = "ST_002";
     }
 }

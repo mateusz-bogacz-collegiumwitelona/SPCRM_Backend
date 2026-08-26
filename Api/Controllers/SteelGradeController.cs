@@ -30,16 +30,28 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [EndpointSummary("Delete steel grade")]
-        [EndpointDescription("Delete steel grade by id.")]
-        [HttpDelete("{id:guid}")]
+        [HttpGet("{steelGradeId:guid}/products")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAssociatedProductsAsync(
+            [FromServices] ISteelGradeServices steelGradeServices,
+            [FromRoute] Guid steelGradeId)
+        {
+            var result = await steelGradeServices.GetAssociatedProductsAsync(steelGradeId);
+            return HandleResult(result);
+        }
+
+        [HttpDelete("{steelGradeId:guid}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteSteelGradeAsync(
-            [FromServices] ISteelGradeServices steelGrade,
-            [FromRoute] Guid id
-            )
+            [FromServices] ISteelGradeServices steelGradeServices,
+            [FromServices] SteelGradeMapper mapper,
+            [FromRoute] Guid steelGradeId,
+            [FromBody] DeleteSteelGradeRequest? request)
         {
-            var result = await steelGrade.DeleteSteelGradeAsync(id);
+            var result = await steelGradeServices.DeleteSteelGradeAsync(
+                steelGradeId, 
+                mapper.MapReassignments(request?.Reassignments)
+                );
             return HandleResult(result);
         }
     }
