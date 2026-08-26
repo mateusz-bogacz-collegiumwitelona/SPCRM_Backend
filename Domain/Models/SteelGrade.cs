@@ -7,7 +7,7 @@ namespace Domain.Models
         public required string Name { get; set; }
         public string? Standard { get; set; }
         public int Density { get; set; } = 7850; // kg/m3
-        
+
         public ICollection<Product> Products { get; set; } = new List<Product>();
     }
 }

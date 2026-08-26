@@ -49,7 +49,7 @@ namespace Api.Controllers
             [FromBody] DeleteSteelGradeRequest? request)
         {
             var result = await steelGradeServices.DeleteSteelGradeAsync(
-                steelGradeId, 
+                steelGradeId,
                 mapper.MapReassignments(request?.Reassignments)
                 );
             return HandleResult(result);

@@ -2,7 +2,7 @@
 {
     public record SteelGradeResponse
     {
-        public  required Guid Id { get; init; }
-        public  required string Name { get; init; }
+        public required Guid Id { get; init; }
+        public required string Name { get; init; }
     }
 }

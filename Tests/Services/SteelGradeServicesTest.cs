@@ -280,7 +280,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
-            
+
             var items = result.Data!.Items.ToList();
             await Assert.That(items.First().Name).IsEqualTo($"HighDensity_{uniqueSuffix}");
             await Assert.That(items.Last().Name).IsEqualTo($"LowDensity_{uniqueSuffix}");
@@ -390,17 +390,17 @@ namespace Tests.Services
 
             var reassignments = new List<ProductReassignmentCommand>
             {
-                new() 
-                { 
-                    ProductId = 
-                    product1.Id, 
-                    NewSteelGradeId = 
-                    targetGrade1.Id 
+                new()
+                {
+                    ProductId =
+                    product1.Id,
+                    NewSteelGradeId =
+                    targetGrade1.Id
                 },
-                new() 
-                { 
-                    ProductId = product2.Id, 
-                    NewSteelGradeId = targetGrade2.Id 
+                new()
+                {
+                    ProductId = product2.Id,
+                    NewSteelGradeId = targetGrade2.Id
                 }
             };
 

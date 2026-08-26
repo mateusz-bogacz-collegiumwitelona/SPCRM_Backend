@@ -6,7 +6,7 @@ namespace Domain.Models
     public class Product : BaseEntity
     {
         public required string Name { get; set; }
-        
+
         public required Guid SteelGradeId { get; set; }
         public required SteelGrade SteelGrade { get; set; }
 

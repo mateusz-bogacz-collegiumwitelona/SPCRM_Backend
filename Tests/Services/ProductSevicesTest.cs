@@ -722,7 +722,7 @@ namespace Tests.Services
                 Name = $"Sztuka_{uniqueSuffix}",
                 Symbol = "szt."
             };
-            
+
             var steelGrade = new SteelGrade
             {
                 Id = Guid.NewGuid(),

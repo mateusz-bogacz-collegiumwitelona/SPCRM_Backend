@@ -1,5 +1,5 @@
-﻿using System.Globalization;
-using Domain.Enum;
+﻿using Domain.Enum;
+using System.Globalization;
 
 namespace Services.Helpers
 {

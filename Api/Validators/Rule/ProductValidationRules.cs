@@ -1,8 +1,8 @@
-﻿using System.Numerics;
-using Api.Request.Contract;
+﻿using Api.Request.Contract;
 using Domain.Constants;
 using Domain.Enum;
 using FluentValidation;
+using System.Numerics;
 
 namespace Api.Validators.Rule
 {

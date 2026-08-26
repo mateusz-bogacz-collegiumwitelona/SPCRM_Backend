@@ -48,26 +48,26 @@ namespace Services.QueryExtension
         {
             return sortBy?.ToLower() switch
             {
-                "name" => sortDescending 
-                    ? query.OrderByDescending(x => x.Name) 
+                "name" => sortDescending
+                    ? query.OrderByDescending(x => x.Name)
                     : query.OrderBy(x => x.Name),
-                
-                "value" => sortDescending 
-                    ? query.OrderByDescending(x => x.Value) 
+
+                "value" => sortDescending
+                    ? query.OrderByDescending(x => x.Value)
                     : query.OrderBy(x => x.Value),
 
                 "currency" => sortDescending
                     ? query.OrderByDescending(x => x.Currency.Code)
                     : query.OrderBy(x => x.Currency.Code),
 
-                "company" => sortDescending 
-                    ? query.OrderByDescending(x => x.Company.Name) 
+                "company" => sortDescending
+                    ? query.OrderByDescending(x => x.Company.Name)
                     : query.OrderBy(x => x.Company.Name),
-                
+
                 "date" => sortDescending
-                    ? query.OrderByDescending(x => x.CloseDate) 
+                    ? query.OrderByDescending(x => x.CloseDate)
                     : query.OrderBy(x => x.CloseDate),
-                
+
                 _ => query.OrderByDescending(x => x.CloseDate)
             };
         }
