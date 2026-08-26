@@ -71,5 +71,18 @@ namespace Api.Controllers
             var result = await steelGradeServices.EditSteelGradeAsync(mapper.MapEdit(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Create a new steel grade")]
+        [EndpointDescription("Create a new steel grade with the specified details.")]
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddSteelGradeAsync(
+            [FromServices] ISteelGradeServices steelGradeServices,
+            [FromServices] SteelGradeMapper mapper,
+            [FromBody] AddSteelGradeRequest request)
+        {
+            var result = await steelGradeServices.AddSteelGradeAsync(mapper.MapAdd(request));
+            return HandleResult(result);
+        }
     }
 }

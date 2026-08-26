@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -173,24 +174,24 @@ namespace Services.Services
 
             if (!string.IsNullOrWhiteSpace(command.Name))
             {
-                string name = command.Name.Trim();
+                string normalizedName = command.Name.Trim().ToUpper();
 
-                if (!string.Equals(steelGrade.Name, name, StringComparison.OrdinalIgnoreCase))
+                if (steelGrade.Name != normalizedName)
                 {
                     var isExist = await _context.SteelGrades
-                        .AnyAsync(s => s.Id != command.Id && s.Name.ToLower() == name.ToLower());
+                        .AnyAsync(s => s.Id != command.Id && s.Name == normalizedName);
 
                     if (isExist)
                     {
-                        _logger.LogWarning("Steel grade with this name: {name} already exist", name);
+                        _logger.LogWarning("Steel grade with this name: {name} already exists", normalizedName);
                         return Result.Failure(
-                            message: "Steel grade with this name already exist",
+                            message: "Steel grade with this name already exists",
                             statusCode: StatusCodes.Status400BadRequest,
                             errorCode: ErrorCodes.SteelGradeAlreadyExist
                         );
                     }
 
-                    steelGrade.Name = name;
+                    steelGrade.Name = normalizedName;
                 }
             }
 
@@ -210,6 +211,39 @@ namespace Services.Services
             return Result.Success(
                 message: "Steel grade updated successfully",
                 statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> AddSteelGradeAsync(AddSteelGradeCommand command)
+        {
+            string normalizedName = command.Name.Trim().ToUpper();
+
+            var isExist = await _context.SteelGrades
+                       .AnyAsync(s => s.Name == normalizedName);
+
+            if (isExist)
+            {
+                _logger.LogWarning("Steel grade with this name: {name} already exist", normalizedName);
+                return Result.Failure(
+                    message: "Steel grade with this name already exist",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.SteelGradeAlreadyExist
+                );
+            }
+
+            var steelGrade = new SteelGrade
+            {
+                Name = normalizedName,
+                Standard = string.IsNullOrWhiteSpace(command.Standard) ? null : command.Standard.Trim(),
+                Density = command.Density
+            };
+
+            _context.SteelGrades.Add(steelGrade);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Steel grade added successfully",
+                statusCode: StatusCodes.Status201Created
             );
         }
     }

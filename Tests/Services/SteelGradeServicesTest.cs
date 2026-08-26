@@ -103,7 +103,7 @@ namespace Tests.Services
             var steelGrade = new SteelGrade
             {
                 Id = Guid.NewGuid(),
-                Name = name ?? $"S235_{Guid.NewGuid():N}",
+                Name = (name ?? $"S235_{Guid.NewGuid():N}").ToUpper(),
             };
             _contextMock.SteelGrades.Add(steelGrade);
             return steelGrade;
@@ -127,7 +127,7 @@ namespace Tests.Services
             var steelGrade = new SteelGrade
             {
                 Id = Guid.NewGuid(),
-                Name = name,
+                Name = name.ToUpper(),
                 Standard = standard,
                 Density = density
             };
@@ -187,7 +187,7 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
-            await Assert.That(result.Data!.Any(g => g.Name == $"S355_{uniqueSuffix}")).IsTrue();
+            await Assert.That(result.Data!.Any(g => g.Name == $"S355_{uniqueSuffix}".ToUpper())).IsTrue();
         }
 
         [Test]
@@ -254,7 +254,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data!.Items.Count()).IsEqualTo(1);
-            await Assert.That(result.Data.Items.First().Name).IsEqualTo($"GradeB_{uniqueSuffix}");
+            await Assert.That(result.Data.Items.First().Name).IsEqualTo($"GradeB_{uniqueSuffix}".ToUpper());
         }
 
         [Test]
@@ -282,8 +282,8 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
 
             var items = result.Data!.Items.ToList();
-            await Assert.That(items.First().Name).IsEqualTo($"HighDensity_{uniqueSuffix}");
-            await Assert.That(items.Last().Name).IsEqualTo($"LowDensity_{uniqueSuffix}");
+            await Assert.That(items.First().Name).IsEqualTo($"HighDensity_{uniqueSuffix}".ToUpper());
+            await Assert.That(items.Last().Name).IsEqualTo($"LowDensity_{uniqueSuffix}".ToUpper());
         }
 
         // ─── GetAssociatedProductsAsync ──────────────────────────────────────────
@@ -509,7 +509,7 @@ namespace Tests.Services
 
             var updatedInDb = await _contextMock.SteelGrades.FindAsync(steelGrade.Id);
             await Assert.That(updatedInDb).IsNotNull();
-            await Assert.That(updatedInDb!.Name).IsEqualTo($"NewName_{uniqueSuffix}");
+            await Assert.That(updatedInDb!.Name).IsEqualTo($"NEWNAME_{uniqueSuffix.ToUpper()}");
             await Assert.That(updatedInDb.Standard).IsEqualTo("NewStandard");
             await Assert.That(updatedInDb.Density).IsEqualTo(8000);
         }
@@ -605,6 +605,83 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound); 
+        }
+
+        // ─── AddSteelGradeAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddSteelGradeAsync_WhenValidDataProvided_CreatesSteelGradeAndReturns201Created()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N").Substring(0, 6);
+            var command = new AddSteelGradeCommand
+            {
+                Name = $"  s355jr_{uniqueSuffix}  ",
+                Standard = "EN 10025-2",
+                Density = 7850
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.AddSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+
+            var createdGrade = await _contextMock.SteelGrades
+                .FirstOrDefaultAsync(s => s.Name == $"S355JR_{uniqueSuffix.ToUpper()}");
+
+            await Assert.That(createdGrade).IsNotNull();
+            await Assert.That(createdGrade!.Name).IsEqualTo($"S355JR_{uniqueSuffix.ToUpper()}");
+        }
+
+        [Test]
+        public async Task AddSteelGradeAsync_WhenStandardIsEmptyOrWhitespace_SavesStandardAsNull()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var command = new AddSteelGradeCommand
+            {
+                Name = $"1.4301_{uniqueSuffix}",
+                Standard = "   ",
+                Density = 7900
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.AddSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var createdGrade = await _contextMock.SteelGrades
+                .FirstOrDefaultAsync(s => s.Name == $"1.4301_{uniqueSuffix.ToUpper()}");
+
+            await Assert.That(createdGrade).IsNotNull();
+            await Assert.That(createdGrade!.Standard).IsNull();
+        }
+
+        [Test]
+        public async Task AddSteelGradeAsync_WhenSteelGradeNameAlreadyExists_ReturnsBadRequestAndConflictErrorCode()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            CreateDummySteelGrade($"S235JR_{uniqueSuffix}");
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddSteelGradeCommand
+            {
+                Name = $"s235jr_{uniqueSuffix}",
+                Standard = "EN 10025",
+                Density = 7850
+            };
+
+            // Act
+            var result = await _steelGradeServicesMock.AddSteelGradeAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.SteelGradeAlreadyExist);
         }
     }
 }

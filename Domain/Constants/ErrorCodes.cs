@@ -87,5 +87,8 @@
         public const string SteelGradeInUse = "ST_001";
         public const string DuplicateProductReassignment = "ST_002";
         public const string SteelGradeAlreadyExist = "ST_003";
+        public const string InvalidSteelGradeName = "ST_004";
+        public const string InvalidSteelGradeDensity = "ST_005";
+        public const string InvalidSteelGradeStandard = "ST_006";
     }
 }
