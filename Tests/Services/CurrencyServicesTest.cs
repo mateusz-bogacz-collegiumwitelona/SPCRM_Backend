@@ -398,5 +398,211 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyAlreadyExists);
         }
 
+        // ─── EditCurrencyAsync ──────────────────────────────────────────────────
+
+        [Test]
+        public async Task EditCurrencyAsync_WhenCurrencyExistsAndDataIsValid_UpdatesFieldsAndReturns200OK()
+        {
+            // Arrange
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Stara Nazwa",
+                Code = "OLD",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.Add(currency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCurrencyCommand
+            {
+                CurrencyId = currency.Id,
+                Name = "Nowa Nazwa",
+                Code = "NEW",
+                DecimalPlaces = 4
+            };
+
+            // Act
+            var result = await _currencyServicesMock.EditCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Currency updated successfully.");
+
+            var updatedCurrency = await _contextMock.Currencies.FindAsync(currency.Id);
+            await Assert.That(updatedCurrency).IsNotNull();
+            await Assert.That(updatedCurrency!.Name).IsEqualTo("Nowa Nazwa");
+            await Assert.That(updatedCurrency.Code).IsEqualTo("NEW");
+            await Assert.That(updatedCurrency.DecimalPlaces).IsEqualTo(4);
+        }
+
+        [Test]
+        public async Task EditCurrencyAsync_WhenPartialDataProvided_UpdatesOnlySpecifiedFields()
+        {
+            // Arrange
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Oryginalna Nazwa",
+                Code = "ORG",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.Add(currency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCurrencyCommand
+            {
+                CurrencyId = currency.Id,
+                Name = "Zmieniona Tylko Nazwa",
+                Code = null,
+                DecimalPlaces = null
+            };
+
+            // Act
+            var result = await _currencyServicesMock.EditCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+
+            var updatedCurrency = await _contextMock.Currencies.FindAsync(currency.Id);
+            await Assert.That(updatedCurrency).IsNotNull();
+            await Assert.That(updatedCurrency!.Name).IsEqualTo("Zmieniona Tylko Nazwa");
+            await Assert.That(updatedCurrency.Code).IsEqualTo("ORG");
+            await Assert.That(updatedCurrency.DecimalPlaces).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task EditCurrencyAsync_WhenCurrencyNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var command = new EditCurrencyCommand
+            {
+                CurrencyId = Guid.NewGuid(),
+                Name = "Nieistniejąca",
+                Code = "NON",
+                DecimalPlaces = 2
+            };
+
+            // Act
+            var result = await _currencyServicesMock.EditCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNotFound);
+        }
+
+        [Test]
+        public async Task EditCurrencyAsync_WhenNameCollidesWithAnotherCurrency_Returns409Conflict()
+        {
+            // Arrange
+            var currencyToEdit = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Waluta A",
+                Code = "WLA",
+                DecimalPlaces = 2
+            };
+
+            var anotherCurrency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Zajęta Nazwa",
+                Code = "ZNT",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.AddRange(currencyToEdit, anotherCurrency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCurrencyCommand
+            {
+                CurrencyId = currencyToEdit.Id,
+                Name = "zajęta nazwa"
+            };
+
+            // Act
+            var result = await _currencyServicesMock.EditCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNameAlreadyExists);
+        }
+
+        [Test]
+        public async Task EditCurrencyAsync_WhenCodeCollidesWithAnotherCurrency_Returns409Conflict()
+        {
+            // Arrange
+            var currencyToEdit = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Waluta B",
+                Code = "WLB",
+                DecimalPlaces = 2
+            };
+
+            var anotherCurrency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Waluta C",
+                Code = "WLC",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.AddRange(currencyToEdit, anotherCurrency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCurrencyCommand
+            {
+                CurrencyId = currencyToEdit.Id,
+                Code = "WLC"
+            };
+
+            // Act
+            var result = await _currencyServicesMock.EditCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyCodeAlreadyExists);
+        }
+
+        [Test]
+        public async Task EditCurrencyAsync_WhenKeepingSameNameAndCode_SucceedsWithoutConflict()
+        {
+            // Arrange
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Testowa Waluta",
+                Code = "TST",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.Add(currency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCurrencyCommand
+            {
+                CurrencyId = currency.Id,
+                Name = "Testowa Waluta",
+                Code = "TST",
+                DecimalPlaces = 3
+            };
+
+            // Act
+            var result = await _currencyServicesMock.EditCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedCurrency = await _contextMock.Currencies.FindAsync(currency.Id);
+            await Assert.That(updatedCurrency!.DecimalPlaces).IsEqualTo(3);
+        }
     }
 }

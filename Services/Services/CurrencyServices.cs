@@ -88,5 +88,64 @@ namespace Services.Services
                 statusCode: StatusCodes.Status201Created
             );
         }
+
+        public async Task<Result> EditCurrencyAsync(EditCurrencyCommand command)
+        {
+            var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId);
+
+            if (currency == null)
+            {
+                _logger.LogWarning("Currency with id {id} not found.", command.CurrencyId);
+                return Result.Failure(
+                    message: "Currency not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.CurrencyNotFound
+                );
+            }
+
+            if (!string.IsNullOrEmpty(command.Name))
+            {
+                var isNameExist = await _context.Currencies.AnyAsync(c => c.Name.ToLower() == command.Name.ToLower() && c.Id != command.CurrencyId);
+
+                if (isNameExist)
+                {
+                    _logger.LogWarning("Currency with name {Name} already exists.", command.Name);
+                    return Result.Failure(
+                        message: "Currency with this name already exists.",
+                        statusCode: StatusCodes.Status409Conflict,
+                        errorCode: ErrorCodes.CurrencyNameAlreadyExists
+                        );
+                }
+
+                currency.Name = command.Name;
+            }
+
+            if (!string.IsNullOrEmpty(command.Code))
+            {
+                var isCodeExist = await _context.Currencies.AnyAsync(c => c.Code == command.Code && c.Id != command.CurrencyId);
+                if (isCodeExist)
+                {
+                    _logger.LogWarning("Currency with code {Code} already exists.", command.Code);
+                    return Result.Failure(
+                        message: "Currency with this code already exists.",
+                        statusCode: StatusCodes.Status409Conflict,
+                        errorCode: ErrorCodes.CurrencyCodeAlreadyExists
+                        );
+                }
+                currency.Code = command.Code;
+            }
+
+            if (command.DecimalPlaces.HasValue)
+            {
+                currency.DecimalPlaces = command.DecimalPlaces.Value;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Currency updated successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

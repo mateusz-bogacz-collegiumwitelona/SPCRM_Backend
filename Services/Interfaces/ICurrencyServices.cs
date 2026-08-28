@@ -9,5 +9,6 @@ namespace Services.Interfaces
         Task<Result<List<CurrencyListResponse>>> GetCurrencySimpleListAsync();
         Task<Result<PagedResult<CurrencyListResponse>>> GetCurrenyListAsync(BasicListCommand command);
         Task<Result> AddCurrencyAsync(AddCurrencyCommand command);
+        Task<Result> EditCurrencyAsync(EditCurrencyCommand command);
     }
 }

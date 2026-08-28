@@ -97,5 +97,7 @@
         public const string CodeLengthInvalid = "CUR_003";
         public const string CodeFormatInvalid = "CUR_004";
         public const string CodeRequired = "CUR_005";
+        public const string CurrencyNameAlreadyExists = "CUR_006";
+        public const string CurrencyCodeAlreadyExists = "CUR_007";
     }
 }

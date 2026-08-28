@@ -39,5 +39,31 @@ namespace Api.Controllers
             var result = await currency.GetCurrenyListAsync(mapper.MapList(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Add currency")]
+        [EndpointDescription("Add a new currency.")]
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddCurrencyAsync(
+            [FromServices] ICurrencyServices currency,
+            [FromServices] CurrencyMapper mapper,
+            [FromBody] AddCurrencyRequest request)
+        {
+            var result = await currency.AddCurrencyAsync(mapper.MapAdd(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Edit currency")]
+        [EndpointDescription("Edit currency by id.")]
+        [HttpPatch]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditCurrencyAsync(
+            [FromServices] ICurrencyServices currency,
+            [FromServices] CurrencyMapper mapper,
+            [FromBody] EditCurrencyRequest request)
+        {
+            var result = await currency.EditCurrencyAsync(mapper.MapEdit(request));
+            return HandleResult(result);
+        }
     }
 }

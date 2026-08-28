@@ -10,6 +10,11 @@ namespace Api.Validators.Rule
                 .InclusiveBetween(0, 4)
                 .WithErrorCode(ErrorCodes.DecimalPlacesInvalid);
 
+        public static IRuleBuilderOptions<T, int?> ApplyCurrencyDecimalPlacesRules<T>(this IRuleBuilder<T, int?> ruleBuilder)
+            => ruleBuilder
+                .InclusiveBetween(0, 4)
+                .WithErrorCode(ErrorCodes.DecimalPlacesInvalid);
+
         public static IRuleBuilderOptions<T, string?> ApplyCurrencyCodeRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty()
