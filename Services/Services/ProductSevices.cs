@@ -73,8 +73,6 @@ namespace Services.Services
                 );
         }
 
-
-
         public async Task<Result<ProductDetailResponse>> GetProductDetailsAsync(Guid productId)
         {
             var now = DateTime.UtcNow;

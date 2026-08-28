@@ -281,8 +281,7 @@ namespace Services.Services
                     statusCode: StatusCodes.Status403Forbidden
                 );
             }
-
-            note.IsDeleted = true;
+            _context.Notes.Remove(note);
 
             await _context.SaveChangesAsync();
 

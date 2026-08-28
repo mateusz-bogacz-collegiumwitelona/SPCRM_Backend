@@ -239,73 +239,85 @@ namespace Services.Services
                 );
             }
 
-            if (!string.IsNullOrEmpty(command.FirstName)) contact.FirstName = command.FirstName;
-            if (!string.IsNullOrEmpty(command.LastName)) contact.LastName = command.LastName;
-            if (!string.IsNullOrEmpty(command.JobTitle)) contact.JobTitle = command.JobTitle;
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            contact.UpdateAt = DateTime.UtcNow;
-
-            var incomingDetailsIds = command.Details
-                .Where(d => d.ContactDetailId.HasValue && d.ContactDetailId != Guid.Empty)
-                .Select(d => d.ContactDetailId!.Value)
-                .ToHashSet();
-
-            var detailsToRemoveIds = await _context.ContactDetails
-                .Where(d => d.ContactId == contact.Id && !incomingDetailsIds.Contains(d.Id))
-                .Select(d => d.Id)
-                .ToListAsync();
-
-            if (detailsToRemoveIds.Any())
+            try
             {
-                await _context.ContactDetails
-                    .Where(d => detailsToRemoveIds.Contains(d.Id))
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(d => d.IsDeleted, true)
-                        .SetProperty(d => d.UpdateAt, DateTime.UtcNow));
-            }
+                if (!string.IsNullOrEmpty(command.FirstName)) contact.FirstName = command.FirstName;
+                if (!string.IsNullOrEmpty(command.LastName)) contact.LastName = command.LastName;
+                if (!string.IsNullOrEmpty(command.JobTitle)) contact.JobTitle = command.JobTitle;
 
-            var newDetailsToAdd = new List<ContactDetail>();
+                contact.UpdateAt = DateTime.UtcNow;
 
-            foreach (var detail in command.Details)
-            {
-                var typeToSet = ParseWithString(detail.Type);
+                var incomingDetailsIds = command.Details
+                    .Where(d => d.ContactDetailId.HasValue && d.ContactDetailId != Guid.Empty)
+                    .Select(d => d.ContactDetailId!.Value)
+                    .ToHashSet();
 
-                if (detail.ContactDetailId.HasValue && detail.ContactDetailId.Value != Guid.Empty)
+                var detailsToRemoveIds = await _context.ContactDetails
+                    .Where(d => d.ContactId == contact.Id && !incomingDetailsIds.Contains(d.Id))
+                    .Select(d => d.Id)
+                    .ToListAsync();
+
+                if (detailsToRemoveIds.Any())
                 {
                     await _context.ContactDetails
-                        .Where(d => d.Id == detail.ContactDetailId.Value)
+                        .Where(d => detailsToRemoveIds.Contains(d.Id))
                         .ExecuteUpdateAsync(s => s
-                            .SetProperty(d => d.Label, detail.Label ?? string.Empty)
-                            .SetProperty(d => d.Value, detail.Value ?? string.Empty)
-                            .SetProperty(d => d.Type, typeToSet)
-                            .SetProperty(d => d.IsPrimary, detail.IsPrimary ?? false)
+                            .SetProperty(d => d.IsDeleted, true)
                             .SetProperty(d => d.UpdateAt, DateTime.UtcNow));
                 }
-                else
+
+                var newDetailsToAdd = new List<ContactDetail>();
+
+                foreach (var detail in command.Details)
                 {
-                    newDetailsToAdd.Add(new ContactDetail
+                    var typeToSet = ParseWithString(detail.Type);
+
+                    if (detail.ContactDetailId.HasValue && detail.ContactDetailId.Value != Guid.Empty)
                     {
-                        Type = typeToSet,
-                        Value = detail.Value!,
-                        Label = detail.Label,
-                        IsPrimary = detail.IsPrimary ?? false,
-                        ContactId = contact.Id,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                        await _context.ContactDetails
+                            .Where(d => d.Id == detail.ContactDetailId.Value)
+                            .ExecuteUpdateAsync(s => s
+                                .SetProperty(d => d.Label, detail.Label ?? string.Empty)
+                                .SetProperty(d => d.Value, detail.Value ?? string.Empty)
+                                .SetProperty(d => d.Type, typeToSet)
+                                .SetProperty(d => d.IsPrimary, detail.IsPrimary ?? false)
+                                .SetProperty(d => d.UpdateAt, DateTime.UtcNow));
+                    }
+                    else
+                    {
+                        newDetailsToAdd.Add(new ContactDetail
+                        {
+                            Type = typeToSet,
+                            Value = detail.Value!,
+                            Label = detail.Label,
+                            IsPrimary = detail.IsPrimary ?? false,
+                            ContactId = contact.Id,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
                 }
-            }
 
-            if (newDetailsToAdd.Any())
+                if (newDetailsToAdd.Any())
+                {
+                    await _context.ContactDetails.AddRangeAsync(newDetailsToAdd);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Result.Success(
+                    message: "Contact updated successfully",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+            catch (Exception ex)
             {
-                await _context.ContactDetails.AddRangeAsync(newDetailsToAdd);
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Failed to edit contact with ID: {ContactId}", command.ContactId);
+                throw;
             }
-
-            await _context.SaveChangesAsync();
-
-            return Result.Success(
-                message: "Contact updated successfully",
-                statusCode: StatusCodes.Status200OK
-            );
         }
 
         public async Task<Result<ContactDetailCommand>> GetContactDetailCommand(Guid contactId)

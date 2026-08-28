@@ -1,4 +1,6 @@
 ﻿using Domain.Common;
+using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -53,5 +55,38 @@ namespace Services.Services
                         DecimalPlace = c.DecimalPlaces
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "currency");
+
+        public async Task<Result> AddCurrencyAsync(AddCurrencyCommand command)
+        {
+            var isExist = await _context.Currencies.AnyAsync(c =>
+                c.Code == command.Code ||
+                c.Name.ToLower() == command.Name.ToLower()
+            );
+
+            if (isExist)
+            {
+                _logger.LogWarning("Currency with code {Code} or name {Name} already exists.", command.Code, command.Name);
+                return Result.Failure(
+                    message: "Currency already exists.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.CurrencyAlreadyExists
+                );
+            }
+
+            var currency = new Currency
+            {
+                Name = command.Name,
+                Code = command.Code,
+                DecimalPlaces = command.DecimalPlaces
+            };
+
+            _context.Currencies.Add(currency);
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Currency added successfully.",
+                statusCode: StatusCodes.Status201Created
+            );
+        }
     }
 }

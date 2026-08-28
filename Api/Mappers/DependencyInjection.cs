@@ -15,6 +15,7 @@
             services.AddScoped<PromotionMapper>();
             services.AddScoped<SteelGradeMapper>();
             services.AddScoped<ApiMapper>();
+            services.AddScoped<CurrencyMapper>();
 
             return services;
         }

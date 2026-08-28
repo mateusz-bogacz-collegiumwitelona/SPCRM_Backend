@@ -57,15 +57,11 @@ namespace Services.Services
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
 
         public async Task<Result<List<string>>> GetSalesStatus()
-        {
-            var statuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
-
-            return Result<List<string>>.Success(
+            => Result<List<string>>.Success(
                 message: "Sales statuses retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
-                data: statuses
+                data: Enum.GetNames(typeof(DealsStatusEnum)).ToList()
                 );
-        }
 
         public async Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command)
             => await _context.Deals

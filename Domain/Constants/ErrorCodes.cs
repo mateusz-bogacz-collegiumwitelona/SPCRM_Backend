@@ -90,5 +90,12 @@
         public const string InvalidSteelGradeName = "ST_004";
         public const string InvalidSteelGradeDensity = "ST_005";
         public const string InvalidSteelGradeStandard = "ST_006";
+
+        // Currency
+        public const string CurrencyAlreadyExists = "CUR_001";
+        public const string DecimalPlacesInvalid = "CUR_002";
+        public const string CodeLengthInvalid = "CUR_003";
+        public const string CodeFormatInvalid = "CUR_004";
+        public const string CodeRequired = "CUR_005";
     }
 }

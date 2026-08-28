@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
@@ -306,5 +307,96 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).IsEmpty();
             await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
+
+        // ─── AddCurrencyAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddCurrencyAsync_WhenValidDataProvided_CreatesCurrencyAndReturns201Created()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper();
+            var command = new AddCurrencyCommand
+            {
+                Name = $"Dolar Kanadyjski_{uniqueSuffix}",
+                Code = $"CAD",
+                DecimalPlaces = 2
+            };
+
+            // Act
+            var result = await _currencyServicesMock.AddCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+            await Assert.That(result.Message).IsEqualTo("Currency added successfully.");
+
+            var createdCurrency = await _contextMock.Currencies
+                .FirstOrDefaultAsync(c => c.Code == command.Code);
+
+            await Assert.That(createdCurrency).IsNotNull();
+            await Assert.That(createdCurrency!.Name).IsEqualTo(command.Name);
+            await Assert.That(createdCurrency.DecimalPlaces).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task AddCurrencyAsync_WhenCurrencyCodeAlreadyExists_ReturnsBadRequestAndConflictErrorCode()
+        {
+            // Arrange
+            var existingCurrency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Funt Brytyjski",
+                Code = "GBP",
+                DecimalPlaces = 2
+            };
+            _contextMock.Currencies.Add(existingCurrency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddCurrencyCommand
+            {
+                Name = "Inny Funt",
+                Code = "GBP",
+                DecimalPlaces = 2
+            };
+
+            // Act
+            var result = await _currencyServicesMock.AddCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyAlreadyExists);
+        }
+
+        [Test]
+        public async Task AddCurrencyAsync_WhenCurrencyNameAlreadyExistsCaseInsensitive_ReturnsBadRequest()
+        {
+            // Arrange
+            var existingCurrency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Frank Szwajcarski",
+                Code = "CHF",
+                DecimalPlaces = 2
+            };
+            _contextMock.Currencies.Add(existingCurrency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddCurrencyCommand
+            {
+                Name = "frank szwajcarski",
+                Code = "SWF",
+                DecimalPlaces = 2
+            };
+
+            // Act
+            var result = await _currencyServicesMock.AddCurrencyAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyAlreadyExists);
+        }
+
     }
 }
