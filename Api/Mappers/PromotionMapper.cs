@@ -1,6 +1,6 @@
-﻿using Api.Request;
+﻿using Api.Request.Promotion;
 using Riok.Mapperly.Abstractions;
-using Services.Command;
+using Services.Command.Promotion;
 
 namespace Api.Mappers
 {

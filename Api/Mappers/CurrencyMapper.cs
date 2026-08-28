@@ -1,6 +1,6 @@
-﻿using Api.Request;
+﻿using Api.Request.Currency;
 using Riok.Mapperly.Abstractions;
-using Services.Command;
+using Services.Command.Currency;
 
 namespace Api.Mappers
 {

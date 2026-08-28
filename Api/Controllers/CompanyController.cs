@@ -1,11 +1,12 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
-using Api.Request;
+using Api.Request.Company;
+using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
-using Services.Response;
+using Services.Response.Company;
 
 namespace Api.Controllers
 {

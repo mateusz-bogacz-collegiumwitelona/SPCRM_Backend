@@ -6,11 +6,13 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Services.Command;
+using Services.Command.List;
+using Services.Command.Product;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
-using Services.Response;
+using Services.Response.Product;
+using Services.Response.Promotion;
 
 namespace Services.Services
 {

@@ -5,11 +5,15 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Services.Command;
+using Services.Command.Company;
+using Services.Command.Product;
+using Services.Command.Sales;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
-using Services.Response;
+using Services.Response.Company;
+using Services.Response.Deal;
+using Services.Response.Sale;
 
 namespace Services.Services
 {

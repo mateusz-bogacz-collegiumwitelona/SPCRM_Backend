@@ -1,0 +1,10 @@
+﻿namespace Services.Response.Company
+{
+    public record CompanyDetailResponse
+    {
+        public required Guid Id { get; init; }
+        public required string Name { get; init; }
+        public required string Nip { get; init; }
+        public required bool IsYour { get; init; }
+    }
+}

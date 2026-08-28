@@ -1,6 +1,6 @@
 ﻿using Domain.Common;
-using Services.Command;
-using Services.Response;
+using Services.Command.Auth;
+using Services.Response.Auth;
 
 namespace Services.Interfaces
 {

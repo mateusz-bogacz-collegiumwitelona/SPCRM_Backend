@@ -1,6 +1,7 @@
-﻿using Api.Request;
+﻿using Api.Request.Contact;
+using Api.Request.List;
 using Riok.Mapperly.Abstractions;
-using Services.Command;
+using Services.Command.Contact;
 
 namespace Api.Mappers
 {

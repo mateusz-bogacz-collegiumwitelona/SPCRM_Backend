@@ -1,7 +1,7 @@
 using Api.Configuration;
 using Api.Mappers;
 using Api.Middlewares;
-using Api.Validators;
+using Api.Validators.Login;
 using Domain.Models;
 using Email;
 using FluentValidation;

@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
-using Services.Command;
+using Services.Command.Company;
+using Services.Command.Contact;
+using Services.Command.List;
 using Services.Services;
 using Testcontainers.PostgreSql;
 

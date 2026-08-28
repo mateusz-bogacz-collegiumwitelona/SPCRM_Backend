@@ -1,6 +1,7 @@
-﻿using Api.Request;
+﻿using Api.Request.SteelGrade;
 using Riok.Mapperly.Abstractions;
-using Services.Command;
+using Services.Command.Product;
+using Services.Command.SteelGrade;
 
 namespace Api.Mappers
 {

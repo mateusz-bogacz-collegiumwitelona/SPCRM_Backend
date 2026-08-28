@@ -4,10 +4,11 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Services.Command;
+using Services.Command.Task;
 using Services.Interfaces;
 using Services.QueryExtension;
-using Services.Response;
+using Services.Response.Contact;
+using Services.Response.Task;
 
 namespace Services.Services
 {

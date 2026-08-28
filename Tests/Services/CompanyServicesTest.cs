@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using Npgsql;
-using Services.Command;
+using Services.Command.Company;
 using Services.Services;
 using Testcontainers.PostgreSql;
 

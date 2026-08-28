@@ -1,6 +1,6 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
-using Api.Request;
+using Api.Request.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;

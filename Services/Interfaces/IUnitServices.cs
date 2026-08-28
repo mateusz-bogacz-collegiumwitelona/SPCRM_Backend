@@ -1,5 +1,5 @@
 ﻿using Domain.Common;
-using Services.Response;
+using Services.Response.Unit;
 
 namespace Services.Interfaces
 {

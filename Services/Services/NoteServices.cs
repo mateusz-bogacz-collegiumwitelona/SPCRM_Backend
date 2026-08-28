@@ -6,11 +6,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Services.Command;
+using Services.Command.Note;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
-using Services.Response;
+using Services.Response.Note;
 
 namespace Services.Services
 {

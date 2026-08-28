@@ -1,6 +1,10 @@
 ﻿using Domain.Common;
-using Services.Command;
-using Services.Response;
+using Services.Command.Company;
+using Services.Command.Product;
+using Services.Command.Sales;
+using Services.Response.Company;
+using Services.Response.Deal;
+using Services.Response.Sale;
 
 namespace Services.Interfaces
 {

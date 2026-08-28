@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
-using Services.Command;
+using Services.Command.Company;
+using Services.Command.Product;
+using Services.Command.Sales;
 using Services.Services;
 using Testcontainers.PostgreSql;
 

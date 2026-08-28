@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Services.Command;
+using Services.Command.Auth;
 using Services.Interfaces;
-using Services.Response;
+using Services.Response.Auth;
 
 namespace Services.Services
 {

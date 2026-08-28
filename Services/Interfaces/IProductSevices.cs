@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
-using Services.Command;
-using Services.Response;
+using Services.Command.List;
+using Services.Command.Product;
+using Services.Response.Product;
 
 namespace Services.Interfaces
 {

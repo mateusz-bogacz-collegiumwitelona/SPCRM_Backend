@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
-using Services.Command;
+using Services.Command.Auth;
 using Services.Services;
 using Testcontainers.PostgreSql;
 

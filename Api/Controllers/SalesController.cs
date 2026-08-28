@@ -1,6 +1,8 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
-using Api.Request;
+using Api.Request.List;
+using Api.Request.Product;
+using Api.Request.Sale;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
-using Services.Command;
-using Services.Response;
+using Services.Command.Currency;
+using Services.Command.List;
+using Services.Response.Currency;
 
 namespace Services.Interfaces
 {

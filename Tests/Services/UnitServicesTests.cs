@@ -1,4 +1,5 @@
-﻿using Infrastructure;
+﻿using Domain.Models;
+using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -101,7 +102,7 @@ namespace Tests.Services
         public async Task GetSimpleUnitList_ReturnsUnitsSuccessfully()
         {
             // Arrange
-            var unit1 = new Domain.Models.UnitOfMeasure
+            var unit1 = new UnitOfMeasure
             {
                 Id = Guid.NewGuid(),
                 Name = "Kilogram",
@@ -109,7 +110,7 @@ namespace Tests.Services
                 BaseMultiplier = 1
             };
 
-            var unit2 = new Domain.Models.UnitOfMeasure
+            var unit2 = new UnitOfMeasure
             {
                 Id = Guid.NewGuid(),
                 Name = "Sztuka",

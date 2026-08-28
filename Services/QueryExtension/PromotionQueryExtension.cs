@@ -1,6 +1,6 @@
 ﻿using Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using Services.Command;
+using Services.Command.Promotion;
 
 namespace Services.QueryExtension
 {
