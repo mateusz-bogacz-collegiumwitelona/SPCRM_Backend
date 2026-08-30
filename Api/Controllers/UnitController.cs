@@ -1,4 +1,6 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,5 +26,18 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get unit of mesure list with pagination, sorting and filtering")]
+        [EndpointDescription("Get unit of mesure list with pagination, sorting and filtering.")]
+        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUnitListAsync(
+            [FromServices] IUnitServices unit,
+            [FromServices] ApiMapper mapper,
+            [FromQuery] BasicListRequest request)
+        {
+            var result = await unit.GetUnitListAsync(mapper.MapList(request));
+            return HandleResult(result);
+        }
     }
 }

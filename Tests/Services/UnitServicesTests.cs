@@ -4,6 +4,7 @@ using Infrastructure.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command.List;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -145,6 +146,137 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!).IsEmpty();
+        }
+
+        // ─── GetUnitListAsync ──────────────────────────────────────────────────
+        [Test]
+        public async Task GetUnitListAsync_ReturnsPagedUnitsSuccessfully()
+        {
+            // Arrange
+            var unit1 = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kilogram",
+                Symbol = "kg",
+                BaseMultiplier = 1
+            };
+
+            var unit2 = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Gram",
+                Symbol = "g",
+                BaseMultiplier = 1000
+            };
+
+            _contextMock.UnitsOfMeasure.AddRange(unit1, unit2);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new BasicListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = string.Empty,
+                SortBy = "name",
+                SortDescending = false
+            };
+
+            // Act
+            var result = await _unitServicesMok.GetUnitListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var pagedResult = result.Data!;
+            await Assert.That(pagedResult.TotalCount).IsEqualTo(2);
+            await Assert.That(pagedResult.Items).Count().IsEqualTo(2);
+
+            var firstItem = pagedResult.Items.First();
+            await Assert.That(firstItem.Name).IsEqualTo("Gram");
+            await Assert.That(firstItem.Symbol).IsEqualTo("g");
+            await Assert.That(firstItem.BaseMultiplier).IsEqualTo(1000);
+        }
+
+        [Test]
+        public async Task GetUnitListAsync_AppliesSearchFilterCorrectly()
+        {
+            // Arrange
+            var unit1 = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Metr",
+                Symbol = "m",
+                BaseMultiplier = 1
+            };
+
+            var unit2 = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kilogram",
+                Symbol = "kg",
+                BaseMultiplier = 1
+            };
+
+            _contextMock.UnitsOfMeasure.AddRange(unit1, unit2);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new BasicListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "Metr",
+                SortBy = "name",
+                SortDescending = false
+            };
+
+            // Act
+            var result = await _unitServicesMok.GetUnitListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var pagedResult = result.Data!;
+            await Assert.That(pagedResult.TotalCount).IsEqualTo(1);
+            await Assert.That(pagedResult.Items.First().Name).IsEqualTo("Metr");
+        }
+
+        [Test]
+        public async Task GetUnitListAsync_RespectsPagination()
+        {
+            // Arrange
+            var units = Enumerable.Range(1, 15).Select(i => new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Jednostka {i:D2}",
+                Symbol = $"j{i}",
+                BaseMultiplier = 1
+            }).ToArray();
+
+            _contextMock.UnitsOfMeasure.AddRange(units);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new BasicListCommand
+            {
+                PageNumber = 2,
+                PageSize = 5,
+                SearchTerm = string.Empty,
+                SortBy = "name",
+                SortDescending = false
+            };
+
+            // Act
+            var result = await _unitServicesMok.GetUnitListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var pagedResult = result.Data!;
+            await Assert.That(pagedResult.TotalCount).IsEqualTo(15);
+            await Assert.That(pagedResult.TotalPages).IsEqualTo(3);
+            await Assert.That(pagedResult.Items).Count().IsEqualTo(5);
         }
 
     }
