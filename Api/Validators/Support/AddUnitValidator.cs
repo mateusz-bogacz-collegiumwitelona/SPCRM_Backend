@@ -1,4 +1,4 @@
-﻿using Api.Request;
+﻿using Api.Request.Unit;
 using Api.Validators.Rule;
 using FluentValidation;
 
@@ -6,8 +6,8 @@ namespace Api.Validators.Support
 {
     public class AddUnitValidator : AbstractValidator<AddUnitRequest>
     {
-        public AddUnitValidator() 
-        { 
+        public AddUnitValidator()
+        {
             RuleFor(x => x.Name)
                 .ApplyUnitNameRules();
 

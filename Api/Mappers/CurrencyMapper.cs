@@ -1,4 +1,5 @@
-﻿using Api.Request.Currency;
+﻿using Api.Mappers.Helper;
+using Api.Request.Currency;
 using Riok.Mapperly.Abstractions;
 using Services.Command.Currency;
 
@@ -15,10 +16,7 @@ namespace Api.Mappers
         [MapProperty(nameof(EditCurrencyRequest.Name), nameof(EditCurrencyCommand.Name), Use = nameof(NormalizeName))]
         public partial EditCurrencyCommand MapEdit(EditCurrencyRequest request);
 
-        private string? NormalizeCode(string? code)
-            => string.IsNullOrWhiteSpace(code) ? null : code.Trim().ToUpper();
-
-        private string? NormalizeName(string? name)
-            => string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        private string? NormalizeCode(string? code) => StringNormalizerHelper.TrimAndUpper(code);
+        private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
     }
 }

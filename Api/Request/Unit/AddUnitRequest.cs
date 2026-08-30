@@ -1,4 +1,4 @@
-﻿namespace Api.Request
+﻿namespace Api.Request.Unit
 {
     public record AddUnitRequest
     {

@@ -59,8 +59,8 @@ namespace Services.Services
 
         public async Task<Result> AddUnitAsync(AddUnitCommand command)
         {
-            var isExist = await _context.UnitsOfMeasure.AnyAsync(uom => 
-                uom.Name.ToLower() == command.Name.ToLower().Trim() || 
+            var isExist = await _context.UnitsOfMeasure.AnyAsync(uom =>
+                uom.Name.ToLower() == command.Name.ToLower().Trim() ||
                 uom.Symbol.ToLower() == command.Symbol.ToLower().Trim()
             );
 

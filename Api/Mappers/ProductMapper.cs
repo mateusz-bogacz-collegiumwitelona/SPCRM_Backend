@@ -1,4 +1,5 @@
-﻿using Api.Request.List;
+﻿using Api.Mappers.Helper;
+using Api.Request.List;
 using Api.Request.Product;
 using Riok.Mapperly.Abstractions;
 using Services.Command.Product;
@@ -26,6 +27,8 @@ namespace Api.Mappers
                 HasActivePromotion = filter.HasActivePromotion
             };
 
+        [MapProperty(nameof(AddProductRequest.Name), nameof(AddProductCommand.Name), Use = nameof(NormalizeName))]
+        [MapProperty(nameof(AddProductRequest.Category), nameof(AddProductCommand.Category), Use = nameof(NormalizeName))]
         [MapProperty(nameof(AddProductRequest.Thickness), nameof(AddProductCommand.Thickness), Use = nameof(MapDecimalDimensionToDatabase))]
         [MapProperty(nameof(AddProductRequest.Width), nameof(AddProductCommand.Width), Use = nameof(MapDecimalDimensionToDatabase))]
         [MapProperty(nameof(AddProductRequest.Length), nameof(AddProductCommand.Length), Use = nameof(MapDecimalDimensionToDatabase))]
@@ -34,6 +37,8 @@ namespace Api.Mappers
         [MapProperty(nameof(AddProductRequest.Weight), nameof(AddProductCommand.Weight), Use = nameof(MapWeightToGrams))]
         public partial AddProductCommand MapAdd(AddProductRequest request);
 
+        [MapProperty(nameof(EditProductRequest.Name), nameof(EditProductCommand.Name), Use = nameof(NormalizeName))]
+        [MapProperty(nameof(EditProductRequest.Category), nameof(EditProductCommand.Category), Use = nameof(NormalizeName))]
         [MapProperty(nameof(EditProductRequest.PricePerUnit), nameof(EditProductCommand.PricePerUnit), Use = nameof(MapOptionalPriceToDatabase))]
         [MapProperty(nameof(EditProductRequest.Weight), nameof(EditProductCommand.Weight), Use = nameof(MapOptionalWeightToGrams))]
         [MapProperty(nameof(EditProductRequest.Thickness), nameof(EditProductCommand.Thickness), Use = nameof(MapOptionalDecimalDimensionToDatabase))]
@@ -42,6 +47,7 @@ namespace Api.Mappers
         [MapProperty(nameof(EditProductRequest.Diameter), nameof(EditProductCommand.Diameter), Use = nameof(MapOptionalDecimalDimensionToDatabase))]
         public partial EditProductCommand MapEdit(EditProductRequest request);
 
+        private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
 
         private int MapDecimalDimensionToDatabase(decimal dimension)
             => (int)Math.Round(dimension * 10m);
