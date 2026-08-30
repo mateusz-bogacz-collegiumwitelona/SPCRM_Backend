@@ -16,7 +16,7 @@
             services.AddScoped<SteelGradeMapper>();
             services.AddScoped<ApiMapper>();
             services.AddScoped<CurrencyMapper>();
-
+            services.AddScoped<UnitMapper>();
             return services;
         }
     }
