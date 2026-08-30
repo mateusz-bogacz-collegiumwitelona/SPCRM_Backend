@@ -89,5 +89,72 @@ namespace Services.Services
                 statusCode: StatusCodes.Status201Created
                 );
         }
+
+        public async Task<Result> EditUnitAsync(EditUnitCommand command)
+        {
+            var unit = await _context.UnitsOfMeasure.FindAsync(command.UnitId);
+
+            if (unit == null)
+            {
+                _logger.LogWarning("Unit with ID {UnitId} not found.", command.UnitId);
+                return Result.Failure(
+                    message: "Unit not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UnitNotFound
+                    );
+            }
+
+            if (!string.IsNullOrEmpty(command.Name))
+            {
+                var isNameExist = await _context.UnitsOfMeasure.AnyAsync(uom =>
+                    uom.Id != command.UnitId &&
+                    uom.Name.ToLower() == command.Name.ToLower().Trim()
+                );
+
+                if (isNameExist)
+                {
+                    _logger.LogWarning("Unit with name {Name} already exists.", command.Name);
+                    return Result.Failure(
+                        message: "Unit with the same name already exists.",
+                        statusCode: StatusCodes.Status409Conflict,
+                        errorCode: ErrorCodes.UnitAlreadyExists
+                        );
+                }
+
+                unit.Name = command.Name;
+            }
+
+            if (!string.IsNullOrEmpty(command.Symbol))
+            {
+                var isSymbolExist = await _context.UnitsOfMeasure.AnyAsync(uom =>
+                    uom.Id != command.UnitId &&
+                    uom.Symbol.ToLower() == command.Symbol.ToLower().Trim()
+                );
+
+                if (isSymbolExist)
+                {
+                    _logger.LogWarning("Unit with symbol {Symbol} already exists.", command.Symbol);
+                    return Result.Failure(
+                        message: "Unit with the same symbol already exists.",
+                        statusCode: StatusCodes.Status409Conflict,
+                        errorCode: ErrorCodes.UnitAlreadyExists
+                        );
+                }
+
+                unit.Symbol = command.Symbol;
+            }
+
+            if (command.BaseMultiplier.HasValue)
+            {
+                unit.BaseMultiplier = command.BaseMultiplier.Value;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Unit updated successfully.",
+                statusCode: StatusCodes.Status200OK
+                );
+        }
     }
 }

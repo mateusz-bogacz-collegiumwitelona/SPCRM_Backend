@@ -12,6 +12,9 @@ namespace Api.Mappers
         [MapProperty(nameof(AddUnitRequest.Symbol), nameof(AddUnitCommand.Symbol), Use = nameof(NormalizeSymbol))]
         public partial AddUnitCommand MapAdd(AddUnitRequest request);
 
+        [MapProperty(nameof(EditUnitReqeust.Name), nameof(EditUnitCommand.Name), Use = nameof(NormalizeName))]
+        [MapProperty(nameof(EditUnitReqeust.Symbol), nameof(EditUnitCommand.Symbol), Use = nameof(NormalizeSymbol))]
+        public partial EditUnitCommand MapEdit(EditUnitReqeust request);
         private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
         private string? NormalizeSymbol(string? symbol) => StringNormalizerHelper.TrimAndLower(symbol);
     }

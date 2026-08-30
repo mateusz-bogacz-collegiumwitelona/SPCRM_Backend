@@ -2,12 +2,15 @@
 using Api.Validators.Rule;
 using FluentValidation;
 
-namespace Api.Validators.Support
+namespace Api.Validators.Unit
 {
-    public class AddUnitValidator : AbstractValidator<AddUnitRequest>
+    public class EditUnitValidator : AbstractValidator<EditUnitReqeust>
     {
-        public AddUnitValidator()
+        public EditUnitValidator() 
         {
+            RuleFor(x => x.UnitId)
+                .ApplyValidGuidRule();
+
             RuleFor(x => x.Name)
                 .ApplyUnitNameRules();
 

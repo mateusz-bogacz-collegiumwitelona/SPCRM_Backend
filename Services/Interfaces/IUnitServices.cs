@@ -10,5 +10,6 @@ namespace Services.Interfaces
         Task<Result<List<UnitSimpleListResponse>>> GetSimpleUnitList();
         Task<Result<PagedResult<UnitListResponse>>> GetUnitListAsync(BasicListCommand command);
         Task<Result> AddUnitAsync(AddUnitCommand command);
+        Task<Result> EditUnitAsync(EditUnitCommand command);
     }
 }

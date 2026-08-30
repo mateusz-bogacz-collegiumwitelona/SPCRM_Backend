@@ -105,6 +105,7 @@
         public const string InvalidUnitName = "UOM_002";
         public const string InvalidUnitSymbol = "UOM_003";
         public const string InvalidUnitBaseMultiplier = "UOM_004";
+        public const string UnitNotFound = "UOM_005";
 
     }
 }

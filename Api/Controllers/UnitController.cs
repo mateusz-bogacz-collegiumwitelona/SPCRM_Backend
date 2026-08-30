@@ -53,5 +53,18 @@ namespace Api.Controllers
             var result = await unit.AddUnitAsync(mapper.MapAdd(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Edit existing unit of mesure")]
+        [EndpointDescription("Edit existing unit of mesure.")]
+        [HttpPut]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditUnitAsync(
+            [FromServices] IUnitServices unit,
+            [FromServices] UnitMapper mapper,
+            [FromBody] EditUnitReqeust request)
+        {
+            var result = await unit.EditUnitAsync(mapper.MapEdit(request));
+            return HandleResult(result);
+        }
     }
 }
