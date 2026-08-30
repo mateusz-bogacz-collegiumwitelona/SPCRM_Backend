@@ -1,10 +1,12 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.List;
+using Services.Command.Unit;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -279,5 +281,99 @@ namespace Tests.Services
             await Assert.That(pagedResult.Items).Count().IsEqualTo(5);
         }
 
+        // ─── AddUnitAsync ──────────────────────────────────────────────────────
+        [Test]
+        public async Task AddUnitAsync_AddsUnitSuccessfully_WhenValidDataProvided()
+        {
+            // Arrange
+            var command = new AddUnitCommand
+            {
+                Name = "Metr bieżący",
+                Symbol = "mb",
+                BaseMultiplier = 1
+            };
+
+            // Act
+            var result = await _unitServicesMok.AddUnitAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(Microsoft.AspNetCore.Http.StatusCodes.Status201Created);
+
+            var savedUnit = await _contextMock.UnitsOfMeasure
+                .FirstOrDefaultAsync(u => u.Symbol == "mb");
+
+            await Assert.That(savedUnit).IsNotNull();
+            await Assert.That(savedUnit!.Name).IsEqualTo("Metr bieżący");
+            await Assert.That(savedUnit.BaseMultiplier).IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task AddUnitAsync_ReturnsConflict_WhenUnitWithSameNameAlreadyExists()
+        {
+            // Arrange
+            var existingUnit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kilogram",
+                Symbol = "kg",
+                BaseMultiplier = 1
+            };
+
+            _contextMock.UnitsOfMeasure.Add(existingUnit);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddUnitCommand
+            {
+                Name = "Kilogram",
+                Symbol = "kilo",
+                BaseMultiplier = 1
+            };
+
+            // Act
+            var result = await _unitServicesMok.AddUnitAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnitAlreadyExists);
+
+            var count = await _contextMock.UnitsOfMeasure.CountAsync();
+            await Assert.That(count).IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task AddUnitAsync_ReturnsConflict_WhenUnitWithSameSymbolAlreadyExists()
+        {
+            // Arrange
+            var existingUnit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kilogram",
+                Symbol = "kg",
+                BaseMultiplier = 1
+            };
+
+            _contextMock.UnitsOfMeasure.Add(existingUnit);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddUnitCommand
+            {
+                Name = "Nowy Kilogram",
+                Symbol = "kg",
+                BaseMultiplier = 1000
+            };
+
+            // Act
+            var result = await _unitServicesMok.AddUnitAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnitAlreadyExists);
+
+            var count = await _contextMock.UnitsOfMeasure.CountAsync();
+            await Assert.That(count).IsEqualTo(1);
+        }
     }
 }

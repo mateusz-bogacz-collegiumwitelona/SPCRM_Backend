@@ -99,5 +99,12 @@
         public const string CodeRequired = "CUR_005";
         public const string CurrencyNameAlreadyExists = "CUR_006";
         public const string CurrencyCodeAlreadyExists = "CUR_007";
+
+        // Unit of Measure
+        public const string UnitAlreadyExists = "UOM_001";
+        public const string InvalidUnitName = "UOM_002";
+        public const string InvalidUnitSymbol = "UOM_003";
+        public const string InvalidUnitBaseMultiplier = "UOM_004";
+
     }
 }

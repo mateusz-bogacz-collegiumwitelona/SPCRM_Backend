@@ -1,5 +1,6 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
+using Api.Request;
 using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -37,6 +38,19 @@ namespace Api.Controllers
             [FromQuery] BasicListRequest request)
         {
             var result = await unit.GetUnitListAsync(mapper.MapList(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Add new unit of mesure")]
+        [EndpointDescription("Add new unit of mesure.")]
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddUnitAsync(
+            [FromServices] IUnitServices unit,
+            [FromServices] UnitMapper mapper,
+            [FromBody] AddUnitRequest request)
+        {
+            var result = await unit.AddUnitAsync(mapper.MapAdd(request));
             return HandleResult(result);
         }
     }
