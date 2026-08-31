@@ -50,7 +50,9 @@ namespace Services.Services
 
         public async Task<Result<OfferDetailResponse>> GetOfferDetailAsync(Guid id)
         {
-            var offer = await _context.Offers.FirstOrDefaultAsync(o => o.Id == id);
+            var offer = await _context.Offers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.Id == id);
 
             if (offer == null)
             {
@@ -62,17 +64,55 @@ namespace Services.Services
                 );
             }
 
+            var createdBy = await _context.Users.FirstOrDefaultAsync(u => u.Id == offer.CreatedByUserId);
+
             var response = new OfferDetailResponse
             {
                 OfferId = offer.Id,
                 OfferName = offer.Name,
                 Status = offer.Status.ToString(),
                 ValidUntil = offer.ValidUntil,
-                IsExpired = offer.ValidUntil < DateTime.UtcNow
+                IsExpired = offer.ValidUntil < DateTime.UtcNow,
+                CreatedByUserFirstName = createdBy?.FirstName ?? string.Empty,
+                CreatedByUserLastName = createdBy?.LastName ?? string.Empty
             };
 
             return Result<OfferDetailResponse>.Success(
                 message: "Offer details retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+            );
+        }
+
+        public async Task<Result<OfferClientDetail>> GetOfferClientDetailAsync(Guid id)
+        {
+            var offer = await _context.Offers
+                .AsNoTracking()
+                .Include(o => o.Contact)
+                    .ThenInclude(c => c.Company)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer with ID {OfferId} not found.", id);
+                return Result<OfferClientDetail>.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var response = new OfferClientDetail
+            {
+                ContactId = offer.ContactId,
+                ContactFirstName = offer.Contact.FirstName,
+                ContactLastName = offer.Contact.LastName,
+                ContactJobTitle = offer.Contact.JobTitle ?? string.Empty,
+                CompanyName = offer.Contact.Company.Name
+            };
+
+            return Result<OfferClientDetail>.Success(
+                message: "Offer client details retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
                 data: response
             );

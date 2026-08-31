@@ -43,5 +43,18 @@ namespace Api.Controllers
             var result = await offer.GetOfferDetailAsync(offerId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get offer client detail")]
+        [EndpointDescription("Get offer client detail by offer ID.")]
+        [HttpGet("client/{offerId:guid}")]
+        [Authorize]
+        public async Task<IActionResult> GetOfferClientDetailAsync(
+            [FromServices] IOfferServices offer,
+            [FromRoute] Guid offerId
+            )
+        {
+            var result = await offer.GetOfferClientDetailAsync(offerId);
+            return HandleResult(result);
+        }
     }
 }

@@ -510,5 +510,122 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
             await Assert.That(result.Data).IsNull();
         }
+
+        // ─── GetOfferClientDetailAsync ──────────────────────────────────────────
+
+        [Test]
+        public async Task GetOfferClientDetailAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Arrange
+            var nonExistentId = Guid.NewGuid();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferClientDetailAsync(nonExistentId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+            await Assert.That(result.Data).IsNull();
+        }
+
+        [Test]
+        public async Task GetOfferClientDetailAsync_ReturnsClientDetails_WhenOfferExists()
+        {
+            // Arrange
+            var (company, contact) = await SeedCompanyAndContactAsync("Huta Stalowa Wola", "Marek", "Nowak");
+            contact.JobTitle = "Dyrektor ds. Zakupów";
+            await _contextMock.SaveChangesAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/XYZ123",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferClientDetailAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.ContactId).IsEqualTo(contact.Id);
+            await Assert.That(result.Data.ContactFirstName).IsEqualTo("Marek");
+            await Assert.That(result.Data.ContactLastName).IsEqualTo("Nowak");
+            await Assert.That(result.Data.ContactJobTitle).IsEqualTo("Dyrektor ds. Zakupów");
+            await Assert.That(result.Data.CompanyName).IsEqualTo("Huta Stalowa Wola");
+        }
+
+        [Test]
+        public async Task GetOfferClientDetailAsync_HandlesNullJobTitle_Gracefully()
+        {
+            // Arrange
+            var (company, contact) = await SeedCompanyAndContactAsync("Met-Bud", "Anna", "Kowalska");
+            contact.JobTitle = null;
+            await _contextMock.SaveChangesAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/ABC456",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferClientDetailAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.ContactJobTitle).IsEqualTo(string.Empty);
+            await Assert.That(result.Data.CompanyName).IsEqualTo("Met-Bud");
+        }
+
+        [Test]
+        public async Task GetOfferClientDetailAsync_ReturnsNotFound_WhenOfferIsSoftDeleted()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/DELETED",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = true
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferClientDetailAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+            await Assert.That(result.Data).IsNull();
+        }
     }
 }

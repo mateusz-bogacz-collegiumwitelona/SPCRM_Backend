@@ -7,5 +7,7 @@
         public required string Status { get; init; }
         public required DateTime ValidUntil { get; init; }
         public bool IsExpired { get; init; }
+        public string? CreatedByUserFirstName { get; init; }
+        public string? CreatedByUserLastName { get; init; }
     }
 }

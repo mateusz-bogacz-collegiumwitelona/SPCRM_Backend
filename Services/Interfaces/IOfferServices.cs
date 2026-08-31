@@ -8,5 +8,6 @@ namespace Services.Interfaces
     {
         Task<Result<PagedResult<OfferListResponse>>> GetOfferListAsync(OfferListCommand command);
         Task<Result<OfferDetailResponse>> GetOfferDetailAsync(Guid id);
+        Task<Result<OfferClientDetail>> GetOfferClientDetailAsync(Guid id);
     }
 }
