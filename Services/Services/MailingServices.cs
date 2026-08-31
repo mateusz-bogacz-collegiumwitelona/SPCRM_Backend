@@ -82,11 +82,11 @@ namespace Services.Services
             var (existingProducts, productError) = await GetAndValidateProductsAsync(command.Products);
             if (productError != null) return productError;
 
-            var currencyId = await GetCurrencyIdAsync(command.Products.FirstOrDefault()?.CurrencyCode);
+            var currencies = await _context.Currencies.ToListAsync();
 
-            var productsToOffer = PrepareProductsToOffer(command.Products, existingProducts);
+            var productsToOffer = PrepareProductsToOffer(command.Products, existingProducts, currencies);
 
-            await CreateAndSaveOffersAsync(existingClients, existingProducts, productsToOffer, currencyId, authorId);
+            await CreateAndSaveOffersAsync(existingClients, productsToOffer, authorId);
 
             await DispatchMailingAsync(existingClients, productsToOffer, command.Language);
 
@@ -128,6 +128,8 @@ namespace Services.Services
 
             var existingProducts = await _context.Products
                 .Include(p => p.Unit)
+                .Include(p => p.SteelGrade)
+                .Include(p => p.Currency)
                 .Include(p => p.Promotions.Where(pr =>
                     pr.IsActive &&
                     (!pr.StartDate.HasValue || pr.StartDate <= DateTime.UtcNow) &&
@@ -152,29 +154,27 @@ namespace Services.Services
             return (existingProducts, null);
         }
 
-        private async Task<Guid> GetCurrencyIdAsync(string? currencyCode)
-        {
-            string code = currencyCode ?? "PLN";
-            var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code == code)
-                           ?? await _context.Currencies.FirstAsync();
-
-            return currency.Id;
-        }
-
         private List<MailingProductItemDomain> PrepareProductsToOffer(
-            IEnumerable<MailingProductCommand> commands,
-            List<Product> existingProducts
-        )
+    IEnumerable<MailingProductCommand> commands,
+    List<Product> existingProducts,
+    List<Currency> currencies
+)
         {
             var uniqueCommands = commands.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
+            var defaultCurrency = currencies.FirstOrDefault(c => c.Code == "PLN") ?? currencies.First();
 
             return uniqueCommands.Select(cmd =>
             {
                 var product = existingProducts.First(p => p.Id == cmd.ProductId);
 
-                var formatDimmension = DimensionsFormatter.Format(
+                var targetCurrency = !string.IsNullOrWhiteSpace(cmd.CurrencyCode)
+                    ? currencies.FirstOrDefault(c => c.Code.Equals(cmd.CurrencyCode, StringComparison.OrdinalIgnoreCase)) ?? defaultCurrency
+                    : product.Currency ?? defaultCurrency;
+
+                var formatDimension = DimensionsFormatter.Format(
                     product.Category, product.Diameter, product.Thickness, product.Width, product.Length);
 
+                bool isSameCurrency = product.CurrencyId == targetCurrency.Id;
                 long standardPrice = product.PricePerUnit;
                 long finalPrice = cmd.Price ?? standardPrice;
 
@@ -182,46 +182,58 @@ namespace Services.Services
                 bool isPromoted = false;
                 long? originalPrice = null;
 
-                if (finalPrice < standardPrice)
+                if (isSameCurrency)
                 {
-                    isPromoted = true;
-                    originalPrice = standardPrice;
-                    discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, 2);
-                }
-
-                var activePromotion = product.Promotions
-                    .Where(pr =>
-                        !pr.ContactId.HasValue &&
-                        (!pr.MinQuantity.HasValue || cmd.Quantity >= pr.MinQuantity.Value))
-                    .OrderByDescending(pr => pr.DiscountPercentage ?? 0)
-                    .FirstOrDefault();
-
-                if (activePromotion != null)
-                {
-                    isPromoted = true;
-                    originalPrice = standardPrice;
-
-                    if (activePromotion.PromotionalPrice.HasValue)
+                    if (finalPrice < standardPrice)
                     {
-                        finalPrice = activePromotion.PromotionalPrice.Value;
+                        isPromoted = true;
+                        originalPrice = standardPrice;
                         discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, 2);
                     }
-                    else if (activePromotion.DiscountPercentage.HasValue)
+
+                    var activePromotion = product.Promotions
+                        .Where(pr =>
+                            !pr.ContactId.HasValue &&
+                            (!pr.MinQuantity.HasValue || cmd.Quantity >= pr.MinQuantity.Value))
+                        .OrderByDescending(pr => pr.DiscountPercentage ?? 0)
+                        .FirstOrDefault();
+
+                    if (activePromotion != null && !cmd.Price.HasValue)
                     {
-                        finalPrice = (long)(standardPrice * (1m - (activePromotion.DiscountPercentage.Value / 100m)));
-                        discountPercentage = activePromotion.DiscountPercentage.Value;
+                        if (activePromotion.PromotionalPrice.HasValue && activePromotion.CurrencyId == targetCurrency.Id)
+                        {
+                            isPromoted = true;
+                            originalPrice = standardPrice;
+                            finalPrice = activePromotion.PromotionalPrice.Value;
+                            discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, 2);
+                        }
+                        else if (activePromotion.DiscountPercentage.HasValue)
+                        {
+                            isPromoted = true;
+                            originalPrice = standardPrice;
+                            finalPrice = (long)(standardPrice * (1m - (activePromotion.DiscountPercentage.Value / 100m)));
+                            discountPercentage = activePromotion.DiscountPercentage.Value;
+                        }
                     }
+                }
+                else
+                {
+                    originalPrice = null;
+                    discountPercentage = null;
+                    isPromoted = false;
                 }
 
                 return new MailingProductItemDomain
                 {
+                    ProductId = product.Id,
+                    CurrencyId = targetCurrency.Id,
                     ProductName = product.Name,
-                    SteelGrade = product.SteelGrade.Name,
-                    FormattedDimensions = formatDimmension,
+                    SteelGrade = product.SteelGrade?.Name ?? string.Empty,
+                    FormattedDimensions = formatDimension,
                     Weight = product.Weight,
                     UnitSymbol = product.Unit?.Symbol ?? "szt.",
                     Quantity = cmd.Quantity,
-                    CurrencyCode = cmd.CurrencyCode ?? "PLN",
+                    CurrencyCode = targetCurrency.Code,
                     FinalPrice = finalPrice,
                     OriginalPrice = originalPrice,
                     DiscountPercentage = discountPercentage,
@@ -231,11 +243,9 @@ namespace Services.Services
         }
 
         private async Task CreateAndSaveOffersAsync(
-            List<Contact> clients,
-            List<Product> existingProducts,
-            List<MailingProductItemDomain> productsToOffer,
-            Guid currencyId,
-            Guid authorId)
+    List<Contact> clients,
+    List<MailingProductItemDomain> productsToOffer,
+    Guid authorId)
         {
             foreach (var client in clients)
             {
@@ -249,10 +259,10 @@ namespace Services.Services
                     Products = productsToOffer.Select(p => new OfferProducts
                     {
                         Id = Guid.NewGuid(),
-                        ProductId = existingProducts.First(ep => ep.Name == p.ProductName).Id,
+                        ProductId = p.ProductId,
                         Quantity = p.Quantity,
                         QuotedPrice = p.FinalPrice,
-                        CurrencyId = currencyId,
+                        CurrencyId = p.CurrencyId,
                     }).ToList()
                 };
 

@@ -9,6 +9,9 @@
 
     public record MailingProductItemDomain
     {
+        public required Guid ProductId { get; init; }
+        public required Guid CurrencyId { get; init; }
+
         public required string ProductName { get; init; }
         public required string SteelGrade { get; init; }
         public required string FormattedDimensions { get; init; }
