@@ -1,7 +1,9 @@
-﻿using Domain.Enum;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -68,7 +70,7 @@ namespace Tests.Services
                    options.MigrationsHistoryTable("__EFMigrationsHistory", _currentSchema);
                })
                .AddInterceptors(new SoftDeleteInterceptor())
-               .LogTo(Console.WriteLine, LogLevel.Warning)
+               .LogTo(Console.WriteLine, LogLevel.Information)
                .EnableSensitiveDataLogging()
                .EnableDetailedErrors()
                .Options;
@@ -244,7 +246,8 @@ namespace Tests.Services
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(5),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    IsDeleted = false
                 },
                 new Offer
                 {
@@ -253,7 +256,8 @@ namespace Tests.Services
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(-5),
-                    Status = OfferStatusEnum.Expired
+                    Status = OfferStatusEnum.Expired,
+                    IsDeleted = false
                 }
             );
             await _contextMock.SaveChangesAsync();
@@ -270,6 +274,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items.Count).IsEqualTo(1);
             await Assert.That(result.Data.Items.First().Status).IsEqualTo(OfferStatusEnum.Expired.ToString());
         }
@@ -279,35 +284,38 @@ namespace Tests.Services
         {
             // Arrange
             var (_, contact) = await SeedCompanyAndContactAsync();
-            var baseDate = new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+            var baseDate = DateTime.UtcNow.AddDays(30);
 
             _contextMock.Offers.AddRange(
                 new Offer
                 {
-                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
+                    Name = "OF/RANGE/PAST",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = baseDate.AddDays(-10),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    IsDeleted = false
                 },
                 new Offer
                 {
-                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
+                    Name = "OF/RANGE/TARGET",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = baseDate,
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    IsDeleted = false
                 },
                 new Offer
                 {
-                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
+                    Name = "OF/RANGE/FUTURE",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = baseDate.AddDays(10),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    IsDeleted = false
                 }
             );
             await _contextMock.SaveChangesAsync();
@@ -325,8 +333,9 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items.Count).IsEqualTo(1);
-            await Assert.That(result.Data.Items.First().ValidUntil).IsEqualTo(baseDate);
+            await Assert.That(result.Data.Items.First().OfferName).IsEqualTo("OF/RANGE/TARGET");
         }
 
         [Test]
@@ -374,6 +383,132 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items.Count).IsEqualTo(2);
             await Assert.That(result.Data.Items[0].CompanyName).IsEqualTo("Zeta Met");
             await Assert.That(result.Data.Items[1].CompanyName).IsEqualTo("Alfa Stal");
+        }
+
+        [Test]
+        public async Task GetOfferListAsync_FiltersCorrectly_WhenIsExpiredIsTrue()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            _contextMock.Offers.AddRange(
+                new Offer
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "OF/ACTIVE",
+                    ContactId = contact.Id,
+                    CreatedByUserId = contact.OwnerId,
+                    ValidUntil = DateTime.UtcNow.AddDays(5),
+                    Status = OfferStatusEnum.Sent
+                },
+                new Offer
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "OF/EXPIRED",
+                    ContactId = contact.Id,
+                    CreatedByUserId = contact.OwnerId,
+                    ValidUntil = DateTime.UtcNow.AddDays(-5),
+                    Status = OfferStatusEnum.Sent
+                }
+            );
+            await _contextMock.SaveChangesAsync();
+
+            var command = new OfferListCommand
+            {
+                IsExpired = true,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _offerServicesMock.GetOfferListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.Items.Count).IsEqualTo(1);
+            await Assert.That(result.Data.Items.First().OfferName).IsEqualTo("OF/EXPIRED");
+            await Assert.That(result.Data.Items.First().IsExpired).IsTrue();
+        }
+
+        // ─── GetOfferListAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetOfferDetailAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Arrange
+            var nonExistentId = Guid.NewGuid();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferDetailAsync(nonExistentId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+            await Assert.That(result.Data).IsNull();
+        }
+
+        [Test]
+        public async Task GetOfferDetailAsync_ReturnsOfferDetails_WhenOfferExists()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+            var validUntilDate = new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/A4F89B",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = validUntilDate,
+                Status = OfferStatusEnum.Accepted
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferDetailAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.OfferId).IsEqualTo(offer.Id);
+            await Assert.That(result.Data.OfferName).IsEqualTo("OF/2026/08/31/A4F89B");
+            await Assert.That(result.Data.Status).IsEqualTo(OfferStatusEnum.Accepted.ToString());
+            await Assert.That(result.Data.ValidUntil).IsEqualTo(validUntilDate);
+        }
+
+        [Test]
+        public async Task GetOfferDetailAsync_ReturnsNotFound_WhenOfferIsSoftDeleted()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/DELETED",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = true
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferDetailAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+            await Assert.That(result.Data).IsNull();
         }
     }
 }

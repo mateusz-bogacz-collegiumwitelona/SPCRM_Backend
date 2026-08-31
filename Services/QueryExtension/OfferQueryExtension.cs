@@ -33,8 +33,9 @@ namespace Services.QueryExtension
             DateTime? validUntilFrom,
             DateTime? validUntilTo,
             string? companyName,
-            OfferStatusEnum? status
-            )
+            OfferStatusEnum? status,
+            bool? isExpired
+        )
         {
             if (validUntilFrom.HasValue)
             {
@@ -56,10 +57,19 @@ namespace Services.QueryExtension
 
             if (status.HasValue)
             {
-                query = query.Where(o => o.Status == status.Value);
+                var statusVal = status.Value;
+                query = query.Where(o => o.Status == statusVal);
             }
 
-            return query;
+            if (isExpired.HasValue)
+            {
+                var nowUtc = DateTime.UtcNow;
+                query = isExpired.Value
+                    ? query.Where(o => o.ValidUntil < nowUtc)
+                    : query.Where(o => o.ValidUntil >= nowUtc);
+            }
+
+            return query; 
         }
 
         internal static IQueryable<Offer> ApplySorting(

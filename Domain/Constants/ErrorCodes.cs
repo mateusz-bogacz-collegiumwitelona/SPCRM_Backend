@@ -107,5 +107,8 @@
         public const string InvalidUnitBaseMultiplier = "UOM_004";
         public const string UnitNotFound = "UOM_005";
 
+
+        // Offer
+        public const string OfferNotFound = "OFF_001";
     }
 }

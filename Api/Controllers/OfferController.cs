@@ -4,6 +4,7 @@ using Api.Request.Offer;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NetTopologySuite.IO;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -27,6 +28,19 @@ namespace Api.Controllers
             )
         {
             var result = await offer.GetOfferListAsync(mapper.MapList(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get offer detail")]
+        [EndpointDescription("Get offer detail by ID.")]
+        [HttpGet("detail/{offerId:guid}")]
+        [Authorize]
+        public async Task<IActionResult> GetOfferDetailAsync(
+            [FromServices] IOfferServices offer,
+            [FromRoute] Guid offerId
+            )
+        {
+            var result = await offer.GetOfferDetailAsync(offerId);
             return HandleResult(result);
         }
     }
