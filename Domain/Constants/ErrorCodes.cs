@@ -9,6 +9,7 @@
         public const string NotFound = "NOT_FOUND";
         public const string InvalidDate = "INVALID_DATE";
         public const string InvalidSortColumn = "INVALID_SORT_COLUMN";
+        public const string InvalidOperation = "INVALID_OPERATION";
 
         // Validation 
         public const string EmailRequired = "VAL_001";

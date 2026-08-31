@@ -72,5 +72,19 @@ namespace Api.Controllers
             var result = await offer.GetOfferProductsAsync(offerId, mapper.MapSimpleList(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Extend offer validity")]
+        [EndpointDescription("Extend offer validity by offer ID. User can get data but not must.")]
+        [Authorize]
+        [HttpPatch]
+        public async Task<IActionResult> ExtendOfferValidityAsync(
+            [FromServices] IOfferServices offer,
+            [FromServices] OfferMapper mapper,
+            [FromBody] ExtendOfferValidityRequest request
+            )
+        {
+            var result = await offer.ExtendOfferValidityAsync(mapper.MapExtend(request));
+            return HandleResult(result);
+        }
     }
 }

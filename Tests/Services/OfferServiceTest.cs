@@ -1016,5 +1016,182 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items.Count).IsEqualTo(0);
             await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
+
+        // ─── ExtendOfferValidityAsync ──────────────────────────────────────────
+
+        [Test]
+        public async Task ExtendOfferValidityAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Arrange
+            var command = new ExtendOfferValidityCommand
+            {
+                OfferId = Guid.NewGuid(),
+                NewValidUntil = DateTime.UtcNow.AddDays(14)
+            };
+
+            // Act
+            var result = await _offerServicesMock.ExtendOfferValidityAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+        }
+
+        [Test]
+        [Arguments(OfferStatusEnum.Accepted)]
+        [Arguments(OfferStatusEnum.Rejected)]
+        public async Task ExtendOfferValidityAsync_ReturnsBadRequest_WhenOfferStatusIsAcceptedOrRejected(OfferStatusEnum status)
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/CLOSED/STATUS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(5),
+                Status = status,
+                IsDeleted = false
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ExtendOfferValidityCommand
+            {
+                OfferId = offer.Id,
+                NewValidUntil = DateTime.UtcNow.AddDays(14)
+            };
+
+            // Act
+            var result = await _offerServicesMock.ExtendOfferValidityAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task ExtendOfferValidityAsync_ReturnsBadRequest_WhenNewValidityDateIsInThePast()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/PAST/DATE",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(2),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ExtendOfferValidityCommand
+            {
+                OfferId = offer.Id,
+                NewValidUntil = DateTime.UtcNow.AddDays(-1)
+            };
+
+            // Act
+            var result = await _offerServicesMock.ExtendOfferValidityAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidDate);
+        }
+
+        [Test]
+        public async Task ExtendOfferValidityAsync_ExtendsDateAndChangesStatusToSent_WhenOfferWasExpired()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+            var newTargetDate = DateTime.UtcNow.AddDays(10);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/EXPIRED/EXTEND",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(-5),
+                Status = OfferStatusEnum.Expired,
+                IsDeleted = false
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ExtendOfferValidityCommand
+            {
+                OfferId = offer.Id,
+                NewValidUntil = newTargetDate
+            };
+
+            // Act
+            var result = await _offerServicesMock.ExtendOfferValidityAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedOffer = await _contextMock.Offers.FirstOrDefaultAsync(o => o.Id == offer.Id);
+            await Assert.That(updatedOffer).IsNotNull();
+            await Assert.That(updatedOffer!.Status).IsEqualTo(OfferStatusEnum.Sent);
+
+            var diff = Math.Abs((updatedOffer.ValidUntil - newTargetDate).TotalSeconds);
+            await Assert.That(diff < 1).IsTrue();
+        }
+
+        [Test]
+        public async Task ExtendOfferValidityAsync_DefaultsToSevenDaysFromNow_WhenNewValidUntilIsNull()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/DEFAULT/EXTENSION",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(1),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ExtendOfferValidityCommand
+            {
+                OfferId = offer.Id,
+                NewValidUntil = null
+            };
+
+            var expectedDate = DateTime.UtcNow.AddDays(7);
+
+            // Act
+            var result = await _offerServicesMock.ExtendOfferValidityAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedOffer = await _contextMock.Offers.FirstOrDefaultAsync(o => o.Id == offer.Id);
+            await Assert.That(updatedOffer).IsNotNull();
+
+            var diff = Math.Abs((updatedOffer!.ValidUntil - expectedDate).TotalSeconds);
+            await Assert.That(diff < 2).IsTrue();
+        }
     }
 }

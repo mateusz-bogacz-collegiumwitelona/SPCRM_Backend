@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Enum;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -152,6 +153,57 @@ namespace Services.Services
                     DecimalPlaces = op.Currency.DecimalPlaces
                 })
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "offer-products");
+        }
+
+        public async Task<Result> ExtendOfferValidityAsync(ExtendOfferValidityCommand command)
+        {
+            var offer = await _context.Offers.FirstOrDefaultAsync(o => o.Id == command.OfferId);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                return Result.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (offer.Status == OfferStatusEnum.Accepted || offer.Status == OfferStatusEnum.Rejected)
+            {
+                return Result.Failure(
+                    message: "Cannot extend validity of an accepted or rejected offer.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var targetDate = command.NewValidUntil.HasValue
+                ? DateTime.SpecifyKind(command.NewValidUntil.Value, DateTimeKind.Utc)
+                : DateTime.UtcNow.AddDays(7);
+
+            if (targetDate <= DateTime.UtcNow)
+            {
+                return Result.Failure(
+                    message: "New validity date must be in the future.",
+                    errorCode: ErrorCodes.InvalidDate,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            offer.ValidUntil = targetDate;
+
+            if (offer.Status == OfferStatusEnum.Expired)
+            {
+                offer.Status = OfferStatusEnum.Sent;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Offer validity extended successfully.",
+                statusCode: StatusCodes.Status200OK
+                );
         }
     }
 }
