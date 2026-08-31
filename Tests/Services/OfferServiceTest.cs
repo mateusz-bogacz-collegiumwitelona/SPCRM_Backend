@@ -148,6 +148,7 @@ namespace Tests.Services
             {
                 new()
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
@@ -156,6 +157,7 @@ namespace Tests.Services
                 },
                 new()
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
@@ -193,6 +195,7 @@ namespace Tests.Services
             _contextMock.Offers.AddRange(
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contactMatching.Id,
                     CreatedByUserId = contactMatching.OwnerId,
@@ -201,6 +204,7 @@ namespace Tests.Services
                 },
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contactOther.Id,
                     CreatedByUserId = contactOther.OwnerId,
@@ -235,6 +239,7 @@ namespace Tests.Services
             _contextMock.Offers.AddRange(
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
@@ -243,6 +248,7 @@ namespace Tests.Services
                 },
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
@@ -278,6 +284,7 @@ namespace Tests.Services
             _contextMock.Offers.AddRange(
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
@@ -286,6 +293,7 @@ namespace Tests.Services
                 },
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
@@ -294,6 +302,7 @@ namespace Tests.Services
                 },
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
@@ -330,6 +339,7 @@ namespace Tests.Services
             _contextMock.Offers.AddRange(
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contactA.Id,
                     CreatedByUserId = contactA.OwnerId,
@@ -338,6 +348,7 @@ namespace Tests.Services
                 },
                 new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     Id = Guid.NewGuid(),
                     ContactId = contactZ.Id,
                     CreatedByUserId = contactZ.OwnerId,

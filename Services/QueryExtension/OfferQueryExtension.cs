@@ -17,6 +17,7 @@ namespace Services.QueryExtension
                     string wildcardTerm = $"%{term}%";
 
                     query = query.Where(c =>
+                        EF.Functions.ILike(EF.Functions.Unaccent(c.Name), EF.Functions.Unaccent(wildcardTerm)) ||
                         EF.Functions.ILike(EF.Functions.Unaccent(c.Contact.FirstName), EF.Functions.Unaccent(wildcardTerm)) ||
                         EF.Functions.ILike(EF.Functions.Unaccent(c.Contact.LastName), EF.Functions.Unaccent(wildcardTerm)) ||
                         EF.Functions.ILike(EF.Functions.Unaccent(c.Contact.Company.Name), EF.Functions.Unaccent(wildcardTerm))

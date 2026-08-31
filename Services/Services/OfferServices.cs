@@ -35,6 +35,7 @@ namespace Services.Services
                 .Select(o => new OfferListResponse
                 {
                     OfferId = o.Id,
+                    OfferName = o.Name,
                     ContactFirstName = o.Contact.FirstName,
                     ContactLastName = o.Contact.LastName,
                     CompanyName = o.Contact.Company.Name,

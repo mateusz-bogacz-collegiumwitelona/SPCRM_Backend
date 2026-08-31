@@ -732,6 +732,7 @@ namespace Infrastructure.Seeders
 
                 var offer = new Offer
                 {
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     ContactId = contact.Id,
                     Contact = contact,
                     CreatedByUserId = creator.Id,

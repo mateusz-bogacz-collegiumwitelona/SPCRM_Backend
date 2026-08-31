@@ -252,6 +252,7 @@ namespace Services.Services
                 var newOffer = new Offer
                 {
                     Id = Guid.NewGuid(),
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     ContactId = client.Id,
                     CreatedByUserId = authorId,
                     ValidUntil = DateTime.UtcNow.AddDays(7),

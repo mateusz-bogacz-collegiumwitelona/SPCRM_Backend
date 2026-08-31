@@ -5,6 +5,7 @@ namespace Domain.Models
 {
     public class Offer : BaseEntity
     {
+        public string Name { get; set; } = null!;
         public Guid ContactId { get; set; }
         public Contact Contact { get; set; } = null!;
 
