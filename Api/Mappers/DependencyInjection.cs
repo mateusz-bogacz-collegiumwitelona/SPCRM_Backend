@@ -17,6 +17,7 @@
             services.AddScoped<ApiMapper>();
             services.AddScoped<CurrencyMapper>();
             services.AddScoped<UnitMapper>();
+            services.AddScoped<OfferMapper>();
             return services;
         }
     }

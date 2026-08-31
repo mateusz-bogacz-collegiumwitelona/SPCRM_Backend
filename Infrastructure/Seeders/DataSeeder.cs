@@ -39,6 +39,8 @@ namespace Infrastructure.Seeders
 
             if (!await _context.Deals.AnyAsync()) await SeedDealsAndTasksAsync();
             if (!await _context.Tasks.AnyAsync(t => t.DealId == null)) await SeedStandaloneTasksAsync();
+
+            if (!await _context.Offers.AnyAsync()) await SeedOffersAsync();
         }
 
         private async Task SeedRoleAsync()
@@ -679,6 +681,92 @@ namespace Infrastructure.Seeders
             await _context.Tasks.AddRangeAsync(tasks);
             await _context.SaveChangesAsync();
             Console.WriteLine("All deals and tasks seeded successfully.");
+        }
+
+        private async Task SeedOffersAsync()
+        {
+            var contacts = await _context.Contacts.ToListAsync();
+            var users = await _userManager.Users.ToListAsync();
+            var products = await _context.Products.ToListAsync();
+            var currencies = await _context.Currencies.ToListAsync();
+            var random = new Random();
+
+            var offers = new List<Offer>();
+
+            var statusPool = new[]
+            {
+                OfferStatusEnum.Sent,
+                OfferStatusEnum.Sent,
+                OfferStatusEnum.Accepted,
+                OfferStatusEnum.Rejected,
+                OfferStatusEnum.Expired
+            };
+
+            for (int i = 1; i <= 60; i++)
+            {
+                var contact = contacts[random.Next(contacts.Count)];
+                var creator = users[random.Next(users.Count)];
+                var status = statusPool[random.Next(statusPool.Length)];
+
+                DateTime validUntil;
+
+                switch (status)
+                {
+                    case OfferStatusEnum.Sent:
+                        validUntil = DateTime.UtcNow.AddDays(random.Next(3, 30)).AddHours(random.Next(1, 12));
+                        break;
+
+                    case OfferStatusEnum.Accepted:
+                        validUntil = DateTime.UtcNow.AddDays(random.Next(-10, 20));
+                        break;
+
+                    case OfferStatusEnum.Rejected:
+                        validUntil = DateTime.UtcNow.AddDays(random.Next(-25, 10));
+                        break;
+
+                    case OfferStatusEnum.Expired:
+                    default:
+                        validUntil = DateTime.UtcNow.AddDays(-random.Next(1, 45)).AddHours(-random.Next(1, 12));
+                        break;
+                }
+
+                var offer = new Offer
+                {
+                    ContactId = contact.Id,
+                    Contact = contact,
+                    CreatedByUserId = creator.Id,
+                    ValidUntil = validUntil,
+                    Status = status,
+                    Products = new List<OfferProducts>()
+                };
+
+                int productCount = random.Next(1, 4);
+                var selectedProducts = products.OrderBy(_ => random.Next()).Take(productCount).ToList();
+
+                foreach (var product in selectedProducts)
+                {
+                    var currency = currencies[random.Next(currencies.Count)];
+                    long quotedPrice = (long)(product.PricePerUnit * (random.Next(85, 110) / 100.0));
+
+                    offer.Products.Add(new OfferProducts
+                    {
+                        Offer = offer,
+                        ProductId = product.Id,
+                        Product = product,
+                        Quantity = random.Next(1, 100),
+                        QuotedPrice = quotedPrice,
+                        CurrencyId = currency.Id,
+                        Currency = currency
+                    });
+                }
+
+                offers.Add(offer);
+                Console.WriteLine($"Prepared offer {i} for contact: {contact.FirstName} {contact.LastName} (Status: {offer.Status}, ValidUntil: {offer.ValidUntil:yyyy-MM-dd})");
+            }
+
+            await _context.Offers.AddRangeAsync(offers);
+            await _context.SaveChangesAsync();
+            Console.WriteLine("All offers seeded successfully.");
         }
 
         private Point GenerateRandomPoint()
