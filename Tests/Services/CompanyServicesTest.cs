@@ -945,5 +945,141 @@ namespace Tests.Services
             await Assert.That(foundCompany).IsNotNull();
             await Assert.That(foundCompany!.Name).IsEqualTo(company.Name);
         }
+
+        // ─── GetCompanySimpleListAsync ──────────────────────────────────────────
+
+        [Test]
+        public async Task GetCompanySimpleListAsync_ReturnsAllCompanies_SortedByNameAlphabetically()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var owner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var companyZ = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Zeta Stal_{uniqueSuffix}",
+                NIP = "1111111111",
+                OwnerId = owner.Id,
+                Owner = owner,
+                IsDeleted = false
+            };
+
+            var companyA = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Alfa Met_{uniqueSuffix}",
+                NIP = "2222222222",
+                OwnerId = owner.Id,
+                Owner = owner,
+                IsDeleted = false
+            };
+
+            var companyM = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Mega Hut_{uniqueSuffix}",
+                NIP = "3333333333",
+                OwnerId = owner.Id,
+                Owner = owner,
+                IsDeleted = false
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.AddRange(companyZ, companyA, companyM);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.GetCompanySimpleListAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var relevantCompanies = result.Data!
+                .Where(c => c.Name.EndsWith(uniqueSuffix))
+                .ToList();
+
+            await Assert.That(relevantCompanies.Count).IsEqualTo(3);
+            await Assert.That(relevantCompanies[0].Name).IsEqualTo(companyA.Name);
+            await Assert.That(relevantCompanies[1].Name).IsEqualTo(companyM.Name);
+            await Assert.That(relevantCompanies[2].Name).IsEqualTo(companyZ.Name);
+            await Assert.That(relevantCompanies[0].Id).IsEqualTo(companyA.Id);
+        }
+
+        [Test]
+        public async Task GetCompanySimpleListAsync_IgnoresSoftDeletedCompanies()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var owner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var activeCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Active Company_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = owner.Id,
+                Owner = owner,
+                IsDeleted = false
+            };
+
+            var deletedCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Deleted Company_{uniqueSuffix}",
+                NIP = "0987654321",
+                OwnerId = owner.Id,
+                Owner = owner,
+                IsDeleted = true
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.AddRange(activeCompany, deletedCompany);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.GetCompanySimpleListAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var relevantCompanies = result.Data!
+                .Where(c => c.Name.EndsWith(uniqueSuffix))
+                .ToList();
+
+            await Assert.That(relevantCompanies.Count).IsEqualTo(1);
+            await Assert.That(relevantCompanies.First().Id).IsEqualTo(activeCompany.Id);
+            await Assert.That(relevantCompanies.First().Name).IsEqualTo(activeCompany.Name);
+        }
+
+        [Test]
+        public async Task GetCompanySimpleListAsync_ReturnsEmptyList_WhenNoCompaniesExist()
+        {
+            // Act
+            var result = await _companyServicesMock.GetCompanySimpleListAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Count).IsEqualTo(0);
+        }
     }
 }

@@ -151,5 +151,22 @@ namespace Services.Services
                         CreatedAt = c.CreatedAt,
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies");
+
+        public async Task<Result<List<CompanySimpleListResponse>>> GetCompanySimpleListAsync()
+        {
+            var query = await _context.Companies
+                .OrderBy(c => c.Name)
+                .Select(c => new CompanySimpleListResponse
+                {
+                    Id = c.Id,
+                    Name = c.Name
+                }).ToListAsync();
+
+            return Result<List<CompanySimpleListResponse>>.Success(
+                message: "Company simple list retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: query
+                );
+        }
     }
 }

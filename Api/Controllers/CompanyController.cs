@@ -146,5 +146,14 @@ namespace Api.Controllers
             ));
             return HandleResult(result);
         }
+
+        [HttpGet("simple-list")]
+        public async Task<IActionResult> GetCompanySimpleListAsync(
+            [FromServices] ICompanyServices companyServices
+        )
+        {
+            var result = await companyServices.GetCompanySimpleListAsync();
+            return HandleResult(result);
+        }
     }
 }

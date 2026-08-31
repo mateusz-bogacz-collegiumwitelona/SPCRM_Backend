@@ -11,5 +11,6 @@ namespace Services.Interfaces
         Task<Result<CompanyDetailResponse>> Details(Guid id, Guid userId);
         Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(CompanyCommand command);
         Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command);
+        Task<Result<List<CompanySimpleListResponse>>> GetCompanySimpleListAsync();
     }
 }
