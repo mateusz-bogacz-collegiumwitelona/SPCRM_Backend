@@ -1,5 +1,6 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
+using Api.Request.List;
 using Api.Request.Offer;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -54,6 +55,22 @@ namespace Api.Controllers
             )
         {
             var result = await offer.GetOfferClientDetailAsync(offerId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get offer product detail")]
+        [EndpointDescription("Get offer product detail by offer ID. " +
+            "This list have search and paggination.")]
+        [HttpGet("product/{offerId:guid}")]
+        [Authorize]
+        public async Task<IActionResult> GetOfferProductsAsync(
+            [FromServices] IOfferServices offer,
+            [FromServices] ApiMapper mapper,
+            [FromRoute] Guid offerId,
+            [FromQuery] SimpleListRequest request
+            )
+        {
+            var result = await offer.GetOfferProductsAsync(offerId, mapper.MapSimpleList(request));
             return HandleResult(result);
         }
     }

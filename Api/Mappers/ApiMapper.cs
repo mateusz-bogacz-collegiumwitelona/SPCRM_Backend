@@ -8,5 +8,7 @@ namespace Api.Mappers
     public partial class ApiMapper
     {
         public partial BasicListCommand MapList(BasicListRequest request);
+
+        public partial SimpleListCommand MapSimpleList(SimpleListRequest request);
     }
 }

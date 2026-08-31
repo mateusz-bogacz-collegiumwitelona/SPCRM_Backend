@@ -53,7 +53,7 @@ namespace Api.Controllers
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetClientDataToMailingAsync(
             [FromServices] IContactServices contact,
-            [FromServices] MailingMapper mapper,
+            [FromServices] ApiMapper mapper,
             [FromQuery] SimpleListRequest request
             )
         {
@@ -67,7 +67,7 @@ namespace Api.Controllers
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetProductDataToMailingAsync(
             [FromServices] IProductSevices product,
-            [FromServices] MailingMapper mapper,
+            [FromServices] ApiMapper mapper,
             [FromQuery] SimpleListRequest request
             )
         {

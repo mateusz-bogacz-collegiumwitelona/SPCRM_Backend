@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command.List;
 using Services.Command.Offer;
 using Services.Services;
 using Testcontainers.PostgreSql;
@@ -626,6 +627,394 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
             await Assert.That(result.Data).IsNull();
+        }
+
+        // ─── GetOfferProductsAsync ──────────────────────────────────────────────
+
+        [Test]
+        public async Task GetOfferProductsAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Arrange
+            var nonExistentId = Guid.NewGuid();
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _offerServicesMock.GetOfferProductsAsync(nonExistentId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+            await Assert.That(result.Data).IsNull();
+        }
+
+        [Test]
+        public async Task GetOfferProductsAsync_ReturnsAllProductsPaged_WhenNoSearchTermProvided()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2,
+                IsDeleted = false
+            };
+            _contextMock.Currencies.Add(currency);
+
+            var steelGrade = new SteelGrade
+            {
+                Id = Guid.NewGuid(),
+                Name = "1.4301",
+                Density = 7900,
+                IsDeleted = false
+            };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sztuka",
+                Symbol = "szt.",
+                BaseMultiplier = 1,
+                IsDeleted = false
+            };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var productA = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Blacha kwasoodporna 2mm",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 120000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Sheet,
+                Thickness = 2,
+                Width = 1000,
+                Length = 2000,
+                Weight = 31400,
+                IsDeleted = false,
+                SteelGrade = steelGrade
+            };
+
+            var productB = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Rura kwasoodporna fi 25",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 45000,
+                StockQuantity = 100,
+                Category = ProductCategoryEnum.Pipe,
+                Thickness = 2,
+                Width = 0,
+                Length = 6000,
+                Weight = 6900,
+                IsDeleted = false,
+                SteelGrade = steelGrade
+            };
+
+            _contextMock.Products.AddRange(productA, productB);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/PAGED",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.AddRange(
+                new OfferProducts
+                {
+                    Id = Guid.NewGuid(),
+                    OfferId = offer.Id,
+                    ProductId = productA.Id,
+                    Quantity = 2,
+                    QuotedPrice = 115000,
+                    CurrencyId = currency.Id,
+                    IsDeleted = false
+                },
+                new OfferProducts
+                {
+                    Id = Guid.NewGuid(),
+                    OfferId = offer.Id,
+                    ProductId = productB.Id,
+                    Quantity = 10,
+                    QuotedPrice = 42000,
+                    CurrencyId = currency.Id,
+                    IsDeleted = false
+                }
+            );
+
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _offerServicesMock.GetOfferProductsAsync(offer.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items.Count).IsEqualTo(2);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task GetOfferProductsAsync_FiltersBySearchTerm_WithUnaccentAndCaseInsensitivity()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Euro",
+                Code = "EUR",
+                DecimalPlaces = 2,
+                IsDeleted = false
+            };
+            _contextMock.Currencies.Add(currency);
+
+            var steelGrade1 = new SteelGrade { Id = Guid.NewGuid(), Name = "S355J2", Density = 7850, IsDeleted = false };
+            var steelGrade2 = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4404", Density = 8000, IsDeleted = false };
+            _contextMock.SteelGrades.AddRange(steelGrade1, steelGrade2);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Metr", Symbol = "m", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product1 = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Pręt żebrowany fi 12",
+                SteelGradeId = steelGrade1.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 3500,
+                StockQuantity = 200,
+                Category = ProductCategoryEnum.Bar,
+                Thickness = 0,
+                Width = 0,
+                Length = 12000,
+                Weight = 10660,
+                IsDeleted = false,
+                SteelGrade = steelGrade1
+            };
+
+            var product2 = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kątownik zimnogięty 50x50",
+                SteelGradeId = steelGrade2.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 8900,
+                StockQuantity = 80,
+                Category = ProductCategoryEnum.Pipe,
+                Thickness = 4,
+                Width = 50,
+                Length = 6000,
+                Weight = 18000,
+                IsDeleted = false,
+                SteelGrade = steelGrade2
+            };
+
+            _contextMock.Products.AddRange(product1, product2);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/SEARCH",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.AddRange(
+                new OfferProducts
+                {
+                    Id = Guid.NewGuid(),
+                    OfferId = offer.Id,
+                    ProductId = product1.Id,
+                    Quantity = 20,
+                    QuotedPrice = 3300,
+                    CurrencyId = currency.Id,
+                    IsDeleted = false
+                },
+                new OfferProducts
+                {
+                    Id = Guid.NewGuid(),
+                    OfferId = offer.Id,
+                    ProductId = product2.Id,
+                    Quantity = 5,
+                    QuotedPrice = 8500,
+                    CurrencyId = currency.Id,
+                    IsDeleted = false
+                }
+            );
+
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                SearchTerm = "zebrowany",
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _offerServicesMock.GetOfferProductsAsync(offer.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items.Count).IsEqualTo(1);
+            await Assert.That(result.Data.Items.First().ProductName).IsEqualTo("Pręt żebrowany fi 12");
+            await Assert.That(result.Data.Items.First().SteelGrade).IsEqualTo("S355J2");
+            await Assert.That(result.Data.Items.First().QuotedPrice).IsEqualTo(3300);
+            await Assert.That(result.Data.Items.First().CurrencyCode).IsEqualTo("EUR");
+        }
+
+        [Test]
+        public async Task GetOfferProductsAsync_ReturnsEmptyList_WhenOfferHasNoProducts()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/EMPTY",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _offerServicesMock.GetOfferProductsAsync(offer.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items.Count).IsEqualTo(0);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetOfferProductsAsync_FiltersOutSoftDeletedOfferProducts()
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2,
+                IsDeleted = false
+            };
+            _contextMock.Currencies.Add(currency);
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235JR", Density = 7850, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Dwuteownik HEB 100",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 200000,
+                StockQuantity = 30,
+                Category = ProductCategoryEnum.Profile,
+                Thickness = 6,
+                Width = 100,
+                Length = 12000,
+                Weight = 244800,
+                IsDeleted = false,
+                SteelGrade = steelGrade
+            };
+            _contextMock.Products.Add(product);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/2026/08/31/SOFTDELETE",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.Add(
+                new OfferProducts
+                {
+                    Id = Guid.NewGuid(),
+                    OfferId = offer.Id,
+                    ProductId = product.Id,
+                    Quantity = 3,
+                    QuotedPrice = 195000,
+                    CurrencyId = currency.Id,
+                    IsDeleted = true 
+                }
+            );
+
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _offerServicesMock.GetOfferProductsAsync(offer.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items.Count).IsEqualTo(0);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
     }
 }

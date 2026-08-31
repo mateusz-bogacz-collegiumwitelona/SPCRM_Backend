@@ -4,6 +4,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command.List;
 using Services.Command.Offer;
 using Services.Helpers;
 using Services.Interfaces;
@@ -116,6 +117,41 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK,
                 data: response
             );
+        }
+
+        public async Task<Result<PagedResult<OfferProductResponse>>> GetOfferProductsAsync(
+            Guid id, 
+            SimpleListCommand command
+            )
+        {
+            var offerExists = await _context.Offers.AnyAsync(o => o.Id == id);
+
+            if (!offerExists)
+            {
+                _logger.LogWarning("Offer with ID {OfferId} not found.", id);
+                return Result<PagedResult<OfferProductResponse>>.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            return await _context.OfferProducts
+                .AsNoTracking()
+                .Where(op => op.OfferId == id)
+                .ApplyProductSearch(command.SearchTerm ?? string.Empty)
+                .OrderBy(op => op.Product.Name)
+                .Select(op => new OfferProductResponse
+                {
+                    ProductId = op.ProductId,
+                    ProductName = op.Product.Name,
+                    SteelGrade = op.Product.SteelGrade.Name,
+                    Quantity = op.Quantity,
+                    QuotedPrice = op.QuotedPrice,
+                    CurrencyCode = op.Currency.Code,
+                    DecimalPlaces = op.Currency.DecimalPlaces
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "offer-products");
         }
     }
 }

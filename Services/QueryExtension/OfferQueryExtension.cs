@@ -69,7 +69,7 @@ namespace Services.QueryExtension
                     : query.Where(o => o.ValidUntil >= nowUtc);
             }
 
-            return query; 
+            return query;
         }
 
         internal static IQueryable<Offer> ApplySorting(
@@ -92,5 +92,27 @@ namespace Services.QueryExtension
 
                 _ => query.OrderBy(o => o.ValidUntil)
             };
+
+        internal static IQueryable<OfferProducts> ApplyProductSearch(
+            this IQueryable<OfferProducts> query,
+            string searchTerm)
+        {
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var term in terms)
+                {
+                    string wildcardTerm = $"%{term}%";
+
+                    query = query.Where(op =>
+                        EF.Functions.ILike(EF.Functions.Unaccent(op.Product.Name), EF.Functions.Unaccent(wildcardTerm)) ||
+                        EF.Functions.ILike(EF.Functions.Unaccent(op.Product.SteelGrade.Name), EF.Functions.Unaccent(wildcardTerm))
+                    );
+                }
+            }
+
+            return query;
+        }
     }
 }

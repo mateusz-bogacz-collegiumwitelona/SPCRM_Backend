@@ -19,8 +19,6 @@ namespace Api.Mappers
 
         public partial MailingCommand MapProductMailing(MailingRequest request);
 
-        public partial SimpleListCommand MapSimpleList(SimpleListRequest request);
-
         private string? NormalizeEmail(string? email) => StringNormalizerHelper.TrimAndLower(email);
         private string? NormalizeTitle(string? title) => StringNormalizerHelper.NormalizeName(title);
         private string? TrimMessage(string? message) => StringNormalizerHelper.Trim(message);
