@@ -995,7 +995,7 @@ namespace Tests.Services
                     Quantity = 3,
                     QuotedPrice = 195000,
                     CurrencyId = currency.Id,
-                    IsDeleted = true 
+                    IsDeleted = true
                 }
             );
 

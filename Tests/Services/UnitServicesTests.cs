@@ -494,7 +494,7 @@ namespace Tests.Services
             var command = new EditUnitCommand
             {
                 UnitId = unitToEdit.Id,
-                Name = "  kilogram  " 
+                Name = "  kilogram  "
             };
 
             // Act

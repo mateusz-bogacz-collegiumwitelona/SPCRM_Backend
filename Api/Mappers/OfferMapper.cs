@@ -11,7 +11,7 @@ namespace Api.Mappers
         [MapProperty(nameof(OfferListRequest.Status), nameof(OfferListCommand.Status), Use = nameof(MapStringToStatus))]
         public partial OfferListCommand MapList(OfferListRequest request);
 
-        private OfferStatusEnum? MapStringToStatus(string? status) 
+        private OfferStatusEnum? MapStringToStatus(string? status)
             => Enum.TryParse<OfferStatusEnum>(status, true, out var parsedStatus) ? parsedStatus : null;
     }
 }

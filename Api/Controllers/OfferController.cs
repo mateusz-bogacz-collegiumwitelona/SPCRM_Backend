@@ -5,7 +5,6 @@ using Api.Request.Offer;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NetTopologySuite.IO;
 using Services.Interfaces;
 
 namespace Api.Controllers

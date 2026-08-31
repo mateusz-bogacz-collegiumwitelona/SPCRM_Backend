@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace Services.Response.Offer
+﻿namespace Services.Response.Offer
 {
     public record OfferListResponse
     {
@@ -9,8 +7,8 @@ namespace Services.Response.Offer
         public required string ContactFirstName { get; init; }
         public required string ContactLastName { get; init; }
         public required string CompanyName { get; init; }
-        public required DateTime ValidUntil { get; init; } 
+        public required DateTime ValidUntil { get; init; }
         public required string Status { get; init; }
-        public bool IsExpired {  get; init; }
+        public bool IsExpired { get; init; }
     }
 }

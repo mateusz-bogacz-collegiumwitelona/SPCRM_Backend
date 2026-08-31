@@ -120,7 +120,7 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<OfferProductResponse>>> GetOfferProductsAsync(
-            Guid id, 
+            Guid id,
             SimpleListCommand command
             )
         {
