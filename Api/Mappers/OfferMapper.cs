@@ -13,7 +13,14 @@ namespace Api.Mappers
 
         public partial ExtendOfferValidityCommand MapExtend(ExtendOfferValidityRequest request);
 
+        [MapProperty(nameof(ChangeOfferStatusRequest.NewStatus), nameof(ChangeOfferStatusCommand.NewStatus), Use = nameof(MapStringToRequiredStatus))]
+        public partial ChangeOfferStatusCommand MapChangeStatus(ChangeOfferStatusRequest request);
+
         private OfferStatusEnum? MapStringToStatus(string? status)
             => Enum.TryParse<OfferStatusEnum>(status, true, out var parsedStatus) ? parsedStatus : null;
+        private OfferStatusEnum MapStringToRequiredStatus(string status)
+            => Enum.TryParse<OfferStatusEnum>(status, true, out var parsedStatus)
+                ? parsedStatus
+                : (OfferStatusEnum)(-1);
     }
 }

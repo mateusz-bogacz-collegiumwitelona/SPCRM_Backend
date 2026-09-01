@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -204,6 +205,117 @@ namespace Services.Services
                 message: "Offer validity extended successfully.",
                 statusCode: StatusCodes.Status200OK
                 );
+        }
+
+        public async Task<Result<Guid?>> ChangeOfferStatusAsync(ChangeOfferStatusCommand command)
+        {
+            var offer = await _context.Offers
+                .Include(o => o.Contact)
+                .Include(o => o.Products)
+                    .ThenInclude(p => p.Currency)
+                .FirstOrDefaultAsync(o => o.Id == command.OfferId);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                return Result<Guid?>.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (offer.Status != OfferStatusEnum.Sent)
+            {
+                return Result<Guid?>.Failure(
+                    message: $"Cannot change status of an offer with status '{offer.Status}'. Only 'Sent' offers can be modified.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            if (command.NewStatus != OfferStatusEnum.Accepted && command.NewStatus != OfferStatusEnum.Rejected)
+            {
+                return Result<Guid?>.Failure(
+                    message: "Invalid target status. Status can only be changed to 'Accepted' or 'Rejected'.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            if (offer.ValidUntil < DateTime.UtcNow)
+            {
+                offer.Status = OfferStatusEnum.Expired;
+                await _context.SaveChangesAsync();
+
+                return Result<Guid?>.Failure(
+                    message: "Offer has expired and cannot be accepted or rejected without extending validity.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                offer.Status = command.NewStatus;
+                Guid? createdDealId = null;
+
+                if (command.NewStatus == OfferStatusEnum.Accepted)
+                {
+                    if (!offer.Products.Any())
+                    {
+                        return Result<Guid?>.Failure(
+                            message: "Cannot accept an offer without any products.",
+                            errorCode: ErrorCodes.InvalidOperation,
+                            statusCode: StatusCodes.Status400BadRequest
+                        );
+                    }
+
+                    var primaryCurrencyId = offer.Products.First().CurrencyId;
+                    var totalValue = offer.Products.Sum(p => (long)p.Quantity * p.QuotedPrice);
+
+                    var deal = new Deal
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = $"Sprzedaż z oferty: {offer.Name}",
+                        Value = totalValue,
+                        Status = DealsStatusEnum.ToDo,
+                        CloseDate = DateTime.UtcNow.AddMonths(1),
+                        CurrencyId = primaryCurrencyId,
+                        OwnerId = offer.CreatedByUserId,
+                        CompanyId = offer.Contact.CompanyId,
+                        DealProducts = offer.Products.Select(op => new DealProduct
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductId = op.ProductId,
+                            Quantity = op.Quantity,
+                            UnitPrice = op.QuotedPrice
+                        }).ToList()
+                    };
+
+                    _context.Deals.Add(deal);
+                    createdDealId = deal.Id;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Result<Guid?>.Success(
+                    message: command.NewStatus == OfferStatusEnum.Accepted
+                        ? "Offer accepted and converted to sale deal successfully."
+                        : "Offer rejected successfully.",
+                    statusCode: StatusCodes.Status200OK,
+                    data: createdDealId
+                );
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error while changing offer status for ID {OfferId}", command.OfferId);
+                throw;
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ using Api.Request.Offer;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Services.Command.Offer;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -76,7 +77,7 @@ namespace Api.Controllers
         [EndpointSummary("Extend offer validity")]
         [EndpointDescription("Extend offer validity by offer ID. User can get data but not must.")]
         [Authorize]
-        [HttpPatch]
+        [HttpPatch("extend")]
         public async Task<IActionResult> ExtendOfferValidityAsync(
             [FromServices] IOfferServices offer,
             [FromServices] OfferMapper mapper,
@@ -84,6 +85,17 @@ namespace Api.Controllers
             )
         {
             var result = await offer.ExtendOfferValidityAsync(mapper.MapExtend(request));
+            return HandleResult(result);
+        }
+
+        [HttpPatch("status")]
+        [Authorize]
+        public async Task<IActionResult> ChangeOfferStatusAsync(
+            [FromServices] IOfferServices offer,
+            [FromServices] OfferMapper mapper,
+            [FromBody] ChangeOfferStatusRequest request)
+        {
+            var result = await offer.ChangeOfferStatusAsync(mapper.MapChangeStatus(request));
             return HandleResult(result);
         }
     }

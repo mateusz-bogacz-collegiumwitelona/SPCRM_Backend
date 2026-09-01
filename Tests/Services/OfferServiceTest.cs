@@ -1193,5 +1193,138 @@ namespace Tests.Services
             var diff = Math.Abs((updatedOffer!.ValidUntil - expectedDate).TotalSeconds);
             await Assert.That(diff < 2).IsTrue();
         }
+
+        // ─── ChangeOfferStatusAsync ──────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeOfferStatusAsync_ConvertsToDealAndDealProducts_WhenAccepted()
+        {
+            // Arrange
+            var (company, contact) = await SeedCompanyAndContactAsync();
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+            _contextMock.Currencies.Add(currency);
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900 };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Rura nierdzewna",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 500000,
+                StockQuantity = 100,
+                Category = ProductCategoryEnum.Pipe,
+                Thickness = 2,
+                Width = 0,
+                Length = 6000,
+                Weight = 5000,
+                SteelGrade = steelGrade,
+            };
+            _contextMock.Products.Add(product);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/TEST/ACCEPT",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.Add(new OfferProducts
+            {
+                Id = Guid.NewGuid(),
+                OfferId = offer.Id,
+                ProductId = product.Id,
+                Quantity = 4,
+                QuotedPrice = 450000,
+                CurrencyId = currency.Id
+            });
+
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ChangeOfferStatusCommand
+            {
+                OfferId = offer.Id,
+                NewStatus = OfferStatusEnum.Accepted
+            };
+
+            // Act
+            var result = await _offerServicesMock.ChangeOfferStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var dealId = result.Data!.Value;
+            var createdDeal = await _contextMock.Deals
+                .Include(d => d.DealProducts)
+                .FirstOrDefaultAsync(d => d.Id == dealId);
+
+            await Assert.That(createdDeal).IsNotNull();
+            await Assert.That(createdDeal!.CompanyId).IsEqualTo(company.Id);
+            await Assert.That(createdDeal.OwnerId).IsEqualTo(contact.OwnerId);
+            await Assert.That(createdDeal.Value).IsEqualTo(4 * 450000);
+            await Assert.That(createdDeal.DealProducts.Count).IsEqualTo(1);
+            await Assert.That(createdDeal.DealProducts.First().UnitPrice).IsEqualTo(450000);
+
+            var updatedOffer = await _contextMock.Offers.FindAsync(offer.Id);
+            await Assert.That(updatedOffer!.Status).IsEqualTo(OfferStatusEnum.Accepted);
+        }
+
+        [Test]
+        [Arguments(OfferStatusEnum.Accepted)]
+        [Arguments(OfferStatusEnum.Rejected)]
+        [Arguments(OfferStatusEnum.Expired)]
+        public async Task ChangeOfferStatusAsync_ReturnsBadRequest_WhenOfferIsNotInSentStatus(OfferStatusEnum initialStatus)
+        {
+            // Arrange
+            var (_, contact) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/LOCKED/STATUS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                ValidUntil = DateTime.UtcNow.AddDays(5),
+                Status = initialStatus,
+                IsDeleted = false
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ChangeOfferStatusCommand
+            {
+                OfferId = offer.Id,
+                NewStatus = OfferStatusEnum.Accepted
+            };
+
+            // Act
+            var result = await _offerServicesMock.ChangeOfferStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
     }
 }

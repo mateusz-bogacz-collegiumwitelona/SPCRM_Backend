@@ -12,5 +12,6 @@ namespace Services.Interfaces
         Task<Result<OfferClientDetail>> GetOfferClientDetailAsync(Guid id);
         Task<Result<PagedResult<OfferProductResponse>>> GetOfferProductsAsync(Guid id, SimpleListCommand command);
         Task<Result> ExtendOfferValidityAsync(ExtendOfferValidityCommand command);
+        Task<Result<Guid?>> ChangeOfferStatusAsync(ChangeOfferStatusCommand command);
     }
 }
