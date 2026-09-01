@@ -1797,6 +1797,118 @@ namespace Tests.Services
             await Assert.That(sentPayload.Products.First().FinalPrice).IsEqualTo(42000);
             await Assert.That(sentPayload.Products.First().CurrencyCode).IsEqualTo("PLN");
         }
+
+        // ─── DeleteOfferAsync ──────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteOfferAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Act
+            var result = await _offerServicesMock.DeleteOfferAsync(Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+        }
+
+        [Test]
+        [Arguments(OfferStatusEnum.Accepted)]
+        [Arguments(OfferStatusEnum.Rejected)]
+        public async Task DeleteOfferAsync_ReturnsBadRequest_WhenOfferStatusIsTerminal(OfferStatusEnum status)
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/CLOSED/DELETE",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(5),
+                Status = status,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.DeleteOfferAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        [Arguments(OfferStatusEnum.Sent)]
+        [Arguments(OfferStatusEnum.Expired)]
+        public async Task DeleteOfferAsync_SoftDeletesOfferAndProducts_WhenStatusIsAllowed(OfferStatusEnum status)
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235", Density = 7850 };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Blacha",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 100000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Sheet,
+                SteelGrade = steelGrade
+            };
+            _contextMock.Products.Add(product);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/DELETE/SUCCESS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(5),
+                Status = status,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.Add(new OfferProducts
+            {
+                Id = Guid.NewGuid(),
+                OfferId = offer.Id,
+                ProductId = product.Id,
+                Quantity = 2,
+                QuotedPrice = 90000
+            });
+
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.DeleteOfferAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var deletedOffer = await _contextMock.Offers.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == offer.Id);
+            await Assert.That(deletedOffer).IsNotNull();
+            await Assert.That(deletedOffer!.IsDeleted).IsTrue();
+
+            var deletedProducts = await _contextMock.OfferProducts.IgnoreQueryFilters().Where(op => op.OfferId == offer.Id).ToListAsync();
+            await Assert.That(deletedProducts.All(p => p.IsDeleted)).IsTrue();
+        }
     }
 
     public class OfferTestFakeEmailSender : IEmailSender

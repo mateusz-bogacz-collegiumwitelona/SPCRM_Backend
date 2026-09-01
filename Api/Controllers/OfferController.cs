@@ -128,5 +128,18 @@ namespace Api.Controllers
             var result = await offer.ResendOfferEmailAsync(mapper.MapResendEmail(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Delete offer")]
+        [EndpointDescription("Delete offer by offer ID.")]
+        [HttpDelete("{offerId:guid}")]
+        [Authorize]
+        public async Task<IActionResult> DeleteOfferAsync(
+            [FromServices] IOfferServices offer,
+            [FromRoute] Guid offerId
+            )
+        {
+            var result = await offer.DeleteOfferAsync(offerId);
+            return HandleResult(result);
+        }
     }
 }

@@ -501,5 +501,41 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result> DeleteOfferAsync(Guid id)
+        {
+            var offer = await _context.Offers
+                .Include(o => o.Products)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer with ID {OfferId} not found.", id);
+                return Result.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (offer.Status != OfferStatusEnum.Sent && offer.Status != OfferStatusEnum.Expired)
+            {
+                _logger.LogWarning("Attempt to delete an offer with status {OfferStatus}.", offer.Status);
+                return Result.Failure(
+                    message: $"Cannot delete an offer with status '{offer.Status}'. Only 'Sent' or 'Expired' offers can be deleted.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            _context.OfferProducts.RemoveRange(offer.Products);
+            _context.Offers.Remove(offer);
+            await _context.SaveChangesAsync();
+            
+            return Result.Success(
+                message: "Offer deleted successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }
