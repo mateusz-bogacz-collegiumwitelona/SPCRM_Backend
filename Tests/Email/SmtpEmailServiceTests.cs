@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 
 namespace Tests.Email
 {
+    [NotInParallel]
     public class SmtpEmailServiceTest
     {
         private static IContainer _mailpitContainer = null!;
@@ -21,10 +22,13 @@ namespace Tests.Email
         public static async Task SetupClassAsync()
         {
             _mailpitContainer = new ContainerBuilder()
-                .WithImage("axllent/mailpit:v1.29.4")
-                .WithPortBinding(1025, true)
-                .WithWaitStrategy(Wait.ForUnixContainer().UntilExternalTcpPortIsAvailable(1025))
-                .Build();
+                 .WithImage("axllent/mailpit:v1.29.4")
+                 .WithPortBinding(1025, true)
+                 .WithPortBinding(8025, true)
+                 .WithWaitStrategy(Wait.ForUnixContainer()
+                     .UntilMessageIsLogged(".*accessible via.*")
+                     .UntilHttpRequestIsSucceeded(r => r.ForPort(8025).ForPath("/api/v1/info")))
+                 .Build();
 
             await _mailpitContainer.StartAsync();
 
