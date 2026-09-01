@@ -1909,6 +1909,153 @@ namespace Tests.Services
             var deletedProducts = await _contextMock.OfferProducts.IgnoreQueryFilters().Where(op => op.OfferId == offer.Id).ToListAsync();
             await Assert.That(deletedProducts.All(p => p.IsDeleted)).IsTrue();
         }
+
+        // ─── GetOfferAllowedActionsAsync ───────────────────────────────────────
+
+        [Test]
+        public async Task GetOfferAllowedActionsAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Act
+            var result = await _offerServicesMock.GetOfferAllowedActionsAsync(Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+            await Assert.That(result.Data).IsNull();
+        }
+
+        [Test]
+        public async Task GetOfferAllowedActionsAsync_ReturnsFullPermissions_WhenOfferIsActiveSent()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/ACTIVE/ACTIONS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferAllowedActionsAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var actions = result.Data!;
+            await Assert.That(actions.CanEdit).IsTrue();
+            await Assert.That(actions.CanDelete).IsTrue();
+            await Assert.That(actions.CanResendEmail).IsTrue();
+            await Assert.That(actions.CanExtendValidity).IsTrue();
+            await Assert.That(actions.AllowedStatusTransitions.Count).IsEqualTo(2);
+            await Assert.That(actions.AllowedStatusTransitions).Contains(OfferStatusEnum.Accepted.ToString());
+            await Assert.That(actions.AllowedStatusTransitions).Contains(OfferStatusEnum.Rejected.ToString());
+        }
+
+        [Test]
+        public async Task GetOfferAllowedActionsAsync_BlocksTransitionsAndEdit_WhenOfferIsExpired()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/EXPIRED/ACTIONS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(-2),
+                Status = OfferStatusEnum.Expired,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferAllowedActionsAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var actions = result.Data!;
+            await Assert.That(actions.CanEdit).IsFalse();
+            await Assert.That(actions.CanDelete).IsTrue();
+            await Assert.That(actions.CanResendEmail).IsFalse();
+            await Assert.That(actions.CanExtendValidity).IsTrue();
+            await Assert.That(actions.AllowedStatusTransitions.Count).IsEqualTo(0);
+        }
+
+        [Test]
+        [Arguments(OfferStatusEnum.Accepted)]
+        [Arguments(OfferStatusEnum.Rejected)]
+        public async Task GetOfferAllowedActionsAsync_LocksAllActions_WhenOfferIsInTerminalStatus(OfferStatusEnum status)
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/TERMINAL/ACTIONS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(5),
+                Status = status,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _offerServicesMock.GetOfferAllowedActionsAsync(offer.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var actions = result.Data!;
+            await Assert.That(actions.CanEdit).IsFalse();
+            await Assert.That(actions.CanDelete).IsFalse();
+            await Assert.That(actions.CanResendEmail).IsFalse();
+            await Assert.That(actions.CanExtendValidity).IsFalse();
+            await Assert.That(actions.AllowedStatusTransitions.Count).IsEqualTo(0);
+        }
+
+
+        // ─── GetOfferStatus ────────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetOfferStatus_ReturnsAllEnumNames()
+        {
+            // Act
+            var result = await _offerServicesMock.GetOfferStatus();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Count).IsEqualTo(4);
+            await Assert.That(result.Data).Contains("Sent");
+            await Assert.That(result.Data).Contains("Accepted");
+            await Assert.That(result.Data).Contains("Rejected");
+            await Assert.That(result.Data).Contains("Expired");
+        }
     }
 
     public class OfferTestFakeEmailSender : IEmailSender

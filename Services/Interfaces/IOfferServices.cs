@@ -16,5 +16,7 @@ namespace Services.Interfaces
         Task<Result> UpdateOfferProductsAsync(UpdateOfferProductsCommand command);
         Task<Result> ResendOfferEmailAsync(ResendOfferEmailCommand command);
         Task<Result> DeleteOfferAsync(Guid id);
+        Task<Result<OfferAllowedActionsResponse>> GetOfferAllowedActionsAsync(Guid id);
+        Task<Result<List<string>>> GetOfferStatus();
     }
 }

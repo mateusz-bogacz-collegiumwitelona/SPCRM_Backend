@@ -502,5 +502,55 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result<OfferAllowedActionsResponse>> GetOfferAllowedActionsAsync(Guid id)
+        {
+            var offer = await _context.Offers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (offer == null)
+            {
+                return Result<OfferAllowedActionsResponse>.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var allowedTransitions = new List<string>();
+
+            if (offer.CanTransitionTo(OfferStatusEnum.Accepted).IsSuccess)
+            {
+                allowedTransitions.Add(OfferStatusEnum.Accepted.ToString());
+            }
+
+            if (offer.CanTransitionTo(OfferStatusEnum.Rejected).IsSuccess)
+            {
+                allowedTransitions.Add(OfferStatusEnum.Rejected.ToString());
+            }
+
+            var response = new OfferAllowedActionsResponse
+            {
+                CanEdit = offer.CanEditProducts().IsSuccess,
+                CanDelete = offer.CanDelete().IsSuccess,
+                CanResendEmail = offer.CanResendEmail().IsSuccess,
+                CanExtendValidity = offer.Status != OfferStatusEnum.Accepted && offer.Status != OfferStatusEnum.Rejected,
+                AllowedStatusTransitions = allowedTransitions
+            };
+
+            return Result<OfferAllowedActionsResponse>.Success(
+                message: "Allowed actions retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+            );
+        }
+
+        public async Task<Result<List<string>>> GetOfferStatus()
+            => Result<List<string>>.Success(
+                message: "Allowed actions retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: Enum.GetNames<OfferStatusEnum>().ToList()
+            );
     }
 }

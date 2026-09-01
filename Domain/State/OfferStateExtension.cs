@@ -42,7 +42,16 @@ namespace Domain.State
         {
             offer.EnsureFreshExpirationStatus();
 
-            if (offer.Status == OfferStatusEnum.Expired || offer.IsExpired())
+            if (offer.Status != OfferStatusEnum.Sent)
+            {
+                return Result.Failure(
+                    message: $"Cannot resend email for an offer with status '{offer.Status}'. Only 'Sent' offers can be resent.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            if (offer.IsExpired())
             {
                 return Result.Failure(
                     message: "Cannot resend an expired offer. Please extend validity first.",

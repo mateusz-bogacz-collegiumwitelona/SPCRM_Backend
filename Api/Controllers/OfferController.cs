@@ -141,5 +141,27 @@ namespace Api.Controllers
             var result = await offer.DeleteOfferAsync(offerId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get offer allowed actions")]
+        [EndpointDescription("Get offer allowed actions by offer ID.")]
+        [HttpGet("{id:guid}/allowed-actions")]
+        [Authorize]
+        public async Task<IActionResult> GetOfferAllowedActionsAsync(
+            [FromServices] IOfferServices offerServices,
+            [FromRoute] Guid id)
+        {
+            var result = await offerServices.GetOfferAllowedActionsAsync(id);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get offer status list")]
+        [EndpointDescription("Get offer status list.")]
+        [HttpGet("status")]
+        [Authorize]
+        public async Task<IActionResult> GetOfferStatusAsync([FromServices] IOfferServices offerServices)
+        {
+            var result = await offerServices.GetOfferStatus();
+            return HandleResult(result);
+        }
     }
 }
