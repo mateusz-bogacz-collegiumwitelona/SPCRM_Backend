@@ -317,5 +317,98 @@ namespace Services.Services
                 throw;
             }
         }
+
+        public async Task<Result> UpdateOfferProductsAsync(UpdateOfferProductsCommand command)
+        {
+            var offer = await _context.Offers
+                .Include(o => o.Products)
+                .FirstOrDefaultAsync(o => o.Id == command.OfferId);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                return Result.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (offer.Status != OfferStatusEnum.Sent)
+            {
+                _logger.LogWarning("Attempt to edit products of an offer with status {OfferStatus}.", offer.Status);
+                return Result.Failure(
+                    message: $"Cannot edit products of an offer with status '{offer.Status}'. Only 'Sent' offers can be edited.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            if (offer.ValidUntil < DateTime.UtcNow)
+            {
+                offer.Status = OfferStatusEnum.Expired;
+                await _context.SaveChangesAsync();
+
+                _logger.LogWarning("Attempt to edit products of an expired offer with ID {OfferId}.", command.OfferId);
+                return Result.Failure(
+                    message: "Offer has expired and cannot be edited without extending its validity.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            if (!command.Items.Any())
+            {
+                _logger.LogWarning("Attempt to update offer with ID {OfferId} with no products.", command.OfferId);
+                return Result.Failure(
+                    message: "Offer must contain at least one product.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var requestedProductIds = command.Items.Select(i=> i.ProductId).Distinct().ToList();
+            var existingProductsCount = await _context.Products.CountAsync(p => requestedProductIds.Contains(p.Id));
+
+            if (existingProductsCount != requestedProductIds.Count)
+            {
+                _logger.LogWarning("One or more products specified in the command do not exist for offer ID {OfferId}.", command.OfferId);
+                return Result.Failure(
+                    message: "One or more products specified in the command do not exist.",
+                    errorCode: ErrorCodes.ProductNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                _context.OfferProducts.RemoveRange(offer.Products);
+
+                var newOfferProducts = command.Items.Select(i => new OfferProducts
+                {
+                    OfferId = offer.Id,
+                    ProductId = i.ProductId,
+                    Quantity = i.Quantity,
+                    QuotedPrice = i.QuotedPrice
+                }).ToList();
+
+                await _context.OfferProducts.AddRangeAsync(newOfferProducts);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Result.Success(
+                    message: "Offer products updated successfully.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+            catch (Exception ex) 
+            { 
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error while updating products for offer ID {OfferId}", command.OfferId);
+                throw;
+            }
+        }
     }
 }

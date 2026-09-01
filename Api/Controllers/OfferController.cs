@@ -87,6 +87,10 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+
+
+        [EndpointSummary("Change offer status")]
+        [EndpointDescription("Change offer status by offer ID")]
         [HttpPatch("status")]
         [Authorize]
         public async Task<IActionResult> ChangeOfferStatusAsync(
@@ -95,6 +99,22 @@ namespace Api.Controllers
             [FromBody] ChangeOfferStatusRequest request)
         {
             var result = await offer.ChangeOfferStatusAsync(mapper.MapChangeStatus(request));
+            return HandleResult(result);
+        }
+
+
+
+        [EndpointSummary("Update offer products")]
+        [EndpointDescription("Update offer products by offer ID.")]
+        [HttpPut("products")]
+        [Authorize]
+        public async Task<IActionResult> UpdateOfferProductsAsync(
+            [FromServices] IOfferServices offerServices,
+            [FromServices] OfferMapper mapper,
+            [FromBody] UpdateOfferProductsRequest request)
+        {
+            var command = mapper.MapUpdateProducts(request);
+            var result = await offerServices.UpdateOfferProductsAsync(command);
             return HandleResult(result);
         }
     }

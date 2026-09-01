@@ -13,5 +13,6 @@ namespace Services.Interfaces
         Task<Result<PagedResult<OfferProductResponse>>> GetOfferProductsAsync(Guid id, SimpleListCommand command);
         Task<Result> ExtendOfferValidityAsync(ExtendOfferValidityCommand command);
         Task<Result<Guid?>> ChangeOfferStatusAsync(ChangeOfferStatusCommand command);
+        Task<Result> UpdateOfferProductsAsync(UpdateOfferProductsCommand command);
     }
 }

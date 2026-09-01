@@ -1320,5 +1320,296 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
+
+        // ─── UpdateOfferProductsAsync ──────────────────────────────────────────
+
+        [Test]
+        public async Task UpdateOfferProductsAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Arrange
+            var command = new UpdateOfferProductsCommand
+            {
+                OfferId = Guid.NewGuid(),
+                Items = new List<OfferProductItemCommand>
+                {
+                    new() { ProductId = Guid.NewGuid(), Quantity = 5, QuotedPrice = 100000 }
+                }
+            };
+
+            // Act
+            var result = await _offerServicesMock.UpdateOfferProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+        }
+
+        [Test]
+        [Arguments(OfferStatusEnum.Accepted)]
+        [Arguments(OfferStatusEnum.Rejected)]
+        [Arguments(OfferStatusEnum.Expired)]
+        public async Task UpdateOfferProductsAsync_ReturnsBadRequest_WhenOfferIsNotInSentStatus(OfferStatusEnum initialStatus)
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/LOCKED/UPDATE",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = initialStatus,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UpdateOfferProductsCommand
+            {
+                OfferId = offer.Id,
+                Items = new List<OfferProductItemCommand>
+                {
+                    new() { ProductId = Guid.NewGuid(), Quantity = 2, QuotedPrice = 50000 }
+                }
+            };
+
+            // Act
+            var result = await _offerServicesMock.UpdateOfferProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task UpdateOfferProductsAsync_MarksOfferAsExpiredAndReturnsBadRequest_WhenOfferIsPastValidUntil()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/EXPIRED/UPDATE",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(-2),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UpdateOfferProductsCommand
+            {
+                OfferId = offer.Id,
+                Items = new List<OfferProductItemCommand>
+                {
+                    new() { ProductId = Guid.NewGuid(), Quantity = 2, QuotedPrice = 50000 }
+                }
+            };
+
+            // Act
+            var result = await _offerServicesMock.UpdateOfferProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var updatedOffer = await _contextMock.Offers.FindAsync(offer.Id);
+            await Assert.That(updatedOffer!.Status).IsEqualTo(OfferStatusEnum.Expired);
+        }
+
+        [Test]
+        public async Task UpdateOfferProductsAsync_ReturnsBadRequest_WhenItemsListIsEmpty()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/EMPTY/ITEMS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(5),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UpdateOfferProductsCommand
+            {
+                OfferId = offer.Id,
+                Items = new List<OfferProductItemCommand>()
+            };
+
+            // Act
+            var result = await _offerServicesMock.UpdateOfferProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task UpdateOfferProductsAsync_ReturnsNotFound_WhenSpecifiedProductDoesNotExist()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/NON_EXISTENT/PRODUCT",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(5),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UpdateOfferProductsCommand
+            {
+                OfferId = offer.Id,
+                Items = new List<OfferProductItemCommand>
+                {
+                    new() { ProductId = Guid.NewGuid(), Quantity = 10, QuotedPrice = 20000 }
+                }
+            };
+
+            // Act
+            var result = await _offerServicesMock.UpdateOfferProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+        }
+
+        [Test]
+        public async Task UpdateOfferProductsAsync_SuccessfullyReplacesOldProductsWithNewOnes()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900 };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var productOld = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt Stary",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 100000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade
+            };
+
+            var productNew1 = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt Nowy 1",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 200000,
+                StockQuantity = 100,
+                Category = ProductCategoryEnum.Sheet,
+                SteelGrade = steelGrade
+            };
+
+            var productNew2 = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt Nowy 2",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 300000,
+                StockQuantity = 80,
+                Category = ProductCategoryEnum.Bar,
+                SteelGrade = steelGrade
+            };
+
+            _contextMock.Products.AddRange(productOld, productNew1, productNew2);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/SUCCESS/UPDATE",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.Add(new OfferProducts
+            {
+                Id = Guid.NewGuid(),
+                OfferId = offer.Id,
+                ProductId = productOld.Id,
+                Quantity = 1,
+                QuotedPrice = 90000
+            });
+
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UpdateOfferProductsCommand
+            {
+                OfferId = offer.Id,
+                Items = new List<OfferProductItemCommand>
+                {
+                    new() { ProductId = productNew1.Id, Quantity = 5, QuotedPrice = 180000 },
+                    new() { ProductId = productNew2.Id, Quantity = 12, QuotedPrice = 270000 }
+                }
+            };
+
+            // Act
+            var result = await _offerServicesMock.UpdateOfferProductsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedItems = await _contextMock.OfferProducts
+                .Where(op => op.OfferId == offer.Id)
+                .OrderBy(op => op.Quantity)
+                .ToListAsync();
+
+            await Assert.That(updatedItems.Count).IsEqualTo(2);
+
+            await Assert.That(updatedItems.Any(op => op.ProductId == productOld.Id)).IsFalse();
+
+            await Assert.That(updatedItems[0].ProductId).IsEqualTo(productNew1.Id);
+            await Assert.That(updatedItems[0].Quantity).IsEqualTo(5);
+            await Assert.That(updatedItems[0].QuotedPrice).IsEqualTo(180000);
+
+            await Assert.That(updatedItems[1].ProductId).IsEqualTo(productNew2.Id);
+            await Assert.That(updatedItems[1].Quantity).IsEqualTo(12);
+            await Assert.That(updatedItems[1].QuotedPrice).IsEqualTo(270000);
+        }
     }
 }
