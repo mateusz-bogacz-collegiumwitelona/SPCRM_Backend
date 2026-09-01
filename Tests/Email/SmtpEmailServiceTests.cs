@@ -67,6 +67,8 @@ namespace Tests.Email
         public async Task SendEmailAsync_WithValidConfiguration_SendsEmailSuccessfully()
         {
             // Arrange
+            Console.WriteLine($"[DEBUG SMTP] Mailpit Host: {_mailpitHost}, Port: {_mailpitPort}");
+
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
@@ -78,18 +80,55 @@ namespace Tests.Email
                 })
                 .Build();
 
-            var realLogger = new LoggerFactory().CreateLogger<SmtpEmailService>();
-            var emailService = new SmtpEmailService(configuration, realLogger);
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddSimpleConsole(options =>
+                {
+                    options.IncludeScopes = true;
+                    options.SingleLine = true;
+                    options.TimestampFormat = "HH:mm:ss ";
+                });
+                builder.SetMinimumLevel(LogLevel.Trace);
+            });
 
-            // Act
-            Func<Task> action = async () => await emailService.SendEmailAsync(
-                "test_integracyjny@spcrm.pl",
-                "Test TUnit + Testcontainers",
-                "Wiadomość z testu"
-            );
+            var logger = loggerFactory.CreateLogger<SmtpEmailService>();
+            var emailService = new SmtpEmailService(configuration, logger);
 
-            // Assert 
-            await Assert.That(action).ThrowsNothing();
+            // Act & Diagnose
+            try
+            {
+                await emailService.SendEmailAsync(
+                    "test_integracyjny@spcrm.pl",
+                    "Test TUnit + Testcontainers",
+                    "Wiadomość z testu"
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("==================================================");
+                Console.WriteLine("[DIAGNOSTIC ERROR] SmtpClient threw an exception:");
+                Console.WriteLine($"Type: {ex.GetType().FullName}");
+                Console.WriteLine($"Message: {ex.Message}");
+                Console.WriteLine($"Inner Exception: {ex.InnerException?.ToString() ?? "None"}");
+                Console.WriteLine($"Full StackTrace:\n{ex}");
+
+                // Pobranie logów z samego kontenera Mailpit
+                try
+                {
+                    var (stdout, stderr) = await _mailpitContainer.GetLogsAsync();
+                    Console.WriteLine("--- Mailpit Container StdOut ---");
+                    Console.WriteLine(stdout);
+                    Console.WriteLine("--- Mailpit Container StdErr ---");
+                    Console.WriteLine(stderr);
+                }
+                catch (Exception logEx)
+                {
+                    Console.WriteLine($"Could not retrieve container logs: {logEx.Message}");
+                }
+                Console.WriteLine("==================================================");
+
+                throw; 
+            }
         }
     }
 
