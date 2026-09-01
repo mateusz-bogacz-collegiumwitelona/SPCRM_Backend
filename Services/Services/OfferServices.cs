@@ -3,6 +3,7 @@ using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
+using Domain.State;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -174,26 +175,14 @@ namespace Services.Services
                 );
             }
 
-            if (offer.Status == OfferStatusEnum.Accepted || offer.Status == OfferStatusEnum.Rejected)
-            {
-                return Result.Failure(
-                    message: "Cannot extend validity of an accepted or rejected offer.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
-            }
-
             var targetDate = command.NewValidUntil.HasValue
                 ? DateTime.SpecifyKind(command.NewValidUntil.Value, DateTimeKind.Utc)
                 : DateTime.UtcNow.AddDays(7);
 
-            if (targetDate <= DateTime.UtcNow)
+            var stateCheck = offer.CanExtendValidity(targetDate);
+            if (!stateCheck.IsSuccess)
             {
-                return Result.Failure(
-                    message: "New validity date must be in the future.",
-                    errorCode: ErrorCodes.InvalidDate,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
+                return stateCheck;
             }
 
             offer.ValidUntil = targetDate;
@@ -208,7 +197,7 @@ namespace Services.Services
             return Result.Success(
                 message: "Offer validity extended successfully.",
                 statusCode: StatusCodes.Status200OK
-                );
+            );
         }
 
         public async Task<Result<Guid?>> ChangeOfferStatusAsync(ChangeOfferStatusCommand command)
@@ -229,33 +218,19 @@ namespace Services.Services
                 );
             }
 
-            if (offer.Status != OfferStatusEnum.Sent)
+            var stateCheck = offer.CanTransitionTo(command.NewStatus);
+            if (!stateCheck.IsSuccess)
             {
-                return Result<Guid?>.Failure(
-                    message: $"Cannot change status of an offer with status '{offer.Status}'. Only 'Sent' offers can be modified.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
-            }
-
-            if (command.NewStatus != OfferStatusEnum.Accepted && command.NewStatus != OfferStatusEnum.Rejected)
-            {
-                return Result<Guid?>.Failure(
-                    message: "Invalid target status. Status can only be changed to 'Accepted' or 'Rejected'.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
-            }
-
-            if (offer.ValidUntil < DateTime.UtcNow)
-            {
-                offer.Status = OfferStatusEnum.Expired;
-                await _context.SaveChangesAsync();
+                _logger.LogWarning("Attempt to change offer status from {CurrentStatus} to {NewStatus} for ID {OfferId} is invalid.", offer.Status, command.NewStatus, command.OfferId);
+                if (_context.Entry(offer).Property(o => o.Status).IsModified)
+                {
+                    await _context.SaveChangesAsync();
+                }
 
                 return Result<Guid?>.Failure(
-                    message: "Offer has expired and cannot be accepted or rejected without extending validity.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
+                    message: stateCheck.Message ?? "An error occurred while changing the offer status.",
+                    errorCode: stateCheck.ErrorCode ?? ErrorCodes.InvalidOperation,
+                    statusCode: stateCheck.StatusCode
                 );
             }
 
@@ -337,27 +312,12 @@ namespace Services.Services
                 );
             }
 
-            if (offer.Status != OfferStatusEnum.Sent)
-            {
-                _logger.LogWarning("Attempt to edit products of an offer with status {OfferStatus}.", offer.Status);
-                return Result.Failure(
-                    message: $"Cannot edit products of an offer with status '{offer.Status}'. Only 'Sent' offers can be edited.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
-            }
+            var stateCheck = offer.CanEditProducts();
 
-            if (offer.ValidUntil < DateTime.UtcNow)
+            if (!stateCheck.IsSuccess)
             {
-                offer.Status = OfferStatusEnum.Expired;
-                await _context.SaveChangesAsync();
-
-                _logger.LogWarning("Attempt to edit products of an expired offer with ID {OfferId}.", command.OfferId);
-                return Result.Failure(
-                    message: "Offer has expired and cannot be edited without extending its validity.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
+                _logger.LogWarning("Attempt to update products for offer ID {OfferId} in invalid state.", command.OfferId);
+                return stateCheck;
             }
 
             if (!command.Items.Any())
@@ -438,11 +398,19 @@ namespace Services.Services
                 );
             }
 
-            if (offer.Status == OfferStatusEnum.Expired || offer.ValidUntil < DateTime.UtcNow)
+            var statusCheck = offer.CanResendEmail();
+
+            if (!statusCheck.IsSuccess)
             {
-                _logger.LogWarning("Attempt to resend an expired offer with ID {OfferId}.", command.OfferId);
+                _logger.LogWarning("Attempt to resend email for offer ID {OfferId} in invalid state.", command.OfferId);
+                return statusCheck;
+            }
+
+            if (!statusCheck.IsSuccess)
+            {
+                _logger.LogWarning("Attempt to resend email for offer ID {OfferId} in invalid state.", command.OfferId);
                 return Result.Failure(
-                    message: "Cannot resend an expired offer. Please extend validity first.",
+                    message: statusCheck.Message ?? "Cannot resend email for this offer.",
                     errorCode: ErrorCodes.InvalidOperation,
                     statusCode: StatusCodes.Status400BadRequest
                 );
@@ -518,20 +486,17 @@ namespace Services.Services
                 );
             }
 
-            if (offer.Status != OfferStatusEnum.Sent && offer.Status != OfferStatusEnum.Expired)
+            var stateCheck = offer.CanDelete();
+            if (!stateCheck.IsSuccess)
             {
-                _logger.LogWarning("Attempt to delete an offer with status {OfferStatus}.", offer.Status);
-                return Result.Failure(
-                    message: $"Cannot delete an offer with status '{offer.Status}'. Only 'Sent' or 'Expired' offers can be deleted.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
+                _logger.LogWarning("Attempt to delete an offer with invalid status {OfferStatus} for ID {OfferId}.", offer.Status, id);
+                return stateCheck;
             }
 
             _context.OfferProducts.RemoveRange(offer.Products);
             _context.Offers.Remove(offer);
             await _context.SaveChangesAsync();
-            
+
             return Result.Success(
                 message: "Offer deleted successfully.",
                 statusCode: StatusCodes.Status200OK

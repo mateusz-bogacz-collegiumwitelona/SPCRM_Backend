@@ -112,7 +112,6 @@ namespace Tests.Email
                 Console.WriteLine($"Inner Exception: {ex.InnerException?.ToString() ?? "None"}");
                 Console.WriteLine($"Full StackTrace:\n{ex}");
 
-                // Pobranie logów z samego kontenera Mailpit
                 try
                 {
                     var (stdout, stderr) = await _mailpitContainer.GetLogsAsync();
