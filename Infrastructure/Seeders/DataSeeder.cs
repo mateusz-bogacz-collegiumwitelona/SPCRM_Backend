@@ -707,6 +707,7 @@ namespace Infrastructure.Seeders
                 var contact = contacts[random.Next(contacts.Count)];
                 var creator = users[random.Next(users.Count)];
                 var status = statusPool[random.Next(statusPool.Length)];
+                var currency = currencies[random.Next(currencies.Count)];
 
                 DateTime validUntil;
 
@@ -721,7 +722,7 @@ namespace Infrastructure.Seeders
                         break;
 
                     case OfferStatusEnum.Rejected:
-                        validUntil = DateTime.UtcNow.AddDays(random.Next(-25, 10));
+                        validUntil = DateTime.UtcNow.AddDays(-random.Next(1, 45)).AddHours(-random.Next(1, 12));
                         break;
 
                     case OfferStatusEnum.Expired:
@@ -736,6 +737,8 @@ namespace Infrastructure.Seeders
                     ContactId = contact.Id,
                     Contact = contact,
                     CreatedByUserId = creator.Id,
+                    CurrencyId = currency.Id,
+                    Currency = currency,
                     ValidUntil = validUntil,
                     Status = status,
                     Products = new List<OfferProducts>()
@@ -746,7 +749,6 @@ namespace Infrastructure.Seeders
 
                 foreach (var product in selectedProducts)
                 {
-                    var currency = currencies[random.Next(currencies.Count)];
                     long quotedPrice = (long)(product.PricePerUnit * (random.Next(85, 110) / 100.0));
 
                     offer.Products.Add(new OfferProducts
@@ -755,14 +757,12 @@ namespace Infrastructure.Seeders
                         ProductId = product.Id,
                         Product = product,
                         Quantity = random.Next(1, 100),
-                        QuotedPrice = quotedPrice,
-                        CurrencyId = currency.Id,
-                        Currency = currency
+                        QuotedPrice = quotedPrice
                     });
                 }
 
                 offers.Add(offer);
-                Console.WriteLine($"Prepared offer {i} for contact: {contact.FirstName} {contact.LastName} (Status: {offer.Status}, ValidUntil: {offer.ValidUntil:yyyy-MM-dd})");
+                Console.WriteLine($"Prepared offer {i} for contact: {contact.FirstName} {contact.LastName} (Status: {offer.Status}, Currency: {currency.Code}, ValidUntil: {offer.ValidUntil:yyyy-MM-dd})");
             }
 
             await _context.Offers.AddRangeAsync(offers);

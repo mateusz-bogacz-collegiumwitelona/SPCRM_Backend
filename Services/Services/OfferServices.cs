@@ -123,12 +123,13 @@ namespace Services.Services
 
         public async Task<Result<PagedResult<OfferProductResponse>>> GetOfferProductsAsync(
             Guid id,
-            SimpleListCommand command
-            )
+            SimpleListCommand command)
         {
-            var offerExists = await _context.Offers.AnyAsync(o => o.Id == id);
+            var offer = await _context.Offers
+                .Include(o => o.Currency)
+                .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (!offerExists)
+            if (offer == null)
             {
                 _logger.LogWarning("Offer with ID {OfferId} not found.", id);
                 return Result<PagedResult<OfferProductResponse>>.Failure(
@@ -150,8 +151,8 @@ namespace Services.Services
                     SteelGrade = op.Product.SteelGrade.Name,
                     Quantity = op.Quantity,
                     QuotedPrice = op.QuotedPrice,
-                    CurrencyCode = op.Currency.Code,
-                    DecimalPlaces = op.Currency.DecimalPlaces
+                    CurrencyCode = op.Offer.Currency.Code,
+                    DecimalPlaces = op.Offer.Currency.DecimalPlaces
                 })
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "offer-products");
         }
@@ -211,8 +212,8 @@ namespace Services.Services
         {
             var offer = await _context.Offers
                 .Include(o => o.Contact)
+                .Include(o => o.Currency)
                 .Include(o => o.Products)
-                    .ThenInclude(p => p.Currency)
                 .FirstOrDefaultAsync(o => o.Id == command.OfferId);
 
             if (offer == null)
@@ -273,17 +274,16 @@ namespace Services.Services
                         );
                     }
 
-                    var primaryCurrencyId = offer.Products.First().CurrencyId;
                     var totalValue = offer.Products.Sum(p => (long)p.Quantity * p.QuotedPrice);
 
                     var deal = new Deal
                     {
                         Id = Guid.NewGuid(),
-                        Name = $"Sprzedaż z oferty: {offer.Name}",
+                        Name = $"SE/{offer.Name}",
                         Value = totalValue,
                         Status = DealsStatusEnum.ToDo,
                         CloseDate = DateTime.UtcNow.AddMonths(1),
-                        CurrencyId = primaryCurrencyId,
+                        CurrencyId = offer.CurrencyId,
                         OwnerId = offer.CreatedByUserId,
                         CompanyId = offer.Contact.CompanyId,
                         DealProducts = offer.Products.Select(op => new DealProduct

@@ -98,10 +98,10 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        private async Task<(Company Company, Contact Contact)> SeedCompanyAndContactAsync(
-            string companyName = "Stal-Met",
-            string firstName = "Jan",
-            string lastName = "Kowalski")
+        private async Task<(Company Company, Contact Contact, Currency Currency)> SeedCompanyAndContactAsync(
+     string companyName = "Stal-Met",
+     string firstName = "Jan",
+     string lastName = "Kowalski")
         {
             var user = new ApplicationUser
             {
@@ -112,6 +112,16 @@ namespace Tests.Services
                 LastName = "User"
             };
             _contextMock.Users.Add(user);
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2,
+                IsDeleted = false
+            };
+            _contextMock.Currencies.Add(currency);
 
             var company = new Company
             {
@@ -135,7 +145,7 @@ namespace Tests.Services
             _contextMock.Contacts.Add(contact);
 
             await _contextMock.SaveChangesAsync();
-            return (company, contact);
+            return (company, contact, currency);
         }
 
         // ─── GetOfferListAsync ─────────────────────────────────────────────────
@@ -145,7 +155,7 @@ namespace Tests.Services
         public async Task GetOfferListAsync_ReturnsAllOffersPaged_WhenNoFiltersProvided()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offers = new List<Offer>
             {
@@ -156,7 +166,8 @@ namespace Tests.Services
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(10),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    CurrencyId = currency.Id
                 },
                 new()
                 {
@@ -165,7 +176,8 @@ namespace Tests.Services
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(20),
-                    Status = OfferStatusEnum.Accepted
+                    Status = OfferStatusEnum.Accepted,
+                    CurrencyId = currency.Id
                 }
             };
 
@@ -192,8 +204,8 @@ namespace Tests.Services
         public async Task GetOfferListAsync_FiltersCorrectly_BySearchTermWithUnaccentAndCaseInsensitivity()
         {
             // Arrange
-            var (_, contactMatching) = await SeedCompanyAndContactAsync("BudowaX", "Michał", "Żółciński");
-            var (_, contactOther) = await SeedCompanyAndContactAsync("Huta Odra", "Adam", "Nowak");
+            var (_, contactMatching, currency) = await SeedCompanyAndContactAsync("BudowaX", "Michał", "Żółciński");
+            var (_, contactOther, currencyOther) = await SeedCompanyAndContactAsync("Huta Odra", "Adam", "Nowak");
 
             _contextMock.Offers.AddRange(
                 new Offer
@@ -203,7 +215,8 @@ namespace Tests.Services
                     ContactId = contactMatching.Id,
                     CreatedByUserId = contactMatching.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(5),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    CurrencyId = currency.Id
                 },
                 new Offer
                 {
@@ -212,7 +225,8 @@ namespace Tests.Services
                     ContactId = contactOther.Id,
                     CreatedByUserId = contactOther.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(5),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    CurrencyId = currencyOther.Id
                 }
             );
             await _contextMock.SaveChangesAsync();
@@ -237,7 +251,7 @@ namespace Tests.Services
         public async Task GetOfferListAsync_FiltersCorrectly_ByStatus()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             _contextMock.Offers.AddRange(
                 new Offer
@@ -248,7 +262,8 @@ namespace Tests.Services
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(5),
                     Status = OfferStatusEnum.Sent,
-                    IsDeleted = false
+                    IsDeleted = false,
+                    CurrencyId = currency.Id
                 },
                 new Offer
                 {
@@ -258,7 +273,8 @@ namespace Tests.Services
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(-5),
                     Status = OfferStatusEnum.Expired,
-                    IsDeleted = false
+                    IsDeleted = false,
+                    CurrencyId = currency.Id
                 }
             );
             await _contextMock.SaveChangesAsync();
@@ -284,7 +300,7 @@ namespace Tests.Services
         public async Task GetOfferListAsync_FiltersCorrectly_ByValidUntilDateRange()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
             var baseDate = DateTime.UtcNow.AddDays(30);
 
             _contextMock.Offers.AddRange(
@@ -296,7 +312,8 @@ namespace Tests.Services
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = baseDate.AddDays(-10),
                     Status = OfferStatusEnum.Sent,
-                    IsDeleted = false
+                    IsDeleted = false,
+                    CurrencyId = currency.Id
                 },
                 new Offer
                 {
@@ -306,7 +323,8 @@ namespace Tests.Services
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = baseDate,
                     Status = OfferStatusEnum.Sent,
-                    IsDeleted = false
+                    IsDeleted = false,
+                    CurrencyId = currency.Id
                 },
                 new Offer
                 {
@@ -316,7 +334,8 @@ namespace Tests.Services
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = baseDate.AddDays(10),
                     Status = OfferStatusEnum.Sent,
-                    IsDeleted = false
+                    IsDeleted = false,
+                    CurrencyId = currency.Id
                 }
             );
             await _contextMock.SaveChangesAsync();
@@ -343,8 +362,8 @@ namespace Tests.Services
         public async Task GetOfferListAsync_SortsCorrectly_ByCompanyNameDescending()
         {
             // Arrange
-            var (compA, contactA) = await SeedCompanyAndContactAsync("Alfa Stal", "Piotr", "Abacki");
-            var (compZ, contactZ) = await SeedCompanyAndContactAsync("Zeta Met", "Paweł", "Zetowski");
+            var (compA, contactA, currencyA) = await SeedCompanyAndContactAsync("Alfa Stal", "Piotr", "Abacki");
+            var (compZ, contactZ, currencyZ) = await SeedCompanyAndContactAsync("Zeta Met", "Paweł", "Zetowski");
 
             _contextMock.Offers.AddRange(
                 new Offer
@@ -354,7 +373,8 @@ namespace Tests.Services
                     ContactId = contactA.Id,
                     CreatedByUserId = contactA.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(5),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    CurrencyId = currencyA.Id
                 },
                 new Offer
                 {
@@ -363,7 +383,8 @@ namespace Tests.Services
                     ContactId = contactZ.Id,
                     CreatedByUserId = contactZ.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(5),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    CurrencyId = currencyZ.Id
                 }
             );
             await _contextMock.SaveChangesAsync();
@@ -390,7 +411,7 @@ namespace Tests.Services
         public async Task GetOfferListAsync_FiltersCorrectly_WhenIsExpiredIsTrue()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             _contextMock.Offers.AddRange(
                 new Offer
@@ -400,7 +421,8 @@ namespace Tests.Services
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(5),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    CurrencyId = currency.Id
                 },
                 new Offer
                 {
@@ -409,7 +431,8 @@ namespace Tests.Services
                     ContactId = contact.Id,
                     CreatedByUserId = contact.OwnerId,
                     ValidUntil = DateTime.UtcNow.AddDays(-5),
-                    Status = OfferStatusEnum.Sent
+                    Status = OfferStatusEnum.Sent,
+                    CurrencyId = currency.Id
                 }
             );
             await _contextMock.SaveChangesAsync();
@@ -453,7 +476,7 @@ namespace Tests.Services
         public async Task GetOfferDetailAsync_ReturnsOfferDetails_WhenOfferExists()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
             var validUntilDate = new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc);
 
             var offer = new Offer
@@ -463,7 +486,8 @@ namespace Tests.Services
                 ContactId = contact.Id,
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = validUntilDate,
-                Status = OfferStatusEnum.Accepted
+                Status = OfferStatusEnum.Accepted,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -486,7 +510,7 @@ namespace Tests.Services
         public async Task GetOfferDetailAsync_ReturnsNotFound_WhenOfferIsSoftDeleted()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offer = new Offer
             {
@@ -496,7 +520,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = true
+                IsDeleted = true,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -534,7 +559,7 @@ namespace Tests.Services
         public async Task GetOfferClientDetailAsync_ReturnsClientDetails_WhenOfferExists()
         {
             // Arrange
-            var (company, contact) = await SeedCompanyAndContactAsync("Huta Stalowa Wola", "Marek", "Nowak");
+            var (company, contact, currency) = await SeedCompanyAndContactAsync("Huta Stalowa Wola", "Marek", "Nowak");
             contact.JobTitle = "Dyrektor ds. Zakupów";
             await _contextMock.SaveChangesAsync();
 
@@ -546,7 +571,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id
             };
 
             _contextMock.Offers.Add(offer);
@@ -570,7 +596,7 @@ namespace Tests.Services
         public async Task GetOfferClientDetailAsync_HandlesNullJobTitle_Gracefully()
         {
             // Arrange
-            var (company, contact) = await SeedCompanyAndContactAsync("Met-Bud", "Anna", "Kowalska");
+            var (company, contact, currency) = await SeedCompanyAndContactAsync("Met-Bud", "Anna", "Kowalska");
             contact.JobTitle = null;
             await _contextMock.SaveChangesAsync();
 
@@ -582,7 +608,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -603,7 +630,7 @@ namespace Tests.Services
         public async Task GetOfferClientDetailAsync_ReturnsNotFound_WhenOfferIsSoftDeleted()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offer = new Offer
             {
@@ -613,7 +640,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = true
+                IsDeleted = true,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -656,17 +684,7 @@ namespace Tests.Services
         public async Task GetOfferProductsAsync_ReturnsAllProductsPaged_WhenNoSearchTermProvided()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Polski Złoty",
-                Code = "PLN",
-                DecimalPlaces = 2,
-                IsDeleted = false
-            };
-            _contextMock.Currencies.Add(currency);
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var steelGrade = new SteelGrade
             {
@@ -735,7 +753,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id
             };
             _contextMock.Offers.Add(offer);
 
@@ -747,7 +766,6 @@ namespace Tests.Services
                     ProductId = productA.Id,
                     Quantity = 2,
                     QuotedPrice = 115000,
-                    CurrencyId = currency.Id,
                     IsDeleted = false
                 },
                 new OfferProducts
@@ -757,7 +775,6 @@ namespace Tests.Services
                     ProductId = productB.Id,
                     Quantity = 10,
                     QuotedPrice = 42000,
-                    CurrencyId = currency.Id,
                     IsDeleted = false
                 }
             );
@@ -784,17 +801,8 @@ namespace Tests.Services
         public async Task GetOfferProductsAsync_FiltersBySearchTerm_WithUnaccentAndCaseInsensitivity()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Euro",
-                Code = "EUR",
-                DecimalPlaces = 2,
-                IsDeleted = false
-            };
-            _contextMock.Currencies.Add(currency);
 
             var steelGrade1 = new SteelGrade { Id = Guid.NewGuid(), Name = "S355J2", Density = 7850, IsDeleted = false };
             var steelGrade2 = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4404", Density = 8000, IsDeleted = false };
@@ -849,7 +857,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id
             };
             _contextMock.Offers.Add(offer);
 
@@ -861,7 +870,6 @@ namespace Tests.Services
                     ProductId = product1.Id,
                     Quantity = 20,
                     QuotedPrice = 3300,
-                    CurrencyId = currency.Id,
                     IsDeleted = false
                 },
                 new OfferProducts
@@ -871,7 +879,6 @@ namespace Tests.Services
                     ProductId = product2.Id,
                     Quantity = 5,
                     QuotedPrice = 8500,
-                    CurrencyId = currency.Id,
                     IsDeleted = false
                 }
             );
@@ -895,14 +902,14 @@ namespace Tests.Services
             await Assert.That(result.Data.Items.First().ProductName).IsEqualTo("Pręt żebrowany fi 12");
             await Assert.That(result.Data.Items.First().SteelGrade).IsEqualTo("S355J2");
             await Assert.That(result.Data.Items.First().QuotedPrice).IsEqualTo(3300);
-            await Assert.That(result.Data.Items.First().CurrencyCode).IsEqualTo("EUR");
+            await Assert.That(result.Data.Items.First().CurrencyCode).IsEqualTo("PLN");
         }
 
         [Test]
         public async Task GetOfferProductsAsync_ReturnsEmptyList_WhenOfferHasNoProducts()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offer = new Offer
             {
@@ -912,7 +919,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id
             };
             _contextMock.Offers.Add(offer);
             await _contextMock.SaveChangesAsync();
@@ -937,17 +945,7 @@ namespace Tests.Services
         public async Task GetOfferProductsAsync_FiltersOutSoftDeletedOfferProducts()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Polski Złoty",
-                Code = "PLN",
-                DecimalPlaces = 2,
-                IsDeleted = false
-            };
-            _contextMock.Currencies.Add(currency);
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235JR", Density = 7850, IsDeleted = false };
             _contextMock.SteelGrades.Add(steelGrade);
@@ -982,7 +980,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id
             };
             _contextMock.Offers.Add(offer);
 
@@ -994,7 +993,6 @@ namespace Tests.Services
                     ProductId = product.Id,
                     Quantity = 3,
                     QuotedPrice = 195000,
-                    CurrencyId = currency.Id,
                     IsDeleted = true
                 }
             );
@@ -1044,7 +1042,7 @@ namespace Tests.Services
         public async Task ExtendOfferValidityAsync_ReturnsBadRequest_WhenOfferStatusIsAcceptedOrRejected(OfferStatusEnum status)
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offer = new Offer
             {
@@ -1054,7 +1052,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(5),
                 Status = status,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -1079,7 +1078,7 @@ namespace Tests.Services
         public async Task ExtendOfferValidityAsync_ReturnsBadRequest_WhenNewValidityDateIsInThePast()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offer = new Offer
             {
@@ -1089,7 +1088,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(2),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -1114,7 +1114,7 @@ namespace Tests.Services
         public async Task ExtendOfferValidityAsync_ExtendsDateAndChangesStatusToSent_WhenOfferWasExpired()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
             var newTargetDate = DateTime.UtcNow.AddDays(10);
 
             var offer = new Offer
@@ -1125,7 +1125,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(-5),
                 Status = OfferStatusEnum.Expired,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -1156,7 +1157,7 @@ namespace Tests.Services
         public async Task ExtendOfferValidityAsync_DefaultsToSevenDaysFromNow_WhenNewValidUntilIsNull()
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offer = new Offer
             {
@@ -1166,7 +1167,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(1),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);
@@ -1200,23 +1202,14 @@ namespace Tests.Services
         public async Task ChangeOfferStatusAsync_ConvertsToDealAndDealProducts_WhenAccepted()
         {
             // Arrange
-            var (company, contact) = await SeedCompanyAndContactAsync();
+            var (company, contact, currency) = await SeedCompanyAndContactAsync();
 
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Polski Złoty",
-                Code = "PLN",
-                DecimalPlaces = 2
-            };
-            _contextMock.Currencies.Add(currency);
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900 };
             _contextMock.SteelGrades.Add(steelGrade);
 
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
             _contextMock.UnitsOfMeasure.Add(unit);
-
 
             var product = new Product
             {
@@ -1244,7 +1237,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id,
             };
             _contextMock.Offers.Add(offer);
 
@@ -1255,7 +1249,6 @@ namespace Tests.Services
                 ProductId = product.Id,
                 Quantity = 4,
                 QuotedPrice = 450000,
-                CurrencyId = currency.Id
             });
 
             await _contextMock.SaveChangesAsync();
@@ -1296,7 +1289,7 @@ namespace Tests.Services
         public async Task ChangeOfferStatusAsync_ReturnsBadRequest_WhenOfferIsNotInSentStatus(OfferStatusEnum initialStatus)
         {
             // Arrange
-            var (_, contact) = await SeedCompanyAndContactAsync();
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
             var offer = new Offer
             {
@@ -1306,7 +1299,8 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(5),
                 Status = initialStatus,
-                IsDeleted = false
+                IsDeleted = false,
+                CurrencyId = currency.Id,
             };
 
             _contextMock.Offers.Add(offer);

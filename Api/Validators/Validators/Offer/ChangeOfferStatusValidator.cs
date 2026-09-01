@@ -6,8 +6,8 @@ namespace Api.Validators.Validators.Offer
 {
     public class ChangeOfferStatusValidator : AbstractValidator<ChangeOfferStatusRequest>
     {
-        public ChangeOfferStatusValidator() 
-        { 
+        public ChangeOfferStatusValidator()
+        {
             RuleFor(x => x.OfferId).ApplyOfferIdRules();
             RuleFor(x => x.NewStatus).ApplyOfferStatusRules();
         }

@@ -243,10 +243,13 @@ namespace Services.Services
         }
 
         private async Task CreateAndSaveOffersAsync(
-    List<Contact> clients,
-    List<MailingProductItemDomain> productsToOffer,
-    Guid authorId)
+            List<Contact> clients,
+            List<MailingProductItemDomain> productsToOffer,
+            Guid authorId)
         {
+            var offerCurrencyId = productsToOffer.FirstOrDefault()?.CurrencyId
+                ?? (await _context.Currencies.FirstAsync(c => c.Code == "PLN")).Id;
+
             foreach (var client in clients)
             {
                 var newOffer = new Offer
@@ -255,6 +258,7 @@ namespace Services.Services
                     Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     ContactId = client.Id,
                     CreatedByUserId = authorId,
+                    CurrencyId = offerCurrencyId, 
                     ValidUntil = DateTime.UtcNow.AddDays(7),
                     Status = OfferStatusEnum.Sent,
                     Products = productsToOffer.Select(p => new OfferProducts
@@ -263,7 +267,6 @@ namespace Services.Services
                         ProductId = p.ProductId,
                         Quantity = p.Quantity,
                         QuotedPrice = p.FinalPrice,
-                        CurrencyId = p.CurrencyId,
                     }).ToList()
                 };
 

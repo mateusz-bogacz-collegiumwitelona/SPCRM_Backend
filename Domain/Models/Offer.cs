@@ -11,6 +11,9 @@ namespace Domain.Models
 
         public Guid CreatedByUserId { get; set; }
 
+        public Guid CurrencyId { get; set; }
+        public Currency Currency { get; set; } = null!;
+
         public DateTime ValidUntil { get; set; }
 
         public OfferStatusEnum Status { get; set; }
