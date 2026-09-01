@@ -1455,5 +1455,189 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
             await Assert.That(result.Message).IsEqualTo("Product not found.");
         }
+
+        // ─── SearchProductsAutocompleteAsync ─────────────────────────────────────────────────
+
+        [Test]
+        [Arguments(null)]
+        [Arguments("")]
+        [Arguments(" ")]
+        [Arguments("a")]
+        public async Task SearchProductsAutocompleteAsync_ReturnsEmptyList_WhenQueryIsLessThanTwoCharacters(string? query)
+        {
+            // Arrange
+            var command = new SearchProductAutocompleteCommand
+            {
+                Query = query,
+                Limit = 20
+            };
+
+            // Act
+            var result = await _productSevicesMock.SearchProductsAutocompleteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Count).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task SearchProductsAutocompleteAsync_FindsProducts_ByNameAndSteelGrade()
+        {
+            // Arrange
+            var steelGrade304 = new SteelGrade { Id = Guid.NewGuid(), Name = "AISI 304" };
+            var steelGrade316 = new SteelGrade { Id = Guid.NewGuid(), Name = "AISI 316L" };
+            var currency = new Currency { Id = Guid.NewGuid(), Code = "PLN", DecimalPlaces = 2, Name = "Polski Złoty" };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+
+            _contextMock.SteelGrades.AddRange(steelGrade304, steelGrade316);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var products = new List<Product>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Profil Zamknięty 40x40",
+                    SteelGrade = steelGrade304,
+                    SteelGradeId = steelGrade304.Id,
+                    CurrencyId = currency.Id,
+                    UnitId = unit.Id,
+                    PricePerUnit = 250000,
+                    StockQuantity = 100,
+                    Category = ProductCategoryEnum.Profile,
+                    IsDeleted = false
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Rura Nierdzewna 20mm",
+                    SteelGrade = steelGrade304,
+                    SteelGradeId = steelGrade304.Id,
+                    CurrencyId = currency.Id,
+                    UnitId = unit.Id,
+                    PricePerUnit = 150000,
+                    StockQuantity = 50,
+                    Category = ProductCategoryEnum.Pipe,
+                    IsDeleted = false
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Blacha Gorącowalcowana",
+                    SteelGrade = steelGrade316,
+                    SteelGradeId = steelGrade316.Id,
+                    CurrencyId = currency.Id,
+                    UnitId = unit.Id,
+                    PricePerUnit = 800000,
+                    StockQuantity = 10,
+                    Category = ProductCategoryEnum.Sheet,
+                    IsDeleted = false
+                }
+            };
+
+            _contextMock.Products.AddRange(products);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var searchByNameCommand = new SearchProductAutocompleteCommand { Query = "Profil" };
+            var resultByName = await _productSevicesMock.SearchProductsAutocompleteAsync(searchByNameCommand);
+
+            var searchByGradeCommand = new SearchProductAutocompleteCommand { Query = "316L" };
+            var resultByGrade = await _productSevicesMock.SearchProductsAutocompleteAsync(searchByGradeCommand);
+
+            // Assert 
+            await Assert.That(resultByName.IsSuccess).IsTrue();
+            await Assert.That(resultByName.Data!.Count).IsEqualTo(1);
+            await Assert.That(resultByName.Data![0].Name).IsEqualTo("Profil Zamknięty 40x40");
+            await Assert.That(resultByName.Data![0].SteelGrade).IsEqualTo("AISI 304");
+            await Assert.That(resultByGrade.IsSuccess).IsTrue();
+            await Assert.That(resultByGrade.Data!.Count).IsEqualTo(1);
+            await Assert.That(resultByGrade.Data![0].Name).IsEqualTo("Blacha Gorącowalcowana");
+            await Assert.That(resultByGrade.Data![0].SteelGrade).IsEqualTo("AISI 316L");
+        }
+
+        [Test]
+        public async Task SearchProductsAutocompleteAsync_IgnoresSoftDeletedProducts()
+        {
+            // Arrange
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235JR" };
+            var currency = new Currency { Id = Guid.NewGuid(), Code = "PLN", DecimalPlaces = 2, Name = "Polski Złoty"};
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var deletedProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kątownik Stalowy",
+                SteelGrade = steelGrade,
+                SteelGradeId = steelGrade.Id,
+                CurrencyId = currency.Id,
+                UnitId = unit.Id,
+                PricePerUnit = 120000,
+                StockQuantity = 20,
+                Category = ProductCategoryEnum.Profile,
+                IsDeleted = true
+            };
+
+            _contextMock.Products.Add(deletedProduct);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SearchProductAutocompleteCommand { Query = "Kątownik" };
+
+            // Act
+            var result = await _productSevicesMock.SearchProductsAutocompleteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.Count).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task SearchProductsAutocompleteAsync_EnforcesLimitBetweenOneAndFifty()
+        {
+            // Arrange
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301" };
+            var currency = new Currency { Id = Guid.NewGuid(), Name = "Polski Złoty", Code = "PLN", DecimalPlaces = 2};
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            for (int i = 1; i <= 60; i++)
+            {
+                _contextMock.Products.Add(new Product
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"Pręt Okrągły {i:D3}mm",
+                    SteelGrade = steelGrade,
+                    SteelGradeId = steelGrade.Id,
+                    CurrencyId = currency.Id,
+                    UnitId = unit.Id,
+                    PricePerUnit = 100000 + i,
+                    StockQuantity = 10,
+                    Category = ProductCategoryEnum.Bar,
+                    IsDeleted = false
+                });
+            }
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SearchProductAutocompleteCommand
+            {
+                Query = "Pręt",
+                Limit = 100
+            };
+            var result = await _productSevicesMock.SearchProductsAutocompleteAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.Count).IsEqualTo(50);
+        }
     }
 }

@@ -47,6 +47,7 @@ namespace Api.Mappers
         [MapProperty(nameof(EditProductRequest.Diameter), nameof(EditProductCommand.Diameter), Use = nameof(MapOptionalDecimalDimensionToDatabase))]
         public partial EditProductCommand MapEdit(EditProductRequest request);
 
+        public partial SearchProductAutocompleteCommand MapSearch(SearchProductAutocompleteRequest request);
         private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
 
         private int MapDecimalDimensionToDatabase(decimal dimension)

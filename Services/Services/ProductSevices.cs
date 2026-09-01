@@ -455,5 +455,44 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
                 );
         }
+
+        public async Task<Result<List<ProductAutocompleteResponse>>> SearchProductsAutocompleteAsync(SearchProductAutocompleteCommand command)
+        {
+            var trimmedQuery = command.Query?.Trim() ?? string.Empty;
+
+            if (trimmedQuery.Length < 2)
+            {
+                return Result<List<ProductAutocompleteResponse>>.Success(
+                    message: "Query is too short. At least 2 characters required.",
+                    statusCode: StatusCodes.Status200OK,
+                    data: new List<ProductAutocompleteResponse>()
+                );
+            }
+
+            var safeLimit = Math.Clamp(command.Limit, 1, 50);
+
+            var products = await _context.Products
+                .AsNoTracking()
+                .Where(p => !p.IsDeleted && (
+                    EF.Functions.ILike(p.Name, $"%{trimmedQuery}%") ||
+                    (p.SteelGrade != null && EF.Functions.ILike(p.SteelGrade.Name, $"%{trimmedQuery}%"))
+                ))
+                .OrderBy(p => p.Name)
+                .Take(safeLimit)
+                .Select(p => new ProductAutocompleteResponse
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    SteelGrade = p.SteelGrade != null ? p.SteelGrade.Name : string.Empty,
+                    PricePerUnit = p.PricePerUnit
+                })
+                .ToListAsync();
+
+            return Result<List<ProductAutocompleteResponse>>.Success(
+                message: "Products retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: products
+            );
+        }
     }
 }

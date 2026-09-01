@@ -129,5 +129,19 @@ namespace Api.Controllers
             var result = await productServices.DeleteProductAsync(productId);
             return HandleResult(result);
         }
+
+        [HttpGet("search")]
+        [Authorize]
+        [EndpointSummary("Search products for autocomplete")]
+        [EndpointDescription("Returns up to 50 active products matching name or steel grade.")]
+        public async Task<IActionResult> SearchProductsAsync(
+            [FromServices] IProductSevices productServices,
+            [FromServices] ProductMapper mapper,
+            [FromQuery] SearchProductAutocompleteRequest request
+            )
+        {
+            var result = await productServices.SearchProductsAutocompleteAsync(mapper.MapSearch(request));
+            return HandleResult(result);
+        }
     }
 }

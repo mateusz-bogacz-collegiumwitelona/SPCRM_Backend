@@ -91,7 +91,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change offer status")]
         [EndpointDescription("Change offer status by offer ID")]
-        [HttpPatch("status")]
+        [HttpPatch("change-status")]
         [Authorize]
         public async Task<IActionResult> ChangeOfferStatusAsync(
             [FromServices] IOfferServices offer,
