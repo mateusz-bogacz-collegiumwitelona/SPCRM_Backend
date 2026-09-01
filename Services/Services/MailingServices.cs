@@ -258,7 +258,7 @@ namespace Services.Services
                     Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     ContactId = client.Id,
                     CreatedByUserId = authorId,
-                    CurrencyId = offerCurrencyId, 
+                    CurrencyId = offerCurrencyId,
                     ValidUntil = DateTime.UtcNow.AddDays(7),
                     Status = OfferStatusEnum.Sent,
                     Products = productsToOffer.Select(p => new OfferProducts

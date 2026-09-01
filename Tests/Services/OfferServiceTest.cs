@@ -1,4 +1,5 @@
-﻿using Domain.Constants;
+﻿using Domain.Comunication;
+using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.List;
 using Services.Command.Offer;
+using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -22,6 +24,7 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
         private string _currentSchema = null!;
+        protected OfferTestFakeEmailSender _emailSenderMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -83,7 +86,8 @@ namespace Tests.Services
 
             _loggerMock = new LoggerFactory().CreateLogger<OfferServices>();
 
-            _offerServicesMock = new OfferServices(_contextMock, _loggerMock);
+            _emailSenderMock = new OfferTestFakeEmailSender();
+            _offerServicesMock = new OfferServices(_contextMock, _loggerMock, _emailSenderMock);
         }
 
         [After(Test)]
@@ -99,9 +103,9 @@ namespace Tests.Services
         }
 
         private async Task<(Company Company, Contact Contact, Currency Currency)> SeedCompanyAndContactAsync(
-     string companyName = "Stal-Met",
-     string firstName = "Jan",
-     string lastName = "Kowalski")
+             string companyName = "Stal-Met",
+             string firstName = "Jan",
+             string lastName = "Kowalski")
         {
             var user = new ApplicationUser
             {
@@ -1610,6 +1614,213 @@ namespace Tests.Services
             await Assert.That(updatedItems[1].ProductId).IsEqualTo(productNew2.Id);
             await Assert.That(updatedItems[1].Quantity).IsEqualTo(12);
             await Assert.That(updatedItems[1].QuotedPrice).IsEqualTo(270000);
+        }
+
+        // ─── ResendOfferEmailAsync ─────────────────────────────────────────────
+
+        [Test]
+        public async Task ResendOfferEmailAsync_ReturnsNotFound_WhenOfferDoesNotExist()
+        {
+            // Arrange
+            var command = new ResendOfferEmailCommand
+            {
+                OfferId = Guid.NewGuid(),
+                Language = "pl"
+            };
+
+            // Act
+            var result = await _offerServicesMock.ResendOfferEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
+            await Assert.That(_emailSenderMock.EmailSent).IsFalse();
+        }
+
+        [Test]
+        public async Task ResendOfferEmailAsync_ReturnsBadRequest_WhenOfferIsExpired()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/EXPIRED/RESEND",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(-2),
+                Status = OfferStatusEnum.Expired,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ResendOfferEmailCommand
+            {
+                OfferId = offer.Id,
+                Language = "pl"
+            };
+
+            // Act
+            var result = await _offerServicesMock.ResendOfferEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(_emailSenderMock.EmailSent).IsFalse();
+        }
+
+        [Test]
+        public async Task ResendOfferEmailAsync_ReturnsBadRequest_WhenContactHasNoPrimaryEmail()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/NO/EMAIL",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ResendOfferEmailCommand
+            {
+                OfferId = offer.Id,
+                Language = "pl"
+            };
+
+            // Act
+            var result = await _offerServicesMock.ResendOfferEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(_emailSenderMock.EmailSent).IsFalse();
+        }
+
+        [Test]
+        public async Task ResendOfferEmailAsync_SendsEmailAndReturnsSuccess_WhenDataIsValid()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            _contextMock.ContactDetails.Add(new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                ContactId = contact.Id,
+                Type = ContactDetailTypeEnum.EMAIL,
+                Value = "klient@stal-met.pl",
+                IsPrimary = true
+            });
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900 };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Rura kwasoodporna fi 25",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 45000,
+                StockQuantity = 100,
+                Category = ProductCategoryEnum.Pipe,
+                Thickness = 2,
+                Width = 0,
+                Length = 6000,
+                Weight = 6900,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/SUCCESS/RESEND",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent,
+                IsDeleted = false
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.Add(new OfferProducts
+            {
+                Id = Guid.NewGuid(),
+                OfferId = offer.Id,
+                ProductId = product.Id,
+                Quantity = 5,
+                QuotedPrice = 42000
+            });
+
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ResendOfferEmailCommand
+            {
+                OfferId = offer.Id,
+                Language = "en"
+            };
+
+            // Act
+            var result = await _offerServicesMock.ResendOfferEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(_emailSenderMock.EmailSent).IsTrue();
+            await Assert.That(_emailSenderMock.LastSentProductMailing).IsNotNull();
+
+            var sentPayload = _emailSenderMock.LastSentProductMailing!;
+            await Assert.That(sentPayload.Language).IsEqualTo("en");
+            await Assert.That(sentPayload.BccEmails).Contains("klient@stal-met.pl");
+            await Assert.That(sentPayload.Products.Count).IsEqualTo(1);
+            await Assert.That(sentPayload.Products.First().ProductName).IsEqualTo("Rura kwasoodporna fi 25");
+            await Assert.That(sentPayload.Products.First().FinalPrice).IsEqualTo(42000);
+            await Assert.That(sentPayload.Products.First().CurrencyCode).IsEqualTo("PLN");
+        }
+    }
+
+    public class OfferTestFakeEmailSender : IEmailSender
+    {
+        public MailingOfferDomain? LastSentProductMailing { get; private set; }
+        public bool EmailSent { get; private set; } = false;
+
+        public Task SendProductMailingAsync(MailingOfferDomain domain)
+        {
+            LastSentProductMailing = domain;
+            EmailSent = true;
+            return Task.CompletedTask;
+        }
+
+        public Task SendReportEmailAsync(ReportDomain domain)
+        {
+            EmailSent = true;
+            return Task.CompletedTask;
+        }
+
+        public Task SendEmailAsync(string to, string subject, string body)
+        {
+            EmailSent = true;
+            return Task.CompletedTask;
         }
     }
 }

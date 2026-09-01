@@ -102,19 +102,30 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-
-
         [EndpointSummary("Update offer products")]
         [EndpointDescription("Update offer products by offer ID.")]
         [HttpPut("products")]
         [Authorize]
         public async Task<IActionResult> UpdateOfferProductsAsync(
-            [FromServices] IOfferServices offerServices,
+            [FromServices] IOfferServices offer,
             [FromServices] OfferMapper mapper,
             [FromBody] UpdateOfferProductsRequest request)
         {
-            var command = mapper.MapUpdateProducts(request);
-            var result = await offerServices.UpdateOfferProductsAsync(command);
+            var result = await offer.UpdateOfferProductsAsync(mapper.MapUpdateProducts(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Resend offer email")]
+        [EndpointDescription("Resend offer email by offer ID.")]
+        [HttpPost("resend-email")]
+        [Authorize]
+        public async Task<IActionResult> ResendOfferEmailAsync(
+            [FromServices] IOfferServices offer,
+            [FromServices] OfferMapper mapper,
+            [FromBody] ResendOfferEmailRequest request
+            )
+        {
+            var result = await offer.ResendOfferEmailAsync(mapper.MapResendEmail(request));
             return HandleResult(result);
         }
     }

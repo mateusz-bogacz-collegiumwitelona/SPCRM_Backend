@@ -18,6 +18,8 @@ namespace Api.Mappers
 
         public partial UpdateOfferProductsCommand MapUpdateProducts(UpdateOfferProductsRequest request);
 
+        public partial ResendOfferEmailCommand MapResendEmail(ResendOfferEmailRequest request);
+
         private OfferStatusEnum? MapStringToStatus(string? status)
             => Enum.TryParse<OfferStatusEnum>(status, true, out var parsedStatus) ? parsedStatus : null;
 

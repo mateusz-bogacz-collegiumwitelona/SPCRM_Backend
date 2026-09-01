@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
@@ -19,11 +20,13 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<OfferServices> _logger;
+        private readonly IEmailSender _emailSender;
 
-        public OfferServices(AppDbContext context, ILogger<OfferServices> logger)
+        public OfferServices(AppDbContext context, ILogger<OfferServices> logger, IEmailSender emailSender)
         {
             _context = context;
             _logger = logger;
+            _emailSender = emailSender;
         }
 
         public async Task<Result<PagedResult<OfferListResponse>>> GetOfferListAsync(OfferListCommand command)
@@ -367,7 +370,7 @@ namespace Services.Services
                 );
             }
 
-            var requestedProductIds = command.Items.Select(i=> i.ProductId).Distinct().ToList();
+            var requestedProductIds = command.Items.Select(i => i.ProductId).Distinct().ToList();
             var existingProductsCount = await _context.Products.CountAsync(p => requestedProductIds.Contains(p.Id));
 
             if (existingProductsCount != requestedProductIds.Count)
@@ -403,12 +406,100 @@ namespace Services.Services
                     statusCode: StatusCodes.Status200OK
                 );
             }
-            catch (Exception ex) 
-            { 
+            catch (Exception ex)
+            {
                 await transaction.RollbackAsync();
                 _logger.LogError(ex, "Error while updating products for offer ID {OfferId}", command.OfferId);
                 throw;
             }
+        }
+
+        public async Task<Result> ResendOfferEmailAsync(ResendOfferEmailCommand command)
+        {
+            var offer = await _context.Offers
+                .Include(o => o.Currency)
+                .Include(o => o.Contact)
+                    .ThenInclude(c => c.ContactDetails)
+                .Include(o => o.Products)
+                    .ThenInclude(p => p.Product)
+                        .ThenInclude(pr => pr.Unit)
+                .Include(o => o.Products)
+                    .ThenInclude(p => p.Product)
+                        .ThenInclude(pr => pr.SteelGrade)
+                .FirstOrDefaultAsync(o => o.Id == command.OfferId);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                return Result.Failure(
+                    message: "Offer not found.",
+                    errorCode: ErrorCodes.OfferNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (offer.Status == OfferStatusEnum.Expired || offer.ValidUntil < DateTime.UtcNow)
+            {
+                _logger.LogWarning("Attempt to resend an expired offer with ID {OfferId}.", command.OfferId);
+                return Result.Failure(
+                    message: "Cannot resend an expired offer. Please extend validity first.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var clientEmails = offer.Contact.ContactDetails
+                .Where(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)
+                .Select(cd => cd.Value)
+                .ToList();
+
+            if (!clientEmails.Any())
+            {
+                return Result.Failure(
+                    message: "Contact has no primary email address configured.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var mailingItems = offer.Products.Select(op => new MailingProductItemDomain
+            {
+                ProductId = op.ProductId,
+                CurrencyId = offer.CurrencyId,
+                ProductName = op.Product.Name,
+                SteelGrade = op.Product.SteelGrade?.Name ?? string.Empty,
+
+                FormattedDimensions = DimensionsFormatter.Format(
+                    op.Product.Category,
+                    op.Product.Diameter,
+                    op.Product.Thickness,
+                    op.Product.Width,
+                    op.Product.Length
+                    ),
+
+                Weight = op.Product.Weight,
+                UnitSymbol = op.Product.Unit?.Symbol ?? "szt.",
+                Quantity = op.Quantity,
+                CurrencyCode = offer.Currency.Code,
+                FinalPrice = op.QuotedPrice,
+                OriginalPrice = null,
+                DiscountPercentage = null,
+                IsPromoted = false
+            }).ToList();
+
+            var offerDomain = new MailingOfferDomain
+            {
+                BccEmails = clientEmails,
+                Language = command.Language ?? "pl",
+                Products = mailingItems
+            };
+
+            await _emailSender.SendProductMailingAsync(offerDomain);
+
+            return Result.Success(
+                message: "Offer email resent successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
         }
     }
 }
