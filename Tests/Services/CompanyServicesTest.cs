@@ -3,15 +3,14 @@ using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using Npgsql;
-using Org.BouncyCastle.Utilities.Zlib;
 using Services.Command.Company;
 using Services.Interfaces;
 using Services.Services;
-using System.ComponentModel.Design;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
@@ -1537,14 +1536,14 @@ namespace Tests.Services
                 Email = $"manager_{uniqueSuffix}@test.pl"
             };
 
-            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            var managerRole = new IdentityRole<Guid>
             {
                 Id = Guid.NewGuid(),
                 Name = "Manager",
                 NormalizedName = "MANAGER"
             };
 
-            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            var userRole = new IdentityUserRole<Guid>
             {
                 UserId = managerId,
                 RoleId = managerRole.Id
@@ -2071,14 +2070,14 @@ namespace Tests.Services
                 Email = $"manager_{uniqueSuffix}@test.pl"
             };
 
-            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            var managerRole = new IdentityRole<Guid>
             {
                 Id = Guid.NewGuid(),
                 Name = "Manager",
                 NormalizedName = "MANAGER"
             };
 
-            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            var userRole = new IdentityUserRole<Guid>
             {
                 UserId = managerId,
                 RoleId = managerRole.Id
@@ -2432,14 +2431,14 @@ namespace Tests.Services
                 Email = $"manager_{uniqueSuffix}@test.pl"
             };
 
-            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            var managerRole = new IdentityRole<Guid>
             {
                 Id = Guid.NewGuid(),
                 Name = "Manager",
                 NormalizedName = "MANAGER"
             };
 
-            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            var userRole = new IdentityUserRole<Guid>
             {
                 UserId = managerId,
                 RoleId = managerRole.Id
@@ -2748,14 +2747,14 @@ namespace Tests.Services
                 Email = $"manager_{uniqueSuffix}@test.pl"
             };
 
-            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            var managerRole = new IdentityRole<Guid>
             {
                 Id = Guid.NewGuid(),
                 Name = "Manager",
                 NormalizedName = "MANAGER"
             };
 
-            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            var userRole = new IdentityUserRole<Guid>
             {
                 UserId = managerId,
                 RoleId = managerRole.Id
@@ -3095,14 +3094,14 @@ namespace Tests.Services
                 Email = $"manager_{uniqueSuffix}@test.pl"
             };
 
-            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            var managerRole = new IdentityRole<Guid>
             {
                 Id = Guid.NewGuid(),
                 Name = "Manager",
                 NormalizedName = "MANAGER"
             };
 
-            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            var userRole = new IdentityUserRole<Guid>
             {
                 UserId = managerId,
                 RoleId = managerRole.Id
@@ -3163,6 +3162,264 @@ namespace Tests.Services
 
             await Assert.That(softDeletedAddress).IsNotNull();
             await Assert.That(softDeletedAddress!.IsDeleted).IsTrue();
+        }
+
+        // ─── ChangeCompanyOwnerAsync ─────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeCompanyOwnerAsync_WhenCompanyNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var command = new ChangeCompanyOwnerCommand
+            {
+                CompanyId = Guid.NewGuid(),
+                UserId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _companyServicesMock.ChangeCompanyOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Company not found.");
+        }
+
+        [Test]
+        public async Task ChangeCompanyOwnerAsync_WhenTargetUserIsAlreadyOwner_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var currentOwner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = currentOwner
+            };
+
+            _contextMock.Users.Add(currentOwner);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ChangeCompanyOwnerCommand
+            {
+                CompanyId = company.Id,
+                UserId = ownerId
+            };
+
+            // Act
+            var result = await _companyServicesMock.ChangeCompanyOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("This user is already the owner of this company.");
+        }
+
+        [Test]
+        public async Task ChangeCompanyOwnerAsync_WhenUserNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var nonExistentUserId = Guid.NewGuid();
+
+            var currentOwner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = currentOwner
+            };
+
+            _contextMock.Users.Add(currentOwner);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ChangeCompanyOwnerCommand
+            {
+                CompanyId = company.Id,
+                UserId = nonExistentUserId
+            };
+
+            // Act
+            var result = await _companyServicesMock.ChangeCompanyOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+        }
+
+        [Test]
+        public async Task ChangeCompanyOwnerAsync_WhenTargetUserIsAdmin_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var adminId = Guid.NewGuid();
+
+            var currentOwner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var adminUser = new ApplicationUser
+            {
+                Id = adminId,
+                UserName = $"Admin_{uniqueSuffix}",
+                FirstName = "Admin",
+                LastName = "Systemowy",
+                Email = $"admin_{uniqueSuffix}@test.pl"
+            };
+
+            var adminRole = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Admin",
+                NormalizedName = "ADMIN"
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = adminId,
+                RoleId = adminRole.Id
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = currentOwner
+            };
+
+            _contextMock.Users.AddRange(currentOwner, adminUser);
+            _contextMock.Roles.Add(adminRole);
+            _contextMock.UserRoles.Add(userRole);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new ChangeCompanyOwnerCommand
+            {
+                CompanyId = company.Id,
+                UserId = adminId
+            };
+
+            // Act
+            var result = await _companyServicesMock.ChangeCompanyOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("Cannot assign company ownership to an admin user.");
+
+            var unmodifiedCompany = await _contextMock.Companies.FindAsync(company.Id);
+            await Assert.That(unmodifiedCompany).IsNotNull();
+            await Assert.That(unmodifiedCompany!.OwnerId).IsEqualTo(ownerId);
+        }
+
+        [Test]
+        public async Task ChangeCompanyOwnerAsync_WhenTargetUserIsValid_ChangesOwnerSuccessfully()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var oldOwnerId = Guid.NewGuid();
+            var newOwnerId = Guid.NewGuid();
+
+            var oldOwner = new ApplicationUser
+            {
+                Id = oldOwnerId,
+                UserName = $"OldOwner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"old_owner_{uniqueSuffix}@test.pl"
+            };
+
+            var newOwner = new ApplicationUser
+            {
+                Id = newOwnerId,
+                UserName = $"NewOwner_{uniqueSuffix}",
+                FirstName = "Marek",
+                LastName = "Nowak",
+                Email = $"new_owner_{uniqueSuffix}@test.pl"
+            };
+
+            var userRoleDefinition = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "User",
+                NormalizedName = "USER"
+            };
+
+            var assignedRole = new IdentityUserRole<Guid>
+            {
+                UserId = newOwnerId,
+                RoleId = userRoleDefinition.Id
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"TransferCompany_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = oldOwnerId,
+                Owner = oldOwner
+            };
+
+            _contextMock.Users.AddRange(oldOwner, newOwner);
+            _contextMock.Roles.Add(userRoleDefinition);
+            _contextMock.UserRoles.Add(assignedRole);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeCompanyOwnerCommand
+            {
+                CompanyId = company.Id,
+                UserId = newOwnerId
+            };
+
+            // Act
+            var result = await _companyServicesMock.ChangeCompanyOwnerAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Company ownership changed successfully.");
+
+            var updatedCompany = await _contextMock.Companies.FindAsync(company.Id);
+            await Assert.That(updatedCompany).IsNotNull();
+            await Assert.That(updatedCompany!.OwnerId).IsEqualTo(newOwnerId);
         }
     }
 }

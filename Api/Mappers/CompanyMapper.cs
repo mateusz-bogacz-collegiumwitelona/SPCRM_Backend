@@ -66,6 +66,8 @@ namespace Api.Mappers
                 Type = ParseAddressType(request.Type)
             };
 
+        public partial ChangeCompanyOwnerCommand MapChangeOwner(ChangeCompanyOwnerRequest request);
+
         private string NormalizeName(string? name)
             => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
 

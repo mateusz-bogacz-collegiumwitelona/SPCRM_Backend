@@ -445,8 +445,8 @@ namespace Services.Services
                 );
             }
 
-            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId)) 
-    {
+            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
+            {
                 _logger.LogWarning("User {UserId} is not authorized to add address to company {CompanyId}.", userId, companyId);
                 return Result<Guid>.Failure(
                     message: "You are not authorized to modify this company.",
@@ -519,7 +519,7 @@ namespace Services.Services
                     errorCode: ErrorCodes.CompanyNotFound
                 );
             }
-            
+
             if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
             {
                 _logger.LogWarning("User {UserId} is not authorized to delete company {CompanyId}.", userId, companyId);
@@ -556,8 +556,8 @@ namespace Services.Services
                 .Include(ca => ca.Company)
                 .FirstOrDefaultAsync(ca => ca.Id == addressId);
 
-            if (address == null) 
-            { 
+            if (address == null)
+            {
                 _logger.LogWarning("Address with id: {AddressId} doesn't exist.", addressId);
                 return Result.Failure(
                     message: "Address not found.",
@@ -607,6 +607,67 @@ namespace Services.Services
                 message: "Address deleted successfully.",
                 statusCode: StatusCodes.Status200OK
             );
+        }
+
+        public async Task<Result> ChangeCompanyOwnerAsync(ChangeCompanyOwnerCommand command)
+        {
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == command.CompanyId);
+
+            if (company == null)
+            {
+                _logger.LogInformation("Company with id: {CompanyId} doesn't exist.", command.CompanyId);
+                return Result.Failure(
+                    message: "Company not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.CompanyNotFound
+                );
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.UserId);
+
+            if (user == null)
+            {
+                _logger.LogInformation("User with id: {UserId} doesn't exist.", command.UserId);
+                return Result.Failure(
+                    message: "User not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            if (company.OwnerId == command.UserId)
+            {
+                return Result.Failure(
+                    message: "This user is already the owner of this company.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            bool isAdmin = await (from ur in _context.UserRoles
+                                  join r in _context.Roles on ur.RoleId equals r.Id
+                                  where ur.UserId == user.Id &&
+                                  (r.NormalizedName == "ADMIN")
+                                  select ur.UserId
+                                  ).AnyAsync();
+
+            if (isAdmin)
+            {
+                _logger.LogWarning("Attempted to assign company {CompanyId} ownership to an admin user {UserId}.", command.CompanyId, command.UserId); return Result.Failure(
+                    message: "Cannot assign company ownership to an admin user.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            company.OwnerId = command.UserId;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Company {CompanyId} ownership changed to user {UserId}.", command.CompanyId, command.UserId);
+            return Result.Success(
+                message: "Company ownership changed successfully.",
+                statusCode: StatusCodes.Status200OK
+                );
         }
 
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)

@@ -241,5 +241,19 @@ namespace Api.Controllers
             var result = await company.DeleteCompanyAddressAsync(addressId, CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Delete an existing company address")]
+        [EndpointDescription("Delete an existing company address by its ID.")]
+        [HttpPatch("change-owner")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> ChangeCompanyOwnerAsync(
+            [FromServices] ICompanyServices company,
+            [FromServices] CompanyMapper mapper,
+            [FromBody] ChangeCompanyOwnerRequest request
+            )
+        {
+            var result = await company.ChangeCompanyOwnerAsync(mapper.MapChangeOwner(request));
+            return HandleResult(result);
+        }
     }
 }
