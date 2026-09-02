@@ -79,7 +79,8 @@ namespace Api.Controllers
         }
 
         [EndpointSummary("Get company sales")]
-        [EndpointDescription("Show all company sales. This endpoint return only name, value, close date and status")]
+        [EndpointDescription("Show all company sales. " +
+            "This endpoint return only name, value, close date and status")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
@@ -147,6 +148,8 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get simple list of companies")]
+        [EndpointDescription("Show a simple list of companies with only ID and Name.")]
         [HttpGet("simple-list")]
         public async Task<IActionResult> GetCompanySimpleListAsync(
             [FromServices] ICompanyServices companyServices
@@ -155,5 +158,19 @@ namespace Api.Controllers
             var result = await companyServices.GetCompanySimpleListAsync();
             return HandleResult(result);
         }
+
+        [EndpointSummary("Add a new company")]
+        [EndpointDescription("Add a new company with its details.")]
+        [HttpPost]
+        public async Task<IActionResult> AddCompanyAsync(
+            [FromServices] ICompanyServices company,
+            [FromServices] CompanyMapper mapper,
+            [FromBody] AddCompanyRequest request
+            )
+        {
+            var result = await company.AddCompanyAsync(mapper.MapAdd(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
     }
 }

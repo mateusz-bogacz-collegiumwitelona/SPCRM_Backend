@@ -23,6 +23,8 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
 
+        private int SRID = 4326; // WGS 84
+
         private string _currentSchema = null!;
 
         [Before(Class)]
@@ -132,7 +134,7 @@ namespace Tests.Services
                 City = "Warszawa",
                 Street = "Złota 44",
                 ZipCode = "00-120",
-                Location = new Point(21.0122, 52.2297) { SRID = 4326 },
+                Location = new Point(21.0122, 52.2297) { SRID = SRID },
                 AddressType = AddressTypeEnum.Headquarters,
                 IsDeleted = false
             };
@@ -187,7 +189,7 @@ namespace Tests.Services
                 Street = "Rynek Główny 1",
                 ZipCode = "30-001",
                 IsDeleted = false,
-                Location = new Point(19.9449, 50.0646) { SRID = 4326 }
+                Location = new Point(19.9449, 50.0646) { SRID = SRID }
             };
 
             var companyToIgnore = new Company
@@ -204,7 +206,7 @@ namespace Tests.Services
                 Street = "Gdańsk 1",
                 ZipCode = "80-001",
                 IsDeleted = false,
-                Location = new Point(18.6466, 54.3520) { SRID = 4326 }
+                Location = new Point(18.6466, 54.3520) { SRID = SRID }
             };
 
             _contextMock.CompanyAdresses.AddRange(addressToFind, addressToIgnore);
@@ -323,7 +325,7 @@ namespace Tests.Services
                 City = "Kraków",
                 Street = "Floriańska 1",
                 ZipCode = "30-001",
-                Location = new Point(19.9383, 50.0614) { SRID = 4326 },
+                Location = new Point(19.9383, 50.0614) { SRID = SRID },
                 AddressType = AddressTypeEnum.Headquarters,
                 IsDeleted = false
             };
@@ -1080,6 +1082,293 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Count).IsEqualTo(0);
+        }
+
+        // ─── AddCompanyAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddCompanyAsync_WhenDataIsValid_CreatesCompanyWithAddressesAndReturnsCreated()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Owner_{uniqueSuffix}",
+                NormalizedUserName = $"OWNER_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OWNER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                EmailConfirmed = true
+            };
+
+            _contextMock.Users.Add(owner);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddCompanyCommand
+            {
+                Name = $"StalNowa_{uniqueSuffix}",
+                NIP = "5252344078",
+                Adresses = new List<AddCompanyAdressCommand>
+                {
+                    new()
+                    {
+                        Street = "Złota 44",
+                        City = "Warszawa",
+                        ZipCode = "00-120",
+                        Location = new Point(21.0035, 52.2319) { SRID = SRID },
+                        Type = AddressTypeEnum.Headquarters
+                    },
+                    new()
+                    {
+                        Street = "Hutnicza 15",
+                        City = "Katowice",
+                        ZipCode = "40-241",
+                        Location = new Point(19.0560, 50.2649) { SRID = SRID },
+                        Type = AddressTypeEnum.Branch
+                    }
+                }
+            };
+
+            // Act
+            var result = await _companyServicesMock.AddCompanyAsync(command, userId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+            await Assert.That(result.Data).IsNotEqualTo(Guid.Empty);
+
+            var savedCompany = await _contextMock.Companies
+                .Include(c => c.CompanyAdresses)
+                .FirstOrDefaultAsync(c => c.Id == result.Data);
+
+            await Assert.That(savedCompany).IsNotNull();
+            await Assert.That(savedCompany!.Name).IsEqualTo(command.Name);
+            await Assert.That(savedCompany.NIP).IsEqualTo(command.NIP);
+            await Assert.That(savedCompany.OwnerId).IsEqualTo(userId);
+            await Assert.That(savedCompany.CompanyAdresses.Count).IsEqualTo(2);
+
+            var hqAddress = savedCompany.CompanyAdresses.FirstOrDefault(a => a.AddressType == AddressTypeEnum.Headquarters);
+            await Assert.That(hqAddress).IsNotNull();
+            await Assert.That(hqAddress!.Street).IsEqualTo("Złota 44");
+            await Assert.That(hqAddress.City).IsEqualTo("Warszawa");
+            await Assert.That(hqAddress.Location).IsNotNull();
+            await Assert.That(hqAddress.Location!.X).IsEqualTo(21.0035);
+            await Assert.That(hqAddress.Location.Y).IsEqualTo(52.2319);
+        }
+
+        [Test]
+        public async Task AddCompanyAsync_WhenCompanyWithSameNameOrNipExists_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Owner_{uniqueSuffix}",
+                NormalizedUserName = $"OWNER_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OWNER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                EmailConfirmed = true
+            };
+
+            var existingCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"ExistingCompany_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(existingCompany);
+            await _contextMock.SaveChangesAsync();
+
+            var commandWithSameName = new AddCompanyCommand
+            {
+                Name = $"EXISTINGCOMPANY_{uniqueSuffix}",
+                NIP = "9998887776",
+                Adresses = new List<AddCompanyAdressCommand>
+                {
+                    new()
+                    {
+                        Street = "Ulica 1",
+                        City = "Kraków",
+                        ZipCode = "30-001",
+                        Location = new Point(19.9, 50.0) { SRID = SRID },
+                        Type = AddressTypeEnum.Headquarters
+                    }
+                }
+            };
+
+            // Przypadek 2: Ten sam NIP
+            var commandWithSameNip = new AddCompanyCommand
+            {
+                Name = $"DifferentName_{uniqueSuffix}",
+                NIP = "1234567890",
+                Adresses = new List<AddCompanyAdressCommand>
+                {
+                    new()
+                    {
+                        Street = "Ulica 1",
+                        City = "Kraków",
+                        ZipCode = "30-001",
+                        Location = new Point(19.9, 50.0) { SRID = SRID },
+                        Type = AddressTypeEnum.Headquarters
+                    }
+                }
+            };
+
+            // Act
+            var resultName = await _companyServicesMock.AddCompanyAsync(commandWithSameName, userId);
+            var resultNip = await _companyServicesMock.AddCompanyAsync(commandWithSameNip, userId);
+
+            // Assert
+            await Assert.That(resultName.IsSuccess).IsFalse();
+            await Assert.That(resultName.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(resultName.Message).IsEqualTo("Company with the same name or NIP already exists.");
+
+            await Assert.That(resultNip.IsSuccess).IsFalse();
+            await Assert.That(resultNip.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(resultNip.Message).IsEqualTo("Company with the same name or NIP already exists.");
+        }
+
+        [Test]
+        public async Task AddCompanyAsync_WhenAddressesListIsEmpty_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var command = new AddCompanyCommand
+            {
+                Name = $"NoAddressCompany_{uniqueSuffix}",
+                NIP = "5554443332",
+                Adresses = new List<AddCompanyAdressCommand>()
+            };
+
+            // Act
+            var result = await _companyServicesMock.AddCompanyAsync(command, userId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("Company must have at least one address.");
+        }
+
+        [Test]
+        [Arguments(0)]
+        [Arguments(2)]
+        public async Task AddCompanyAsync_WhenHeadquartersCountIsNotExactlyOne_ReturnsBadRequest(int hqCount)
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var addresses = new List<AddCompanyAdressCommand>();
+
+            if (hqCount == 0)
+            {
+                addresses.Add(new AddCompanyAdressCommand
+                {
+                    Street = "Oddziałowa 1",
+                    City = "Kraków",
+                    ZipCode = "30-001",
+                    Location = new Point(19.9, 50.0) { SRID = SRID },
+                    Type = AddressTypeEnum.Branch
+                });
+            }
+            else
+            {
+                addresses.Add(new AddCompanyAdressCommand
+                {
+                    Street = "Centrala 1",
+                    City = "Warszawa",
+                    ZipCode = "00-001",
+                    Location = new Point(21.0, 52.2) { SRID = SRID },
+                    Type = AddressTypeEnum.Headquarters
+                });
+                addresses.Add(new AddCompanyAdressCommand
+                {
+                    Street = "Centrala 2",
+                    City = "Gdańsk",
+                    ZipCode = "80-001",
+                    Location = new Point(18.6, 54.3) { SRID = SRID },
+                    Type = AddressTypeEnum.Headquarters
+                });
+            }
+
+            var command = new AddCompanyCommand
+            {
+                Name = $"InvalidHqCompany_{uniqueSuffix}",
+                NIP = "7776665554",
+                Adresses = addresses
+            };
+
+            // Act
+            var result = await _companyServicesMock.AddCompanyAsync(command, userId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("Company must have exactly one headquarters address.");
+        }
+
+        [Test]
+        public async Task AddCompanyAsync_WhenCompanyContainsDuplicateAddresses_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var command = new AddCompanyCommand
+            {
+                Name = $"DuplicateAddressCompany_{uniqueSuffix}",
+                NIP = "8887776665",
+                Adresses = new List<AddCompanyAdressCommand>
+        {
+            new()
+            {
+                Street = "Główna 1",
+                City = "Poznań",
+                ZipCode = "61-001",
+                Location = new Point(16.9, 52.4) { SRID = SRID },
+                Type = AddressTypeEnum.Headquarters
+            },
+            new()
+            {
+                Street = "Długa 10",
+                City = "Poznań",
+                ZipCode = "61-001",
+                Location = new Point(16.9, 52.4) { SRID = SRID },
+                Type = AddressTypeEnum.Branch
+            },
+            new()
+            {
+                Street = "  długa 10  ",
+                City = "POZNAŃ",
+                ZipCode = "61-001",
+                Location = new Point(16.9, 52.4) { SRID = SRID },
+                Type = AddressTypeEnum.Branch
+            }
+        }
+            };
+
+            // Act
+            var result = await _companyServicesMock.AddCompanyAsync(command, userId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("Cannot add duplicate addresses for the same company.");
         }
     }
 }

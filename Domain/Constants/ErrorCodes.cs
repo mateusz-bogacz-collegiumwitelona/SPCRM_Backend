@@ -44,11 +44,29 @@
 
         // Company
         public const string CompanyNotFound = "COM_001";
+        public const string CompanyAlreadyExists = "COM_002";
+        public const string NipNotValid = "CAD_002";
+        public const string NipRequired = "CAD_011";
+
+        // Company Address
+        public const string AddressAlreadyExists = "CAD_001";
+        public const string ZipCodeNotValid = "CAD_003";
+        public const string HeadquartersAddressRequired = "CAD_004";
+        public const string AddressRequired = "CAD_005";
+        public const string StreetRequired = "CAD_006";
+        public const string StreetLengthInvalid = "CAD_007";
+        public const string CityRequired = "CAD_008";
+        public const string CityLengthInvalid = "CAD_009";
+        public const string AddressTypeRequired = "CAD_010";
+        public const string ZipCodeRequired = "CAD_012";
 
         // Contact
         public const string InvalidContactDetailType = "CON_001";
         public const string PrimaryContactDetailRequired = "CON_002";
         public const string ContactNotFound = "CON_003";
+        public const string LatitudeOutOfRange = "CON_004";
+        public const string LongitudeOutOfRange = "CON_004";
+        public const string AddressTypeNotInvalid = "CON_005";
 
         // Product
         public const string ProductNotFound = "PROD_001";
