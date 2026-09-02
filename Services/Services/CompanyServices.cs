@@ -548,8 +548,66 @@ namespace Services.Services
                 message: "Company deleted successfully.",
                 statusCode: StatusCodes.Status200OK
             );
-        } 
+        }
 
+        public async Task<Result> DeleteCompanyAddressAsync(Guid addressId, Guid userId)
+        {
+            var address = await _context.CompanyAdresses
+                .Include(ca => ca.Company)
+                .FirstOrDefaultAsync(ca => ca.Id == addressId);
+
+            if (address == null) 
+            { 
+                _logger.LogWarning("Address with id: {AddressId} doesn't exist.", addressId);
+                return Result.Failure(
+                    message: "Address not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.AddressNotFound
+                    );
+            }
+
+            if (!await _entityAuth.CanModifyAsync(userId, address.Company.OwnerId))
+            {
+                _logger.LogWarning("User {UserId} is not authorized to delete address {AddressId}.", userId, addressId);
+                return Result.Failure(
+                    message: "You are not authorized to delete this address.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UnauthorizedAccess
+                );
+            }
+
+            if (address.AddressType == AddressTypeEnum.Headquarters)
+            {
+                _logger.LogWarning("Attempted to delete the only headquarters address for company {CompanyId}.", address.CompanyId);
+                return Result.Failure(
+                    message: "Cannot delete the headquarters address. Please designate another address as headquarters before deleting this one.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            long addressCount = await _context.CompanyAdresses
+                .CountAsync(ca => ca.CompanyId == address.CompanyId);
+
+            if (addressCount <= 1)
+            {
+                _logger.LogWarning("Attempted to delete the last remaining address {AddressId} for company {CompanyId}.", addressId, address.CompanyId);
+                return Result.Failure(
+                    message: "Firma musi posiadać co najmniej jeden adres.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            _context.CompanyAdresses.Remove(address);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Address {AddressId} deleted by user {UserId}.", addressId, userId);
+            return Result.Success(
+                message: "Address deleted successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
 
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)
         {

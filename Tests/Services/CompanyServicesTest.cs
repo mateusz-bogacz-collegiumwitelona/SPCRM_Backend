@@ -7,9 +7,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using Npgsql;
+using Org.BouncyCastle.Utilities.Zlib;
 using Services.Command.Company;
 using Services.Interfaces;
 using Services.Services;
+using System.ComponentModel.Design;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
@@ -37,6 +39,10 @@ namespace Tests.Services
                 .WithDatabase("testdb")
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
+                .WithCommand(
+                    "-c", "max_locks_per_transaction=1024",
+                    "-c", "shared_buffers=256MB"
+                )
                 .Build();
 
             await _dbContainer.StartAsync();
@@ -2705,11 +2711,9 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Message).IsEqualTo("Company deleted successfully.");
 
-            // Global Query Filter ukrywa miękko usuniętą firmę przy standardowym zapytaniu
             var queryResult = await _contextMock.Companies.FirstOrDefaultAsync(c => c.Id == emptyCompany.Id);
             await Assert.That(queryResult).IsNull();
 
-            // IgnoreQueryFilters pozwala zweryfikować stan flagi IsDeleted ustawionej przez interceptor
             var softDeletedCompany = await _contextMock.Companies
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(c => c.Id == emptyCompany.Id);
@@ -2787,6 +2791,378 @@ namespace Tests.Services
 
             await Assert.That(softDeletedCompany).IsNotNull();
             await Assert.That(softDeletedCompany!.IsDeleted).IsTrue();
+        }
+
+        // ─── DeleteCompanyAddressAsync ───────────────────────────────────────
+
+        [Test]
+        public async Task DeleteCompanyAddressAsync_WhenAddressNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var randomAddressId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAddressAsync(randomAddressId, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Address not found.");
+        }
+
+        [Test]
+        public async Task DeleteCompanyAddressAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var unauthorizedUser = new ApplicationUser
+            {
+                Id = unauthorizedUserId,
+                UserName = $"Unauth_{uniqueSuffix}",
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                Email = $"unauth_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var address = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Oddziałowa 1",
+                City = "Kraków",
+                ZipCode = "30-001",
+                AddressType = AddressTypeEnum.Branch,
+                Location = new Point(19.9, 50.0) { SRID = SRID }
+            };
+
+            _contextMock.Users.AddRange(owner, unauthorizedUser);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.Add(address);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAddressAsync(address.Id, unauthorizedUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.Message).IsEqualTo("You are not authorized to delete this address.");
+        }
+
+        [Test]
+        public async Task DeleteCompanyAddressAsync_WhenAddressIsHeadquarters_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var hqAddress = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Centralna 1",
+                City = "Warszawa",
+                ZipCode = "00-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(21.0, 52.2) { SRID = SRID }
+            };
+
+            var branchAddress = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Oddziałowa 2",
+                City = "Poznań",
+                ZipCode = "60-001",
+                AddressType = AddressTypeEnum.Branch,
+                Location = new Point(16.9, 52.4) { SRID = SRID }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.AddRange(hqAddress, branchAddress);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAddressAsync(hqAddress.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).Contains("Cannot delete the headquarters address. Please designate another address as headquarters before deleting this one.");
+
+            var unmodifiedHq = await _contextMock.CompanyAdresses.FindAsync(hqAddress.Id);
+            await Assert.That(unmodifiedHq).IsNotNull();
+            await Assert.That(unmodifiedHq!.IsDeleted).IsFalse();
+        }
+
+        [Test]
+        public async Task DeleteCompanyAddressAsync_WhenAttemptingToDeleteTheLastAddress_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var onlyAddress = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Jedyna 1",
+                City = "Gdańsk",
+                ZipCode = "80-001",
+                AddressType = AddressTypeEnum.Branch,
+                Location = new Point(18.6, 54.3) { SRID = SRID }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.Add(onlyAddress);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAddressAsync(onlyAddress.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).Contains("Firma musi posiadać co najmniej jeden adres");
+
+            var unmodifiedAddress = await _contextMock.CompanyAdresses.FindAsync(onlyAddress.Id);
+            await Assert.That(unmodifiedAddress).IsNotNull();
+            await Assert.That(unmodifiedAddress!.IsDeleted).IsFalse();
+        }
+
+        [Test]
+        public async Task DeleteCompanyAddressAsync_WhenBranchAddressDeleted_SoftDeletesAddressSuccessfully()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var hqAddress = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Centrala 1",
+                City = "Warszawa",
+                ZipCode = "00-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(21.0, 52.2) { SRID = SRID }
+            };
+
+            var branchToDelete = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Oddział 1",
+                City = "Wrocław",
+                ZipCode = "50-001",
+                AddressType = AddressTypeEnum.Branch,
+                Location = new Point(17.0, 51.1) { SRID = SRID }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.AddRange(hqAddress, branchToDelete);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAddressAsync(branchToDelete.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Address deleted successfully.");
+
+            var queryResult = await _contextMock.CompanyAdresses.FirstOrDefaultAsync(ca => ca.Id == branchToDelete.Id);
+            await Assert.That(queryResult).IsNull();
+
+            var softDeletedAddress = await _contextMock.CompanyAdresses
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(ca => ca.Id == branchToDelete.Id);
+
+            await Assert.That(softDeletedAddress).IsNotNull();
+            await Assert.That(softDeletedAddress!.IsDeleted).IsTrue();
+        }
+
+        [Test]
+        public async Task DeleteCompanyAddressAsync_WhenUserIsManager_AllowsDeletingBranchEvenIfNotOwner()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var managerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = $"Manager_{uniqueSuffix}",
+                FirstName = "Adam",
+                LastName = "Nowak",
+                Email = $"manager_{uniqueSuffix}@test.pl"
+            };
+
+            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = "MANAGER"
+            };
+
+            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = managerRole.Id
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var hqAddress = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Centrala 1",
+                City = "Warszawa",
+                ZipCode = "00-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(21.0, 52.2) { SRID = SRID }
+            };
+
+            var branchAddress = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Oddział 1",
+                City = "Wrocław",
+                ZipCode = "50-001",
+                AddressType = AddressTypeEnum.Branch,
+                Location = new Point(17.0, 51.1) { SRID = SRID }
+            };
+
+            _contextMock.Users.AddRange(owner, manager);
+            _contextMock.Roles.Add(managerRole);
+            _contextMock.UserRoles.Add(userRole);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.AddRange(hqAddress, branchAddress);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAddressAsync(branchAddress.Id, managerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var softDeletedAddress = await _contextMock.CompanyAdresses
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(ca => ca.Id == branchAddress.Id);
+
+            await Assert.That(softDeletedAddress).IsNotNull();
+            await Assert.That(softDeletedAddress!.IsDeleted).IsTrue();
         }
     }
 }

@@ -219,12 +219,26 @@ namespace Api.Controllers
         [EndpointSummary("Delete an existing company")]
         [EndpointDescription("Delete an existing company by its ID.")]
         [HttpDelete("{companyId:Guid}")]
+        [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> DeleteCompanyAsync(
             [FromServices] ICompanyServices company,
             [FromRoute] Guid companyId
             )
         {
             var result = await company.DeleteCompanyAsync(companyId, CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Delete an existing company address")]
+        [EndpointDescription("Delete an existing company address by its ID.")]
+        [HttpDelete("address/{addressId:Guid}")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> DeleteCompanyAddressAsync(
+            [FromServices] ICompanyServices company,
+            [FromRoute] Guid addressId
+            )
+        {
+            var result = await company.DeleteCompanyAddressAsync(addressId, CurrentUserId);
             return HandleResult(result);
         }
     }
