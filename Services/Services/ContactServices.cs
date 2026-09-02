@@ -21,11 +21,16 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<ContactServices> _logger;
+        private readonly IEntityAuthorizationService _entityAuth;
 
-        public ContactServices(AppDbContext context, ILogger<ContactServices> logger)
+        public ContactServices(
+            AppDbContext context,
+            ILogger<ContactServices> logger,
+            IEntityAuthorizationService entityAuth)
         {
             _context = context;
             _logger = logger;
+            _entityAuth = entityAuth;
         }
 
         public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command)
@@ -232,7 +237,7 @@ namespace Services.Services
                 );
             }
 
-            if (!CanModifyContact(currentUserId, contact.OwnerId))
+            if (!await _entityAuth.CanModifyAsync(currentUserId, contact.OwnerId))
             {
                 _logger.LogWarning("User with id {userId} cannot edit contact with this id {contactId}", currentUserId, command.ContactId);
                 return Result.Failure(
@@ -375,7 +380,7 @@ namespace Services.Services
                 );
             }
 
-            if (!CanModifyContact(currentUserId, contact.OwnerId))
+            if (!await _entityAuth.CanModifyAsync(currentUserId, contact.OwnerId))
             {
                 _logger.LogWarning("User with id {userId} cannot edit contact with this id {contactId}", currentUserId, contactId);
                 return Result.Failure(
@@ -500,15 +505,5 @@ namespace Services.Services
                 ? result
                 : ContactDetailTypeEnum.OTHER;
 
-        private bool CanModifyContact(Guid userId, Guid ownerId)
-        {
-            if (userId == ownerId) return true;
-
-            var isManager = _context.UserRoles
-                .Any(ur => ur.UserId == userId &&
-                                _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == "MANAGER"));
-
-            return isManager;
-        }
     }
 }

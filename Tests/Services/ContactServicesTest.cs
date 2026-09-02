@@ -11,6 +11,7 @@ using Npgsql;
 using Services.Command.Company;
 using Services.Command.Contact;
 using Services.Command.List;
+using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -27,6 +28,8 @@ namespace Tests.Services
         protected ILogger<ContactServices> _loggerMock = null!;
 
         private string _currentSchema = null!;
+
+        protected IEntityAuthorizationService _entityAuthMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -88,7 +91,9 @@ namespace Tests.Services
 
             _loggerMock = new LoggerFactory().CreateLogger<ContactServices>();
 
-            _contactServicesMock = new ContactServices(_contextMock, _loggerMock);
+            _entityAuthMock = new EntityAuthorizationService(_contextMock);
+
+            _contactServicesMock = new ContactServices(_contextMock, _loggerMock, _entityAuthMock);
         }
 
         [After(Test)]

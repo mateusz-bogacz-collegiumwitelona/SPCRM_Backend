@@ -162,6 +162,7 @@ namespace Api.Controllers
         [EndpointSummary("Add a new company")]
         [EndpointDescription("Add a new company with its details.")]
         [HttpPost]
+        [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> AddCompanyAsync(
             [FromServices] ICompanyServices company,
             [FromServices] CompanyMapper mapper,
@@ -171,6 +172,21 @@ namespace Api.Controllers
             var result = await company.AddCompanyAsync(mapper.MapAdd(request), CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Edit an existing company")]
+        [EndpointDescription("Edit an existing company with its details.")]
+        [HttpPatch]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> EditCompanyAsync(
+            [FromServices] ICompanyServices company,
+            [FromServices] CompanyMapper mapper,
+            [FromBody] EditCompanyRequest request
+            )
+        {
+            var result = await company.EditCompanyAsync(mapper.MapEdit(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
 
     }
 }

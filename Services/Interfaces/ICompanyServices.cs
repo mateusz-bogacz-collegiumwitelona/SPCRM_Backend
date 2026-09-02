@@ -13,5 +13,6 @@ namespace Services.Interfaces
         Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command);
         Task<Result<List<CompanySimpleListResponse>>> GetCompanySimpleListAsync();
         Task<Result<Guid>> AddCompanyAsync(AddCompanyCommand command, Guid userId);
+        Task<Result> EditCompanyAsync(EditCompanyCommand command, Guid userId);
     }
 }

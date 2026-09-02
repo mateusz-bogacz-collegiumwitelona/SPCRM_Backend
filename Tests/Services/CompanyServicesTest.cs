@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using Npgsql;
 using Services.Command.Company;
+using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -24,8 +25,8 @@ namespace Tests.Services
         private static string _connectionString = null!;
 
         private int SRID = 4326; // WGS 84
-
         private string _currentSchema = null!;
+        protected IEntityAuthorizationService _entityAuthMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -86,8 +87,9 @@ namespace Tests.Services
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<CompanyServices>();
+            _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _companyServicesMock = new CompanyServices(_contextMock, _loggerMock);
+            _companyServicesMock = new CompanyServices(_contextMock, _loggerMock, _entityAuthMock);
         }
 
         [After(Test)]
@@ -1369,6 +1371,367 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.Message).IsEqualTo("Cannot add duplicate addresses for the same company.");
+        }
+
+        // ─── EditCompanyAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task EditCompanyAsync_WhenCompanyNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var randomCompanyId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            var command = new EditCompanyCommand
+            {
+                Id = randomCompanyId,
+                Name = "Nowa Nazwa",
+                NIP = "1234567890"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAsync(command, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Company not found.");
+        }
+
+        [Test]
+        public async Task EditCompanyAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var unauthorizedUser = new ApplicationUser
+            {
+                Id = unauthorizedUserId,
+                UserName = $"Unauthorized_{uniqueSuffix}",
+                FirstName = "Piotr",
+                LastName = "Zieliński",
+                Email = $"unauth_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.AddRange(owner, unauthorizedUser);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCompanyCommand
+            {
+                Id = company.Id,
+                Name = $"NewName_{uniqueSuffix}",
+                NIP = "9998887776"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAsync(command, unauthorizedUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.Message).IsEqualTo("You are not authorized to modify this company.");
+        }
+
+        [Test]
+        public async Task EditCompanyAsync_WhenOwnerEditsData_UpdatesNameAndNipSuccessfully()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"OldName_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditCompanyCommand
+            {
+                Id = company.Id,
+                Name = $"  Updated Name_{uniqueSuffix}  ",
+                NIP = " 999-888-77-66 "
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Company updated successfully.");
+
+            var updatedCompany = await _contextMock.Companies.FindAsync(company.Id);
+            await Assert.That(updatedCompany).IsNotNull();
+            await Assert.That(updatedCompany!.Name).IsEqualTo($"Updated Name_{uniqueSuffix}");
+            await Assert.That(updatedCompany.NIP).IsEqualTo("9998887766");
+        }
+
+        [Test]
+        public async Task EditCompanyAsync_WhenUserIsManager_AllowsEditEvenIfNotOwner()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var managerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = $"Manager_{uniqueSuffix}",
+                FirstName = "Adam",
+                LastName = "Nowak",
+                Email = $"manager_{uniqueSuffix}@test.pl"
+            };
+
+            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = "MANAGER"
+            };
+
+            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = managerRole.Id
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"OldCompany_{uniqueSuffix}",
+                NIP = "1231231234",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.AddRange(owner, manager);
+            _contextMock.Roles.Add(managerRole);
+            _contextMock.UserRoles.Add(userRole);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditCompanyCommand
+            {
+                Id = company.Id,
+                Name = $"EditedByManager_{uniqueSuffix}",
+                NIP = "5556667778"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAsync(command, managerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedCompany = await _contextMock.Companies.FindAsync(company.Id);
+            await Assert.That(updatedCompany).IsNotNull();
+            await Assert.That(updatedCompany!.Name).IsEqualTo($"EditedByManager_{uniqueSuffix}");
+            await Assert.That(updatedCompany.NIP).IsEqualTo("5556667778");
+        }
+
+        [Test]
+        public async Task EditCompanyAsync_WhenAnotherCompanyHasSameName_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var otherCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"ExistingName_{uniqueSuffix}",
+                NIP = "1111111111",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var targetCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"TargetName_{uniqueSuffix}",
+                NIP = "2222222222",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.AddRange(otherCompany, targetCompany);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCompanyCommand
+            {
+                Id = targetCompany.Id,
+                Name = $"EXISTINGNAME_{uniqueSuffix}",
+                NIP = "3333333333"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("Company with the same name already exists.");
+        }
+
+        [Test]
+        public async Task EditCompanyAsync_WhenAnotherCompanyHasSameNip_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var otherCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"OtherCompany_{uniqueSuffix}",
+                NIP = "5252344078",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var targetCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"TargetCompany_{uniqueSuffix}",
+                NIP = "9999999999",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.AddRange(otherCompany, targetCompany);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCompanyCommand
+            {
+                Id = targetCompany.Id,
+                Name = $"UniqueName_{uniqueSuffix}",
+                NIP = "525-234-40-78" 
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).IsEqualTo("Company with the same NIP already exists.");
+        }
+
+        [Test]
+        public async Task EditCompanyAsync_WhenKeepingSameNameAndNipForSameCompany_DoesNotConflictWithItself()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"StableName_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCompanyCommand
+            {
+                Id = company.Id,
+                Name = company.Name,
+                NIP = "123-456-78-90"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Company updated successfully.");
         }
     }
 }

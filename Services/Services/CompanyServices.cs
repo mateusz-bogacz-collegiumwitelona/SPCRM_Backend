@@ -18,11 +18,15 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<CompanyServices> _logger;
-
-        public CompanyServices(AppDbContext context, ILogger<CompanyServices> logger)
+        private readonly IEntityAuthorizationService _entityAuth;
+        public CompanyServices(
+            AppDbContext context, 
+            ILogger<CompanyServices> logger,
+            IEntityAuthorizationService entityAuth)
         {
             _context = context;
             _logger = logger;
+            _entityAuth = entityAuth;
         }
 
         public async Task<Result<List<CompaniesMapResponse>>> Map(string? searchTerm = null)
@@ -261,6 +265,70 @@ namespace Services.Services
                 message: "Company added successfully.",
                 statusCode: StatusCodes.Status201Created,
                 data: company.Id
+            );
+        }
+
+        public async Task<Result> EditCompanyAsync(EditCompanyCommand command, Guid userId)
+        {
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == command.Id);
+
+            if (company == null)
+            {
+                _logger.LogInformation("Company with id: {CompanyId} doesn't exist.", command.Id);
+                return Result.Failure(
+                    message: "Company not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.CompanyNotFound
+                );
+            }
+
+            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
+            {
+                _logger.LogWarning("User {UserId} is not authorized to modify company {CompanyId}.", userId, command.Id);
+                return Result.Failure(
+                    message: "You are not authorized to modify this company.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UnauthorizedAccess
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Name))
+            {
+                var trimmedName = command.Name.Trim();
+                if (await _context.Companies.AnyAsync(c => c.Id != command.Id && c.Name.ToLower() == trimmedName.ToLower()))
+                {
+                    _logger.LogInformation("Company with name: {CompanyName} already exists.", trimmedName);
+                    return Result.Failure(
+                        message: "Company with the same name already exists.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.CompanyAlreadyExists
+                    );
+                }
+
+                company.Name = trimmedName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.NIP))
+            {
+                var cleanNip = command.NIP.Replace("-", "").Replace(" ", "").Trim();
+                if (await _context.Companies.AnyAsync(c => c.Id != command.Id && c.NIP == cleanNip))
+                {
+                    _logger.LogInformation("Company with NIP: {CompanyNIP} already exists.", cleanNip);
+                    return Result.Failure(
+                        message: "Company with the same NIP already exists.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.CompanyAlreadyExists
+                    );
+                }
+
+                company.NIP = cleanNip;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Company updated successfully.",
+                statusCode: StatusCodes.Status200OK
             );
         }
     }

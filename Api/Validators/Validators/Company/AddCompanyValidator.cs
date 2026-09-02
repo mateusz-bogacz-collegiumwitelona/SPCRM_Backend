@@ -5,15 +5,15 @@ using Domain.Constants;
 using Domain.Enum;
 using FluentValidation;
 
-public class AddCompanyRequestValidator : AbstractValidator<AddCompanyRequest>
+public class AddCompanyValidator : AbstractValidator<AddCompanyRequest>
 {
-    public AddCompanyRequestValidator()
+    public AddCompanyValidator()
     {
         RuleFor(x => x.Name)
             .ApplyCompanyNameRules();
 
         RuleFor(x => x.NIP)
-            .ApplyNipRules();
+            .ApplyCompanyNipRules();
 
         RuleFor(x => x.Address)
             .NotEmpty().WithErrorCode(ErrorCodes.AddressRequired)
@@ -22,6 +22,6 @@ public class AddCompanyRequestValidator : AbstractValidator<AddCompanyRequest>
             .WithErrorCode(ErrorCodes.HeadquartersAddressRequired);
 
         RuleForEach(x => x.Address)
-            .SetValidator(new AddCompanyAdressRequestValidator());
+            .SetValidator(new AddCompanyAdressValidator());
     }
 }

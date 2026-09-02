@@ -10,7 +10,7 @@
         public const string InvalidDate = "INVALID_DATE";
         public const string InvalidSortColumn = "INVALID_SORT_COLUMN";
         public const string InvalidOperation = "INVALID_OPERATION";
-
+        
         // Validation 
         public const string EmailRequired = "VAL_001";
         public const string EmailInvalid = "VAL_002";

@@ -53,6 +53,7 @@ namespace Api.Mappers
                 Type = ParseAddressType(request.Type)
             };
 
+        public partial EditCompanyCommand MapEdit(EditCompanyRequest request);
 
         private string NormalizeName(string? name)
             => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
