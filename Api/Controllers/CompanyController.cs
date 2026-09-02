@@ -189,7 +189,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit an existing company address")]
         [EndpointDescription("Edit an existing company address with its details.")]
-        [HttpPatch]
+        [HttpPatch("address")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> EditCompanyAddressAsync(
             [FromServices] ICompanyServices company,
@@ -198,6 +198,21 @@ namespace Api.Controllers
             )
         {
             var result = await company.EditCompanyAddressAsync(mapper.MapEditAddress(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Add a new company address")]
+        [EndpointDescription("Add a new company address with its details.")]
+        [HttpPost("address/{companyId:Guid}")]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> AddCompanyAddressAsync(
+            [FromServices] ICompanyServices company,
+            [FromServices] CompanyMapper mapper,
+            [FromBody] AddCompanyAdressRequest request,
+            [FromRoute] Guid companyId
+            )
+        {
+            var result = await company.AddCompanyAddressAsync(mapper.MapAddAddress(request), CurrentUserId, companyId);
             return HandleResult(result);
         }
     }

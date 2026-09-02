@@ -15,5 +15,6 @@ namespace Services.Interfaces
         Task<Result<Guid>> AddCompanyAsync(AddCompanyCommand command, Guid userId);
         Task<Result> EditCompanyAsync(EditCompanyCommand command, Guid userId);
         Task<Result> EditCompanyAddressAsync(EditCompanyAddressCommand command, Guid userId);
+        Task<Result<Guid>> AddCompanyAddressAsync(AddCompanyAdressCommand command, Guid userId, Guid companyId);
     }
 }

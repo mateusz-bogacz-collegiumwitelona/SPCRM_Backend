@@ -239,21 +239,17 @@ namespace Services.Services
                 );
             }
 
+            var companyId = Guid.NewGuid();
+
             var company = new Company
             {
-                Id = Guid.NewGuid(),
+                Id = companyId,
                 Name = command.Name,
                 NIP = command.NIP,
                 OwnerId = userId,
-                CompanyAdresses = addresses.Select(addr => new CompanyAdress
-                {
-                    Id = Guid.NewGuid(),
-                    Street = addr.Street.Trim(),
-                    City = addr.City.Trim(),
-                    ZipCode = addr.ZipCode.Trim(),
-                    Location = addr.Location,
-                    AddressType = addr.Type
-                }).ToList()
+                CompanyAdresses = addresses
+                    .Select(addr => CreateAddressEntity(addr, companyId))
+                    .ToList()
             };
 
             _context.Companies.Add(company);
@@ -432,6 +428,93 @@ namespace Services.Services
                 message: "Address updated successfully.",
                 statusCode: StatusCodes.Status200OK
             );
+        }
+
+        public async Task<Result<Guid>> AddCompanyAddressAsync(AddCompanyAdressCommand command, Guid userId, Guid companyId)
+        {
+            var company = await _context.Companies
+                .FirstOrDefaultAsync(c => c.Id == companyId);
+
+            if (company == null)
+            {
+                _logger.LogInformation("Company with id: {CompanyId} doesn't exist.", companyId);
+                return Result<Guid>.Failure(
+                    message: "Company not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.CompanyNotFound
+                );
+            }
+
+            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId)) 
+    {
+                _logger.LogWarning("User {UserId} is not authorized to add address to company {CompanyId}.", userId, companyId);
+                return Result<Guid>.Failure(
+                    message: "You are not authorized to modify this company.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UnauthorizedAccess
+                );
+            }
+
+            var street = command.Street.Trim();
+            var city = command.City.Trim();
+            var zipCode = command.ZipCode.Trim();
+
+            var isDuplicate = await _context.CompanyAdresses.AnyAsync(ca =>
+                ca.CompanyId == companyId &&
+                ca.AddressType == command.Type &&
+                ca.Street.ToLower() == street.ToLower() &&
+                ca.City.ToLower() == city.ToLower() &&
+                ca.ZipCode == zipCode);
+
+            if (isDuplicate)
+            {
+                _logger.LogWarning("Address already exists for company {CompanyId}.", companyId);
+                return Result<Guid>.Failure(
+                    message: "This address already exists for this company.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.AddressAlreadyExists
+                );
+            }
+
+            if (command.Type == AddressTypeEnum.Headquarters)
+            {
+                var existingHq = await _context.CompanyAdresses
+                    .FirstOrDefaultAsync(ca => ca.CompanyId == companyId && ca.AddressType == AddressTypeEnum.Headquarters);
+
+                if (existingHq != null)
+                {
+                    existingHq.AddressType = AddressTypeEnum.Branch;
+                    _logger.LogInformation(
+                        "Demoted previous headquarters {OldHqId} to Branch for company {CompanyId}.",
+                        existingHq.Id, companyId);
+                }
+            }
+
+            var newAddress = CreateAddressEntity(command, companyId);
+
+            _context.CompanyAdresses.Add(newAddress);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Added address {AddressId} to company {CompanyId} by user {UserId}.", newAddress.Id, companyId, userId);
+
+            return Result<Guid>.Success(
+                message: "Address added successfully.",
+                statusCode: StatusCodes.Status201Created,
+                data: newAddress.Id
+            );
+        }
+
+        private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)
+        {
+            return new CompanyAdress
+            {
+                CompanyId = companyId ?? Guid.Empty,
+                Street = command.Street.Trim(),
+                City = command.City.Trim(),
+                ZipCode = command.ZipCode.Trim(),
+                Location = command.Location,
+                AddressType = command.Type
+            };
         }
     }
 }
