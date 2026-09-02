@@ -2476,5 +2476,317 @@ namespace Tests.Services
             await Assert.That(createdAddress).IsNotNull();
             await Assert.That(createdAddress!.Street).IsEqualTo("Oddział Managera 1");
         }
+
+        // ─── DeleteCompanyAsync ──────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteCompanyAsync_WhenCompanyNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentCompanyId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAsync(nonExistentCompanyId, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Company not found.");
+        }
+
+        [Test]
+        public async Task DeleteCompanyAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var unauthorizedUser = new ApplicationUser
+            {
+                Id = unauthorizedUserId,
+                UserName = $"Unauth_{uniqueSuffix}",
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                Email = $"unauth_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.AddRange(owner, unauthorizedUser);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAsync(company.Id, unauthorizedUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.Message).IsEqualTo("You are not authorized to delete this company.");
+        }
+
+        [Test]
+        public async Task DeleteCompanyAsync_WhenCompanyHasInvoices_Returns400BadRequestDueToDataIntegrity()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"InvoiceCompany_{uniqueSuffix}",
+                NIP = "5556667778",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN"
+            };
+
+            var invoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/{uniqueSuffix}",
+                TotalAmount = 50000,
+                PaidAmount = 50000,
+                IssueDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(14),
+                Currency = currency,
+                Company = company
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Invoices.Add(invoice);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAsync(company.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).Contains("Nie można usunąć firmy posiadającej historię transakcji lub faktur");
+
+            var unmodifiedCompany = await _contextMock.Companies.FindAsync(company.Id);
+            await Assert.That(unmodifiedCompany).IsNotNull();
+            await Assert.That(unmodifiedCompany!.IsDeleted).IsFalse();
+        }
+
+        [Test]
+        public async Task DeleteCompanyAsync_WhenCompanyHasDeals_Returns400BadRequestDueToDataIntegrity()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"DealCompany_{uniqueSuffix}",
+                NIP = "9998881112",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN"
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Deal_{uniqueSuffix}",
+                Company = company,
+                Owner = owner,
+                Currency = currency
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAsync(company.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).Contains("Nie można usunąć firmy posiadającej historię transakcji lub faktur");
+
+            var unmodifiedCompany = await _contextMock.Companies.FindAsync(company.Id);
+            await Assert.That(unmodifiedCompany).IsNotNull();
+            await Assert.That(unmodifiedCompany!.IsDeleted).IsFalse();
+        }
+
+        [Test]
+        public async Task DeleteCompanyAsync_WhenCompanyHasNoDealsNorInvoices_DeletesCompanySuccessfullyViaSoftDelete()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var emptyCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"EmptyCompany_{uniqueSuffix}",
+                NIP = "1234560000",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(emptyCompany);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAsync(emptyCompany.Id, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Company deleted successfully.");
+
+            // Global Query Filter ukrywa miękko usuniętą firmę przy standardowym zapytaniu
+            var queryResult = await _contextMock.Companies.FirstOrDefaultAsync(c => c.Id == emptyCompany.Id);
+            await Assert.That(queryResult).IsNull();
+
+            // IgnoreQueryFilters pozwala zweryfikować stan flagi IsDeleted ustawionej przez interceptor
+            var softDeletedCompany = await _contextMock.Companies
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.Id == emptyCompany.Id);
+
+            await Assert.That(softDeletedCompany).IsNotNull();
+            await Assert.That(softDeletedCompany!.IsDeleted).IsTrue();
+        }
+
+        [Test]
+        public async Task DeleteCompanyAsync_WhenUserIsManager_AllowsDeletingEmptyCompanyEvenIfNotOwner()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var managerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = $"Manager_{uniqueSuffix}",
+                FirstName = "Adam",
+                LastName = "Nowak",
+                Email = $"manager_{uniqueSuffix}@test.pl"
+            };
+
+            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = "MANAGER"
+            };
+
+            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = managerRole.Id
+            };
+
+            var emptyCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"ManagerDelete_{uniqueSuffix}",
+                NIP = "9876543210",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            _contextMock.Users.AddRange(owner, manager);
+            _contextMock.Roles.Add(managerRole);
+            _contextMock.UserRoles.Add(userRole);
+            _contextMock.Companies.Add(emptyCompany);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _companyServicesMock.DeleteCompanyAsync(emptyCompany.Id, managerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var softDeletedCompany = await _contextMock.Companies
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.Id == emptyCompany.Id);
+
+            await Assert.That(softDeletedCompany).IsNotNull();
+            await Assert.That(softDeletedCompany!.IsDeleted).IsTrue();
+        }
     }
 }

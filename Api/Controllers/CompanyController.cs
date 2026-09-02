@@ -215,5 +215,17 @@ namespace Api.Controllers
             var result = await company.AddCompanyAddressAsync(mapper.MapAddAddress(request), CurrentUserId, companyId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Delete an existing company")]
+        [EndpointDescription("Delete an existing company by its ID.")]
+        [HttpDelete("{companyId:Guid}")]
+        public async Task<IActionResult> DeleteCompanyAsync(
+            [FromServices] ICompanyServices company,
+            [FromRoute] Guid companyId
+            )
+        {
+            var result = await company.DeleteCompanyAsync(companyId, CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }

@@ -504,6 +504,53 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result> DeleteCompanyAsync(Guid companyId, Guid userId)
+        {
+            var company = await _context.Companies
+                .Include(c => c.CompanyAdresses)
+                .FirstOrDefaultAsync(c => c.Id == companyId);
+
+            if (company == null)
+            {
+                _logger.LogInformation("Company with id: {CompanyId} doesn't exist.", companyId);
+                return Result.Failure(
+                    message: "Company not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.CompanyNotFound
+                );
+            }
+            
+            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
+            {
+                _logger.LogWarning("User {UserId} is not authorized to delete company {CompanyId}.", userId, companyId);
+                return Result.Failure(
+                    message: "You are not authorized to delete this company.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UnauthorizedAccess
+                );
+            }
+
+            if (company.Invoices.Any() || company.Deals.Any())
+            {
+                _logger.LogWarning("Attempted to delete company {CompanyId} with existing financial or sales history.", companyId);
+                return Result.Failure(
+                    message: "Nie można usunąć firmy posiadającej historię transakcji lub faktur ze względu na spójność danych.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            _context.Companies.Remove(company);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Company {CompanyName} (ID: {CompanyId}) deleted by user {UserId}.", company.Name, company.Id, userId);
+            return Result.Success(
+                message: "Company deleted successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        } 
+
+
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)
         {
             return new CompanyAdress
