@@ -20,7 +20,7 @@ namespace Services.Services
         private readonly ILogger<CompanyServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
         public CompanyServices(
-            AppDbContext context, 
+            AppDbContext context,
             ILogger<CompanyServices> logger,
             IEntityAuthorizationService entityAuth)
         {
@@ -328,6 +328,108 @@ namespace Services.Services
 
             return Result.Success(
                 message: "Company updated successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> EditCompanyAddressAsync(EditCompanyAddressCommand command, Guid userId)
+        {
+            var address = await _context.CompanyAdresses
+                .Include(ca => ca.Company)
+                .FirstOrDefaultAsync(ca => ca.Id == command.AddressId);
+
+            if (address == null)
+            {
+                _logger.LogInformation("Address with id: {AddressId} doesn't exist.", command.AddressId);
+
+                return Result.Failure(
+                    message: "Address not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.AddressNotFound
+                );
+            }
+
+            if (!await _entityAuth.CanModifyAsync(userId, address.Company.OwnerId))
+            {
+                _logger.LogWarning("User {UserId} is not authorized to modify address {AddressId}.", userId, command.AddressId);
+                return Result.Failure(
+                    message: "You are not authorized to modify this address.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UnauthorizedAccess
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Street))
+            {
+                address.Street = command.Street.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.City))
+            {
+                address.City = command.City.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.ZipCode))
+            {
+                address.ZipCode = command.ZipCode.Trim();
+            }
+
+            if (command.Location != null)
+            {
+                address.Location = command.Location;
+            }
+
+            if (command.Type.HasValue)
+            {
+                var newType = command.Type.Value;
+
+                if (newType == AddressTypeEnum.Headquarters && address.AddressType != AddressTypeEnum.Headquarters)
+                {
+                    var currentHq = await _context.CompanyAdresses
+                        .FirstOrDefaultAsync(ca => ca.CompanyId == address.CompanyId &&
+                                                   ca.AddressType == AddressTypeEnum.Headquarters &&
+                                                   ca.Id != address.Id);
+
+                    if (currentHq != null)
+                    {
+                        currentHq.AddressType = AddressTypeEnum.Branch;
+                        _logger.LogInformation(
+                            "Demoted previous headquarters {OldHqId} to Branch for company {CompanyId}.",
+                            currentHq.Id, address.CompanyId);
+                    }
+
+                    address.AddressType = AddressTypeEnum.Headquarters;
+                }
+                else if (address.AddressType == AddressTypeEnum.Headquarters && newType != AddressTypeEnum.Headquarters)
+                {
+                    var hasOtherHq = await _context.CompanyAdresses
+                        .AnyAsync(ca => ca.CompanyId == address.CompanyId &&
+                                        ca.AddressType == AddressTypeEnum.Headquarters &&
+                                        ca.Id != address.Id);
+
+                    if (!hasOtherHq)
+                    {
+                        _logger.LogWarning("Attempted to demote the only headquarters for company {CompanyId}.", address.CompanyId);
+                        return Result.Failure(
+                            message: "The company must have a headquarters. To change this address, " +
+                            "first designate a different address as the headquarters or " +
+                            "edit the details of the current headquarters.",
+                            statusCode: StatusCodes.Status400BadRequest,
+                            errorCode: ErrorCodes.InvalidOperation
+                        );
+                    }
+
+                    address.AddressType = newType;
+                }
+                else
+                {
+                    address.AddressType = newType;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Result.Success(
+                message: "Address updated successfully.",
                 statusCode: StatusCodes.Status200OK
             );
         }

@@ -1677,7 +1677,7 @@ namespace Tests.Services
             {
                 Id = targetCompany.Id,
                 Name = $"UniqueName_{uniqueSuffix}",
-                NIP = "525-234-40-78" 
+                NIP = "525-234-40-78"
             };
 
             // Act
@@ -1732,6 +1732,398 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Message).IsEqualTo("Company updated successfully.");
+        }
+
+        // ─── EditCompanyAddressAsync ─────────────────────────────────────────
+
+        [Test]
+        public async Task EditCompanyAddressAsync_WhenAddressNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var randomAddressId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            var command = new EditCompanyAddressCommand
+            {
+                AddressId = randomAddressId,
+                Street = "Nowa Ulica 1"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAddressAsync(command, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Address not found.");
+        }
+
+        [Test]
+        public async Task EditCompanyAddressAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var unauthorizedUser = new ApplicationUser
+            {
+                Id = unauthorizedUserId,
+                UserName = $"Unauth_{uniqueSuffix}",
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                Email = $"unauth_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var address = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Stara 1",
+                City = "Warszawa",
+                ZipCode = "00-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(21.0, 52.2) { SRID = SRID }
+            };
+
+            _contextMock.Users.AddRange(owner, unauthorizedUser);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.Add(address);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCompanyAddressCommand
+            {
+                AddressId = address.Id,
+                Street = "Zmieniona 10"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAddressAsync(command, unauthorizedUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.Message).IsEqualTo("You are not authorized to modify this address.");
+        }
+
+        [Test]
+        public async Task EditCompanyAddressAsync_WhenOwnerEditsFields_UpdatesDetailsAndCoordinates()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var address = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Stara 1",
+                City = "Poznań",
+                ZipCode = "60-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(16.9, 52.4) { SRID = SRID }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.Add(address);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var newPoint = new Point(19.9, 50.0) { SRID = SRID };
+            var command = new EditCompanyAddressCommand
+            {
+                AddressId = address.Id,
+                Street = "  Nowa Długa 10  ",
+                City = "  Kraków  ",
+                ZipCode = "  30-001  ",
+                Location = newPoint
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAddressAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Address updated successfully.");
+
+            var updatedAddress = await _contextMock.CompanyAdresses.FindAsync(address.Id);
+            await Assert.That(updatedAddress).IsNotNull();
+            await Assert.That(updatedAddress!.Street).IsEqualTo("Nowa Długa 10");
+            await Assert.That(updatedAddress.City).IsEqualTo("Kraków");
+            await Assert.That(updatedAddress.ZipCode).IsEqualTo("30-001");
+            await Assert.That(updatedAddress.Location).IsNotNull();
+            await Assert.That(updatedAddress.Location!.X).IsEqualTo(19.9);
+            await Assert.That(updatedAddress.Location.Y).IsEqualTo(50.0);
+        }
+
+        [Test]
+        public async Task EditCompanyAddressAsync_WhenBranchPromotedToHeadquarters_DemotesOldHeadquartersToBranch()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var oldHq = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Centrala 1",
+                City = "Warszawa",
+                ZipCode = "00-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(21.0, 52.2) { SRID = SRID }
+            };
+
+            var branchToPromote = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Oddział 1",
+                City = "Wrocław",
+                ZipCode = "50-001",
+                AddressType = AddressTypeEnum.Branch,
+                Location = new Point(17.0, 51.1) { SRID = SRID }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.AddRange(oldHq, branchToPromote);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditCompanyAddressCommand
+            {
+                AddressId = branchToPromote.Id,
+                Type = AddressTypeEnum.Headquarters
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAddressAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedOldHq = await _contextMock.CompanyAdresses.FindAsync(oldHq.Id);
+            var updatedPromotedAddress = await _contextMock.CompanyAdresses.FindAsync(branchToPromote.Id);
+
+            await Assert.That(updatedOldHq).IsNotNull();
+            await Assert.That(updatedOldHq!.AddressType).IsEqualTo(AddressTypeEnum.Branch);
+
+            await Assert.That(updatedPromotedAddress).IsNotNull();
+            await Assert.That(updatedPromotedAddress!.AddressType).IsEqualTo(AddressTypeEnum.Headquarters);
+        }
+
+        [Test]
+        public async Task EditCompanyAddressAsync_WhenAttemptingToDemoteTheOnlyHeadquarters_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var onlyHq = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Centrala 1",
+                City = "Warszawa",
+                ZipCode = "00-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(21.0, 52.2) { SRID = SRID }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.Add(onlyHq);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditCompanyAddressCommand
+            {
+                AddressId = onlyHq.Id,
+                Type = AddressTypeEnum.Branch
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAddressAsync(command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.Message).Contains("The company must have a headquarters");
+
+            var unmodifiedHq = await _contextMock.CompanyAdresses.FindAsync(onlyHq.Id);
+            await Assert.That(unmodifiedHq).IsNotNull();
+            await Assert.That(unmodifiedHq!.AddressType).IsEqualTo(AddressTypeEnum.Headquarters);
+        }
+
+        [Test]
+        public async Task EditCompanyAddressAsync_WhenUserIsManager_AllowsEditEvenIfNotOwner()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var managerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = $"owner_{uniqueSuffix}@test.pl"
+            };
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = $"Manager_{uniqueSuffix}",
+                FirstName = "Adam",
+                LastName = "Nowak",
+                Email = $"manager_{uniqueSuffix}@test.pl"
+            };
+
+            var managerRole = new Microsoft.AspNetCore.Identity.IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = "MANAGER"
+            };
+
+            var userRole = new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = managerRole.Id
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1112223334",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var address = new CompanyAdress
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
+                Street = "Stara 1",
+                City = "Gdańsk",
+                ZipCode = "80-001",
+                AddressType = AddressTypeEnum.Headquarters,
+                Location = new Point(18.6, 54.3) { SRID = SRID }
+            };
+
+            _contextMock.Users.AddRange(owner, manager);
+            _contextMock.Roles.Add(managerRole);
+            _contextMock.UserRoles.Add(userRole);
+            _contextMock.Companies.Add(company);
+            _contextMock.CompanyAdresses.Add(address);
+            await _contextMock.SaveChangesAsync();
+
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditCompanyAddressCommand
+            {
+                AddressId = address.Id,
+                Street = "Modyfikacja Managera"
+            };
+
+            // Act
+            var result = await _companyServicesMock.EditCompanyAddressAsync(command, managerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedAddress = await _contextMock.CompanyAdresses.FindAsync(address.Id);
+            await Assert.That(updatedAddress).IsNotNull();
+            await Assert.That(updatedAddress!.Street).IsEqualTo("Modyfikacja Managera");
         }
     }
 }

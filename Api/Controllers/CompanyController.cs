@@ -187,6 +187,18 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-
+        [EndpointSummary("Edit an existing company address")]
+        [EndpointDescription("Edit an existing company address with its details.")]
+        [HttpPatch]
+        [Authorize(Roles = "Manager,User")]
+        public async Task<IActionResult> EditCompanyAddressAsync(
+            [FromServices] ICompanyServices company,
+            [FromServices] CompanyMapper mapper,
+            [FromBody] EditCompanyAdressRequest request
+            )
+        {
+            var result = await company.EditCompanyAddressAsync(mapper.MapEditAddress(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }

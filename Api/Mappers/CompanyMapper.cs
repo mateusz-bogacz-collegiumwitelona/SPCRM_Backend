@@ -38,7 +38,6 @@ namespace Api.Mappers
                 SearchTerm = search?.SearchTerm
             };
 
-
         [MapProperty(nameof(AddCompanyRequest.Name), nameof(AddCompanyCommand.Name), Use = nameof(NormalizeName))]
         [MapProperty(nameof(AddCompanyRequest.NIP), nameof(AddCompanyCommand.NIP), Use = nameof(NormalizeNip))]
         public partial AddCompanyCommand MapAdd(AddCompanyRequest request);
@@ -49,11 +48,23 @@ namespace Api.Mappers
                 Street = NormalizeName(request.Street),
                 City = NormalizeName(request.City),
                 ZipCode = request.ZipCode?.Trim() ?? string.Empty,
-                Location = MapLocalization(request.Longitude, request.Latitude),
-                Type = ParseAddressType(request.Type)
+                Location = MapLocalization(request.Latitude, request.Longitude)
+                           ?? throw new ArgumentException("Localization coordinates are required for new address."),
+                Type = ParseAddressType(request.Type) ?? AddressTypeEnum.Branch
             };
 
         public partial EditCompanyCommand MapEdit(EditCompanyRequest request);
+
+        public EditCompanyAddressCommand MapEditAddress(EditCompanyAdressRequest request)
+            => new EditCompanyAddressCommand
+            {
+                AddressId = request.AddressId,
+                Street = string.IsNullOrWhiteSpace(request.Street) ? null : NormalizeName(request.Street),
+                City = string.IsNullOrWhiteSpace(request.City) ? null : NormalizeName(request.City),
+                ZipCode = request.ZipCode?.Trim(),
+                Location = MapLocalization(request.Latitude, request.Longitude),
+                Type = ParseAddressType(request.Type)
+            };
 
         private string NormalizeName(string? name)
             => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
@@ -74,13 +85,26 @@ namespace Api.Mappers
             return clean;
         }
 
-        public Point MapLocalization(float latitude, float longitude)
-            => new Point(x: longitude, y: latitude)
+        public Point? MapLocalization(float? latitude, float? longitude)
+        {
+            if (!latitude.HasValue || !longitude.HasValue)
+            {
+                return null;
+            }
+
+            return new Point(x: (double)longitude.Value, y: (double)latitude.Value)
             {
                 SRID = 4326
             };
+        }
 
-        private AddressTypeEnum ParseAddressType(string? type)
-            => Enum.TryParse<AddressTypeEnum>(type, true, out var parsedStatus) ? parsedStatus : (AddressTypeEnum)(-1);
+        private AddressTypeEnum? ParseAddressType(string? type)
+        {
+            if (string.IsNullOrWhiteSpace(type)) return null;
+
+            return Enum.TryParse<AddressTypeEnum>(type, true, out var parsedStatus)
+                ? parsedStatus
+                : null;
+        }
     }
 }

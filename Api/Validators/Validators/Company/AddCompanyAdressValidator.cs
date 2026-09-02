@@ -1,13 +1,12 @@
 ﻿using Api.Request.Company;
 using Api.Validators.Rule;
-using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators.Validators.Company
 {
     public class AddCompanyAdressValidator : AbstractValidator<AddCompanyAdressRequest>
     {
-        public AddCompanyAdressValidator() 
+        public AddCompanyAdressValidator()
         {
             RuleFor(x => x.Street).ApplyCompanyStreetRules();
             RuleFor(x => x.City).ApplyCompanyCityRules();

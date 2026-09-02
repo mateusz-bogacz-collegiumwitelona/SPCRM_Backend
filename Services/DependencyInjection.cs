@@ -27,6 +27,7 @@ namespace Services
             services.AddScoped<IUnitServices, UnitServices>();
             services.AddScoped<ISteelGradeServices, SteelGradeServices>();
             services.AddScoped<IOfferServices, OfferServices>();
+            services.AddScoped<IEntityAuthorizationService, EntityAuthorizationService>();
 
             services.AddScoped<PromotionCleanupWorker>();
             services.AddScoped<OfferExpirationWorker>();

@@ -32,11 +32,21 @@ namespace Api.Validators.Rule
                 .Matches(@"^\d{2}-\d{3}$").WithErrorCode(ErrorCodes.ZipCodeNotValid);
 
         public static IRuleBuilderOptions<T, float> ApplyCompanyLatitudeRules<T>(this IRuleBuilder<T, float> ruleBuilder)
+         => ruleBuilder
+             .InclusiveBetween(-90f, 90f)
+             .WithErrorCode(ErrorCodes.LatitudeOutOfRange);
+
+        public static IRuleBuilderOptions<T, float> ApplyCompanyLongitudeRules<T>(this IRuleBuilder<T, float> ruleBuilder)
+            => ruleBuilder
+                .InclusiveBetween(-180f, 180f)
+                .WithErrorCode(ErrorCodes.LongitudeOutOfRange);
+
+        public static IRuleBuilderOptions<T, float?> ApplyCompanyLatitudeRules<T>(this IRuleBuilder<T, float?> ruleBuilder)
             => ruleBuilder
                 .InclusiveBetween(-90f, 90f)
                 .WithErrorCode(ErrorCodes.LatitudeOutOfRange);
 
-        public static IRuleBuilderOptions<T, float> ApplyCompanyLongitudeRules<T>(this IRuleBuilder<T, float> ruleBuilder)
+        public static IRuleBuilderOptions<T, float?> ApplyCompanyLongitudeRules<T>(this IRuleBuilder<T, float?> ruleBuilder)
             => ruleBuilder
                 .InclusiveBetween(-180f, 180f)
                 .WithErrorCode(ErrorCodes.LongitudeOutOfRange);

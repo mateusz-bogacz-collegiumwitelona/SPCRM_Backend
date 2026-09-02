@@ -10,7 +10,7 @@
         public const string InvalidDate = "INVALID_DATE";
         public const string InvalidSortColumn = "INVALID_SORT_COLUMN";
         public const string InvalidOperation = "INVALID_OPERATION";
-        
+
         // Validation 
         public const string EmailRequired = "VAL_001";
         public const string EmailInvalid = "VAL_002";
@@ -59,6 +59,7 @@
         public const string CityLengthInvalid = "CAD_009";
         public const string AddressTypeRequired = "CAD_010";
         public const string ZipCodeRequired = "CAD_012";
+        public const string AddressNotFound = "CAD_013";
 
         // Contact
         public const string InvalidContactDetailType = "CON_001";

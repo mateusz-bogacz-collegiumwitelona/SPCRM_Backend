@@ -130,7 +130,7 @@ namespace Tests.Email
                 }
                 Console.WriteLine("==================================================");
 
-                throw; 
+                throw;
             }
         }
     }

@@ -1564,7 +1564,7 @@ namespace Tests.Services
         {
             // Arrange
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235JR" };
-            var currency = new Currency { Id = Guid.NewGuid(), Code = "PLN", DecimalPlaces = 2, Name = "Polski Złoty"};
+            var currency = new Currency { Id = Guid.NewGuid(), Code = "PLN", DecimalPlaces = 2, Name = "Polski Złoty" };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
 
             _contextMock.SteelGrades.Add(steelGrade);
@@ -1603,7 +1603,7 @@ namespace Tests.Services
         {
             // Arrange
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301" };
-            var currency = new Currency { Id = Guid.NewGuid(), Name = "Polski Złoty", Code = "PLN", DecimalPlaces = 2};
+            var currency = new Currency { Id = Guid.NewGuid(), Name = "Polski Złoty", Code = "PLN", DecimalPlaces = 2 };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
 
             _contextMock.SteelGrades.Add(steelGrade);
