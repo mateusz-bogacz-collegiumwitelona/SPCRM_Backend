@@ -40,6 +40,7 @@ namespace Api.Mappers
 
         [MapProperty(nameof(AddCompanyRequest.Name), nameof(AddCompanyCommand.Name), Use = nameof(NormalizeName))]
         [MapProperty(nameof(AddCompanyRequest.NIP), nameof(AddCompanyCommand.NIP), Use = nameof(NormalizeNip))]
+        [MapProperty(nameof(AddCompanyRequest.Addresses), nameof(AddCompanyCommand.Adresses))]
         public partial AddCompanyCommand MapAdd(AddCompanyRequest request);
 
         public AddCompanyAdressCommand MapAddAddress(AddCompanyAdressRequest request)

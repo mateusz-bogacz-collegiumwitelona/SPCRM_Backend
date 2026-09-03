@@ -18,5 +18,6 @@ namespace Services.Interfaces
         Task<Result> DeleteCompanyAsync(Guid companyId, Guid userId);
         Task<Result> DeleteCompanyAddressAsync(Guid addressId, Guid userId);
         Task<Result> ChangeCompanyOwnerAsync(ChangeCompanyOwnerCommand command);
+        Result<List<string>> GetCompanyAddressTypes();
     }
 }

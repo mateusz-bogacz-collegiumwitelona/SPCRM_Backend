@@ -3421,5 +3421,36 @@ namespace Tests.Services
             await Assert.That(updatedCompany).IsNotNull();
             await Assert.That(updatedCompany!.OwnerId).IsEqualTo(newOwnerId);
         }
+
+        // ─── GetCompanyAddressTypes ──────────────────────────────────────────
+
+        [Test]
+        public async Task GetCompanyAddressTypes_ReturnsAllEnumNamesSuccessfully()
+        {
+            // Arrange
+            var expectedTypes = Enum.GetNames<AddressTypeEnum>().ToList();
+
+            // Act
+            var result = _companyServicesMock.GetCompanyAddressTypes();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Address types retrieved successfully");
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!).IsEquivalentTo(expectedTypes);
+        }
+
+        [Test]
+        public async Task GetCompanyAddressTypes_ContainsRequiredDomainTypes()
+        {
+            // Act
+            var result = _companyServicesMock.GetCompanyAddressTypes();
+
+            // Assert
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!).Contains("Headquarters");
+            await Assert.That(result.Data!).Contains("Branch");
+        }
     }
 }

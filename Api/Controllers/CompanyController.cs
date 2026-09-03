@@ -255,5 +255,17 @@ namespace Api.Controllers
             var result = await company.ChangeCompanyOwnerAsync(mapper.MapChangeOwner(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get address type list")]
+        [EndpointDescription("Get address type list")]
+        [HttpGet("address/types")]
+        [Authorize(Roles = "User,Manager,Admin")]
+        public async Task<IActionResult> GetCompanyAddressTypes(
+            [FromServices] ICompanyServices companyServices
+            )
+        {
+            var result = companyServices.GetCompanyAddressTypes();
+            return HandleResult(result);
+        }
     }
 }

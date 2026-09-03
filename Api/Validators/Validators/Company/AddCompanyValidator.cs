@@ -15,13 +15,13 @@ public class AddCompanyValidator : AbstractValidator<AddCompanyRequest>
         RuleFor(x => x.NIP)
             .ApplyCompanyNipRules();
 
-        RuleFor(x => x.Address)
+        RuleFor(x => x.Addresses)
             .NotEmpty().WithErrorCode(ErrorCodes.AddressRequired)
             .Must(addresses => addresses != null && addresses.Count(a =>
                 string.Equals(a.Type, nameof(AddressTypeEnum.Headquarters), StringComparison.OrdinalIgnoreCase)) == 1)
             .WithErrorCode(ErrorCodes.HeadquartersAddressRequired);
 
-        RuleForEach(x => x.Address)
+        RuleForEach(x => x.Addresses)
             .SetValidator(new AddCompanyAdressValidator());
     }
 }

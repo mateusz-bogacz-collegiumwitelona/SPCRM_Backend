@@ -670,6 +670,13 @@ namespace Services.Services
                 );
         }
 
+        public Result<List<string>> GetCompanyAddressTypes()
+            => Result<List<string>>.Success(
+                message: "Address types retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: Enum.GetNames<AddressTypeEnum>().ToList()
+            );
+
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)
         {
             return new CompanyAdress
