@@ -1,4 +1,5 @@
-﻿using Domain.Enum;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -12,6 +13,7 @@ using Services.Command.Company;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using static Microsoft.ApplicationInsights.MetricDimensionNames.TelemetryContext;
 
 namespace Tests.Services
 {
@@ -39,6 +41,7 @@ namespace Tests.Services
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
                 .WithCommand(
+                    "-c", "max_connections=300",
                     "-c", "max_locks_per_transaction=1024",
                     "-c", "shared_buffers=256MB"
                 )
@@ -102,11 +105,15 @@ namespace Tests.Services
         {
             await _contextMock.DisposeAsync();
 
-            using var conn = new NpgsqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
-            await cmd.ExecuteNonQueryAsync();
+            using (var conn = new NpgsqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+                await cmd.ExecuteNonQueryAsync();
+
+                NpgsqlConnection.ClearPool(conn);
+            }
         }
 
         // ─── Map ─────────────────────────────────────────────────
@@ -3451,6 +3458,68 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!).Contains("Headquarters");
             await Assert.That(result.Data!).Contains("Branch");
+        }
+
+        // ─── GetEditCompanyDetailAsync ────────────────────────────────────────
+
+        [Test]
+        public async Task GetEditCompanyDetailAsync_WhenCompanyNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentCompanyId = Guid.NewGuid();
+
+            // Act
+            var result = await _companyServicesMock.GetEditCompanyDetailAsync(nonExistentCompanyId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CompanyNotFound);
+            await Assert.That(result.Message).IsEqualTo("Company not found.");
+            await Assert.That(result.Data).IsNull();
+        }
+
+        [Test]
+        public async Task GetEditCompanyDetailAsync_WhenCompanyExists_Returns200WithMappedDetails()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var companyId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                Email = $"test_user_{uniqueSuffix}@domain.com",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
+            var company = new Company
+            {
+                Id = companyId,
+                Name = $"Stal-Bud_{uniqueSuffix}",
+                NIP = "5252344078",
+                OwnerId = user.Id
+            };
+
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _companyServicesMock.GetEditCompanyDetailAsync(companyId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Company detail review successfully");
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Id).IsEqualTo(company.Id);
+            await Assert.That(result.Data!.Name).IsEqualTo(company.Name);
+            await Assert.That(result.Data!.NIP).IsEqualTo(company.NIP);
         }
     }
 }

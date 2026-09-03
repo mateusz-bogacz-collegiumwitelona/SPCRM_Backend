@@ -259,12 +259,23 @@ namespace Api.Controllers
         [EndpointSummary("Get address type list")]
         [EndpointDescription("Get address type list")]
         [HttpGet("address/types")]
-        [Authorize(Roles = "User,Manager,Admin")]
+        [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> GetCompanyAddressTypes(
             [FromServices] ICompanyServices companyServices
             )
         {
             var result = companyServices.GetCompanyAddressTypes();
+            return HandleResult(result);
+        }
+
+        [HttpGet("edit-detail/{id:guid}")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> GetEditCompanyDetailAsync(
+            [FromServices] ICompanyServices companyServices,
+            [FromRoute] Guid id
+            )
+        {
+            var result = await companyServices.GetEditCompanyDetailAsync(id);
             return HandleResult(result);
         }
     }

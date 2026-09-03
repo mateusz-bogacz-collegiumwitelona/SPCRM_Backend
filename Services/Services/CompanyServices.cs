@@ -677,6 +677,35 @@ namespace Services.Services
                 data: Enum.GetNames<AddressTypeEnum>().ToList()
             );
 
+        public async Task<Result<EditCompanyDetailResponse>> GetEditCompanyDetailAsync(Guid id)
+        {
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == id);
+
+            if (company == null)
+            {
+                _logger.LogInformation("Company with id: {CompanyId} doesn't exist.", id);
+                return Result<EditCompanyDetailResponse>.Failure(
+                    message: "Company not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.CompanyNotFound
+                );
+            }
+
+            var response = new EditCompanyDetailResponse
+            {
+                Id = company.Id,
+                Name = company.Name,
+                NIP = company.NIP
+            };
+
+            return Result<EditCompanyDetailResponse>.Success(
+                message: "Company detail review successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+                );
+
+        }
+
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)
         {
             return new CompanyAdress
