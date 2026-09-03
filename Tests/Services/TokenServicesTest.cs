@@ -6,7 +6,7 @@ using System.Security.Claims;
 
 namespace Tests.Services
 {
-    public class TokenServicesTests
+    public class TokenServicesTest
     {
         [Test]
         public async Task CreateJwtToken_GeneratesValidTokenWithCorrectClaims()

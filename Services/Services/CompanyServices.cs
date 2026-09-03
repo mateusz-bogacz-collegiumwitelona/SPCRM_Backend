@@ -520,21 +520,14 @@ namespace Services.Services
                 );
             }
 
-            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
-            {
-                _logger.LogWarning("User {UserId} is not authorized to delete company {CompanyId}.", userId, companyId);
-                return Result.Failure(
-                    message: "You are not authorized to delete this company.",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    errorCode: ErrorCodes.UnauthorizedAccess
-                );
-            }
+            var hasFinancialHistory = await _context.Invoices.AnyAsync(i => i.CompanyId == companyId)
+                           || await _context.Deals.AnyAsync(d => d.CompanyId == companyId);
 
-            if (company.Invoices.Any() || company.Deals.Any())
+            if (hasFinancialHistory)
             {
                 _logger.LogWarning("Attempted to delete company {CompanyId} with existing financial or sales history.", companyId);
                 return Result.Failure(
-                    message: "Nie można usunąć firmy posiadającej historię transakcji lub faktur ze względu na spójność danych.",
+                    message: "A company with a history of transactions or invoices cannot be deleted due to data consistency.",
                     statusCode: StatusCodes.Status400BadRequest,
                     errorCode: ErrorCodes.InvalidOperation
                 );

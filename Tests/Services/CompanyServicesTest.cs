@@ -2508,54 +2508,6 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task DeleteCompanyAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
-        {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var ownerId = Guid.NewGuid();
-            var unauthorizedUserId = Guid.NewGuid();
-
-            var owner = new ApplicationUser
-            {
-                Id = ownerId,
-                UserName = $"Owner_{uniqueSuffix}",
-                FirstName = "Jan",
-                LastName = "Kowalski",
-                Email = $"owner_{uniqueSuffix}@test.pl"
-            };
-
-            var unauthorizedUser = new ApplicationUser
-            {
-                Id = unauthorizedUserId,
-                UserName = $"Unauth_{uniqueSuffix}",
-                FirstName = "Piotr",
-                LastName = "Nowak",
-                Email = $"unauth_{uniqueSuffix}@test.pl"
-            };
-
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Company_{uniqueSuffix}",
-                NIP = "1112223334",
-                OwnerId = ownerId,
-                Owner = owner
-            };
-
-            _contextMock.Users.AddRange(owner, unauthorizedUser);
-            _contextMock.Companies.Add(company);
-            await _contextMock.SaveChangesAsync();
-
-            // Act
-            var result = await _companyServicesMock.DeleteCompanyAsync(company.Id, unauthorizedUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You are not authorized to delete this company.");
-        }
-
-        [Test]
         public async Task DeleteCompanyAsync_WhenCompanyHasInvoices_Returns400BadRequestDueToDataIntegrity()
         {
             // Arrange
@@ -2611,7 +2563,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
-            await Assert.That(result.Message).Contains("Nie można usunąć firmy posiadającej historię transakcji lub faktur");
+            await Assert.That(result.Message).Contains("A company with a history of transactions or invoices cannot be deleted due to data consistency.");
 
             var unmodifiedCompany = await _contextMock.Companies.FindAsync(company.Id);
             await Assert.That(unmodifiedCompany).IsNotNull();
@@ -2671,7 +2623,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
-            await Assert.That(result.Message).Contains("Nie można usunąć firmy posiadającej historię transakcji lub faktur");
+            await Assert.That(result.Message).Contains("A company with a history of transactions or invoices cannot be deleted due to data consistency.");
 
             var unmodifiedCompany = await _contextMock.Companies.FindAsync(company.Id);
             await Assert.That(unmodifiedCompany).IsNotNull();

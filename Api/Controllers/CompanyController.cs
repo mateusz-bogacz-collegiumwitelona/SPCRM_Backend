@@ -219,7 +219,7 @@ namespace Api.Controllers
         [EndpointSummary("Delete an existing company")]
         [EndpointDescription("Delete an existing company by its ID.")]
         [HttpDelete("{companyId:Guid}")]
-        [Authorize(Roles = "Manager,User")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeleteCompanyAsync(
             [FromServices] ICompanyServices company,
             [FromRoute] Guid companyId
@@ -259,7 +259,7 @@ namespace Api.Controllers
         [EndpointSummary("Get address type list")]
         [EndpointDescription("Get address type list")]
         [HttpGet("address/types")]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyAddressTypes(
             [FromServices] ICompanyServices companyServices
             )
@@ -269,7 +269,7 @@ namespace Api.Controllers
         }
 
         [HttpGet("edit-detail/{id:guid}")]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetEditCompanyDetailAsync(
             [FromServices] ICompanyServices companyServices,
             [FromRoute] Guid id

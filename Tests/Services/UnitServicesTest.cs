@@ -12,7 +12,7 @@ using Testcontainers.PostgreSql;
 
 namespace Tests.Services
 {
-    public class UnitServicesTests
+    public class UnitServicesTest
     {
         protected AppDbContext _contextMock = null!;
 
@@ -65,6 +65,8 @@ namespace Tests.Services
             }
 
             var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
+
+
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                .UseNpgsql(schemaConnectionString, options =>
