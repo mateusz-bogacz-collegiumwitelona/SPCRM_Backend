@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -37,7 +38,6 @@ namespace Services.Services
             => await _context.Contacts
                     .Include(c => c.Company)
                     .AsNoTracking()
-                    .Distinct()
                     .ApplyFilter(command.ComapnyName, command.IsPrimary, command.OwnerId)
                     .ApplySearch(command.SearchTerm ?? string.Empty)
                     .ApplySorting(command.SortBy, command.SortDescending)
@@ -88,48 +88,92 @@ namespace Services.Services
 
         public async Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId)
         {
-            var response = await _context.Contacts
-                .Where(c => c.Id == contactId)
+            var contact = await _context.Contacts
                 .AsNoTracking()
-                .Select(c => new ContactsResponse
+                .Where(c => c.Id == contactId)
+                .Select(c => new
                 {
-                    Id = c.Id,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName,
-                    JobTitle = c.JobTitle ?? "",
+                    c.Id,
+                    c.FirstName,
+                    c.LastName,
+                    JobTitle = c.JobTitle ?? string.Empty,
                     CompanyName = c.Company.Name,
+                    c.CompanyId,
                     OwnerFirstName = c.Owner.FirstName,
                     OwnerLastName = c.Owner.LastName,
-                    IsPrimary = c.IsPrimary
+                    c.OwnerId,
+                    c.IsPrimary
                 })
                 .FirstOrDefaultAsync();
 
-            return Result<ContactsResponse>.Success(
-                data: response,
-                message: "Contact details retrieved successfully",
-                statusCode: StatusCodes.Status200OK
+            if (contact == null)
+            {
+                _logger.LogInformation("Contact with id: {ContactId} doesn't exist.", contactId);
+                return Result<ContactsResponse>.Failure(
+                    message: "Contact not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
                 );
+            }
+
+            if (contact.CompanyId == Guid.Empty || contact.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Contact {ContactId} is missing CompanyId or OwnerId.", contact.Id);
+                throw new DataCorruptionException($"Contact '{contact.Id}' has corrupted company or owner relation.");
+            }
+
+            var response = new ContactsResponse
+            {
+                Id = contact.Id,
+                FirstName = contact.FirstName,
+                LastName = contact.LastName,
+                JobTitle = contact.JobTitle,
+                CompanyName = contact.CompanyName,
+                OwnerFirstName = contact.OwnerFirstName,
+                OwnerLastName = contact.OwnerLastName,
+                IsPrimary = contact.IsPrimary
+            };
+
+            return Result<ContactsResponse>.Success(
+                message: "Contact details retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+            );
         }
 
         public async Task<Result<List<ContactWayResponse>>> GetContactWayAsync(Guid contactId)
         {
-            var query = await _context.ContactDetails
-                .Where(c => c.ContactId == contactId)
+            var contactExists = await _context.Contacts
                 .AsNoTracking()
+                .AnyAsync(c => c.Id == contactId);
+
+            if (!contactExists)
+            {
+                _logger.LogInformation("Contact with id: {ContactId} doesn't exist.", contactId);
+                return Result<List<ContactWayResponse>>.Failure(
+                    message: "Contact not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
+                );
+            }
+
+            var details = await _context.ContactDetails
+                .AsNoTracking()
+                .Where(c => c.ContactId == contactId)
                 .Select(c => new ContactWayResponse
                 {
                     Type = c.Type.ToString(),
                     Value = c.Value,
-                    Label = c.Label ?? "",
+                    Label = c.Label ?? string.Empty,
                     IsPrimary = c.IsPrimary
                 })
                 .ToListAsync();
 
             return Result<List<ContactWayResponse>>.Success(
-                message: "Contact detail review successfully",
+                message: "Contact details retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
-                data: query
-                );
+                data: details
+            );
         }
 
         public async Task<Result<PagedResult<MailingClientResponse>>> GetClientDataToMailingAsync(SimpleListCommand command)
@@ -151,64 +195,72 @@ namespace Services.Services
 
         public async Task<Result> AddContactAsync(AddContactCommand command, Guid userId)
         {
-            var company = await _context.Companies.AnyAsync(c => c.Id == command.CompanyId);
+            var company = await _context.Companies
+                .AsNoTracking()
+                .Select(c => new { c.Id, c.OwnerId })
+                .FirstOrDefaultAsync(c => c.Id == command.CompanyId);
 
-            if (!company)
+            if (company == null)
             {
                 _logger.LogWarning("Company with ID {CompanyId} not found.", command.CompanyId);
                 return Result.Failure(
                     message: "Company not found",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.CompanyNotFound
-                    );
+                );
+            }
+
+            var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (owner == null)
+            {
+                _logger.LogError("Critical data inconsistency: Attempt to add contact by non-existent user {UserId}", userId);
+                throw new UserNotFoundException(userId);
+            }
+
+            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
+            {
+                _logger.LogWarning("Security violation: User {UserId} tried to add contact to company {CompanyId} without permission.", userId, command.CompanyId);
+                throw new ForbiddenException("You do not have permission to add contacts to this company.");
             }
 
             var hasAnyPrimaryContact = await _context.Contacts
                 .AnyAsync(c => c.CompanyId == command.CompanyId && c.IsPrimary);
 
-            var owner = await _context.Users.FindAsync(userId);
-
-            if (owner == null)
-            {
-                return Result.Failure(
-                   message: "User not found",
-                   statusCode: StatusCodes.Status404NotFound,
-                   errorCode: ErrorCodes.UserNotFound
-                );
-            }
-
             var contact = new Contact
             {
                 CompanyId = command.CompanyId,
-                FirstName = command.FirstName,
-                LastName = command.LastName,
-                JobTitle = command.JobTitle,
+                FirstName = command.FirstName.Trim(),
+                LastName = command.LastName.Trim(),
+                JobTitle = command.JobTitle?.Trim(),
                 OwnerId = userId,
                 Owner = owner,
                 IsPrimary = !hasAnyPrimaryContact
             };
 
-            foreach (var detail in command.Details)
+            if (command.Details != null)
             {
-                var contactDetail = new ContactDetail
+                foreach (var detail in command.Details)
                 {
-                    Type = ParseWithString(detail.Type),
-                    Value = detail.Value,
-                    Label = detail.Label,
-                    IsPrimary = detail.IsPrimary,
-                    Contact = contact
-                };
-
-                contact.ContactDetails.Add(contactDetail);
+                    contact.ContactDetails.Add(new ContactDetail
+                    {
+                        Type = ParseWithString(detail.Type),
+                        Value = detail.Value.Trim(),
+                        Label = detail.Label?.Trim(),
+                        IsPrimary = detail.IsPrimary,
+                        Contact = contact
+                    });
+                }
             }
 
             _context.Contacts.Add(contact);
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Contact {ContactId} added to company {CompanyId} by user {UserId}.", contact.Id, command.CompanyId, userId);
+
             return Result.Success(
                 message: "Contact added successfully",
                 statusCode: StatusCodes.Status201Created
-                );
+            );
         }
 
         public Task<Result<List<string>>> GetContactTypeAsync()
@@ -237,14 +289,16 @@ namespace Services.Services
                 );
             }
 
+            if (contact.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Contact {ContactId} has empty OwnerId.", contact.Id);
+                throw new DataCorruptionException($"Contact '{contact.Id}' has no assigned owner.");
+            }
+
             if (!await _entityAuth.CanModifyAsync(currentUserId, contact.OwnerId))
             {
-                _logger.LogWarning("User with id {userId} cannot edit contact with this id {contactId}", currentUserId, command.ContactId);
-                return Result.Failure(
-                    message: "You do not have permission to edit this contact",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    errorCode: ErrorCodes.UnauthorizedAccess
-                );
+                _logger.LogWarning("Security violation: User {UserId} cannot edit contact {ContactId}.", currentUserId, command.ContactId);
+                throw new ForbiddenException("You do not have permission to edit this contact.");
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
@@ -315,6 +369,8 @@ namespace Services.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                _logger.LogInformation("Contact {ContactId} updated successfully by user {UserId}.", command.ContactId, currentUserId);
+
                 return Result.Success(
                     message: "Contact updated successfully",
                     statusCode: StatusCodes.Status200OK
@@ -330,39 +386,60 @@ namespace Services.Services
 
         public async Task<Result<ContactDetailCommand>> GetContactDetailCommand(Guid contactId)
         {
-            var contact = await _context.Contacts
+            var contactData = await _context.Contacts
                 .AsNoTracking()
-                .Include(c => c.ContactDetails)
                 .Where(c => c.Id == contactId)
-                .Select(c => new ContactDetailCommand
+                .Select(c => new
                 {
-                    ContactId = c.Id,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName,
-                    JobTitle = c.JobTitle ?? string.Empty,
-                    Details = c.ContactDetails.Select(cd => new ContactDetailDetailCommand
-                    {
-                        ContactDetailId = cd.Id,
-                        Label = cd.Label ?? string.Empty,
-                        Value = cd.Value,
-                        IsPrimary = cd.IsPrimary,
-                        Type = cd.Type.ToString()
-                    }).ToList()
+                    c.Id,
+                    c.FirstName,
+                    c.LastName,
+                    c.JobTitle,
+                    c.CompanyId,
+                    c.OwnerId,
+                    Details = c.ContactDetails
+                        .Where(cd => !cd.IsDeleted)
+                        .Select(cd => new ContactDetailDetailCommand
+                        {
+                            ContactDetailId = cd.Id,
+                            Label = cd.Label ?? string.Empty,
+                            Value = cd.Value,
+                            IsPrimary = cd.IsPrimary,
+                            Type = cd.Type.ToString()
+                        })
+                        .ToList()
                 })
                 .FirstOrDefaultAsync();
 
-            if (contact == null)
+            if (contactData == null)
             {
+                _logger.LogInformation("Contact with id: {ContactId} doesn't exist.", contactId);
                 return Result<ContactDetailCommand>.Failure(
                     message: "Contact not found",
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
                 );
             }
+
+            if (contactData.CompanyId == Guid.Empty || contactData.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Contact {ContactId} is missing CompanyId or OwnerId.", contactData.Id);
+                throw new DataCorruptionException($"Contact '{contactData.Id}' has corrupted company or owner relation.");
+            }
+
+            var response = new ContactDetailCommand
+            {
+                ContactId = contactData.Id,
+                FirstName = contactData.FirstName,
+                LastName = contactData.LastName,
+                JobTitle = contactData.JobTitle ?? string.Empty,
+                Details = contactData.Details
+            };
 
             return Result<ContactDetailCommand>.Success(
                 message: "Contact detail review successfully",
                 statusCode: StatusCodes.Status200OK,
-                data: contact
+                data: response
             );
         }
 
@@ -372,7 +449,7 @@ namespace Services.Services
 
             if (contact == null)
             {
-                _logger.LogError("Contact with id {ContactId} not found.", contactId);
+                _logger.LogInformation("Contact with id {ContactId} not found.", contactId);
                 return Result.Failure(
                     message: "Contact not found",
                     statusCode: StatusCodes.Status404NotFound,
@@ -380,14 +457,16 @@ namespace Services.Services
                 );
             }
 
+            if (contact.CompanyId == Guid.Empty || contact.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Contact {ContactId} is missing CompanyId or OwnerId.", contact.Id);
+                throw new DataCorruptionException($"Contact '{contact.Id}' has corrupted company or owner relation.");
+            }
+
             if (!await _entityAuth.CanModifyAsync(currentUserId, contact.OwnerId))
             {
-                _logger.LogWarning("User with id {userId} cannot edit contact with this id {contactId}", currentUserId, contactId);
-                return Result.Failure(
-                    message: "You do not have permission to edit this contact",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    errorCode: ErrorCodes.UnauthorizedAccess
-                );
+                _logger.LogWarning("Security violation: User {UserId} cannot set primary contact for contact {ContactId}.", currentUserId, contactId);
+                throw new ForbiddenException("You do not have permission to edit this contact.");
             }
 
             if (contact.IsPrimary)
@@ -395,18 +474,22 @@ namespace Services.Services
                 return Result.Failure(
                     message: "This contact is already the primary contact for the company.",
                     statusCode: StatusCodes.Status400BadRequest,
-                    errorCode: ErrorCodes.PrimaryContactDetailRequired
+                    errorCode: ErrorCodes.InvalidOperation
                 );
             }
 
             await _context.Contacts
                 .Where(c => c.CompanyId == contact.CompanyId && c.IsPrimary && c.Id != contactId)
-                .ExecuteUpdateAsync(s => s.SetProperty(c => c.IsPrimary, false));
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(c => c.IsPrimary, false)
+                    .SetProperty(c => c.UpdateAt, DateTime.UtcNow));
 
             contact.IsPrimary = true;
             contact.UpdateAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Contact {ContactId} promoted to primary for company {CompanyId} by user {UserId}.", contact.Id, contact.CompanyId, currentUserId);
 
             return Result.Success(
                 message: "Contact changed to primary successfully",
@@ -428,8 +511,32 @@ namespace Services.Services
                 );
             }
 
+            if (contact.CompanyId == Guid.Empty || contact.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Contact {ContactId} has missing CompanyId or OwnerId.", contact.Id);
+                throw new DataCorruptionException($"Contact '{contact.Id}' has corrupted company or owner relation.");
+            }
+
+            if (contact.IsPrimary)
+            {
+                var hasOtherContacts = await _context.Contacts
+                    .AnyAsync(c => c.CompanyId == contact.CompanyId && c.Id != contactId);
+
+                if (hasOtherContacts)
+                {
+                    _logger.LogWarning("Attempted to delete primary contact {ContactId} for company {CompanyId} while other contacts exist.", contactId, contact.CompanyId);
+                    return Result.Failure(
+                        message: "Cannot delete the primary contact. Please assign another contact as primary before deleting this one.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.InvalidOperation
+                    );
+                }
+            }
+
             _context.Contacts.Remove(contact);
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Contact {ContactId} deleted successfully.", contactId);
 
             return Result.Success(
                 message: "Contact deleted successfully",
@@ -443,7 +550,7 @@ namespace Services.Services
 
             if (contact == null)
             {
-                _logger.LogError("Contact with id {ContactId} not found.", command.ContactId);
+                _logger.LogInformation("Contact with id {ContactId} not found.", command.ContactId);
                 return Result.Failure(
                     message: "Contact not found",
                     statusCode: StatusCodes.Status404NotFound,
@@ -451,11 +558,17 @@ namespace Services.Services
                 );
             }
 
-            var isNewOwnerExist = await _context.Users.AnyAsync(u => u.Id == command.NewOwnerId);
-
-            if (!isNewOwnerExist)
+            if (contact.OwnerId == Guid.Empty || contact.CompanyId == Guid.Empty)
             {
-                _logger.LogError("User with id {UserId} not found.", command.NewOwnerId);
+                _logger.LogError("Critical data corruption: Contact {ContactId} has empty OwnerId or CompanyId.", contact.Id);
+                throw new DataCorruptionException($"Contact '{contact.Id}' has corrupted relations.");
+            }
+
+            var newOwner = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.NewOwnerId && !u.IsDeleted);
+
+            if (newOwner == null)
+            {
+                _logger.LogInformation("User with id {UserId} not found.", command.NewOwnerId);
                 return Result.Failure(
                     message: "New owner not found",
                     statusCode: StatusCodes.Status404NotFound,
@@ -463,40 +576,47 @@ namespace Services.Services
                 );
             }
 
+            if (contact.OwnerId == command.NewOwnerId)
+            {
+                return Result.Failure(
+                    message: "This user is already the owner of this contact.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var newOwnerRoleNames = await (from ur in _context.UserRoles
+                                           join r in _context.Roles on ur.RoleId equals r.Id
+                                           where ur.UserId == newOwner.Id
+                                           select r.NormalizedName)
+                                          .ToListAsync();
+
+            if (!newOwnerRoleNames.Any())
+            {
+                _logger.LogError("Critical data inconsistency: User {UserId} has no assigned role.", newOwner.Id);
+                throw new MissingUserRoleException(newOwner.Id);
+            }
+
+            if (newOwnerRoleNames.Contains("ADMIN"))
+            {
+                _logger.LogWarning("Attempted to assign contact {ContactId} ownership to an admin user {UserId}.", command.ContactId, command.NewOwnerId);
+                return Result.Failure(
+                    message: "Cannot assign contact ownership to an admin user.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
             contact.OwnerId = command.NewOwnerId;
+            contact.UpdateAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Contact {ContactId} ownership changed to user {UserId}.", command.ContactId, command.NewOwnerId);
 
             return Result.Success(
                 message: "Contact owner changed successfully",
                 statusCode: StatusCodes.Status200OK
-            );
-        }
-
-        public async Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync()
-        {
-            var owners = await _context.Users
-                .Where(u => !_context.UserRoles.Any(ur =>
-                    ur.UserId == u.Id && _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == "ADMIN"))
-                )
-                .Select(u => new OwnerResponse
-                {
-                    Id = u.Id,
-                    FirstName = u.FirstName,
-                    LastName = u.LastName,
-                    Role = _context.Roles
-                        .Where(r => _context.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == r.Id))
-                        .Select(r => r.Name)
-                        .FirstOrDefault() ?? "Brak"
-                })
-                .OrderBy(u => u.LastName)
-                .ThenBy(u => u.FirstName)
-                .ToListAsync();
-
-            return Result<List<OwnerResponse>>.Success(
-                message: "Available owners retrieved successfully",
-                statusCode: StatusCodes.Status200OK,
-                data: owners
             );
         }
 

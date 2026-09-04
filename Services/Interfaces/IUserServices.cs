@@ -8,5 +8,6 @@ namespace Services.Interfaces
     {
         Task<Result<List<UserSimpleListResponse>>> GetUserSimpleListAsync();
         Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command);
+        Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync();
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Services.Response.Contact
+﻿namespace Services.Response.User
 {
     public record OwnerResponse
     {

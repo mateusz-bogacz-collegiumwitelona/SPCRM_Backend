@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Exceptions.Exception;
+using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.DataProtection;
@@ -583,6 +584,130 @@ namespace Tests.Services
             await Assert.That(paged.Items).Count().IsEqualTo(2);
             await Assert.That(paged.HasPreviousPage).IsTrue();
             await Assert.That(paged.HasNextPage).IsTrue();
+        }
+
+        // ─── GetAvailableOwnersAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetAvailableOwnersAsync_ExcludesAdminsAndMapsRolesCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var adminRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Admin", NormalizedName = "ADMIN" };
+            var managerRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Manager", NormalizedName = "MANAGER" };
+            var employeeRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Employee", NormalizedName = "EMPLOYEE" };
+
+            _contextMock.Roles.AddRange(adminRole, managerRole, employeeRole);
+
+            var adminUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Admin_{uniqueSuffix}",
+                NormalizedUserName = $"ADMIN_{uniqueSuffix}",
+                Email = $"admin_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"ADMIN_{uniqueSuffix}@T.PL",
+                FirstName = "Adam",
+                LastName = "Adminowski",
+                IsDeleted = false
+            };
+
+            var managerUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Manager_{uniqueSuffix}",
+                NormalizedUserName = $"MANAGER_{uniqueSuffix}",
+                Email = $"manager_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"MANAGER_{uniqueSuffix}@T.PL",
+                FirstName = "Marek",
+                LastName = "Menedżerski",
+                IsDeleted = false
+            };
+
+            var employeeUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Employee_{uniqueSuffix}",
+                NormalizedUserName = $"EMPLOYEE_{uniqueSuffix}",
+                Email = $"employee_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"EMPLOYEE_{uniqueSuffix}@T.PL",
+                FirstName = "Piotr",
+                LastName = "Pracowniczy",
+                IsDeleted = false
+            };
+
+            _contextMock.Users.AddRange(adminUser, managerUser, employeeUser);
+
+            _contextMock.UserRoles.AddRange(
+                new IdentityUserRole<Guid> { UserId = adminUser.Id, RoleId = adminRole.Id },
+                new IdentityUserRole<Guid> { UserId = managerUser.Id, RoleId = managerRole.Id },
+                new IdentityUserRole<Guid> { UserId = employeeUser.Id, RoleId = employeeRole.Id }
+            );
+
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _userServicesMock.GetAvailableOwnersAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var data = result.Data;
+            await Assert.That(data).IsNotNull();
+
+            var hasAdmin = data!.Any(u => u.Id == adminUser.Id);
+            await Assert.That(hasAdmin).IsFalse();
+
+            var mappedManager = data!.FirstOrDefault(u => u.Id == managerUser.Id);
+            await Assert.That(mappedManager).IsNotNull();
+            await Assert.That(mappedManager!.Role).IsEqualTo("Manager");
+
+            var mappedEmployee = data!.FirstOrDefault(u => u.Id == employeeUser.Id);
+            await Assert.That(mappedEmployee).IsNotNull();
+            await Assert.That(mappedEmployee!.Role).IsEqualTo("Employee");
+        }
+
+        [Test]
+        public async Task GetAvailableOwnersAsync_WhenUserHasNoRole_ThrowsMissingUserRoleException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var role = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Manager", NormalizedName = "MANAGER" };
+            _contextMock.Roles.Add(role);
+
+            var validUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Valid_{uniqueSuffix}",
+                NormalizedUserName = $"VALID_{uniqueSuffix}",
+                Email = $"valid_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"VALID_{uniqueSuffix}@T.PL",
+                FirstName = "Marek",
+                LastName = "Menedżerski",
+                IsDeleted = false
+            };
+
+            var noRoleUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"NoRole_{uniqueSuffix}",
+                NormalizedUserName = $"NOROLE_{uniqueSuffix}",
+                Email = $"norole_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"NOROLE_{uniqueSuffix}@T.PL",
+                FirstName = "Brak",
+                LastName = "Roli",
+                IsDeleted = false
+            };
+
+            _contextMock.Users.AddRange(validUser, noRoleUser);
+            _contextMock.UserRoles.Add(new IdentityUserRole<Guid> { UserId = validUser.Id, RoleId = role.Id });
+            await _contextMock.SaveChangesAsync();
+
+            // Act & Assert
+            await Assert.That(async () => await _userServicesMock.GetAvailableOwnersAsync())
+                .Throws<MissingUserRoleException>();
         }
     }
 }

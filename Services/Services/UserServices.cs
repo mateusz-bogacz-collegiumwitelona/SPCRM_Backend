@@ -95,5 +95,43 @@ namespace Services.Services
                 })
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "users");
         }
+
+        public async Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync()
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var hasUsersWithoutRole = await _context.Users
+                .AsNoTracking()
+                .Where(u => !u.IsDeleted)
+                .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id));
+
+            if (hasUsersWithoutRole)
+            {
+                _logger.LogError("Data integrity violation: Found active users without an assigned role.");
+                throw new MissingUserRoleException();
+            }
+
+            var owners = await (from u in _context.Users.AsNoTracking()
+                                join ur in _context.UserRoles on u.Id equals ur.UserId
+                                join r in _context.Roles on ur.RoleId equals r.Id
+                                where !u.IsDeleted
+                                      && (u.LockoutEnd == null || u.LockoutEnd <= now)
+                                      && r.NormalizedName != "ADMIN"
+                                orderby u.LastName, u.FirstName
+                                select new OwnerResponse
+                                {
+                                    Id = u.Id,
+                                    FirstName = u.FirstName,
+                                    LastName = u.LastName,
+                                    Role = r.Name!
+                                })
+                                .ToListAsync();
+
+            return Result<List<OwnerResponse>>.Success(
+                message: "Available owners retrieved successfully",
+                statusCode: StatusCodes.Status200OK,
+                data: owners
+            );
+        }
     }
 }

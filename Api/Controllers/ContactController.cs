@@ -178,9 +178,9 @@ namespace Api.Controllers
         [EndpointSummary("Get available owners")]
         [EndpointDescription("Show all available owners.")]
         [Authorize(Roles = "Manager,Admin")]
-        public async Task<IActionResult> GetAvailableOwnersAsync([FromServices] IContactServices contact)
+        public async Task<IActionResult> GetAvailableOwnersAsync([FromServices] IUserServices user)
         {
-            var result = await contact.GetAvailableOwnersAsync();
+            var result = await user.GetAvailableOwnersAsync();
             return HandleResult(result);
         }
     }

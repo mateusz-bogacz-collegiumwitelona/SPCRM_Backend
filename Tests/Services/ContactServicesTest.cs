@@ -1,5 +1,6 @@
 ﻿using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -699,16 +700,16 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetContactDetailAsync_WhenContactNotExist_ReturnsNullData()
+        public async Task GetContactDetailAsync_WhenContactNotExist_Returns404NotFound()
         {
             // Arrange & Act
             var result = await _contactServicesMock.GetContactDetailAsync(Guid.NewGuid());
 
             // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.Message).IsEqualTo("Contact details retrieved successfully");
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-            await Assert.That(result.Data).IsNull();
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+            await Assert.That(result.Message).IsEqualTo("Contact not found");
         }
 
         // ─── GetClientDataToMailingAsync ───────────────────────────────────────
@@ -915,7 +916,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddContactAsync_WhenOwnerDoesntExist_Return404()
+        public async Task AddContactAsync_WhenOwnerDoesntExist_ThrowsUserNotFoundException()
         {
             // Arrange
             var companyOwnerId = Guid.NewGuid();
@@ -928,10 +929,10 @@ namespace Tests.Services
                 LastName = "Test"
             };
 
-            var comapnyId = Guid.NewGuid();
+            var companyId = Guid.NewGuid();
             var company = new Company
             {
-                Id = comapnyId,
+                Id = companyId,
                 Name = "Test",
                 NIP = "12345678901",
                 OwnerId = companyOwnerId,
@@ -952,21 +953,17 @@ namespace Tests.Services
 
             var request = new AddContactCommand
             {
-                CompanyId = comapnyId,
+                CompanyId = companyId,
                 FirstName = "Test",
                 LastName = "Test",
                 Details = new List<AddContactDetailCommand> { detail }
             };
 
-            // Act 
             var nonExistentUserId = Guid.NewGuid();
-            var result = await _contactServicesMock.AddContactAsync(request, nonExistentUserId);
 
-            // Assert 
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.Message).IsEqualTo("User not found");
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            // Act & Assert
+            await Assert.That(async () => await _contactServicesMock.AddContactAsync(request, nonExistentUserId))
+                .Throws<UserNotFoundException>();
         }
 
         [Test]
@@ -1147,7 +1144,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task EditContactAsync_WhenUserIsNotOwnerOrManager_Returns403()
+        public async Task EditContactAsync_WhenUserIsNotOwnerOrManager_ThrowForbiddenException()
         {
             // Arrange
             var ownerId = Guid.NewGuid();
@@ -1194,14 +1191,9 @@ namespace Tests.Services
                 Details = new List<EditContactDetailCommand>()
             };
 
-            // Act
-            var result = await _contactServicesMock.EditContactAsync(command, unauthorizedUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.Message).IsEqualTo("You do not have permission to edit this contact");
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+            // Act & Assert
+            await Assert.That(async () => await _contactServicesMock.EditContactAsync(command, unauthorizedUserId))
+                .Throws<ForbiddenException>();
         }
 
         [Test]
@@ -1515,7 +1507,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task SetPrimaryContactAsync_WhenUserIsNotAuthorized_Returns403()
+        public async Task SetPrimaryContactAsync_WhenUserIsNotAuthorized_ThrowForbiddenException()
         {
             // Arrange
             var ownerId = Guid.NewGuid();
@@ -1556,14 +1548,9 @@ namespace Tests.Services
             _contextMock.Contacts.Add(contact);
             await _contextMock.SaveChangesAsync();
 
-            // Act
-            var result = await _contactServicesMock.SetPrimaryContactAsync(contact.Id, unauthorizedUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You do not have permission to edit this contact");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+            // Act & Assert
+            await Assert.That(async () => await _contactServicesMock.SetPrimaryContactAsync(contact.Id, unauthorizedUserId))
+                .Throws<ForbiddenException>();
         }
 
         [Test]
@@ -1613,7 +1600,7 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.Message).IsEqualTo("This contact is already the primary contact for the company.");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PrimaryContactDetailRequired);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
 
         [Test]
@@ -1886,6 +1873,19 @@ namespace Tests.Services
                 LastName = "Opiekun"
             };
 
+            var role = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Employee",
+                NormalizedName = "EMPLOYEE"
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = newOwnerId,
+                RoleId = role.Id
+            };
+
             var company = new Company
             {
                 Id = Guid.NewGuid(),
@@ -1909,6 +1909,8 @@ namespace Tests.Services
             };
 
             _contextMock.Users.AddRange(oldOwner, newOwner);
+            _contextMock.Roles.Add(role);
+            _contextMock.UserRoles.Add(userRole);
             _contextMock.Companies.Add(company);
             _contextMock.Contacts.Add(contact);
             await _contextMock.SaveChangesAsync();
@@ -1932,144 +1934,6 @@ namespace Tests.Services
             var updatedContact = await _contextMock.Contacts.FindAsync(contactId);
             await Assert.That(updatedContact).IsNotNull();
             await Assert.That(updatedContact!.OwnerId).IsEqualTo(newOwnerId);
-        }
-
-        // ─── GetAvailableOwnersAsync ─────────────────────────────────────────────────
-
-        [Test]
-        public async Task GetAvailableOwnersAsync_ExcludesAdminsAndMapsRolesCorrectly()
-        {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var adminRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Admin", NormalizedName = "ADMIN" };
-            var managerRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Manager", NormalizedName = "MANAGER" };
-
-            _contextMock.Roles.AddRange(adminRole, managerRole);
-
-            var adminUser = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"Admin_{uniqueSuffix}",
-                NormalizedUserName = $"ADMIN_{uniqueSuffix}",
-                Email = $"admin_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"ADMIN_{uniqueSuffix}@T.PL",
-                FirstName = "Adam",
-                LastName = "Adminowski"
-            };
-
-            var managerUser = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"Manager_{uniqueSuffix}",
-                NormalizedUserName = $"MANAGER_{uniqueSuffix}",
-                Email = $"manager_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"MANAGER_{uniqueSuffix}@T.PL",
-                FirstName = "Marek",
-                LastName = "Menedżerski"
-            };
-
-            var noRoleUser = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"NoRole_{uniqueSuffix}",
-                NormalizedUserName = $"NOROLE_{uniqueSuffix}",
-                Email = $"norole_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"NOROLE_{uniqueSuffix}@T.PL",
-                FirstName = "Brak",
-                LastName = "Roli"
-            };
-
-            _contextMock.Users.AddRange(adminUser, managerUser, noRoleUser);
-
-            _contextMock.UserRoles.Add(new IdentityUserRole<Guid> { UserId = adminUser.Id, RoleId = adminRole.Id });
-            _contextMock.UserRoles.Add(new IdentityUserRole<Guid> { UserId = managerUser.Id, RoleId = managerRole.Id });
-
-            await _contextMock.SaveChangesAsync();
-
-            // Act
-            var result = await _contactServicesMock.GetAvailableOwnersAsync();
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-
-            var data = result.Data;
-            await Assert.That(data).IsNotNull();
-
-            var hasAdmin = data!.Any(u => u.Id == adminUser.Id);
-            await Assert.That(hasAdmin).IsFalse();
-
-            var mappedManager = data!.FirstOrDefault(u => u.Id == managerUser.Id);
-            await Assert.That(mappedManager).IsNotNull();
-            await Assert.That(mappedManager!.Role).IsEqualTo("Manager");
-
-            var mappedNoRole = data!.FirstOrDefault(u => u.Id == noRoleUser.Id);
-            await Assert.That(mappedNoRole).IsNotNull();
-            await Assert.That(mappedNoRole!.Role).IsEqualTo("Brak");
-        }
-
-        [Test]
-        public async Task GetAvailableOwnersAsync_OrdersByLastNameThenFirstName()
-        {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var role = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER" };
-            _contextMock.Roles.Add(role);
-
-            var user1 = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"U1_{uniqueSuffix}",
-                NormalizedUserName = $"U1_{uniqueSuffix}",
-                Email = $"1_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"1_{uniqueSuffix}@T.PL",
-                FirstName = "Zbigniew",
-                LastName = "Kowalski"
-            };
-            var user2 = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"U2_{uniqueSuffix}",
-                NormalizedUserName = $"U2_{uniqueSuffix}",
-                Email = $"2_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"2_{uniqueSuffix}@T.PL",
-                FirstName = "Adam",
-                LastName = "Kowalski"
-            };
-            var user3 = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"U3_{uniqueSuffix}",
-                NormalizedUserName = $"U3_{uniqueSuffix}",
-                Email = $"3_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"3_{uniqueSuffix}@T.PL",
-                FirstName = "Jan",
-                LastName = "Nowak"
-            };
-
-            _contextMock.Users.AddRange(user1, user2, user3);
-
-            _contextMock.UserRoles.Add(new IdentityUserRole<Guid> { UserId = user1.Id, RoleId = role.Id });
-            _contextMock.UserRoles.Add(new IdentityUserRole<Guid> { UserId = user2.Id, RoleId = role.Id });
-            _contextMock.UserRoles.Add(new IdentityUserRole<Guid> { UserId = user3.Id, RoleId = role.Id });
-
-            await _contextMock.SaveChangesAsync();
-
-            // Act
-            var result = await _contactServicesMock.GetAvailableOwnersAsync();
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            var data = result.Data!;
-
-            var testUsers = data.Where(u => u.Id == user1.Id || u.Id == user2.Id || u.Id == user3.Id).ToList();
-
-            await Assert.That(testUsers).Count().IsEqualTo(3);
-            await Assert.That(testUsers[0].Id).IsEqualTo(user2.Id);
-            await Assert.That(testUsers[1].Id).IsEqualTo(user1.Id);
-            await Assert.That(testUsers[2].Id).IsEqualTo(user3.Id);
         }
     }
 }
