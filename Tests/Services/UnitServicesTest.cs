@@ -1,4 +1,5 @@
 ﻿using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -578,6 +579,72 @@ namespace Tests.Services
 
             var updated = await _contextMock.UnitsOfMeasure.FindAsync(unit.Id);
             await Assert.That(updated!.BaseMultiplier).IsEqualTo(5);
+        }
+
+        [Test]
+        public async Task EditUnitAsync_WhenUnitInDatabaseHasEmptyName_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "ValidName",
+                Symbol = "vn",
+                BaseMultiplier = 1
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync($@"
+                SET session_replication_role = 'replica';
+                UPDATE ""UnitsOfMeasure"" SET ""Name"" = '' WHERE ""Id"" = '{unit.Id}';
+                SET session_replication_role = 'origin';
+            ");
+
+            var command = new EditUnitCommand
+            {
+                UnitId = unit.Id,
+                Name = "NewName"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _unitServicesMok.EditUnitAsync(command))
+                .Throws<DataCorruptionException>();
+        }
+
+        [Test]
+        public async Task EditUnitAsync_WhenUnitInDatabaseHasEmptySymbol_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var unit = new UnitOfMeasure
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kilogram",
+                Symbol = "kg",
+                BaseMultiplier = 1000
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync($@"
+                SET session_replication_role = 'replica';
+                UPDATE ""UnitsOfMeasure"" SET ""Symbol"" = '   ' WHERE ""Id"" = '{unit.Id}';
+                SET session_replication_role = 'origin';
+            ");
+
+            var command = new EditUnitCommand
+            {
+                UnitId = unit.Id,
+                BaseMultiplier = 500
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _unitServicesMok.EditUnitAsync(command))
+                .Throws<DataCorruptionException>();
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -59,89 +60,109 @@ namespace Services.Services
 
         public async Task<Result> AddUnitAsync(AddUnitCommand command)
         {
-            var isExist = await _context.UnitsOfMeasure.AnyAsync(uom =>
-                uom.Name.ToLower() == command.Name.ToLower().Trim() ||
-                uom.Symbol.ToLower() == command.Symbol.ToLower().Trim()
-            );
+            var trimmedName = command.Name.Trim();
+            var trimmedSymbol = command.Symbol.Trim();
+
+            var isExist = await _context.UnitsOfMeasure
+                .AsNoTracking()
+                .AnyAsync(uom =>
+                    EF.Functions.ILike(uom.Name, trimmedName) ||
+                    EF.Functions.ILike(uom.Symbol, trimmedSymbol)
+                );
 
             if (isExist)
             {
-                _logger.LogWarning("Unit with name {Name} or symbol {Symbol} already exists.", command.Name, command.Symbol);
+                _logger.LogWarning("Unit with name '{Name}' or symbol '{Symbol}' already exists.", trimmedName, trimmedSymbol);
                 return Result.Failure(
                     message: "Unit with the same name or symbol already exists.",
                     statusCode: StatusCodes.Status409Conflict,
                     errorCode: ErrorCodes.UnitAlreadyExists
-                    );
+                );
             }
 
             var unit = new UnitOfMeasure
             {
-                Name = command.Name,
-                Symbol = command.Symbol,
+                Id = Guid.NewGuid(),
+                Name = trimmedName,
+                Symbol = trimmedSymbol,
                 BaseMultiplier = command.BaseMultiplier
             };
 
             _context.UnitsOfMeasure.Add(unit);
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Unit {UnitId} ('{Name}', '{Symbol}') added successfully.", unit.Id, unit.Name, unit.Symbol);
+
             return Result.Success(
                 message: "Unit added successfully.",
                 statusCode: StatusCodes.Status201Created
-                );
+            );
         }
 
         public async Task<Result> EditUnitAsync(EditUnitCommand command)
         {
-            var unit = await _context.UnitsOfMeasure.FindAsync(command.UnitId);
+            var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId);
 
             if (unit == null)
             {
-                _logger.LogWarning("Unit with ID {UnitId} not found.", command.UnitId);
+                _logger.LogInformation("Unit with ID {UnitId} not found.", command.UnitId);
                 return Result.Failure(
                     message: "Unit not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.UnitNotFound
-                    );
+                );
             }
 
-            if (!string.IsNullOrEmpty(command.Name))
+            if (string.IsNullOrWhiteSpace(unit.Name) || string.IsNullOrWhiteSpace(unit.Symbol))
             {
-                var isNameExist = await _context.UnitsOfMeasure.AnyAsync(uom =>
-                    uom.Id != command.UnitId &&
-                    uom.Name.ToLower() == command.Name.ToLower().Trim()
-                );
+                _logger.LogError("Critical data corruption: UnitOfMeasure {UnitId} has empty Name or Symbol.", unit.Id);
+                throw new DataCorruptionException($"Unit of measure '{unit.Id}' contains corrupted state.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Name))
+            {
+                var trimmedName = command.Name.Trim();
+                var isNameExist = await _context.UnitsOfMeasure
+                    .AsNoTracking()
+                    .AnyAsync(uom =>
+                        uom.Id != command.UnitId &&
+                        EF.Functions.ILike(uom.Name, trimmedName)
+                    );
 
                 if (isNameExist)
                 {
-                    _logger.LogWarning("Unit with name {Name} already exists.", command.Name);
+                    _logger.LogWarning("Unit with name '{Name}' already exists.", trimmedName);
                     return Result.Failure(
                         message: "Unit with the same name already exists.",
                         statusCode: StatusCodes.Status409Conflict,
                         errorCode: ErrorCodes.UnitAlreadyExists
-                        );
+                    );
                 }
 
-                unit.Name = command.Name;
+                unit.Name = trimmedName;
             }
 
-            if (!string.IsNullOrEmpty(command.Symbol))
+            if (!string.IsNullOrWhiteSpace(command.Symbol))
             {
-                var isSymbolExist = await _context.UnitsOfMeasure.AnyAsync(uom =>
-                    uom.Id != command.UnitId &&
-                    uom.Symbol.ToLower() == command.Symbol.ToLower().Trim()
-                );
+                var trimmedSymbol = command.Symbol.Trim();
+                var isSymbolExist = await _context.UnitsOfMeasure
+                    .AsNoTracking()
+                    .AnyAsync(uom =>
+                        uom.Id != command.UnitId &&
+                        EF.Functions.ILike(uom.Symbol, trimmedSymbol)
+                    );
 
                 if (isSymbolExist)
                 {
-                    _logger.LogWarning("Unit with symbol {Symbol} already exists.", command.Symbol);
+                    _logger.LogWarning("Unit with symbol '{Symbol}' already exists.", trimmedSymbol);
                     return Result.Failure(
                         message: "Unit with the same symbol already exists.",
                         statusCode: StatusCodes.Status409Conflict,
                         errorCode: ErrorCodes.UnitAlreadyExists
-                        );
+                    );
                 }
 
-                unit.Symbol = command.Symbol;
+                unit.Symbol = trimmedSymbol;
             }
 
             if (command.BaseMultiplier.HasValue)
@@ -149,12 +170,16 @@ namespace Services.Services
                 unit.BaseMultiplier = command.BaseMultiplier.Value;
             }
 
+            unit.UpdateAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Unit {UnitId} updated successfully.", unit.Id);
 
             return Result.Success(
                 message: "Unit updated successfully.",
                 statusCode: StatusCodes.Status200OK
-                );
+            );
         }
     }
 }
