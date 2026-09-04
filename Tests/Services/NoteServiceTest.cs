@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -884,11 +885,12 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo("Note not found or is deleted");
+            await Assert.That(result.Message).IsEqualTo("Note not found");
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoteNotFound);
         }
 
         [Test]
-        public async Task EditNoteAsync_WhenUserDoesNotExist_Returns404()
+        public async Task EditNoteAsync_WhenUserDoesNotExist_ThrowsUserNotFoundException()
         {
             // Arrange
             Guid ownerId = Guid.NewGuid();
@@ -916,10 +918,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 FirstName = "Jan",
                 LastName = "Kowalski",
-                CompanyId = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
                 IsPrimary = true,
                 Owner = owner,
-                Company = company
+                OwnerId = ownerId
             };
 
             var note = new ContactNote
@@ -928,7 +931,9 @@ namespace Tests.Services
                 Title = "Old Title",
                 Content = "Old Content",
                 Contact = contact,
-                Author = owner
+                ContactId = contact.Id,
+                Author = owner,
+                AuthorId = ownerId
             };
 
             _contextMock.Users.Add(owner);
@@ -944,18 +949,13 @@ namespace Tests.Services
                 Content = "New Content"
             };
 
-            // Act 
-            var result = await _noteServicesMock.EditNoteAsync(command, Guid.NewGuid());
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo("User not found");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            // Act & Assert
+            await Assert.That(async () => await _noteServicesMock.EditNoteAsync(command, Guid.NewGuid()))
+                .Throws<UserNotFoundException>();
         }
 
         [Test]
-        public async Task EditNoteAsync_WhenUserNotHaveAccess_Returns403()
+        public async Task EditNoteAsync_WhenUserNotHaveAccess_ThrowsForbiddenException()
         {
             // Arrange
             Guid ownerId = Guid.NewGuid();
@@ -993,10 +993,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 FirstName = "Jan",
                 LastName = "Kowalski",
-                CompanyId = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
                 IsPrimary = true,
                 Owner = owner,
-                Company = company
+                OwnerId = ownerId
             };
 
             var note = new ContactNote
@@ -1005,7 +1006,9 @@ namespace Tests.Services
                 Title = "Old Title",
                 Content = "Old Content",
                 Contact = contact,
-                Author = owner
+                ContactId = contact.Id,
+                Author = owner,
+                AuthorId = ownerId
             };
 
             _contextMock.Users.AddRange(owner, otherUser);
@@ -1021,14 +1024,9 @@ namespace Tests.Services
                 Content = "New Content"
             };
 
-            // Act
-            var result = await _noteServicesMock.EditNoteAsync(command, otherUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You are not authorized to edit this note");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+            // Act & Assert
+            await Assert.That(async () => await _noteServicesMock.EditNoteAsync(command, otherUserId))
+                .Throws<ForbiddenException>();
         }
 
         [Test]
@@ -1101,7 +1099,7 @@ namespace Tests.Services
         // ─── AddNoteAsync ──────────────────────────────────────────────────────
 
         [Test]
-        public async Task AddNoteAsync_WhenUserDoesNotExist_Returns404()
+        public async Task AddNoteAsync_WhenUserDoesNotExist_ThrowsUserNotFoundException()
         {
             // Arrange
             var command = new NoteAddCommand
@@ -1113,14 +1111,9 @@ namespace Tests.Services
                 AuthorId = Guid.NewGuid()
             };
 
-            // Act
-            var result = await _noteServicesMock.AddNoteAsync(command);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo("User not found");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            // Act & Assert
+            await Assert.That(async () => await _noteServicesMock.AddNoteAsync(command))
+                .Throws<UserNotFoundException>();
         }
 
         [Test]
@@ -1258,8 +1251,8 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoteTargetNotFound);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
 
         // ─── DeleteNoteAsync ──────────────────────────────────────────────────────
@@ -1278,7 +1271,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task DeleteNoteAsync_WhenUserDoesNotExist_Return404()
+        public async Task DeleteNoteAsync_WhenUserDoesNotExist_ThrowsUserNotFoundException()
         {
             // Arrange 
             Guid ownerId = Guid.NewGuid();
@@ -1306,10 +1299,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 FirstName = "Jan",
                 LastName = "Kowalski",
-                CompanyId = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
                 IsPrimary = true,
                 Owner = owner,
-                Company = company
+                OwnerId = ownerId
             };
 
             var note = new ContactNote
@@ -1318,7 +1312,9 @@ namespace Tests.Services
                 Title = "Old Title",
                 Content = "Old Content",
                 Contact = contact,
-                Author = owner
+                ContactId = contact.Id,
+                Author = owner,
+                AuthorId = ownerId
             };
 
             _contextMock.Users.Add(owner);
@@ -1327,18 +1323,13 @@ namespace Tests.Services
             _contextMock.Notes.Add(note);
             await _contextMock.SaveChangesAsync();
 
-            // Act
-            var result = await _noteServicesMock.DeleteNoteAsync(note.Id, Guid.NewGuid());
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo("User not found");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            // Act & Assert
+            await Assert.That(async () => await _noteServicesMock.DeleteNoteAsync(note.Id, Guid.NewGuid()))
+                .Throws<UserNotFoundException>();
         }
 
         [Test]
-        public async Task DeleteNoteAsync_WhenUserNotHaveAccess_Returns403()
+        public async Task DeleteNoteAsync_WhenUserNotHaveAccess_ThrowsForbiddenException()
         {
             // Arrange 
             Guid ownerId = Guid.NewGuid();
@@ -1376,10 +1367,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 FirstName = "Jan",
                 LastName = "Kowalski",
-                CompanyId = Guid.NewGuid(),
+                CompanyId = company.Id,
+                Company = company,
                 IsPrimary = true,
                 Owner = owner,
-                Company = company
+                OwnerId = ownerId
             };
 
             var note = new ContactNote
@@ -1388,23 +1380,21 @@ namespace Tests.Services
                 Title = "Old Title",
                 Content = "Old Content",
                 Contact = contact,
-                Author = owner
+                ContactId = contact.Id,
+                Author = owner,
+                AuthorId = ownerId
             };
 
-            _contextMock.Users.AddRange(owner, otherUser);
+            await _userManagerMock.CreateAsync(owner, "Password123!");
+            await _userManagerMock.CreateAsync(otherUser, "Password123!");
             _contextMock.Companies.Add(company);
             _contextMock.Contacts.Add(contact);
             _contextMock.Notes.Add(note);
             await _contextMock.SaveChangesAsync();
 
-            // Act
-            var result = await _noteServicesMock.DeleteNoteAsync(note.Id, otherUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You are not authorized to delete this note");
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
+            // Act & Assert
+            await Assert.That(async () => await _noteServicesMock.DeleteNoteAsync(note.Id, otherUserId))
+                .Throws<ForbiddenException>();
         }
 
         [Test]

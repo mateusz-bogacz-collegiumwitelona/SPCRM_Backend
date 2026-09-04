@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -130,43 +131,46 @@ namespace Services.Services
 
             if (note == null)
             {
-                _logger.LogWarning("Note with ID {NoteId} not found or is deleted.", command.Id);
-
+                _logger.LogInformation("Note with ID {NoteId} not found.", command.Id);
                 return Result.Failure(
-                    message: "Note not found or is deleted",
-                    errorCode: ErrorCodes.NoteNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    message: "Note not found",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NoteNotFound
                 );
+            }
+
+            if (note.AuthorId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Note {NoteId} has no assigned author.", note.Id);
+                throw new DataCorruptionException($"Note '{note.Id}' has no valid author.");
             }
 
             var user = await _context.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id == userId);
+                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
 
             if (user == null)
             {
-                _logger.LogWarning("User with ID {UserId} not found.", userId);
-                return Result.Failure(
-                    message: "User not found",
-                    errorCode: ErrorCodes.UserNotFound,
-                    statusCode: StatusCodes.Status404NotFound
-                );
+                _logger.LogError("Security/Integrity violation: User with ID {UserId} does not exist.", userId);
+                throw new UserNotFoundException(userId);
             }
 
-            if (user.Id != note.AuthorId && !await _userManager.IsInRoleAsync(user, "Manager"))
+            var isAuthor = user.Id == note.AuthorId;
+            var isManager = await _userManager.IsInRoleAsync(user, "Manager") || await _userManager.IsInRoleAsync(user, "Admin");
+
+            if (!isAuthor && !isManager)
             {
-                _logger.LogWarning("User with ID {UserId} is not authorized to edit note with ID {NoteId}.", userId, command.Id);
-                return Result.Failure(
-                    message: "You are not authorized to edit this note",
-                    errorCode: ErrorCodes.UnauthorizedAccess,
-                    statusCode: StatusCodes.Status403Forbidden
-                );
+                _logger.LogWarning("Security violation: User {UserId} attempted to edit note {NoteId} owned by {AuthorId}.", userId, command.Id, note.AuthorId);
+                throw new ForbiddenException("You are not authorized to edit this note.");
             }
 
-            if (!string.IsNullOrWhiteSpace(command.Title)) note.Title = command.Title;
-            if (!string.IsNullOrWhiteSpace(command.Content)) note.Content = command.Content;
+            if (!string.IsNullOrWhiteSpace(command.Title)) note.Title = command.Title.Trim();
+            if (!string.IsNullOrWhiteSpace(command.Content)) note.Content = command.Content.Trim();
+
+            note.UpdateAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Note {NoteId} updated successfully by user {UserId}.", note.Id, userId);
 
             return Result.Success(
                 message: "Note updated successfully",
@@ -177,30 +181,35 @@ namespace Services.Services
         public async Task<Result> AddNoteAsync(NoteAddCommand command)
         {
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == command.AuthorId);
+                .FirstOrDefaultAsync(u => u.Id == command.AuthorId && !u.IsDeleted);
 
             if (user == null)
             {
-                _logger.LogWarning("User with ID {UserId} not found.", command.AuthorId);
+                _logger.LogError("Security/Integrity violation: User with ID {UserId} does not exist or is deleted.", command.AuthorId);
+                throw new UserNotFoundException(command.AuthorId);
+            }
+
+            if (!Enum.IsDefined(typeof(NoteEnum), command.NoteType))
+            {
+                _logger.LogWarning("Invalid note type provided: {NoteType}.", command.NoteType);
                 return Result.Failure(
-                    message: "User not found",
-                    errorCode: ErrorCodes.UserNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    message: "Invalid note type provided.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
                 );
             }
 
             bool targetExists = command.NoteType switch
             {
-                NoteEnum.Contact => await _context.Contacts.AnyAsync(c => c.Id == command.TargetId),
-                NoteEnum.Deal => await _context.Deals.AnyAsync(d => d.Id == command.TargetId),
-                NoteEnum.Task => await _context.Tasks.AnyAsync(t => t.Id == command.TargetId),
+                NoteEnum.Contact => await _context.Contacts.AsNoTracking().AnyAsync(c => c.Id == command.TargetId),
+                NoteEnum.Deal => await _context.Deals.AsNoTracking().AnyAsync(d => d.Id == command.TargetId),
+                NoteEnum.Task => await _context.Tasks.AsNoTracking().AnyAsync(t => t.Id == command.TargetId),
                 _ => false
             };
 
             if (!targetExists)
             {
-                _logger.LogWarning("Target entity {TargetType} with ID {TargetId} not found.", command.NoteType, command.TargetId);
-
+                _logger.LogInformation("Target entity {TargetType} with ID {TargetId} not found.", command.NoteType, command.TargetId);
                 return Result.Failure(
                     message: $"{command.NoteType} for this note not found",
                     statusCode: StatusCodes.Status404NotFound,
@@ -213,29 +222,31 @@ namespace Services.Services
                 NoteEnum.Contact => new ContactNote
                 {
                     ContactId = command.TargetId,
-                    Title = command.Title,
-                    Content = command.Content,
+                    Title = command.Title.Trim(),
+                    Content = command.Content.Trim(),
                     Author = user
                 },
                 NoteEnum.Deal => new DealNote
                 {
                     DealId = command.TargetId,
-                    Title = command.Title,
-                    Content = command.Content,
+                    Title = command.Title.Trim(),
+                    Content = command.Content.Trim(),
                     Author = user
                 },
                 NoteEnum.Task => new TaskNote
                 {
                     TaskId = command.TargetId,
-                    Title = command.Title,
-                    Content = command.Content,
+                    Title = command.Title.Trim(),
+                    Content = command.Content.Trim(),
                     Author = user
                 },
-                _ => throw new ArgumentException("Invalid note type", nameof(command.NoteType))
+                _ => throw new InvalidOperationException($"Unhandled note type: {command.NoteType}")
             };
 
             _context.Notes.Add(newNote);
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Note {NoteId} added to {TargetType} ({TargetId}) by user {AuthorId}.", newNote.Id, command.NoteType, command.TargetId, command.AuthorId);
 
             return Result.Success(
                 message: "Note added successfully",
@@ -250,40 +261,41 @@ namespace Services.Services
 
             if (note == null)
             {
-                _logger.LogWarning("Note with ID {NoteId} not found or is already deleted.", noteId);
+                _logger.LogInformation("Note with ID {NoteId} not found or is already deleted.", noteId);
                 return Result.Failure(
                     message: "Note not found or is already deleted",
-                    errorCode: ErrorCodes.NoteNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NoteNotFound
                 );
+            }
+
+            if (note.AuthorId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Note {NoteId} has no assigned author.", note.Id);
+                throw new DataCorruptionException($"Note '{note.Id}' has no valid author.");
             }
 
             var user = await _userManager.FindByIdAsync(userId.ToString());
 
-            if (user == null)
+            if (user == null || user.IsDeleted)
             {
-                _logger.LogWarning("User with ID {UserId} not found.", userId);
-                return Result.Failure(
-                    message: "User not found",
-                    errorCode: ErrorCodes.UserNotFound,
-                    statusCode: StatusCodes.Status404NotFound
-                );
+                _logger.LogError("Security/Integrity violation: User with ID {UserId} does not exist or is deleted.", userId);
+                throw new UserNotFoundException(userId);
             }
 
-            var isManager = user != null && await _userManager.IsInRoleAsync(user, "Manager");
+            var isAuthor = note.AuthorId == userId;
+            var isPrivileged = await _userManager.IsInRoleAsync(user, "Manager") || await _userManager.IsInRoleAsync(user, "Admin");
 
-            if (note.AuthorId != userId && !isManager)
+            if (!isAuthor && !isPrivileged)
             {
-                _logger.LogWarning("User with ID {UserId} is not authorized to delete note with ID {NoteId}.", userId, noteId);
-                return Result.Failure(
-                    message: "You are not authorized to delete this note",
-                    errorCode: ErrorCodes.UnauthorizedAccess,
-                    statusCode: StatusCodes.Status403Forbidden
-                );
+                _logger.LogWarning("Security violation: User {UserId} attempted to delete note {NoteId} owned by {AuthorId}.", userId, noteId, note.AuthorId);
+                throw new ForbiddenException("You are not authorized to delete this note.");
             }
+
             _context.Notes.Remove(note);
-
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Note {NoteId} deleted successfully by user {UserId}.", noteId, userId);
 
             return Result.Success(
                 message: "Note deleted successfully",
