@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -32,6 +33,13 @@ namespace Services.Services
         public async Task<Result<List<CompaniesMapResponse>>> Map(string? searchTerm = null)
         {
             var query = _context.CompanyAdresses.AsQueryable();
+
+            var hasInvalidCoordinates = await query.AnyAsync(a => a.Location == null);
+            if (hasInvalidCoordinates)
+            {
+                throw new MissingCoordinatesException("Data integrity violation: Found addresses without geographic coordinates.");
+            }
+
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -69,7 +77,6 @@ namespace Services.Services
 
         public async Task<Result<CompanyDetailResponse>> Details(Guid id, Guid userId)
         {
-
             var company = await _context.Companies
                 .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -99,8 +106,7 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(CompanyCommand command)
-        {
-            var query = _context.CompanyAdresses
+            => await _context.CompanyAdresses
                 .Where(a => a.CompanyId == command.CompanyId)
                 .Select(a => new AddressDetailResponse
                 {
@@ -111,10 +117,8 @@ namespace Services.Services
                     Latitude = a.Location != null ? a.Location.Y : (double?)null,
                     Longitude = a.Location != null ? a.Location.X : (double?)null,
                     Type = a.AddressType.ToString()
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "comapny_adresses");
-        }
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "comapny_adresses");
 
 
         public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command)
@@ -176,9 +180,19 @@ namespace Services.Services
 
         public async Task<Result<Guid>> AddCompanyAsync(AddCompanyCommand command, Guid userId)
         {
+            var userExists = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.Id == userId && !u.IsDeleted);
+
+            if (!userExists)
+            {
+                _logger.LogError("Critical data inconsistency: Attempt to create company by non-existent user {UserId}", userId);
+                throw new UserNotFoundException(userId);
+            }
+
             var companyExists = await _context.Companies
                  .AsNoTracking()
-                 .AnyAsync(c => c.Name.ToLower() == command.Name.ToLower() || c.NIP == command.NIP);
+                 .AnyAsync(c => EF.Functions.ILike(c.Name, command.Name) || c.NIP == command.NIP);
 
             if (companyExists)
             {
@@ -278,20 +292,25 @@ namespace Services.Services
                 );
             }
 
+            if (company.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Company {CompanyId} has empty OwnerId.", company.Id);
+                throw new DataCorruptionException($"Company '{company.Id}' has no assigned owner.");
+            }
+
             if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
             {
-                _logger.LogWarning("User {UserId} is not authorized to modify company {CompanyId}.", userId, command.Id);
-                return Result.Failure(
-                    message: "You are not authorized to modify this company.",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    errorCode: ErrorCodes.UnauthorizedAccess
-                );
+                _logger.LogWarning("Security violation: User {UserId} tried to modify company {CompanyId} without permission.", userId, command.Id);
+                throw new ForbiddenException("You are not authorized to modify this company.");
             }
 
             if (!string.IsNullOrWhiteSpace(command.Name))
             {
                 var trimmedName = command.Name.Trim();
-                if (await _context.Companies.AnyAsync(c => c.Id != command.Id && c.Name.ToLower() == trimmedName.ToLower()))
+                var nameExists = await _context.Companies
+                    .AnyAsync(c => c.Id != command.Id && EF.Functions.ILike(c.Name, trimmedName));
+
+                if (nameExists)
                 {
                     _logger.LogInformation("Company with name: {CompanyName} already exists.", trimmedName);
                     return Result.Failure(
@@ -307,7 +326,10 @@ namespace Services.Services
             if (!string.IsNullOrWhiteSpace(command.NIP))
             {
                 var cleanNip = command.NIP.Replace("-", "").Replace(" ", "").Trim();
-                if (await _context.Companies.AnyAsync(c => c.Id != command.Id && c.NIP == cleanNip))
+                var nipExists = await _context.Companies
+                    .AnyAsync(c => c.Id != command.Id && c.NIP == cleanNip);
+
+                if (nipExists)
                 {
                     _logger.LogInformation("Company with NIP: {CompanyNIP} already exists.", cleanNip);
                     return Result.Failure(
@@ -320,6 +342,7 @@ namespace Services.Services
                 company.NIP = cleanNip;
             }
 
+            _logger.LogInformation("Company {CompanyName} (ID: {CompanyId}) updated by user {UserId}.", company.Name, company.Id, userId);
             await _context.SaveChangesAsync();
 
             return Result.Success(
@@ -337,7 +360,6 @@ namespace Services.Services
             if (address == null)
             {
                 _logger.LogInformation("Address with id: {AddressId} doesn't exist.", command.AddressId);
-
                 return Result.Failure(
                     message: "Address not found.",
                     statusCode: StatusCodes.Status404NotFound,
@@ -345,14 +367,16 @@ namespace Services.Services
                 );
             }
 
+            if (address.Company == null || address.Company.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Address {AddressId} is missing valid company navigation or OwnerId.", address.Id);
+                throw new DataCorruptionException($"Address '{address.Id}' is linked to an invalid or orphaned company.");
+            }
+
             if (!await _entityAuth.CanModifyAsync(userId, address.Company.OwnerId))
             {
-                _logger.LogWarning("User {UserId} is not authorized to modify address {AddressId}.", userId, command.AddressId);
-                return Result.Failure(
-                    message: "You are not authorized to modify this address.",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    errorCode: ErrorCodes.UnauthorizedAccess
-                );
+                _logger.LogWarning("Security violation: User {UserId} tried to modify address {AddressId} without permission.", userId, command.AddressId);
+                throw new ForbiddenException("You are not authorized to modify this address.");
             }
 
             if (!string.IsNullOrWhiteSpace(command.Street))
@@ -423,7 +447,9 @@ namespace Services.Services
                 }
             }
 
+            _logger.LogInformation("Address {AddressId} updated by user {UserId}.", address.Id, userId);
             await _context.SaveChangesAsync();
+
             return Result.Success(
                 message: "Address updated successfully.",
                 statusCode: StatusCodes.Status200OK
@@ -445,14 +471,16 @@ namespace Services.Services
                 );
             }
 
+            if (company.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Company {CompanyId} has empty OwnerId.", company.Id);
+                throw new DataCorruptionException($"Company '{company.Id}' has no assigned owner.");
+            }
+
             if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
             {
-                _logger.LogWarning("User {UserId} is not authorized to add address to company {CompanyId}.", userId, companyId);
-                return Result<Guid>.Failure(
-                    message: "You are not authorized to modify this company.",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    errorCode: ErrorCodes.UnauthorizedAccess
-                );
+                _logger.LogWarning("Security violation: User {UserId} tried to add address to company {CompanyId} without permission.", userId, companyId);
+                throw new ForbiddenException("You are not authorized to modify this company.");
             }
 
             var street = command.Street.Trim();
@@ -462,8 +490,8 @@ namespace Services.Services
             var isDuplicate = await _context.CompanyAdresses.AnyAsync(ca =>
                 ca.CompanyId == companyId &&
                 ca.AddressType == command.Type &&
-                ca.Street.ToLower() == street.ToLower() &&
-                ca.City.ToLower() == city.ToLower() &&
+                EF.Functions.ILike(ca.Street, street) &&
+                EF.Functions.ILike(ca.City, city) &&
                 ca.ZipCode == zipCode);
 
             if (isDuplicate)
@@ -520,8 +548,20 @@ namespace Services.Services
                 );
             }
 
+            if (company.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Company {CompanyId} has empty OwnerId.", company.Id);
+                throw new DataCorruptionException($"Company '{company.Id}' has no assigned owner.");
+            }
+
+            if (!await _entityAuth.CanModifyAsync(userId, company.OwnerId))
+            {
+                _logger.LogWarning("Security violation: User {UserId} tried to delete company {CompanyId} without permission.", userId, companyId);
+                throw new ForbiddenException("You are not authorized to delete this company.");
+            }
+
             var hasFinancialHistory = await _context.Invoices.AnyAsync(i => i.CompanyId == companyId)
-                           || await _context.Deals.AnyAsync(d => d.CompanyId == companyId);
+                                   || await _context.Deals.AnyAsync(d => d.CompanyId == companyId);
 
             if (hasFinancialHistory)
             {
@@ -537,6 +577,7 @@ namespace Services.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Company {CompanyName} (ID: {CompanyId}) deleted by user {UserId}.", company.Name, company.Id, userId);
+
             return Result.Success(
                 message: "Company deleted successfully.",
                 statusCode: StatusCodes.Status200OK
@@ -556,22 +597,24 @@ namespace Services.Services
                     message: "Address not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.AddressNotFound
-                    );
+                );
+            }
+
+            if (address.Company == null || address.Company.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Address {AddressId} has missing company or empty OwnerId.", address.Id);
+                throw new DataCorruptionException($"Address '{address.Id}' is linked to an invalid or orphaned company.");
             }
 
             if (!await _entityAuth.CanModifyAsync(userId, address.Company.OwnerId))
             {
-                _logger.LogWarning("User {UserId} is not authorized to delete address {AddressId}.", userId, addressId);
-                return Result.Failure(
-                    message: "You are not authorized to delete this address.",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    errorCode: ErrorCodes.UnauthorizedAccess
-                );
+                _logger.LogWarning("Security violation: User {UserId} tried to delete address {AddressId} without permission.", userId, addressId);
+                throw new ForbiddenException("You are not authorized to delete this address.");
             }
 
             if (address.AddressType == AddressTypeEnum.Headquarters)
             {
-                _logger.LogWarning("Attempted to delete the only headquarters address for company {CompanyId}.", address.CompanyId);
+                _logger.LogWarning("Attempted to delete the headquarters address {AddressId} for company {CompanyId}.", addressId, address.CompanyId);
                 return Result.Failure(
                     message: "Cannot delete the headquarters address. Please designate another address as headquarters before deleting this one.",
                     statusCode: StatusCodes.Status400BadRequest,
@@ -579,14 +622,14 @@ namespace Services.Services
                 );
             }
 
-            long addressCount = await _context.CompanyAdresses
+            var addressCount = await _context.CompanyAdresses
                 .CountAsync(ca => ca.CompanyId == address.CompanyId);
 
             if (addressCount <= 1)
             {
                 _logger.LogWarning("Attempted to delete the last remaining address {AddressId} for company {CompanyId}.", addressId, address.CompanyId);
                 return Result.Failure(
-                    message: "Firma musi posiadać co najmniej jeden adres.",
+                    message: "The company must have at least one address.",
                     statusCode: StatusCodes.Status400BadRequest,
                     errorCode: ErrorCodes.InvalidOperation
                 );
@@ -596,6 +639,7 @@ namespace Services.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Address {AddressId} deleted by user {UserId}.", addressId, userId);
+
             return Result.Success(
                 message: "Address deleted successfully.",
                 statusCode: StatusCodes.Status200OK
@@ -616,7 +660,13 @@ namespace Services.Services
                 );
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.UserId);
+            if (company.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Company {CompanyId} has empty OwnerId.", company.Id);
+                throw new DataCorruptionException($"Company '{company.Id}' has no assigned owner.");
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.UserId && !u.IsDeleted);
 
             if (user == null)
             {
@@ -637,16 +687,22 @@ namespace Services.Services
                 );
             }
 
-            bool isAdmin = await (from ur in _context.UserRoles
-                                  join r in _context.Roles on ur.RoleId equals r.Id
-                                  where ur.UserId == user.Id &&
-                                  (r.NormalizedName == "ADMIN")
-                                  select ur.UserId
-                                  ).AnyAsync();
+            var userRoleNames = await (from ur in _context.UserRoles
+                                       join r in _context.Roles on ur.RoleId equals r.Id
+                                       where ur.UserId == user.Id
+                                       select r.NormalizedName)
+                                      .ToListAsync();
 
-            if (isAdmin)
+            if (!userRoleNames.Any())
             {
-                _logger.LogWarning("Attempted to assign company {CompanyId} ownership to an admin user {UserId}.", command.CompanyId, command.UserId); return Result.Failure(
+                _logger.LogError("Critical data inconsistency: User {UserId} has no assigned role.", user.Id);
+                throw new MissingUserRoleException(user.Id);
+            }
+
+            if (userRoleNames.Contains("ADMIN"))
+            {
+                _logger.LogWarning("Attempted to assign company {CompanyId} ownership to an admin user {UserId}.", command.CompanyId, command.UserId);
+                return Result.Failure(
                     message: "Cannot assign company ownership to an admin user.",
                     statusCode: StatusCodes.Status400BadRequest,
                     errorCode: ErrorCodes.InvalidOperation
@@ -657,10 +713,11 @@ namespace Services.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Company {CompanyId} ownership changed to user {UserId}.", command.CompanyId, command.UserId);
+
             return Result.Success(
                 message: "Company ownership changed successfully.",
                 statusCode: StatusCodes.Status200OK
-                );
+            );
         }
 
         public Result<List<string>> GetCompanyAddressTypes()
@@ -672,9 +729,19 @@ namespace Services.Services
 
         public async Task<Result<EditCompanyDetailResponse>> GetEditCompanyDetailAsync(Guid id)
         {
-            var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == id);
+            var companyData = await _context.Companies
+                .AsNoTracking()
+                .Where(c => c.Id == id)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Name,
+                    c.NIP,
+                    c.OwnerId
+                })
+                .FirstOrDefaultAsync();
 
-            if (company == null)
+            if (companyData == null)
             {
                 _logger.LogInformation("Company with id: {CompanyId} doesn't exist.", id);
                 return Result<EditCompanyDetailResponse>.Failure(
@@ -684,19 +751,24 @@ namespace Services.Services
                 );
             }
 
+            if (companyData.OwnerId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Company {CompanyId} has empty OwnerId.", companyData.Id);
+                throw new DataCorruptionException($"Company '{companyData.Id}' has no assigned owner.");
+            }
+
             var response = new EditCompanyDetailResponse
             {
-                Id = company.Id,
-                Name = company.Name,
-                NIP = company.NIP
+                Id = companyData.Id,
+                Name = companyData.Name,
+                NIP = companyData.NIP
             };
 
             return Result<EditCompanyDetailResponse>.Success(
-                message: "Company detail review successfully",
+                message: "Company detail retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
                 data: response
-                );
-
+            );
         }
 
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)

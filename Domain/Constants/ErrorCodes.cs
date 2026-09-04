@@ -61,6 +61,8 @@
         public const string AddressTypeRequired = "CAD_010";
         public const string ZipCodeRequired = "CAD_012";
         public const string AddressNotFound = "CAD_013";
+        public const string MissingCoordinates = "CAD_014";
+
 
         // Contact
         public const string InvalidContactDetailType = "CON_001";

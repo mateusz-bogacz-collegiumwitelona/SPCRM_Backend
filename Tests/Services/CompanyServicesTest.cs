@@ -1,5 +1,6 @@
 ﻿using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -13,7 +14,6 @@ using Services.Command.Company;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
-using static Microsoft.ApplicationInsights.MetricDimensionNames.TelemetryContext;
 
 namespace Tests.Services
 {
@@ -1262,6 +1262,17 @@ namespace Tests.Services
             var uniqueSuffix = Guid.NewGuid().ToString("N");
             var userId = Guid.NewGuid();
 
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
             var command = new AddCompanyCommand
             {
                 Name = $"NoAddressCompany_{uniqueSuffix}",
@@ -1286,6 +1297,17 @@ namespace Tests.Services
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
             var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
 
             var addresses = new List<AddCompanyAdressCommand>();
 
@@ -1343,37 +1365,48 @@ namespace Tests.Services
             var uniqueSuffix = Guid.NewGuid().ToString("N");
             var userId = Guid.NewGuid();
 
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
             var command = new AddCompanyCommand
             {
                 Name = $"DuplicateAddressCompany_{uniqueSuffix}",
                 NIP = "8887776665",
                 Adresses = new List<AddCompanyAdressCommand>
-        {
-            new()
-            {
-                Street = "Główna 1",
-                City = "Poznań",
-                ZipCode = "61-001",
-                Location = new Point(16.9, 52.4) { SRID = SRID },
-                Type = AddressTypeEnum.Headquarters
-            },
-            new()
-            {
-                Street = "Długa 10",
-                City = "Poznań",
-                ZipCode = "61-001",
-                Location = new Point(16.9, 52.4) { SRID = SRID },
-                Type = AddressTypeEnum.Branch
-            },
-            new()
-            {
-                Street = "  długa 10  ",
-                City = "POZNAŃ",
-                ZipCode = "61-001",
-                Location = new Point(16.9, 52.4) { SRID = SRID },
-                Type = AddressTypeEnum.Branch
-            }
-        }
+                {
+                    new()
+                    {
+                        Street = "Główna 1",
+                        City = "Poznań",
+                        ZipCode = "61-001",
+                        Location = new Point(16.9, 52.4) { SRID = SRID },
+                        Type = AddressTypeEnum.Headquarters
+                    },
+                    new()
+                    {
+                        Street = "Długa 10",
+                        City = "Poznań",
+                        ZipCode = "61-001",
+                        Location = new Point(16.9, 52.4) { SRID = SRID },
+                        Type = AddressTypeEnum.Branch
+                    },
+                    new()
+                    {
+                        Street = "  długa 10  ",
+                        City = "POZNAŃ",
+                        ZipCode = "61-001",
+                        Location = new Point(16.9, 52.4) { SRID = SRID },
+                        Type = AddressTypeEnum.Branch
+                    }
+                }
             };
 
             // Act
@@ -1411,7 +1444,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task EditCompanyAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        public async Task EditCompanyAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1456,13 +1489,9 @@ namespace Tests.Services
                 NIP = "9998887776"
             };
 
-            // Act
-            var result = await _companyServicesMock.EditCompanyAsync(command, unauthorizedUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You are not authorized to modify this company.");
+            // Act & Assert
+            await Assert.That(async () => await _companyServicesMock.EditCompanyAsync(command, unauthorizedUserId))
+                .Throws<ForbiddenException>();
         }
 
         [Test]
@@ -1771,7 +1800,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task EditCompanyAddressAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        public async Task EditCompanyAddressAsync_WhenUserIsNotOwnerNorManager_ForbiddenException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1828,13 +1857,9 @@ namespace Tests.Services
                 Street = "Zmieniona 10"
             };
 
-            // Act
-            var result = await _companyServicesMock.EditCompanyAddressAsync(command, unauthorizedUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You are not authorized to modify this address.");
+            // Act & Assert
+            await Assert.That(async () => await _companyServicesMock.EditCompanyAddressAsync(command, unauthorizedUserId))
+                .Throws<ForbiddenException>();
         }
 
         [Test]
@@ -2166,7 +2191,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddCompanyAddressAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        public async Task AddCompanyAddressAsync_WhenUserIsNotOwnerNorManager_ThrowForbiddenException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -2213,13 +2238,9 @@ namespace Tests.Services
                 Type = AddressTypeEnum.Branch
             };
 
-            // Act
-            var result = await _companyServicesMock.AddCompanyAddressAsync(command, unauthorizedUserId, company.Id);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You are not authorized to modify this company.");
+            // Act & Assert
+            await Assert.That(async () => await _companyServicesMock.AddCompanyAddressAsync(command, unauthorizedUserId, company.Id))
+                .Throws<ForbiddenException>();
         }
 
         [Test]
@@ -2770,7 +2791,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task DeleteCompanyAddressAsync_WhenUserIsNotOwnerNorManager_Returns403Forbidden()
+        public async Task DeleteCompanyAddressAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -2821,13 +2842,9 @@ namespace Tests.Services
             _contextMock.CompanyAdresses.Add(address);
             await _contextMock.SaveChangesAsync();
 
-            // Act
-            var result = await _companyServicesMock.DeleteCompanyAddressAsync(address.Id, unauthorizedUserId);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(result.Message).IsEqualTo("You are not authorized to delete this address.");
+            // Act & Assert
+            await Assert.That(async () => await _companyServicesMock.DeleteCompanyAddressAsync(address.Id, unauthorizedUserId))
+                .Throws<ForbiddenException>();
         }
 
         [Test]
@@ -2945,7 +2962,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
-            await Assert.That(result.Message).Contains("Firma musi posiadać co najmniej jeden adres");
+            await Assert.That(result.Message).Contains("The company must have at least one address.");
 
             var unmodifiedAddress = await _contextMock.CompanyAdresses.FindAsync(onlyAddress.Id);
             await Assert.That(unmodifiedAddress).IsNotNull();
@@ -3467,7 +3484,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-            await Assert.That(result.Message).IsEqualTo("Company detail review successfully");
+            await Assert.That(result.Message).IsEqualTo("Company detail retrieved successfully.");
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Id).IsEqualTo(company.Id);
             await Assert.That(result.Data!.Name).IsEqualTo(company.Name);
