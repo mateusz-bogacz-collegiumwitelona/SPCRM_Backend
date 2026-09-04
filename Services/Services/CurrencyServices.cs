@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -27,20 +28,42 @@ namespace Services.Services
 
         public async Task<Result<List<CurrencyListResponse>>> GetCurrencySimpleListAsync()
         {
-            var query = await _context.Currencies
-                .Select(c => new CurrencyListResponse
+            var currencies = await _context.Currencies
+                .AsNoTracking()
+                .OrderBy(c => c.Code)
+                .Select(c => new
                 {
-                    CurrencyId = c.Id,
-                    Name = c.Name,
-                    Code = c.Code,
-                    DecimalPlace = c.DecimalPlaces
-                }).ToListAsync();
+                    c.Id,
+                    c.Name,
+                    c.Code,
+                    c.DecimalPlaces
+                })
+                .ToListAsync();
+
+            var corruptedCurrency = currencies.FirstOrDefault(c =>
+                string.IsNullOrWhiteSpace(c.Code) ||
+                string.IsNullOrWhiteSpace(c.Name) ||
+                c.DecimalPlaces < 0);
+
+            if (corruptedCurrency != null)
+            {
+                _logger.LogError("Critical data corruption: Currency {CurrencyId} has invalid code, name or decimal places.", corruptedCurrency.Id);
+                throw new DataCorruptionException($"Currency configuration for '{corruptedCurrency.Id}' is corrupted.");
+            }
+
+            var response = currencies.Select(c => new CurrencyListResponse
+            {
+                CurrencyId = c.Id,
+                Name = c.Name,
+                Code = c.Code,
+                DecimalPlace = c.DecimalPlaces
+            }).ToList();
 
             return Result<List<CurrencyListResponse>>.Success(
-               message: "Currency list retrieved successfully.",
-               statusCode: StatusCodes.Status200OK,
-               data: query
-               );
+                message: "Currency list retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+            );
         }
 
         public async Task<Result<PagedResult<CurrencyListResponse>>> GetCurrenyListAsync(BasicListCommand command)
@@ -96,7 +119,7 @@ namespace Services.Services
 
             if (currency == null)
             {
-                _logger.LogWarning("Currency with id {id} not found.", command.CurrencyId);
+                _logger.LogInformation("Currency with id {CurrencyId} not found.", command.CurrencyId);
                 return Result.Failure(
                     message: "Currency not found.",
                     statusCode: StatusCodes.Status404NotFound,
@@ -104,36 +127,64 @@ namespace Services.Services
                 );
             }
 
-            if (!string.IsNullOrEmpty(command.Name))
+            if (string.IsNullOrWhiteSpace(currency.Code) || string.IsNullOrWhiteSpace(currency.Name) || currency.DecimalPlaces < 0)
             {
-                var isNameExist = await _context.Currencies.AnyAsync(c => c.Name.ToLower() == command.Name.ToLower() && c.Id != command.CurrencyId);
-
-                if (isNameExist)
-                {
-                    _logger.LogWarning("Currency with name {Name} already exists.", command.Name);
-                    return Result.Failure(
-                        message: "Currency with this name already exists.",
-                        statusCode: StatusCodes.Status409Conflict,
-                        errorCode: ErrorCodes.CurrencyNameAlreadyExists
-                        );
-                }
-
-                currency.Name = command.Name;
+                _logger.LogError("Critical data corruption: Currency {CurrencyId} in database has invalid state.", currency.Id);
+                throw new DataCorruptionException($"Currency '{currency.Id}' has corrupted configuration.");
             }
 
-            if (!string.IsNullOrEmpty(command.Code))
+            var isNameChanged = !string.IsNullOrEmpty(command.Name) && !string.Equals(currency.Name, command.Name, StringComparison.OrdinalIgnoreCase);
+            var isCodeChanged = !string.IsNullOrEmpty(command.Code) && !string.Equals(currency.Code, command.Code, StringComparison.OrdinalIgnoreCase);
+
+            if (isNameChanged || isCodeChanged)
             {
-                var isCodeExist = await _context.Currencies.AnyAsync(c => c.Code == command.Code && c.Id != command.CurrencyId);
-                if (isCodeExist)
+                var normalizedName = command.Name?.ToLower();
+                var normalizedCode = command.Code?.ToUpper();
+
+                var conflict = await _context.Currencies
+                    .AsNoTracking()
+                    .Where(c => c.Id != command.CurrencyId &&
+                                ((isNameChanged && c.Name.ToLower() == normalizedName) ||
+                                 (isCodeChanged && c.Code.ToUpper() == normalizedCode)))
+                    .Select(c => new
+                    {
+                        HasSameName = isNameChanged && c.Name.ToLower() == normalizedName,
+                        HasSameCode = isCodeChanged && c.Code.ToUpper() == normalizedCode
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (conflict != null)
                 {
-                    _logger.LogWarning("Currency with code {Code} already exists.", command.Code);
-                    return Result.Failure(
-                        message: "Currency with this code already exists.",
-                        statusCode: StatusCodes.Status409Conflict,
-                        errorCode: ErrorCodes.CurrencyCodeAlreadyExists
+                    if (conflict.HasSameName)
+                    {
+                        _logger.LogWarning("Currency with name {Name} already exists.", command.Name);
+                        return Result.Failure(
+                            message: "Currency with this name already exists.",
+                            statusCode: StatusCodes.Status409Conflict,
+                            errorCode: ErrorCodes.CurrencyNameAlreadyExists
                         );
+                    }
+
+                    if (conflict.HasSameCode)
+                    {
+                        _logger.LogWarning("Currency with code {Code} already exists.", command.Code);
+                        return Result.Failure(
+                            message: "Currency with this code already exists.",
+                            statusCode: StatusCodes.Status409Conflict,
+                            errorCode: ErrorCodes.CurrencyCodeAlreadyExists
+                        );
+                    }
                 }
-                currency.Code = command.Code;
+            }
+
+            if (isNameChanged)
+            {
+                currency.Name = command.Name!;
+            }
+
+            if (isCodeChanged)
+            {
+                currency.Code = command.Code!;
             }
 
             if (command.DecimalPlaces.HasValue)
@@ -142,6 +193,8 @@ namespace Services.Services
             }
 
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Currency {CurrencyId} updated successfully.", command.CurrencyId);
 
             return Result.Success(
                 message: "Currency updated successfully.",

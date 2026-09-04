@@ -1,4 +1,5 @@
 ﻿using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -160,6 +161,77 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!).IsEmpty();
+        }
+
+        [Test]
+        public async Task GetCurrencySimpleListAsync_WhenCurrenciesExist_ReturnsCurrenciesSortedByCode()
+        {
+            // Arrange
+            var currencyUsd = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "US Dollar",
+                Code = "USD",
+                DecimalPlaces = 2
+            };
+
+            var currencyEur = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Euro",
+                Code = "EUR",
+                DecimalPlaces = 2
+            };
+
+            var currencyPln = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Currencies.AddRange(currencyUsd, currencyEur, currencyPln);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _currencyServicesMock.GetCurrencySimpleListAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var codes = result.Data!.Select(c => c.Code).ToList();
+            await Assert.That(codes).IsEquivalentTo(new[] { "EUR", "PLN", "USD" });
+            await Assert.That(codes[0]).IsEqualTo("EUR");
+            await Assert.That(codes[1]).IsEqualTo("PLN");
+            await Assert.That(codes[2]).IsEqualTo("USD");
+        }
+
+        [Test]
+        [Arguments("", "Polski Złoty", 2)]
+        [Arguments("PLN", "", 2)]
+        [Arguments("PLN", "Polski Złoty", -1)]
+        public async Task GetCurrencySimpleListAsync_WhenDatabaseContainsCorruptedCurrency_ThrowsDataCorruptionException(
+            string code,
+            string name,
+            int decimalPlaces)
+        {
+            // Arrange
+            var corruptedCurrency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Code = code,
+                Name = name,
+                DecimalPlaces = decimalPlaces
+            };
+
+            _contextMock.Currencies.Add(corruptedCurrency);
+            await _contextMock.SaveChangesAsync();
+
+            // Act & Assert
+            await Assert.That(async () => await _currencyServicesMock.GetCurrencySimpleListAsync())
+                .Throws<DataCorruptionException>();
         }
 
         // ─── GetCurrenyListAsync ────────────────────────────────────────────────
@@ -604,6 +676,40 @@ namespace Tests.Services
 
             var updatedCurrency = await _contextMock.Currencies.FindAsync(currency.Id);
             await Assert.That(updatedCurrency!.DecimalPlaces).IsEqualTo(3);
+        }
+
+        [Test]
+        [Arguments("", "Polski Złoty", 2)]
+        [Arguments("PLN", "", 2)]
+        [Arguments("PLN", "Polski Złoty", -1)]
+        public async Task EditCurrencyAsync_WhenCurrencyInDatabaseHasCorruptedState_ThrowsDataCorruptionException(
+            string code,
+            string name,
+            int decimalPlaces)
+        {
+            // Arrange
+            var corruptedCurrency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Code = code,
+                Name = name,
+                DecimalPlaces = decimalPlaces
+            };
+
+            _contextMock.Currencies.Add(corruptedCurrency);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new EditCurrencyCommand
+            {
+                CurrencyId = corruptedCurrency.Id,
+                Name = "Nowa Prawidłowa Nazwa",
+                Code = "NEW",
+                DecimalPlaces = 2
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _currencyServicesMock.EditCurrencyAsync(command))
+                .Throws<DataCorruptionException>();
         }
     }
 }
