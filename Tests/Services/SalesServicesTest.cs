@@ -1,4 +1,5 @@
 ﻿using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -35,6 +36,10 @@ namespace Tests.Services
                 .WithDatabase("testdb")
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
+                .WithCommand(
+                    "-c", "max_locks_per_transaction=1024",
+                    "-c", "shared_buffers=256MB"
+                )
                 .Build();
 
             await _dbContainer.StartAsync();
@@ -503,7 +508,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo("Sale not found");
+            await Assert.That(result.Message).IsEqualTo("Sale not found.");
         }
 
         [Test]
@@ -677,6 +682,276 @@ namespace Tests.Services
             await Assert.That(data.PaidAmount).IsEqualTo(550000);
             await Assert.That(data.IsOverduelInvoices).IsTrue();
             await Assert.That(data.PaymentPercentage).IsEqualTo(55);
+        }
+
+        [Test]
+        public async Task GetSaleDetailAsync_WhenDealHasMissingCompanyRelation_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"U_{uniqueSuffix}",
+                NormalizedUserName = $"U_{uniqueSuffix}",
+                Email = $"e_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
+                FirstName = "Adam",
+                LastName = "Kowalski"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Projekt ze skażoną firmą",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow,
+                CompanyId = company.Id,
+                OwnerId = userId,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+            await _contextMock.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                DELETE FROM ""Companies"";
+                SET session_replication_role = 'origin';
+            ");
+
+            // Act & Assert
+            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(deal.Id))
+                .Throws<DataCorruptionException>();
+        }
+
+        [Test]
+        public async Task GetSaleDetailAsync_WhenDealHasMissingCurrencyRelation_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"U_{uniqueSuffix}",
+                NormalizedUserName = $"U_{uniqueSuffix}",
+                Email = $"e_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
+                FirstName = "Piotr",
+                LastName = "Nowak"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "EUR",
+                Code = "EUR",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma2_{uniqueSuffix}",
+                NIP = "9876543210",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Projekt ze skażoną walutą",
+                Value = 100000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow,
+                CompanyId = company.Id,
+                OwnerId = userId,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                DELETE FROM ""Currencies"";
+                SET session_replication_role = 'origin';
+            ");
+
+            // Act & Assert
+            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(deal.Id))
+                .Throws<DataCorruptionException>();
+        }
+
+        [Test]
+        public async Task GetSaleDetailAsync_WhenDealHasCorruptedNegativeValue_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"U_{uniqueSuffix}",
+                NormalizedUserName = $"U_{uniqueSuffix}",
+                Email = $"e_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma3_{uniqueSuffix}",
+                NIP = "5556667778",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            var corruptedDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Skażona ujemna wartość",
+                Value = -50000, 
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = user,
+                CurrencyId = currency.Id,
+                Currency = currency
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(corruptedDeal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(corruptedDeal.Id))
+                .Throws<DataCorruptionException>();
+        }
+
+        [Test]
+        public async Task GetSaleDetailAsync_WhenInvoiceHasCorruptedNegativePaidAmount_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"U_{uniqueSuffix}",
+                NormalizedUserName = $"U_{uniqueSuffix}",
+                Email = $"e_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
+                FirstName = "Tomasz",
+                LastName = "Kowalski"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma4_{uniqueSuffix}",
+                NIP = "1114447770",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Projekt z wadliwą fakturą",
+                Value = 100000,
+                Status = DealsStatusEnum.Complete,
+                CloseDate = DateTime.UtcNow,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = user,
+                CurrencyId = currency.Id,
+                Currency = currency
+            };
+
+            var corruptedInvoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = "FV/CORRUPTED/01",
+                TotalAmount = 50000,
+                PaidAmount = -20000,
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                DealId = deal.Id,
+                IssueDate = DateTime.UtcNow.AddDays(-5),
+                DueDate = DateTime.UtcNow.AddDays(10)
+            };
+
+            deal.Invoices.Add(corruptedInvoice);
+
+            _contextMock.Users.Add(user);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(deal.Id))
+                .Throws<DataCorruptionException>();
         }
 
         // ─── GetDealProductAsync ─────────────────────────────────────────────────

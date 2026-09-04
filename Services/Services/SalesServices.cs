@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -87,47 +88,81 @@ namespace Services.Services
 
         public async Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId)
         {
-            var query = await _context.Deals
-                .Where(d => d.Id == dealId)
-                .AsNoTracking()
-                .Select(d => new
+            var now = DateTime.UtcNow;
+
+            var query = await (
+                from d in _context.Deals.AsNoTracking()
+                where d.Id == dealId
+                join curr in _context.Currencies.AsNoTracking() on d.CurrencyId equals curr.Id into currGroup
+                from curr in currGroup.DefaultIfEmpty()
+                join u in _context.Users.AsNoTracking() on d.OwnerId equals u.Id into uGroup
+                from u in uGroup.DefaultIfEmpty()
+                join comp in _context.Companies.AsNoTracking() on d.CompanyId equals comp.Id into compGroup
+                from comp in compGroup.DefaultIfEmpty()
+                select new
                 {
-                    Id = d.Id,
-                    Name = d.Name,
-                    Value = d.Value,
+                    DealExists = true,
+                    d.Id,
+                    d.Name,
+                    d.Value,
                     Status = d.Status.ToString(),
-                    CloseDate = d.CloseDate,
-                    CurrencyCode = d.Currency.Code,
-                    DecimalPlaces = d.Currency.DecimalPlaces,
-                    OwnerFirstName = d.Owner.FirstName,
-                    OwnerLastName = d.Owner.LastName,
-                    CompanyName = d.Company.Name,
-                    InvoicedAmount = d.Invoices.Sum(i => i.TotalAmount),
-                    PaidAmount = d.Invoices.Sum(i => i.PaidAmount),
-                    IsOverduelInvoices = d.Invoices.Any(i =>
-                        (i.TotalAmount - i.PaidAmount) > 0
-                        && i.DueDate < DateTime.UtcNow
-                    ),
-                })
-                .FirstOrDefaultAsync();
+                    d.CloseDate,
+
+                    d.CurrencyId,
+                    HasCurrency = curr != null,
+                    CurrencyCode = curr != null ? curr.Code : null,
+                    DecimalPlaces = curr != null ? (int?)curr.DecimalPlaces : null,
+
+                    d.OwnerId,
+                    HasOwner = u != null,
+                    OwnerFirstName = u != null ? u.FirstName : null,
+                    OwnerLastName = u != null ? u.LastName : null,
+
+                    d.CompanyId,
+                    HasCompany = comp != null,
+                    CompanyName = comp != null ? comp.Name : null,
+
+                    InvoicedAmount = d.Invoices.Sum(i => (long?)i.TotalAmount) ?? 0,
+                    PaidAmount = d.Invoices.Sum(i => (long?)i.PaidAmount) ?? 0,
+                    IsOverdueInvoices = d.Invoices.Any(i =>
+                        (i.TotalAmount - i.PaidAmount) > 0 &&
+                        i.DueDate < now
+                    )
+                }
+            ).FirstOrDefaultAsync();
 
             if (query == null)
             {
-                _logger.LogWarning("Sale with ID {DealId} not found", dealId);
+                _logger.LogInformation("Sale with ID {DealId} not found.", dealId);
                 return Result<SaleDetailResponse>.Failure(
-                    message: "Sale not found",
-                    errorCode: ErrorCodes.NotFound,
-                    statusCode: StatusCodes.Status404NotFound
-                    );
+                    message: "Sale not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.DealNotFound
+                );
+            }
+
+            if (!query.HasCurrency || !query.HasOwner || !query.HasCompany ||
+                string.IsNullOrWhiteSpace(query.CurrencyCode) ||
+                !query.DecimalPlaces.HasValue)
+            {
+                _logger.LogError("Critical data corruption: Deal {DealId} has missing Currency, Owner, or Company linkage.", dealId);
+                throw new DataCorruptionException($"Deal '{dealId}' contains corrupted relational linkages.");
+            }
+
+            if (query.Value < 0 || query.InvoicedAmount < 0 || query.PaidAmount < 0)
+            {
+                _logger.LogError("Critical data corruption: Deal {DealId} contains negative monetary values (Value: {Value}, Invoiced: {Invoiced}, Paid: {Paid}).",
+                    dealId, query.Value, query.InvoicedAmount, query.PaidAmount);
+                throw new DataCorruptionException($"Deal '{dealId}' contains corrupted financial amounts.");
             }
 
             var paymentPercentage = query.Value > 0
                 ? (int)Math.Round(
-                    (decimal)query.PaidAmount / (decimal)query.Value * 100m,
+                    (decimal)query.PaidAmount / query.Value * 100m,
                     MidpointRounding.AwayFromZero)
                 : 0;
 
-            SaleDetailResponse response = new SaleDetailResponse
+            var response = new SaleDetailResponse
             {
                 Id = query.Id,
                 Name = query.Name,
@@ -135,21 +170,21 @@ namespace Services.Services
                 Status = query.Status,
                 CloseDate = query.CloseDate,
                 CurrencyCode = query.CurrencyCode,
-                DecimalPlaces = query.DecimalPlaces,
-                OwnerFirstName = query.OwnerFirstName,
-                OwnerLastName = query.OwnerLastName,
-                CompanyName = query.CompanyName,
+                DecimalPlaces = query.DecimalPlaces.Value,
+                OwnerFirstName = query.OwnerFirstName ?? string.Empty,
+                OwnerLastName = query.OwnerLastName ?? string.Empty,
+                CompanyName = query.CompanyName ?? string.Empty,
                 InvoicedAmount = query.InvoicedAmount,
                 PaidAmount = query.PaidAmount,
-                IsOverduelInvoices = query.IsOverduelInvoices,
-                PaymentPercentage = paymentPercentage,
+                IsOverduelInvoices = query.IsOverdueInvoices,
+                PaymentPercentage = paymentPercentage
             };
 
             return Result<SaleDetailResponse>.Success(
-                message: "Sale detail retrieved successfully",
+                message: "Sale detail retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
                 data: response
-                );
+            );
         }
 
         public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, ProductListCommand command)
