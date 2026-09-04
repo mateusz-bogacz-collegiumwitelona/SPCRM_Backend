@@ -136,5 +136,8 @@
 
         // DEAL
         public const string DealNotFound = "DEAL_001";
+
+        // TASK
+        public const string TaskNotFound = "TASK_001";
     }
 }

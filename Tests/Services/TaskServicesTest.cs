@@ -1,4 +1,5 @@
 ﻿using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -480,6 +481,7 @@ namespace Tests.Services
             await Assert.That(data.Priority).IsEqualTo(TaskPriorityEnum.High.ToString());
         }
 
+
         [Test]
         public async Task GetTaskDetailResponse_WhenTaskDoesNotExist_Returns404()
         {
@@ -489,7 +491,113 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo("Task not found");
+            await Assert.That(result.Message).IsEqualTo("Task not found.");
+        }
+
+        [Test]
+        public async Task GetTaskDetailResponse_WhenTaskHasEmptyTitle_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var taskId = Guid.NewGuid();
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "User",
+                Email = "u@t.pl",
+                FirstName = "Test",
+                LastName = "User"
+            };
+
+            var task = new Tasks
+            {
+                Id = taskId,
+                Title = "",
+                AssignedToId = userId,
+                AssignedTo = user,
+                DueAt = DateTime.UtcNow,
+                Description = "Zadanie z pustym tytułem do testu",
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.GetTaskDetailResponse(taskId))
+                .Throws<DataCorruptionException>();
+        }
+
+        [Test]
+        public async Task GetTaskDealAsync_WhenDealHasNegativeValue_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var taskId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "User",
+                Email = "u@t.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma",
+                NIP = "123",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Zły deal",
+                Value = -100,
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                OwnerId = userId,
+                Owner = user,
+                CloseDate = DateTime.UtcNow
+            };
+
+            var task = new Tasks
+            {
+                Id = taskId,
+                Title = "Zadanie",
+                AssignedToId = userId,
+                AssignedTo = user,
+                DealId = deal.Id,
+                Deal = deal,
+                Description = "Zadanie"
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.GetTaskDealAsync(taskId))
+                .Throws<DataCorruptionException>();
         }
 
         // ─── GetTaskContactAsync ─────────────────────────────────────────────────
@@ -639,6 +747,134 @@ namespace Tests.Services
             await Assert.That(resultNotFound.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
         }
 
+        [Test]
+        public async Task GetTaskContactAsync_WhenContactHasEmptyFirstName_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var taskId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Testowa",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "   ", 
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner,
+                IsPrimary = true
+            };
+
+            var task = new Tasks
+            {
+                Id = taskId,
+                Title = "Zadanie ze skażonym kontaktem",
+                AssignedToId = userId,
+                AssignedTo = owner,
+                ContactId = contact.Id,
+                Contact = contact,
+                Description = "Opis"
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.GetTaskContactAsync(taskId))
+                .Throws<DataCorruptionException>();
+        }
+
+        [Test]
+        public async Task GetTaskContactAsync_WhenContactHasMissingCompanyRelation_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var taskId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Do Usunięcia",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner,
+                IsPrimary = true
+            };
+
+            var task = new Tasks
+            {
+                Id = taskId,
+                Title = "Zadanie z kontaktem bez firmy",
+                AssignedToId = userId,
+                AssignedTo = owner,
+                ContactId = contact.Id,
+                Contact = contact,
+                Description = "Opis"
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                DELETE FROM ""Companies"";
+                SET session_replication_role = 'origin';
+            ");
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.GetTaskContactAsync(taskId))
+                .Throws<DataCorruptionException>();
+        }
+
         // ─── GetTaskDealAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -763,6 +999,85 @@ namespace Tests.Services
             var resultNotFound = await _taskServicesMock.GetTaskDealAsync(Guid.NewGuid());
             await Assert.That(resultNotFound.IsSuccess).IsFalse();
             await Assert.That(resultNotFound.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+        }
+
+        [Test]
+        public async Task GetTaskDealAsync_WhenDealHasMissingCurrencyRelation_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var taskId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Tomasz",
+                LastName = "Nowak"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Handlowa",
+                NIP = "9876543210",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Deal bez waluty",
+                Value = 50000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner,
+                CurrencyId = currency.Id,
+                Currency = currency
+            };
+
+            var task = new Tasks
+            {
+                Id = taskId,
+                Title = "Zadanie z dealem bez waluty",
+                AssignedToId = userId,
+                AssignedTo = owner,
+                DealId = deal.Id,
+                Deal = deal,
+                Description = "Opis"
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                DELETE FROM ""Currencies"";
+                SET session_replication_role = 'origin';
+            ");
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.GetTaskDealAsync(taskId))
+                .Throws<DataCorruptionException>();
         }
     }
 }
