@@ -1,5 +1,6 @@
 ﻿using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -430,6 +431,7 @@ namespace Tests.Services
             var steelGrade = CreateDummySteelGrade();
             var product = CreateDummyProduct(steelGrade);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var reassignments = new List<ProductReassignmentCommand>
             {
@@ -442,7 +444,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
 
         [Test]
@@ -452,6 +454,7 @@ namespace Tests.Services
             var steelGrade = CreateDummySteelGrade();
             var product = CreateDummyProduct(steelGrade);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var nonExistingTargetId = Guid.NewGuid();
             var reassignments = new List<ProductReassignmentCommand>
@@ -480,7 +483,27 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.SteelGradeNotFound);
+        }
+
+        [Test]
+        public async Task DeleteSteelGradeAsync_WhenAssociatedProductIsCorrupted_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade("CorruptedGroup");
+            var product = CreateDummyProduct(steelGrade);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                UPDATE ""Products"" SET ""UnitId"" = '00000000-0000-0000-0000-000000000000';
+                SET session_replication_role = 'origin';
+            ");
+
+            // Act & Assert
+            await Assert.That(async () => await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id, null))
+                .Throws<DataCorruptionException>();
         }
 
         // ─── EditSteelGradeAsync ─────────────────────────────────────────────────
@@ -607,6 +630,32 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound);
+        }
+
+        [Test]
+        public async Task EditSteelGradeAsync_WhenSteelGradeInDatabaseHasEmptyName_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade("ToCorrupt");
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync($@"
+                SET session_replication_role = 'replica';
+                UPDATE ""SteelGrades"" SET ""Name"" = '' WHERE ""Id"" = '{steelGrade.Id}';
+                SET session_replication_role = 'origin';
+            ");
+
+            var command = new EditSteelGradeCommand
+            {
+                Id = steelGrade.Id,
+                Name = "NewValidName",
+                Density = 7850
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _steelGradeServicesMock.EditSteelGradeAsync(command))
+                .Throws<DataCorruptionException>();
         }
 
         // ─── AddSteelGradeAsync ─────────────────────────────────────────────────
