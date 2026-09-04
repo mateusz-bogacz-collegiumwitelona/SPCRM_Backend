@@ -1,6 +1,9 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Exceptions.Exception;
+using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -275,7 +278,93 @@ namespace Tests.Services
             await Assert.That(result.Data!).IsEmpty();
         }
 
+        [Test]
+        public async Task GetCompanyDebtSummaryAsync_WhenCompanyDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentCompanyId = Guid.NewGuid();
+
+            // Act
+            var result = await _debtServicesMock.GetCompanyDebtSummaryAsync(nonExistentCompanyId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CompanyNotFound);
+            await Assert.That(result.Message).IsEqualTo("Company not found.");
+        }
+
+        [Test]
+        [Arguments(-100, 500, 2, "PLN")]
+        [Arguments(-500, -100, 2, "PLN")]
+        [Arguments(0, 500, -1, "PLN")]
+        [Arguments(0, 500, 2, "")]
+        public async Task GetCompanyDebtSummaryAsync_WhenInvoiceDataIsCorrupted_ThrowsDataCorruptionException(
+            long paidAmount,
+            long totalAmount,
+            int currencyDecimalPlaces,
+            string currencyCode)
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"CorruptedCompany_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Currency",
+                Code = currencyCode,
+                DecimalPlaces = currencyDecimalPlaces
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Currencies.Add(currency);
+
+            var corruptedInvoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"INV/ERR/{uniqueSuffix}",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                TotalAmount = totalAmount,
+                PaidAmount = paidAmount,
+                DueDate = DateTime.UtcNow.AddDays(5)
+            };
+
+            _contextMock.Invoices.Add(corruptedInvoice);
+            await _contextMock.SaveChangesAsync();
+
+            // Act & Assert
+            await Assert.That(async () => await _debtServicesMock.GetCompanyDebtSummaryAsync(company.Id))
+                .Throws<DataCorruptionException>();
+        }
+
+
         // ─── GetCompanyDebtSummaryAsync ─────────────────────────────────────────────────
+
         [Test]
         public async Task GetCompanyDebtsAsync_MapsDataAndCalculatesDaysOverdueCorrectly()
         {
@@ -385,6 +474,93 @@ namespace Tests.Services
             await Assert.That(secondMapped.InvoiceNumber).IsEqualTo("INV/FUTURE");
             await Assert.That(secondMapped.AmountLeft).IsEqualTo(2000000m);
             await Assert.That(secondMapped.DaysOverdue).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetCompanyDebtsAsync_WhenCompanyDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new CompanyCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                CompanyId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _debtServicesMock.GetCompanyDebtsAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CompanyNotFound);
+            await Assert.That(result.Message).IsEqualTo("Company not found.");
+        }
+
+        [Test]
+        public async Task GetCompanyDebtsAsync_WhenCompanyContainsCorruptedInvoices_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Adam",
+                LastName = "Nowak"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"CorruptedCompany_{uniqueSuffix}",
+                NIP = "9876543210",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "EUR",
+                Code = "EUR",
+                DecimalPlaces = 2
+            };
+
+            var invalidInvoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"INV/BAD/{uniqueSuffix}",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                TotalAmount = 20000,
+                PaidAmount = -500,
+                DueDate = DateTime.UtcNow.AddDays(2)
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Invoices.Add(invalidInvoice);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new CompanyCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                CompanyId = company.Id
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _debtServicesMock.GetCompanyDebtsAsync(command))
+                .Throws<DataCorruptionException>();
         }
     }
 }
