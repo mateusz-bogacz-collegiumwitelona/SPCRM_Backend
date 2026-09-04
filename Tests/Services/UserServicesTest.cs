@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Services.Command.User;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -350,6 +351,238 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             var found = result.Data!.Any(u => u.Id == formerlyLockedUser.Id);
             await Assert.That(found).IsTrue();
+        }
+
+        // ─── GetUserListAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetUserListAsync_MapsPropertiesAndRolesCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var managerRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Manager", NormalizedName = "MANAGER" };
+            var userRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER" };
+
+            var activeUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Active_{uniqueSuffix}",
+                NormalizedUserName = $"ACTIVE_{uniqueSuffix}",
+                Email = $"active_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"ACTIVE_{uniqueSuffix}@TEST.PL",
+                FirstName = "Adam",
+                LastName = "Kowalski",
+                LockoutEnd = null,
+                IsDeleted = false
+            };
+
+            var lockedUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Locked_{uniqueSuffix}",
+                NormalizedUserName = $"LOCKED_{uniqueSuffix}",
+                Email = $"locked_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"LOCKED_{uniqueSuffix}@TEST.PL",
+                FirstName = "Tomasz",
+                LastName = "Nowak",
+                LockoutEnd = DateTimeOffset.UtcNow.AddDays(2),
+                IsDeleted = false
+            };
+
+            _contextMock.Roles.AddRange(managerRole, userRole);
+            _contextMock.Users.AddRange(activeUser, lockedUser);
+            _contextMock.UserRoles.AddRange(
+                new IdentityUserRole<Guid> { UserId = activeUser.Id, RoleId = managerRole.Id },
+                new IdentityUserRole<Guid> { UserId = lockedUser.Id, RoleId = userRole.Id }
+            );
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UserListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _userServicesMock.GetUserListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var mappedActive = result.Data!.Items.FirstOrDefault(u => u.Id == activeUser.Id);
+            await Assert.That(mappedActive).IsNotNull();
+            await Assert.That(mappedActive!.FirstName).IsEqualTo("Adam");
+            await Assert.That(mappedActive.LastName).IsEqualTo("Kowalski");
+            await Assert.That(mappedActive.Role).IsEqualTo("Manager");
+            await Assert.That(mappedActive.IsBlocked).IsFalse();
+
+            var mappedLocked = result.Data!.Items.FirstOrDefault(u => u.Id == lockedUser.Id);
+            await Assert.That(mappedLocked).IsNotNull();
+            await Assert.That(mappedLocked!.IsBlocked).IsTrue();
+            await Assert.That(mappedLocked.Role).IsEqualTo("User");
+        }
+
+        [Test]
+        public async Task GetUserListAsync_ExcludesSoftDeletedUsers()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var role = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER" };
+
+            var normalUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Normal_{uniqueSuffix}",
+                NormalizedUserName = $"NORMAL_{uniqueSuffix}",
+                Email = $"normal_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"NORMAL_{uniqueSuffix}@T.PL",
+                FirstName = "Normal",
+                LastName = "User",
+                IsDeleted = false
+            };
+
+            var deletedUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Deleted_{uniqueSuffix}",
+                NormalizedUserName = $"DELETED_{uniqueSuffix}",
+                Email = $"del_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"DEL_{uniqueSuffix}@T.PL",
+                FirstName = "Deleted",
+                LastName = "User",
+                IsDeleted = true
+            };
+
+            _contextMock.Roles.Add(role);
+            _contextMock.Users.AddRange(normalUser, deletedUser);
+            _contextMock.UserRoles.Add(new IdentityUserRole<Guid> { UserId = normalUser.Id, RoleId = role.Id });
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UserListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _userServicesMock.GetUserListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items;
+
+            await Assert.That(items.Any(u => u.Id == normalUser.Id)).IsTrue();
+            await Assert.That(items.Any(u => u.Id == deletedUser.Id)).IsFalse();
+        }
+
+        [Test]
+        public async Task GetUserListAsync_WhenSearchTermProvided_SearchesByFirstNameLastNameAndRole()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var adminRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Administrator", NormalizedName = "ADMINISTRATOR" };
+            var guestRole = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "Guest", NormalizedName = "GUEST" };
+
+            var user1 = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U1_{uniqueSuffix}",
+                NormalizedUserName = $"U1_{uniqueSuffix}",
+                Email = $"u1_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U1_{uniqueSuffix}@T.PL",
+                FirstName = "Stanisław",
+                LastName = "Borek"
+            };
+
+            var user2 = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U2_{uniqueSuffix}",
+                NormalizedUserName = $"U2_{uniqueSuffix}",
+                Email = $"u2_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U2_{uniqueSuffix}@T.PL",
+                FirstName = "Michał",
+                LastName = "Stanowski"
+            };
+
+            var user3 = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U3_{uniqueSuffix}",
+                NormalizedUserName = $"U3_{uniqueSuffix}",
+                Email = $"u3_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U3_{uniqueSuffix}@T.PL",
+                FirstName = "Jerzy",
+                LastName = "Zięba"
+            };
+
+            _contextMock.Roles.AddRange(adminRole, guestRole);
+            _contextMock.Users.AddRange(user1, user2, user3);
+            _contextMock.UserRoles.AddRange(
+                new IdentityUserRole<Guid> { UserId = user1.Id, RoleId = guestRole.Id },
+                new IdentityUserRole<Guid> { UserId = user2.Id, RoleId = guestRole.Id },
+                new IdentityUserRole<Guid> { UserId = user3.Id, RoleId = adminRole.Id }
+            );
+            await _contextMock.SaveChangesAsync();
+
+            var searchNameCommand = new UserListCommand { SearchTerm = "stan", PageNumber = 1, PageSize = 10 };
+            var resultName = await _userServicesMock.GetUserListAsync(searchNameCommand);
+
+            await Assert.That(resultName.IsSuccess).IsTrue();
+            var nameItems = resultName.Data!.Items;
+            await Assert.That(nameItems.Any(u => u.Id == user1.Id)).IsTrue();
+            await Assert.That(nameItems.Any(u => u.Id == user2.Id)).IsTrue();
+            await Assert.That(nameItems.Any(u => u.Id == user3.Id)).IsFalse();
+
+            var searchRoleCommand = new UserListCommand { SearchTerm = "admin", PageNumber = 1, PageSize = 10 };
+            var resultRole = await _userServicesMock.GetUserListAsync(searchRoleCommand);
+
+            await Assert.That(resultRole.IsSuccess).IsTrue();
+            var roleItems = resultRole.Data!.Items;
+            await Assert.That(roleItems.Any(u => u.Id == user3.Id)).IsTrue();
+            await Assert.That(roleItems.Any(u => u.Id == user1.Id)).IsFalse();
+        }
+
+        [Test]
+        public async Task GetUserListAsync_AppliesPaginationCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var role = new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER" };
+
+            var users = Enumerable.Range(1, 5).Select(i => new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"PageUser{i}_{uniqueSuffix}",
+                NormalizedUserName = $"PAGEUSER{i}_{uniqueSuffix}",
+                Email = $"page{i}_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"PAGE{i}_{uniqueSuffix}@T.PL",
+                FirstName = $"User{i}",
+                LastName = uniqueSuffix
+            }).ToList();
+
+            _contextMock.Roles.Add(role);
+            _contextMock.Users.AddRange(users);
+            _contextMock.UserRoles.AddRange(users.Select(u => new IdentityUserRole<Guid> { UserId = u.Id, RoleId = role.Id }));
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UserListCommand
+            {
+                SearchTerm = uniqueSuffix,
+                PageNumber = 2,
+                PageSize = 2
+            };
+
+            // Act
+            var result = await _userServicesMock.GetUserListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var paged = result.Data!;
+            await Assert.That(paged.TotalCount).IsEqualTo(5);
+            await Assert.That(paged.TotalPages).IsEqualTo(3);
+            await Assert.That(paged.PageNumber).IsEqualTo(2);
+            await Assert.That(paged.Items).Count().IsEqualTo(2);
+            await Assert.That(paged.HasPreviousPage).IsTrue();
+            await Assert.That(paged.HasNextPage).IsTrue();
         }
     }
 }

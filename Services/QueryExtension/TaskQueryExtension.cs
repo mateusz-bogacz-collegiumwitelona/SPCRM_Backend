@@ -3,7 +3,7 @@ using Domain.Models;
 
 namespace Services.QueryExtension
 {
-    internal static class TaskExtensionQueryExtension
+    internal static class TaskQueryExtension
     {
         internal static IQueryable<Tasks> ApplyFilterByStatus(this IQueryable<Tasks> query, string? status)
         {

@@ -10,6 +10,7 @@
         public const string InvalidDate = "INVALID_DATE";
         public const string InvalidSortColumn = "INVALID_SORT_COLUMN";
         public const string InvalidOperation = "INVALID_OPERATION";
+        public const string DataIntegrityError = "DATA_INTEGRITY_ERROR";
 
         // Validation 
         public const string EmailRequired = "VAL_001";
@@ -66,8 +67,8 @@
         public const string PrimaryContactDetailRequired = "CON_002";
         public const string ContactNotFound = "CON_003";
         public const string LatitudeOutOfRange = "CON_004";
-        public const string LongitudeOutOfRange = "CON_004";
-        public const string AddressTypeNotInvalid = "CON_005";
+        public const string LongitudeOutOfRange = "CON_005";
+        public const string AddressTypeNotInvalid = "CON_006";
 
         // Product
         public const string ProductNotFound = "PROD_001";

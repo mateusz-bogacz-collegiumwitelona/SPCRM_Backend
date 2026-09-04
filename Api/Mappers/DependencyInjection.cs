@@ -18,6 +18,8 @@
             services.AddScoped<CurrencyMapper>();
             services.AddScoped<UnitMapper>();
             services.AddScoped<OfferMapper>();
+            services.AddScoped<UserMapper>();
+
             return services;
         }
     }

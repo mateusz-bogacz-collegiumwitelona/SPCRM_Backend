@@ -1,6 +1,9 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request.User;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
 
@@ -24,6 +27,18 @@ namespace Api.Controllers
         {
             var result = await user.GetUserSimpleListAsync();
             return HandleResult(result);
+        }
+
+        [EndpointSummary("Get list of users")]
+        [EndpointDescription("Get list of users with search, paggination etc.")]
+        public async Task<IActionResult> GetUserListAsync(
+            [FromServices] IUserServices user,
+            [FromServices] UserMapper mapper,
+            [FromQuery] UserListRequest request
+            )
+        {
+            var result = await user.GetUserListAsync(mapper.MapList(request));
+            return HandleResult(result);    
         }
     }
 }

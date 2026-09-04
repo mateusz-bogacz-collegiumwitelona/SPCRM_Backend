@@ -1,11 +1,15 @@
 ﻿using Domain.Common;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command.User;
+using Services.Helpers;
 using Services.Interfaces;
+using Services.QueryExtension;
 using Services.Response.User;
 
 namespace Services.Services
@@ -18,7 +22,7 @@ namespace Services.Services
         private readonly ILogger<UserServices> _logger;
 
         public UserServices(
-            UserManager<ApplicationUser> userManager, 
+            UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole<Guid>> roleManager,
             AppDbContext context,
             ILogger<UserServices> logger)
@@ -58,6 +62,38 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK,
                 data: users
             );
+        }
+
+        public async Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command)
+        {
+            var hasUsersWithoutRole = await _context.Users
+                 .Where(u => !u.IsDeleted)
+                 .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id));
+
+            if (hasUsersWithoutRole)
+            {
+                throw new MissingUserRoleException();
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            return await _context.Users
+                .AsNoTracking()
+                .ApplySearch(command.SearchTerm, _context)
+                .ApplyFilter(command.Role, command.IsBlocked, _context)
+                .ApplySorting(command.SortBy, command.SortDescending, _context)
+                .Select(u => new UserListResponse
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Role = (from ur in _context.UserRoles
+                            join r in _context.Roles on ur.RoleId equals r.Id
+                            where ur.UserId == u.Id
+                            select r.Name).FirstOrDefault() ?? string.Empty,
+                    IsBlocked = u.LockoutEnd != null && u.LockoutEnd > now
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "users");
         }
     }
 }
