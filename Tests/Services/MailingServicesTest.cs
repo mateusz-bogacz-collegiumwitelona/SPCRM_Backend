@@ -1,5 +1,6 @@
 ﻿using Domain.Comunication;
 using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -193,6 +194,18 @@ namespace Tests.Services
         [Test]
         public async Task SendProductMailingAsync_WhenClientOrProductMissing_Returns404NotFound()
         {
+            // Arrange
+            var author = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = "MailingAuthor",
+                Email = "author@test.pl",
+                FirstName = "Piotr",
+                LastName = "Wysyłający"
+            };
+            _contextMock.Users.Add(author);
+            await _contextMock.SaveChangesAsync();
+
             var command = new MailingCommand
             {
                 To = [Guid.NewGuid()],
@@ -203,7 +216,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _supportServicesMock.SendProductMailingAsync(command, Guid.NewGuid());
+            var result = await _supportServicesMock.SendProductMailingAsync(command, author.Id);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
@@ -346,6 +359,174 @@ namespace Tests.Services
             await Assert.That(savedItem.ProductId).IsEqualTo(product.Id);
             await Assert.That(savedItem.Quantity).IsEqualTo(5);
             await Assert.That(savedItem.QuotedPrice).IsEqualTo(500000);
+        }
+
+        [Test]
+        public async Task SendProductMailingAsync_WhenAuthorDoesNotExist_ThrowsUserNotFoundException()
+        {
+            // Arrange
+            var nonExistentAuthorId = Guid.NewGuid();
+            var command = new MailingCommand
+            {
+                To = [Guid.NewGuid()],
+                Products = [
+                    new MailingProductCommand { ProductId = Guid.NewGuid(), Quantity = 1 }
+                ],
+                Language = "pl"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _supportServicesMock.SendProductMailingAsync(command, nonExistentAuthorId))
+                .Throws<UserNotFoundException>();
+        }
+
+        [Test]
+        public async Task SendProductMailingAsync_WhenClientHasNoEmailAddress_Returns400BadRequest()
+        {
+            // Arrange
+            var author = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = "AuthorUser",
+                Email = "author2@test.pl",
+                FirstName = "Adam",
+                LastName = "Kowalski"
+            };
+            _contextMock.Users.Add(author);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Bez Emaila",
+                NIP = "1112223344",
+                OwnerId = author.Id,
+                Owner = author
+            };
+            _contextMock.Companies.Add(company);
+
+            var contactWithoutEmail = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marek",
+                LastName = "Głuchy",
+                CompanyId = company.Id,
+                OwnerId = author.Id,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new ContactDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = Domain.Enum.ContactDetailTypeEnum.PHONE,
+                        Value = "123456789",
+                        IsPrimary = true
+                    }
+                },
+                IsPrimary = true,
+                Owner = author
+            };
+            _contextMock.Contacts.Add(contactWithoutEmail);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new MailingCommand
+            {
+                To = [contactWithoutEmail.Id],
+                Products = [
+                    new MailingProductCommand { ProductId = Guid.NewGuid(), Quantity = 1 }
+                ],
+                Language = "pl"
+            };
+
+            // Act
+            var result = await _supportServicesMock.SendProductMailingAsync(command, author.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Errors).IsNotNull();
+            await Assert.That(result.Errors!).Count().IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task SendProductMailingAsync_WhenProductHasNegativePrice_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var author = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = "AuthorNeg",
+                Email = "neg@test.pl",
+                FirstName = "Krzysztof",
+                LastName = "Ujemny"
+            };
+            _contextMock.Users.Add(author);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Test",
+                NIP = "1231231234",
+                OwnerId = author.Id,
+                Owner = author
+            };
+            _contextMock.Companies.Add(company);
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                OwnerId = author.Id,
+                Owner = author,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new ContactDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = Domain.Enum.ContactDetailTypeEnum.EMAIL,
+                        Value = "jan@test.pl",
+                        IsPrimary = true
+                    }
+                },
+                IsPrimary = true
+            };
+            _contextMock.Contacts.Add(contact);
+
+            var currency = new Currency { Id = Guid.NewGuid(), Code = "PLN", Name = "Złoty", DecimalPlaces = 2 };
+            _contextMock.Currencies.Add(currency);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            var steel = new SteelGrade { Id = Guid.NewGuid(), Name = "S235" };
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.SteelGrades.Add(steel);
+
+            var corruptedProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Blacha uszkodzona",
+                PricePerUnit = -500,
+                StockQuantity = 10,
+                UnitId = unit.Id,
+                SteelGradeId = steel.Id,
+                CurrencyId = currency.Id,
+                SteelGrade = steel,
+            };
+            _contextMock.Products.Add(corruptedProduct);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new MailingCommand
+            {
+                To = [contact.Id],
+                Products = [
+                    new MailingProductCommand { ProductId = corruptedProduct.Id, Quantity = 1 }
+                ],
+                Language = "pl"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _supportServicesMock.SendProductMailingAsync(command, author.Id))
+                .Throws<DataCorruptionException>();
         }
     }
 
