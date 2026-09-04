@@ -2,6 +2,7 @@
 using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Domain.State;
 using Infrastructure;
@@ -57,31 +58,45 @@ namespace Services.Services
 
         public async Task<Result<OfferDetailResponse>> GetOfferDetailAsync(Guid id)
         {
-            var offer = await _context.Offers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == id);
+            var offerData = await (
+                from o in _context.Offers.AsNoTracking()
+                where o.Id == id
+                join u in _context.Users.AsNoTracking() on o.CreatedByUserId equals u.Id into userGroup
+                from u in userGroup.DefaultIfEmpty()
+                select new
+                {
+                    Offer = o,
+                    AuthorFirstName = u != null ? u.FirstName : null,
+                    AuthorLastName = u != null ? u.LastName : null,
+                    AuthorExists = u != null
+                }
+            ).FirstOrDefaultAsync();
 
-            if (offer == null)
+            if (offerData == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", id);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", id);
                 return Result<OfferDetailResponse>.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
             }
 
-            var createdBy = await _context.Users.FirstOrDefaultAsync(u => u.Id == offer.CreatedByUserId);
+            if (!offerData.AuthorExists)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has orphaned CreatedByUserId {UserId}.", id, offerData.Offer.CreatedByUserId);
+                throw new DataCorruptionException($"Offer '{id}' is linked to non-existent creator '{offerData.Offer.CreatedByUserId}'.");
+            }
 
             var response = new OfferDetailResponse
             {
-                OfferId = offer.Id,
-                OfferName = offer.Name,
-                Status = offer.Status.ToString(),
-                ValidUntil = offer.ValidUntil,
-                IsExpired = offer.ValidUntil < DateTime.UtcNow,
-                CreatedByUserFirstName = createdBy?.FirstName ?? string.Empty,
-                CreatedByUserLastName = createdBy?.LastName ?? string.Empty
+                OfferId = offerData.Offer.Id,
+                OfferName = offerData.Offer.Name,
+                Status = offerData.Offer.Status.ToString(),
+                ValidUntil = offerData.Offer.ValidUntil,
+                IsExpired = offerData.Offer.ValidUntil < DateTime.UtcNow,
+                CreatedByUserFirstName = offerData.AuthorFirstName ?? string.Empty,
+                CreatedByUserLastName = offerData.AuthorLastName ?? string.Empty
             };
 
             return Result<OfferDetailResponse>.Success(
@@ -93,29 +108,49 @@ namespace Services.Services
 
         public async Task<Result<OfferClientDetail>> GetOfferClientDetailAsync(Guid id)
         {
-            var offer = await _context.Offers
-                .AsNoTracking()
-                .Include(o => o.Contact)
-                    .ThenInclude(c => c.Company)
-                .FirstOrDefaultAsync(o => o.Id == id);
+            var offerDetail = await (
+                from o in _context.Offers.AsNoTracking()
+                where o.Id == id
+                join c in _context.Contacts.AsNoTracking() on o.ContactId equals c.Id into contactGroup
+                from c in contactGroup.DefaultIfEmpty()
+                join comp in _context.Companies.AsNoTracking() on c.CompanyId equals comp.Id into companyGroup
+                from comp in companyGroup.DefaultIfEmpty()
+                select new
+                {
+                    OfferExists = true,
+                    ContactId = o.ContactId,
+                    HasContact = c != null,
+                    ContactFirstName = c != null ? c.FirstName : null,
+                    ContactLastName = c != null ? c.LastName : null,
+                    ContactJobTitle = c != null ? c.JobTitle : null,
+                    HasCompany = comp != null,
+                    CompanyName = comp != null ? comp.Name : null
+                }
+            ).FirstOrDefaultAsync();
 
-            if (offer == null)
+            if (offerDetail == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", id);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", id);
                 return Result<OfferClientDetail>.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
+            }
+
+            if (!offerDetail.HasContact || !offerDetail.HasCompany)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has missing contact or company relation.", id);
+                throw new DataCorruptionException($"Offer '{id}' has corrupted contact or company linkage.");
             }
 
             var response = new OfferClientDetail
             {
-                ContactId = offer.ContactId,
-                ContactFirstName = offer.Contact.FirstName,
-                ContactLastName = offer.Contact.LastName,
-                ContactJobTitle = offer.Contact.JobTitle ?? string.Empty,
-                CompanyName = offer.Contact.Company.Name
+                ContactId = offerDetail.ContactId,
+                ContactFirstName = offerDetail.ContactFirstName!,
+                ContactLastName = offerDetail.ContactLastName!,
+                ContactJobTitle = offerDetail.ContactJobTitle ?? string.Empty,
+                CompanyName = offerDetail.CompanyName!
             };
 
             return Result<OfferClientDetail>.Success(
@@ -126,21 +161,34 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<OfferProductResponse>>> GetOfferProductsAsync(
-            Guid id,
-            SimpleListCommand command)
+             Guid id,
+             SimpleListCommand command)
         {
             var offer = await _context.Offers
-                .Include(o => o.Currency)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .AsNoTracking()
+                .Where(o => o.Id == id)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.CurrencyId,
+                    CurrencyCode = o.Currency != null ? o.Currency.Code : null
+                })
+                .FirstOrDefaultAsync();
 
             if (offer == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", id);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", id);
                 return Result<PagedResult<OfferProductResponse>>.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
+            }
+
+            if (offer.CurrencyId == Guid.Empty || string.IsNullOrWhiteSpace(offer.CurrencyCode))
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has invalid or missing currency.", id);
+                throw new DataCorruptionException($"Offer '{id}' has missing currency relation.");
             }
 
             return await _context.OfferProducts
@@ -167,12 +215,18 @@ namespace Services.Services
 
             if (offer == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", command.OfferId);
                 return Result.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
+            }
+
+            if (offer.ContactId == Guid.Empty || offer.CreatedByUserId == Guid.Empty || offer.CurrencyId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has missing critical foreign keys.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
             }
 
             var targetDate = command.NewValidUntil.HasValue
@@ -182,17 +236,20 @@ namespace Services.Services
             var stateCheck = offer.CanExtendValidity(targetDate);
             if (!stateCheck.IsSuccess)
             {
+                _logger.LogWarning("Cannot extend validity for offer {OfferId}: {Reason}", offer.Id, stateCheck.Message);
                 return stateCheck;
             }
 
             offer.ValidUntil = targetDate;
 
-            if (offer.Status == OfferStatusEnum.Expired)
-            {
-                offer.Status = OfferStatusEnum.Sent;
-            }
+            if (offer.Status == OfferStatusEnum.Expired) offer.Status = OfferStatusEnum.Sent;
+
+            offer.UpdateAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Offer {OfferId} validity extended until {ValidUntil} (Status: {Status}).",
+                offer.Id, offer.ValidUntil, offer.Status);
 
             return Result.Success(
                 message: "Offer validity extended successfully.",
@@ -210,28 +267,54 @@ namespace Services.Services
 
             if (offer == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", command.OfferId);
                 return Result<Guid?>.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
+            }
+
+            if (offer.Contact == null ||
+                offer.Contact.CompanyId == Guid.Empty ||
+                offer.CreatedByUserId == Guid.Empty ||
+                offer.CurrencyId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has corrupted Contact, Company, User or Currency linkage.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' is missing essential relational data to proceed with status transition.");
             }
 
             var stateCheck = offer.CanTransitionTo(command.NewStatus);
             if (!stateCheck.IsSuccess)
             {
-                _logger.LogWarning("Attempt to change offer status from {CurrentStatus} to {NewStatus} for ID {OfferId} is invalid.", offer.Status, command.NewStatus, command.OfferId);
-                if (_context.Entry(offer).Property(o => o.Status).IsModified)
-                {
-                    await _context.SaveChangesAsync();
-                }
+                _logger.LogWarning("Invalid status transition for Offer {OfferId} from {CurrentStatus} to {NewStatus}. Reason: {Reason}",
+                    offer.Id, offer.Status, command.NewStatus, stateCheck.Message);
 
                 return Result<Guid?>.Failure(
-                    message: stateCheck.Message ?? "An error occurred while changing the offer status.",
-                    errorCode: stateCheck.ErrorCode ?? ErrorCodes.InvalidOperation,
-                    statusCode: stateCheck.StatusCode
+                    message: stateCheck.Message ?? "Invalid status transition.",
+                    statusCode: stateCheck.StatusCode,
+                    errorCode: stateCheck.ErrorCode ?? ErrorCodes.InvalidOperation
                 );
+            }
+
+            if (command.NewStatus == OfferStatusEnum.Accepted)
+            {
+                if (!offer.Products.Any())
+                {
+                    _logger.LogWarning("Cannot accept offer {OfferId}: no products associated.", offer.Id);
+                    return Result<Guid?>.Failure(
+                        message: "Cannot accept an offer without any products.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.InvalidOperation
+                    );
+                }
+
+                var hasCorruptedProducts = offer.Products.Any(p => p.Quantity <= 0 || p.QuotedPrice < 0 || p.ProductId == Guid.Empty);
+                if (hasCorruptedProducts)
+                {
+                    _logger.LogError("Critical data corruption: Offer {OfferId} contains products with invalid quantity, price or missing ProductId.", offer.Id);
+                    throw new DataCorruptionException($"Offer '{offer.Id}' contains corrupted product line items.");
+                }
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
@@ -239,19 +322,11 @@ namespace Services.Services
             try
             {
                 offer.Status = command.NewStatus;
+                offer.UpdateAt = DateTime.UtcNow;
                 Guid? createdDealId = null;
 
                 if (command.NewStatus == OfferStatusEnum.Accepted)
                 {
-                    if (!offer.Products.Any())
-                    {
-                        return Result<Guid?>.Failure(
-                            message: "Cannot accept an offer without any products.",
-                            errorCode: ErrorCodes.InvalidOperation,
-                            statusCode: StatusCodes.Status400BadRequest
-                        );
-                    }
-
                     var totalValue = offer.Products.Sum(p => (long)p.Quantity * p.QuotedPrice);
 
                     var deal = new Deal
@@ -280,10 +355,13 @@ namespace Services.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                _logger.LogInformation("Offer {OfferId} status changed to {NewStatus}. Created Deal ID: {DealId}",
+                    offer.Id, command.NewStatus, createdDealId);
+
                 return Result<Guid?>.Success(
                     message: command.NewStatus == OfferStatusEnum.Accepted
                         ? "Offer accepted and converted to sale deal successfully."
-                        : "Offer rejected successfully.",
+                        : "Offer status updated successfully.",
                     statusCode: StatusCodes.Status200OK,
                     data: createdDealId
                 );
@@ -291,7 +369,7 @@ namespace Services.Services
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error while changing offer status for ID {OfferId}", command.OfferId);
+                _logger.LogError(ex, "Transaction failed while changing offer status for Offer {OfferId} to {NewStatus}", command.OfferId, command.NewStatus);
                 throw;
             }
         }
@@ -304,43 +382,80 @@ namespace Services.Services
 
             if (offer == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", command.OfferId);
                 return Result.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
             }
 
-            var stateCheck = offer.CanEditProducts();
+            if (offer.CurrencyId == Guid.Empty || offer.ContactId == Guid.Empty || offer.CreatedByUserId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has missing critical foreign keys.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
+            }
 
+            var stateCheck = offer.CanEditProducts();
             if (!stateCheck.IsSuccess)
             {
-                _logger.LogWarning("Attempt to update products for offer ID {OfferId} in invalid state.", command.OfferId);
+                _logger.LogWarning("Attempt to update products for offer {OfferId} in invalid state: {Message}", command.OfferId, stateCheck.Message);
                 return stateCheck;
             }
 
-            if (!command.Items.Any())
+            if (command.Items == null || !command.Items.Any())
             {
-                _logger.LogWarning("Attempt to update offer with ID {OfferId} with no products.", command.OfferId);
+                _logger.LogWarning("Attempt to update offer {OfferId} with empty product list.", command.OfferId);
                 return Result.Failure(
                     message: "Offer must contain at least one product.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var hasInvalidItems = command.Items.Any(i => i.Quantity <= 0 || i.QuotedPrice < 0 || i.ProductId == Guid.Empty);
+            if (hasInvalidItems)
+            {
+                _logger.LogWarning("Attempt to update offer {OfferId} with invalid product line item values (Quantity <= 0 or Price < 0).", command.OfferId);
+                return Result.Failure(
+                    message: "All offer items must have positive quantity and non-negative quoted price.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
                 );
             }
 
             var requestedProductIds = command.Items.Select(i => i.ProductId).Distinct().ToList();
-            var existingProductsCount = await _context.Products.CountAsync(p => requestedProductIds.Contains(p.Id));
 
-            if (existingProductsCount != requestedProductIds.Count)
+            var existingProducts = await _context.Products
+                .AsNoTracking()
+                .Where(p => requestedProductIds.Contains(p.Id))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.PricePerUnit,
+                    p.CurrencyId
+                })
+                .ToListAsync();
+
+            var missingProducts = requestedProductIds.Except(existingProducts.Select(p => p.Id)).ToList();
+            if (missingProducts.Any())
             {
-                _logger.LogWarning("One or more products specified in the command do not exist for offer ID {OfferId}.", command.OfferId);
+                _logger.LogInformation("One or more products do not exist for offer {OfferId}: {MissingProducts}",
+                    command.OfferId, string.Join(", ", missingProducts));
+
                 return Result.Failure(
                     message: "One or more products specified in the command do not exist.",
+                    statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.ProductNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    errors: missingProducts.Select(id => $"Product with ID {id} does not exist.").ToList()
                 );
+            }
+
+            var corruptedProduct = existingProducts.FirstOrDefault(p => p.PricePerUnit < 0 || p.CurrencyId == Guid.Empty);
+            if (corruptedProduct != null)
+            {
+                _logger.LogError("Critical data corruption: Product {ProductId} has negative price or missing currency.", corruptedProduct.Id);
+                throw new DataCorruptionException($"Product '{corruptedProduct.Id}' has corrupted pricing or currency state.");
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
@@ -351,6 +466,7 @@ namespace Services.Services
 
                 var newOfferProducts = command.Items.Select(i => new OfferProducts
                 {
+                    Id = Guid.NewGuid(),
                     OfferId = offer.Id,
                     ProductId = i.ProductId,
                     Quantity = i.Quantity,
@@ -358,8 +474,13 @@ namespace Services.Services
                 }).ToList();
 
                 await _context.OfferProducts.AddRangeAsync(newOfferProducts);
+
+                offer.UpdateAt = DateTime.UtcNow;
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                _logger.LogInformation("Offer {OfferId} products updated successfully ({Count} items).", offer.Id, newOfferProducts.Count);
 
                 return Result.Success(
                     message: "Offer products updated successfully.",
@@ -369,7 +490,7 @@ namespace Services.Services
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error while updating products for offer ID {OfferId}", command.OfferId);
+                _logger.LogError(ex, "Transaction failed while updating products for offer ID {OfferId}", command.OfferId);
                 throw;
             }
         }
@@ -390,44 +511,59 @@ namespace Services.Services
 
             if (offer == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", command.OfferId);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", command.OfferId);
                 return Result.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
             }
 
-            var statusCheck = offer.CanResendEmail();
+            if (offer.Contact == null || offer.Currency == null || string.IsNullOrWhiteSpace(offer.Currency.Code))
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has missing contact or currency.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted contact or currency state.");
+            }
 
+            var statusCheck = offer.CanResendEmail();
             if (!statusCheck.IsSuccess)
             {
-                _logger.LogWarning("Attempt to resend email for offer ID {OfferId} in invalid state.", command.OfferId);
+                _logger.LogWarning("Attempt to resend email for offer {OfferId} in invalid state: {Message}", command.OfferId, statusCheck.Message);
                 return statusCheck;
             }
 
-            if (!statusCheck.IsSuccess)
+            if (offer.Products == null || !offer.Products.Any())
             {
-                _logger.LogWarning("Attempt to resend email for offer ID {OfferId} in invalid state.", command.OfferId);
+                _logger.LogWarning("Attempt to resend email for offer {OfferId} with no products.", command.OfferId);
                 return Result.Failure(
-                    message: statusCheck.Message ?? "Cannot resend email for this offer.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
+                    message: "Cannot resend an offer without any products.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
                 );
             }
 
             var clientEmails = offer.Contact.ContactDetails
-                .Where(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)
-                .Select(cd => cd.Value)
+                .Where(cd => !cd.IsDeleted && cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)
+                .Select(cd => cd.Value.Trim())
+                .Where(email => !string.IsNullOrEmpty(email))
+                .Distinct()
                 .ToList();
 
             if (!clientEmails.Any())
             {
+                _logger.LogWarning("Contact {ContactId} associated with offer {OfferId} has no active primary email.", offer.ContactId, offer.Id);
                 return Result.Failure(
                     message: "Contact has no primary email address configured.",
-                    errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
                 );
+            }
+
+            var corruptedItem = offer.Products.FirstOrDefault(op => op.Product == null || op.Quantity <= 0 || op.QuotedPrice < 0);
+            if (corruptedItem != null)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} contains corrupted line items or missing products.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' contains corrupted product items.");
             }
 
             var mailingItems = offer.Products.Select(op => new MailingProductItemDomain
@@ -436,15 +572,13 @@ namespace Services.Services
                 CurrencyId = offer.CurrencyId,
                 ProductName = op.Product.Name,
                 SteelGrade = op.Product.SteelGrade?.Name ?? string.Empty,
-
                 FormattedDimensions = DimensionsFormatter.Format(
                     op.Product.Category,
                     op.Product.Diameter,
                     op.Product.Thickness,
                     op.Product.Width,
                     op.Product.Length
-                    ),
-
+                ),
                 Weight = op.Product.Weight,
                 UnitSymbol = op.Product.Unit?.Symbol ?? "szt.",
                 Quantity = op.Quantity,
@@ -458,11 +592,13 @@ namespace Services.Services
             var offerDomain = new MailingOfferDomain
             {
                 BccEmails = clientEmails,
-                Language = command.Language ?? "pl",
+                Language = !string.IsNullOrWhiteSpace(command.Language) ? command.Language : "pl",
                 Products = mailingItems
             };
 
             await _emailSender.SendProductMailingAsync(offerDomain);
+
+            _logger.LogInformation("Offer {OfferId} email resent successfully to {Emails}.", offer.Id, string.Join(", ", clientEmails));
 
             return Result.Success(
                 message: "Offer email resent successfully.",
@@ -478,24 +614,37 @@ namespace Services.Services
 
             if (offer == null)
             {
-                _logger.LogWarning("Offer with ID {OfferId} not found.", id);
+                _logger.LogInformation("Offer with ID {OfferId} not found.", id);
                 return Result.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
+            }
+
+            if (offer.CurrencyId == Guid.Empty || offer.ContactId == Guid.Empty || offer.CreatedByUserId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has missing critical foreign keys.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
             }
 
             var stateCheck = offer.CanDelete();
             if (!stateCheck.IsSuccess)
             {
-                _logger.LogWarning("Attempt to delete an offer with invalid status {OfferStatus} for ID {OfferId}.", offer.Status, id);
+                _logger.LogWarning("Attempt to delete an offer in invalid state {OfferStatus} for ID {OfferId}: {Reason}",
+                    offer.Status, id, stateCheck.Message);
                 return stateCheck;
             }
 
-            _context.OfferProducts.RemoveRange(offer.Products);
+            if (offer.Products.Any())
+            {
+                _context.OfferProducts.RemoveRange(offer.Products);
+            }
+
             _context.Offers.Remove(offer);
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Offer {OfferId} and its line items deleted successfully.", id);
 
             return Result.Success(
                 message: "Offer deleted successfully.",
@@ -511,10 +660,11 @@ namespace Services.Services
 
             if (offer == null)
             {
+                _logger.LogInformation("Offer with ID {OfferId} not found.", id);
                 return Result<OfferAllowedActionsResponse>.Failure(
                     message: "Offer not found.",
-                    errorCode: ErrorCodes.OfferNotFound,
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.OfferNotFound
                 );
             }
 
@@ -535,7 +685,7 @@ namespace Services.Services
                 CanEdit = offer.CanEditProducts().IsSuccess,
                 CanDelete = offer.CanDelete().IsSuccess,
                 CanResendEmail = offer.CanResendEmail().IsSuccess,
-                CanExtendValidity = offer.Status != OfferStatusEnum.Accepted && offer.Status != OfferStatusEnum.Rejected,
+                CanExtendValidity = offer.CanExtendValidity(DateTime.UtcNow.AddDays(7)).IsSuccess,
                 AllowedStatusTransitions = allowedTransitions
             };
 
@@ -548,7 +698,7 @@ namespace Services.Services
 
         public async Task<Result<List<string>>> GetOfferStatus()
             => Result<List<string>>.Success(
-                message: "Allowed actions retrieved successfully.",
+                message: "Offer statuses retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
                 data: Enum.GetNames<OfferStatusEnum>().ToList()
             );

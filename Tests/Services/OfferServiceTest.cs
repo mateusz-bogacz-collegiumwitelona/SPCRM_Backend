@@ -1,6 +1,7 @@
 ﻿using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -35,6 +36,11 @@ namespace Tests.Services
                 .WithDatabase("testdb")
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
+                .WithCommand(
+                    "-c", "max_connections=300",
+                    "-c", "max_locks_per_transaction=1024",
+                    "-c", "shared_buffers=256MB"
+                )
                 .Build();
 
             await _dbContainer.StartAsync();
@@ -541,6 +547,32 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNull();
         }
 
+        [Test]
+        public async Task GetOfferDetailAsync_WhenOfferHasOrphanedCreator_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/ORPHAN/CREATOR",
+                ContactId = contact.Id,
+                CreatedByUserId = Guid.NewGuid(), 
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _offerServicesMock.GetOfferDetailAsync(offer.Id))
+                .Throws<DataCorruptionException>();
+        }
+
         // ─── GetOfferClientDetailAsync ──────────────────────────────────────────
 
         [Test]
@@ -659,6 +691,38 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.OfferNotFound);
             await Assert.That(result.Data).IsNull();
+        }
+
+        [Test]
+        public async Task GetOfferClientDetailAsync_WhenContactIsMissingInDatabase_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/ORPHAN/CONTACT",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent
+            };
+
+            _contextMock.Offers.Add(offer);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                DELETE FROM ""Contacts"";
+                SET session_replication_role = 'origin';
+            ");
+
+            // Act & Assert
+            await Assert.That(async () => await _offerServicesMock.GetOfferClientDetailAsync(offer.Id))
+                .Throws<DataCorruptionException>();
         }
 
         // ─── GetOfferProductsAsync ──────────────────────────────────────────────
@@ -1208,7 +1272,6 @@ namespace Tests.Services
             // Arrange
             var (company, contact, currency) = await SeedCompanyAndContactAsync();
 
-
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900 };
             _contextMock.SteelGrades.Add(steelGrade);
 
@@ -1230,6 +1293,7 @@ namespace Tests.Services
                 Length = 6000,
                 Weight = 5000,
                 SteelGrade = steelGrade,
+                Unit = unit
             };
             _contextMock.Products.Add(product);
 
@@ -1241,8 +1305,7 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent,
-                IsDeleted = false,
-                CurrencyId = currency.Id,
+                CurrencyId = currency.Id
             };
             _contextMock.Offers.Add(offer);
 
@@ -1252,10 +1315,11 @@ namespace Tests.Services
                 OfferId = offer.Id,
                 ProductId = product.Id,
                 Quantity = 4,
-                QuotedPrice = 450000,
+                QuotedPrice = 450000
             });
 
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new ChangeOfferStatusCommand
             {
@@ -1323,6 +1387,68 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task ChangeOfferStatusAsync_WhenOfferProductsHaveCorruptedValues_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235", Density = 7850 };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kątownik",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 50000,
+                StockQuantity = 10,
+                Category = ProductCategoryEnum.Profile,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/CORRUPTED/PRODUCTS",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent
+            };
+            _contextMock.Offers.Add(offer);
+
+            _contextMock.OfferProducts.Add(new OfferProducts
+            {
+                Id = Guid.NewGuid(),
+                OfferId = offer.Id,
+                ProductId = product.Id,
+                Quantity = 0,
+                QuotedPrice = -500
+            });
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeOfferStatusCommand
+            {
+                OfferId = offer.Id,
+                NewStatus = OfferStatusEnum.Accepted
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _offerServicesMock.ChangeOfferStatusAsync(command))
+                .Throws<DataCorruptionException>();
         }
 
         // ─── UpdateOfferProductsAsync ──────────────────────────────────────────
@@ -1396,6 +1522,27 @@ namespace Tests.Services
             // Arrange
             var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S355", Density = 7850 };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Rura",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 10,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
             var offer = new Offer
             {
                 Id = Guid.NewGuid(),
@@ -1404,18 +1551,22 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 CurrencyId = currency.Id,
                 ValidUntil = DateTime.UtcNow.AddDays(-2),
-                Status = OfferStatusEnum.Sent,
-                IsDeleted = false
+                Status = OfferStatusEnum.Sent
             };
             _contextMock.Offers.Add(offer);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new UpdateOfferProductsCommand
             {
                 OfferId = offer.Id,
                 Items = new List<OfferProductItemCommand>
                 {
-                    new() { ProductId = Guid.NewGuid(), Quantity = 2, QuotedPrice = 50000 }
+                    new() { 
+                        ProductId = product.Id, 
+                        Quantity = 2, 
+                        QuotedPrice = 50000 
+                    }
                 }
             };
 
@@ -1798,6 +1949,79 @@ namespace Tests.Services
             await Assert.That(sentPayload.Products.First().CurrencyCode).IsEqualTo("PLN");
         }
 
+        [Test]
+        public async Task ResendOfferEmailAsync_WhenOfferContainsCorruptedProductLineItem_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var (_, contact, currency) = await SeedCompanyAndContactAsync();
+
+            var contactDetail = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                ContactId = contact.Id,
+                Type = ContactDetailTypeEnum.EMAIL,
+                Value = "klient@stal-met.pl",
+                IsPrimary = true
+            };
+            _contextMock.ContactDetails.Add(contactDetail);
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235", Density = 7850 };
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Profil",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 10000,
+                StockQuantity = 5,
+                Category = ProductCategoryEnum.Profile,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
+            var offer = new Offer
+            {
+                Id = Guid.NewGuid(),
+                Name = "OF/RESEND/CORRUPTED",
+                ContactId = contact.Id,
+                CreatedByUserId = contact.OwnerId,
+                CurrencyId = currency.Id,
+                ValidUntil = DateTime.UtcNow.AddDays(7),
+                Status = OfferStatusEnum.Sent
+            };
+            _contextMock.Offers.Add(offer);
+
+            var corruptedOfferProduct = new OfferProducts
+            {
+                Id = Guid.NewGuid(),
+                OfferId = offer.Id,
+                ProductId = product.Id,
+                Quantity = -1,
+                QuotedPrice = -100
+            };
+            _contextMock.OfferProducts.Add(corruptedOfferProduct);
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ResendOfferEmailCommand
+            {
+                OfferId = offer.Id,
+                Language = "pl"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _offerServicesMock.ResendOfferEmailAsync(command))
+                .Throws<DataCorruptionException>();
+        }
+
         // ─── DeleteOfferAsync ──────────────────────────────────────────────────
 
         [Test]
@@ -1867,7 +2091,8 @@ namespace Tests.Services
                 PricePerUnit = 100000,
                 StockQuantity = 50,
                 Category = ProductCategoryEnum.Sheet,
-                SteelGrade = steelGrade
+                SteelGrade = steelGrade,
+                Unit = unit
             };
             _contextMock.Products.Add(product);
 
@@ -1879,8 +2104,7 @@ namespace Tests.Services
                 CreatedByUserId = contact.OwnerId,
                 CurrencyId = currency.Id,
                 ValidUntil = DateTime.UtcNow.AddDays(5),
-                Status = status,
-                IsDeleted = false
+                Status = status
             };
             _contextMock.Offers.Add(offer);
 
@@ -1894,6 +2118,7 @@ namespace Tests.Services
             });
 
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var result = await _offerServicesMock.DeleteOfferAsync(offer.Id);
