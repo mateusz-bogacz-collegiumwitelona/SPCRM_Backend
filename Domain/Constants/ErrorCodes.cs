@@ -113,6 +113,7 @@
         public const string InvalidSteelGradeName = "ST_004";
         public const string InvalidSteelGradeDensity = "ST_005";
         public const string InvalidSteelGradeStandard = "ST_006";
+        public const string SteelGradeNotFound = "ST_007";
 
         // Currency
         public const string CurrencyAlreadyExists = "CUR_001";

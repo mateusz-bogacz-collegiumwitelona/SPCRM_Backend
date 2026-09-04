@@ -1,5 +1,6 @@
 ﻿using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -508,6 +509,39 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
         }
 
+        [Test]
+        public async Task GetProductDetailsAsync_WhenProductHasCorruptedNegativePrice_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade("ST3");
+            var currency = CreateDummyCurrency();
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var corruptedProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Corrupted Product",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                Category = ProductCategoryEnum.Bar,
+                PricePerUnit = -500, 
+                StockQuantity = 10
+            };
+
+            _contextMock.Products.Add(corruptedProduct);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _productSevicesMock.GetProductDetailsAsync(corruptedProduct.Id))
+                .Throws<DataCorruptionException>();
+        }
+
         // ─── GetMailingProductsAsync ───────────────────────────────────────────
 
         [Test]
@@ -731,7 +765,7 @@ namespace Tests.Services
             var steelGrade = new SteelGrade
             {
                 Id = Guid.NewGuid(),
-                Name = "S235"
+                Name = $"S235_{uniqueSuffix}"
             };
 
             var currency = CreateDummyCurrency();
@@ -754,24 +788,15 @@ namespace Tests.Services
             };
 
             _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.SteelGrades.Add(steelGrade);
             _contextMock.Products.Add(existingProduct);
             await _contextMock.SaveChangesAsync();
-
-            var currencty = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Złoty",
-                Code = "PLN",
-                DecimalPlaces = 2,
-            };
-            _contextMock.Currencies.Add(currencty);
-            await _contextMock.SaveChangesAsync();
-
+            _contextMock.ChangeTracker.Clear();
 
             var command = new AddProductCommand
             {
                 Name = productName,
-                SteelGradeId = Guid.NewGuid(),
+                SteelGradeId = steelGrade.Id,
                 Thickness = 10,
                 Width = 100,
                 Length = 1000,
@@ -780,7 +805,7 @@ namespace Tests.Services
                 PricePerUnit = 150000,
                 StockQuantity = 50,
                 Category = ProductCategoryEnum.Other.ToString(),
-                CurrencyId = currencty.Id
+                CurrencyId = currency.Id
             };
 
             // Act
@@ -798,7 +823,6 @@ namespace Tests.Services
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
 
-
             var command = new AddProductCommand
             {
                 Name = $"Product_{uniqueSuffix}",
@@ -810,7 +834,7 @@ namespace Tests.Services
                 UnitId = Guid.NewGuid(),
                 PricePerUnit = 150000,
                 StockQuantity = 50,
-                Category = "Plate",
+                Category = ProductCategoryEnum.Sheet.ToString(),
                 CurrencyId = Guid.NewGuid()
             };
 
@@ -829,16 +853,6 @@ namespace Tests.Services
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
 
-            var unit = new UnitOfMeasure
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Sztuka_{uniqueSuffix}",
-                Symbol = "szt."
-            };
-
-            _contextMock.UnitsOfMeasure.Add(unit);
-            await _contextMock.SaveChangesAsync();
-
             var command = new AddProductCommand
             {
                 Name = $"Product_{uniqueSuffix}",
@@ -847,7 +861,7 @@ namespace Tests.Services
                 Width = 100,
                 Length = 1000,
                 Weight = 5000,
-                UnitId = unit.Id,
+                UnitId = Guid.NewGuid(),
                 PricePerUnit = 150000,
                 StockQuantity = 50,
                 Category = "InvalidCategoryName",
@@ -1083,6 +1097,7 @@ namespace Tests.Services
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.Products.AddRange(product1, product2);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new EditProductCommand
             {
@@ -1186,6 +1201,7 @@ namespace Tests.Services
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.Products.Add(product);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new EditProductCommand
             {
@@ -1253,6 +1269,45 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidCategory);
         }
 
+        [Test]
+        public async Task EditProductAsync_WhenProductInDatabaseIsCorrupted_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade("ST3");
+            var currency = CreateDummyCurrency();
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var corruptedProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Corrupted Edit Product",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                Category = ProductCategoryEnum.Bar,
+                PricePerUnit = -100,
+                StockQuantity = 5
+            };
+
+            _contextMock.Products.Add(corruptedProduct);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditProductCommand
+            {
+                ProductId = corruptedProduct.Id,
+                Name = "New Valid Name"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _productSevicesMock.EditProductAsync(command))
+                .Throws<DataCorruptionException>();
+        }
+
         // ─── GetProductEditDetailAsync ──────────────────────────────────
 
         [Test]
@@ -1294,6 +1349,7 @@ namespace Tests.Services
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.Products.Add(product);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var result = await _productSevicesMock.GetProductEditDetailAsync(product.Id);
@@ -1460,6 +1516,87 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Product not found.");
         }
 
+        [Test]
+        public async Task DeleteProductAsync_WhenProductIsInActiveDeal_ReturnsBadRequest()
+        {
+            // Arrange
+            var steelGrade = CreateDummySteelGrade("S355");
+            var currency = CreateDummyCurrency();
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = "deal_owner",
+                Email = "owner@deal.pl",
+                FirstName = "Adam",
+                LastName = "Kowalski"
+            };
+            _contextMock.Users.Add(user);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Firma Handlowa",
+                NIP = "1112223344",
+                OwnerId = user.Id,
+                Owner = user
+            };
+            _contextMock.Companies.Add(company);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt Zablokowany",
+                SteelGradeId = steelGrade.Id,
+                SteelGrade = steelGrade,
+                UnitId = unit.Id,
+                Unit = unit,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                Category = ProductCategoryEnum.Profile,
+                PricePerUnit = 50000,
+                StockQuantity = 100
+            };
+            _contextMock.Products.Add(product);
+
+            var activeDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Aktywny Deal",
+                Status = DealsStatusEnum.InProgress,
+                Value = 50000,
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                OwnerId = user.Id,
+                CloseDate = DateTime.UtcNow.AddDays(14)
+            };
+            _contextMock.Deals.Add(activeDeal);
+
+            _contextMock.DealProducts.Add(new DealProduct
+            {
+                Id = Guid.NewGuid(),
+                DealId = activeDeal.Id,
+                ProductId = product.Id,
+                Quantity = 10,
+                UnitPrice = 50000
+            });
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _productSevicesMock.DeleteProductAsync(product.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Cannot delete product that is assigned to active deals.");
+        }
+
+
         // ─── SearchProductsAutocompleteAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -1500,50 +1637,51 @@ namespace Tests.Services
             _contextMock.UnitsOfMeasure.Add(unit);
 
             var products = new List<Product>
-            {
-                new()
-                {
-                    Id = Guid.NewGuid(),
-                    Name = "Profil Zamknięty 40x40",
-                    SteelGrade = steelGrade304,
-                    SteelGradeId = steelGrade304.Id,
-                    CurrencyId = currency.Id,
-                    UnitId = unit.Id,
-                    PricePerUnit = 250000,
-                    StockQuantity = 100,
-                    Category = ProductCategoryEnum.Profile,
-                    IsDeleted = false
-                },
-                new()
-                {
-                    Id = Guid.NewGuid(),
-                    Name = "Rura Nierdzewna 20mm",
-                    SteelGrade = steelGrade304,
-                    SteelGradeId = steelGrade304.Id,
-                    CurrencyId = currency.Id,
-                    UnitId = unit.Id,
-                    PricePerUnit = 150000,
-                    StockQuantity = 50,
-                    Category = ProductCategoryEnum.Pipe,
-                    IsDeleted = false
-                },
-                new()
-                {
-                    Id = Guid.NewGuid(),
-                    Name = "Blacha Gorącowalcowana",
-                    SteelGrade = steelGrade316,
-                    SteelGradeId = steelGrade316.Id,
-                    CurrencyId = currency.Id,
-                    UnitId = unit.Id,
-                    PricePerUnit = 800000,
-                    StockQuantity = 10,
-                    Category = ProductCategoryEnum.Sheet,
-                    IsDeleted = false
-                }
-            };
+    {
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Name = "Profil Zamknięty 40x40",
+            SteelGrade = steelGrade304,
+            SteelGradeId = steelGrade304.Id,
+            CurrencyId = currency.Id,
+            UnitId = unit.Id,
+            PricePerUnit = 250000,
+            StockQuantity = 100,
+            Category = ProductCategoryEnum.Profile,
+            IsDeleted = false
+        },
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Name = "Rura Nierdzewna 20mm",
+            SteelGrade = steelGrade304,
+            SteelGradeId = steelGrade304.Id,
+            CurrencyId = currency.Id,
+            UnitId = unit.Id,
+            PricePerUnit = 150000,
+            StockQuantity = 50,
+            Category = ProductCategoryEnum.Pipe,
+            IsDeleted = false
+        },
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Name = "Blacha Gorącowalcowana",
+            SteelGrade = steelGrade316,
+            SteelGradeId = steelGrade316.Id,
+            CurrencyId = currency.Id,
+            UnitId = unit.Id,
+            PricePerUnit = 800000,
+            StockQuantity = 10,
+            Category = ProductCategoryEnum.Sheet,
+            IsDeleted = false
+        }
+    };
 
             _contextMock.Products.AddRange(products);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var searchByNameCommand = new SearchProductAutocompleteCommand { Query = "Profil" };
@@ -1557,6 +1695,7 @@ namespace Tests.Services
             await Assert.That(resultByName.Data!.Count).IsEqualTo(1);
             await Assert.That(resultByName.Data![0].Name).IsEqualTo("Profil Zamknięty 40x40");
             await Assert.That(resultByName.Data![0].SteelGrade).IsEqualTo("AISI 304");
+
             await Assert.That(resultByGrade.IsSuccess).IsTrue();
             await Assert.That(resultByGrade.Data!.Count).IsEqualTo(1);
             await Assert.That(resultByGrade.Data![0].Name).IsEqualTo("Blacha Gorącowalcowana");
@@ -1591,6 +1730,7 @@ namespace Tests.Services
 
             _contextMock.Products.Add(deletedProduct);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new SearchProductAutocompleteCommand { Query = "Kątownik" };
 
@@ -1631,12 +1771,15 @@ namespace Tests.Services
                 });
             }
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new SearchProductAutocompleteCommand
             {
                 Query = "Pręt",
                 Limit = 100
             };
+
+            // Act
             var result = await _productSevicesMock.SearchProductsAutocompleteAsync(command);
 
             // Assert

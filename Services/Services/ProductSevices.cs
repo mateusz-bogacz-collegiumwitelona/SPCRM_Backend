@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -79,38 +80,38 @@ namespace Services.Services
         {
             var now = DateTime.UtcNow;
 
-            var query = await _context.Products
+            var productData = await _context.Products
                 .AsNoTracking()
                 .Where(p => p.Id == productId)
-                .Select(p => new ProductDetailResponse
+                .Select(p => new
                 {
-                    Id = p.Id,
-                    Name = p.Name,
-                    SteelGrade = p.SteelGrade.Name,
-                    Category = p.Category.ToString(),
-
-                    Dimensions = DimensionsFormatter.Format(
-                     p.Category,
-                     p.Diameter,
-                     p.Thickness,
-                     p.Width,
-                     p.Length
-                    ),
-
-                    StockQuantity = p.StockQuantity,
-                    UnitSymbol = p.Unit.Symbol,
-                    PricePerUnit = p.PricePerUnit,
-                    CurrencyCode = p.Currency.Code,
-                    DecimalPlaces = p.Currency.DecimalPlaces,
-
-                    Weight = p.Weight,
+                    p.Id,
+                    p.Name,
+                    SteelGradeId = p.SteelGradeId,
+                    SteelGradeName = p.SteelGrade != null ? p.SteelGrade.Name : null,
+                    p.Category,
+                    p.Diameter,
+                    p.Thickness,
+                    p.Width,
+                    p.Length,
+                    p.StockQuantity,
+                    p.Weight,
+                    p.PricePerUnit,
+                    UnitId = p.UnitId,
+                    UnitSymbol = p.Unit != null ? p.Unit.Symbol : null,
+                    CurrencyId = p.CurrencyId,
+                    CurrencyCode = p.Currency != null ? p.Currency.Code : null,
+                    DecimalPlaces = p.Currency != null ? (int?)p.Currency.DecimalPlaces : null,
 
                     ReservedQuantity = p.DealProducts
                         .Where(dp => dp.Deal.Status == DealsStatusEnum.ToDo || dp.Deal.Status == DealsStatusEnum.InProgress)
                         .Sum(dp => (int?)dp.Quantity) ?? 0,
 
                     ActivePromotion = p.Promotions
-                        .Where(pr => pr.IsActive && (!pr.StartDate.HasValue || pr.StartDate <= now) && (!pr.EndDate.HasValue || pr.EndDate >= now))
+                        .Where(pr => pr.IsActive &&
+                                     (!pr.StartDate.HasValue || pr.StartDate <= now) &&
+                                     (!pr.EndDate.HasValue || pr.EndDate >= now))
+                        .OrderByDescending(pr => pr.DiscountPercentage ?? 0)
                         .Select(pr => new ActivePromotionResponse
                         {
                             Name = pr.Name,
@@ -123,21 +124,60 @@ namespace Services.Services
                 })
                 .FirstOrDefaultAsync();
 
-            if (query == null)
+            if (productData == null)
             {
-                _logger.LogWarning("Product with ID {ProductId} not found.", productId);
+                _logger.LogInformation("Product with ID {ProductId} not found.", productId);
                 return Result<ProductDetailResponse>.Failure(
                     message: "Product not found.",
                     statusCode: StatusCodes.Status404NotFound,
-                    errorCode: ErrorCodes.ProductNotFound.ToString()
-                    );
+                    errorCode: ErrorCodes.ProductNotFound
+                );
             }
+
+            if (productData.PricePerUnit < 0 ||
+                productData.Weight < 0 ||
+                productData.StockQuantity < 0 ||
+                productData.UnitId == Guid.Empty ||
+                productData.CurrencyId == Guid.Empty ||
+                productData.SteelGradeId == Guid.Empty ||
+                string.IsNullOrWhiteSpace(productData.CurrencyCode) ||
+                string.IsNullOrWhiteSpace(productData.UnitSymbol) ||
+                string.IsNullOrWhiteSpace(productData.SteelGradeName))
+            {
+                _logger.LogError("Critical data corruption: Product {ProductId} has invalid pricing, weight or missing dictionary relations.", productId);
+                throw new DataCorruptionException($"Product '{productId}' contains corrupted state or missing dictionary linkage.");
+            }
+
+            var formattedDimensions = DimensionsFormatter.Format(
+                productData.Category,
+                productData.Diameter,
+                productData.Thickness,
+                productData.Width,
+                productData.Length
+            );
+
+            var response = new ProductDetailResponse
+            {
+                Id = productData.Id,
+                Name = productData.Name,
+                SteelGrade = productData.SteelGradeName,
+                Category = productData.Category.ToString(),
+                Dimensions = formattedDimensions,
+                StockQuantity = productData.StockQuantity,
+                UnitSymbol = productData.UnitSymbol,
+                PricePerUnit = productData.PricePerUnit,
+                CurrencyCode = productData.CurrencyCode,
+                DecimalPlaces = productData.DecimalPlaces!.Value,
+                Weight = productData.Weight,
+                ReservedQuantity = productData.ReservedQuantity,
+                ActivePromotion = productData.ActivePromotion
+            };
 
             return Result<ProductDetailResponse>.Success(
                 message: "Product details retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
-                data: query
-                );
+                data: response
+            );
         }
 
         public async Task<Result<PagedResult<MailingProductResponse>>> GetMailingProductsAsync(SimpleListCommand command)
@@ -175,29 +215,6 @@ namespace Services.Services
 
         public async Task<Result> AddProductAsync(AddProductCommand command)
         {
-            string trimName = command.Name.Trim();
-
-            if (await _context.Products.AnyAsync(p => p.Name == trimName))
-            {
-                _logger.LogWarning("Attempt to add a product with an existing name: {ProductName}", command.Name);
-                return Result.Failure(
-                    message: "Product with the same name already exists.",
-                    statusCode: StatusCodes.Status400BadRequest,
-                    errorCode: ErrorCodes.ProductAlreadyExists
-                );
-            }
-
-            var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId);
-            if (unit == null)
-            {
-                _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId);
-                return Result.Failure(
-                    message: "Unit of measure not found.",
-                    statusCode: StatusCodes.Status404NotFound,
-                    errorCode: ErrorCodes.NotFound
-                );
-            }
-
             if (!Enum.TryParse<ProductCategoryEnum>(command.Category, true, out var category))
             {
                 _logger.LogWarning("Invalid product category provided: {Category}", command.Category);
@@ -208,7 +225,39 @@ namespace Services.Services
                 );
             }
 
-            var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(sg => sg.Id == command.SteelGradeId);
+            string trimName = command.Name.Trim();
+
+            var nameExists = await _context.Products
+                .AsNoTracking()
+                .AnyAsync(p => p.Name == trimName);
+
+            if (nameExists)
+            {
+                _logger.LogWarning("Attempt to add a product with an existing name: {ProductName}", trimName);
+                return Result.Failure(
+                    message: "Product with the same name already exists.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.ProductAlreadyExists
+                );
+            }
+
+            var unitExists = await _context.UnitsOfMeasure
+                .AsNoTracking()
+                .AnyAsync(u => u.Id == command.UnitId);
+
+            if (!unitExists)
+            {
+                _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId);
+                return Result.Failure(
+                    message: "Unit of measure not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.NotFound
+                );
+            }
+
+            var steelGrade = await _context.SteelGrades
+                .FirstOrDefaultAsync(sg => sg.Id == command.SteelGradeId);
+
             if (steelGrade == null)
             {
                 _logger.LogWarning("Steel grade with ID {SteelGradeId} not found.", command.SteelGradeId);
@@ -219,7 +268,9 @@ namespace Services.Services
                 );
             }
 
-            var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId);
+            var currency = await _context.Currencies
+                .FirstOrDefaultAsync(c => c.Id == command.CurrencyId);
+
             if (currency == null)
             {
                 _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId);
@@ -232,6 +283,7 @@ namespace Services.Services
 
             var product = new Product
             {
+                Id = Guid.NewGuid(),
                 Name = trimName,
                 SteelGrade = steelGrade,
                 SteelGradeId = steelGrade.Id,
@@ -251,6 +303,8 @@ namespace Services.Services
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Product {ProductId} ('{ProductName}') created successfully.", product.Id, product.Name);
+
             return Result.Success(
                 message: "Product added successfully.",
                 statusCode: StatusCodes.Status201Created
@@ -263,7 +317,7 @@ namespace Services.Services
 
             if (product == null)
             {
-                _logger.LogWarning("Product with ID {ProductId} not found for editing.", command.ProductId);
+                _logger.LogInformation("Product with ID {ProductId} not found for editing.", command.ProductId);
                 return Result.Failure(
                     message: "Product not found.",
                     statusCode: StatusCodes.Status404NotFound,
@@ -271,55 +325,44 @@ namespace Services.Services
                 );
             }
 
+            if (product.PricePerUnit < 0 ||
+                product.Weight < 0 ||
+                product.StockQuantity < 0 ||
+                product.UnitId == Guid.Empty ||
+                product.CurrencyId == Guid.Empty ||
+                product.SteelGradeId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Product {ProductId} has invalid pricing/weight or missing dictionary foreign keys.", product.Id);
+                throw new DataCorruptionException($"Product '{product.Id}' contains corrupted state.");
+            }
+
             if (!string.IsNullOrWhiteSpace(command.Name))
             {
                 string trimName = command.Name.Trim();
-                if (await _context.Products.AnyAsync(p => p.Name == trimName && p.Id != command.ProductId))
+                var nameConflict = await _context.Products
+                    .AsNoTracking()
+                    .AnyAsync(p => p.Name == trimName && p.Id != command.ProductId);
+
+                if (nameConflict)
                 {
-                    _logger.LogWarning("Attempt to edit product with an existing name: {ProductName}", command.Name);
+                    _logger.LogWarning("Attempt to edit product {ProductId} with an existing name: {ProductName}", command.ProductId, trimName);
                     return Result.Failure(
                         message: "Another product with the same name already exists.",
                         statusCode: StatusCodes.Status400BadRequest,
                         errorCode: ErrorCodes.ProductAlreadyExists
                     );
                 }
+
                 product.Name = trimName;
             }
 
-            if (command.Thickness.HasValue)
-            {
-                product.Thickness = command.Thickness.Value;
-            }
-
-            if (command.Width.HasValue)
-            {
-                product.Width = command.Width.Value;
-            }
-
-            if (command.Length.HasValue)
-            {
-                product.Length = command.Length.Value;
-            }
-
-            if (command.Diameter.HasValue)
-            {
-                product.Diameter = command.Diameter.Value;
-            }
-
-            if (command.Weight.HasValue)
-            {
-                product.Weight = command.Weight.Value;
-            }
-
-            if (command.PricePerUnit.HasValue)
-            {
-                product.PricePerUnit = command.PricePerUnit.Value;
-            }
-
-            if (command.StockQuantity.HasValue)
-            {
-                product.StockQuantity = command.StockQuantity.Value;
-            }
+            if (command.Thickness.HasValue) product.Thickness = command.Thickness.Value;
+            if (command.Width.HasValue) product.Width = command.Width.Value;
+            if (command.Length.HasValue) product.Length = command.Length.Value;
+            if (command.Diameter.HasValue) product.Diameter = command.Diameter.Value;
+            if (command.Weight.HasValue) product.Weight = command.Weight.Value;
+            if (command.PricePerUnit.HasValue) product.PricePerUnit = command.PricePerUnit.Value;
+            if (command.StockQuantity.HasValue) product.StockQuantity = command.StockQuantity.Value;
 
             if (!string.IsNullOrWhiteSpace(command.Category))
             {
@@ -338,11 +381,13 @@ namespace Services.Services
                 }
             }
 
-
             if (command.UnitId.HasValue)
             {
-                var unit = await _context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Id == command.UnitId.Value);
-                if (unit == null)
+                var unitExists = await _context.UnitsOfMeasure
+                    .AsNoTracking()
+                    .AnyAsync(u => u.Id == command.UnitId.Value);
+
+                if (!unitExists)
                 {
                     _logger.LogWarning("Unit of measure with ID {UnitId} not found.", command.UnitId.Value);
                     return Result.Failure(
@@ -351,13 +396,17 @@ namespace Services.Services
                         errorCode: ErrorCodes.NotFound
                     );
                 }
-                product.UnitId = unit.Id;
+
+                product.UnitId = command.UnitId.Value;
             }
 
             if (command.SteelGradeId.HasValue)
             {
-                var steelGrade = await _context.SteelGrades.FirstOrDefaultAsync(s => s.Id == command.SteelGradeId.Value);
-                if (steelGrade == null)
+                var steelGradeExists = await _context.SteelGrades
+                    .AsNoTracking()
+                    .AnyAsync(s => s.Id == command.SteelGradeId.Value);
+
+                if (!steelGradeExists)
                 {
                     _logger.LogWarning("Steel grade with ID {SteelGradeId} not found.", command.SteelGradeId.Value);
                     return Result.Failure(
@@ -366,13 +415,17 @@ namespace Services.Services
                         errorCode: ErrorCodes.NotFound
                     );
                 }
-                product.SteelGradeId = steelGrade.Id;
+
+                product.SteelGradeId = command.SteelGradeId.Value;
             }
 
             if (command.CurrencyId.HasValue)
             {
-                var currency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == command.CurrencyId.Value);
-                if (currency == null)
+                var currencyExists = await _context.Currencies
+                    .AsNoTracking()
+                    .AnyAsync(c => c.Id == command.CurrencyId.Value);
+
+                if (!currencyExists)
                 {
                     _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId.Value);
                     return Result.Failure(
@@ -381,10 +434,15 @@ namespace Services.Services
                         errorCode: ErrorCodes.NotFound
                     );
                 }
-                product.CurrencyId = currency.Id;
+
+                product.CurrencyId = command.CurrencyId.Value;
             }
 
+            product.UpdateAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Product {ProductId} updated successfully.", product.Id);
 
             return Result.Success(
                 message: "Product updated successfully.",
@@ -394,31 +452,31 @@ namespace Services.Services
 
         public async Task<Result<EditProductDetailResponse>> GetProductEditDetailAsync(Guid id)
         {
-            var product = await _context.Products
+            var rawProduct = await _context.Products
                 .AsNoTracking()
                 .Where(p => p.Id == id)
-                .Select(p => new EditProductDetailResponse
+                .Select(p => new
                 {
-                    ProductId = p.Id,
-                    Name = p.Name,
-                    SteelGradeId = p.SteelGradeId,
-                    UnitId = p.UnitId,
-                    CurrencyId = p.CurrencyId,
-                    Category = p.Category.ToString(),
-
-                    Thickness = p.Thickness / 10m,
-                    Width = p.Width / 10m,
-                    Length = p.Length / 10m,
-                    Diameter = p.Diameter.HasValue ? p.Diameter.Value / 10m : null,
-                    Weight = p.Weight / 1000m,
-                    PricePerUnit = p.PricePerUnit / 10000m,
-                    StockQuantity = p.StockQuantity
+                    p.Id,
+                    p.Name,
+                    p.SteelGradeId,
+                    p.UnitId,
+                    p.CurrencyId,
+                    p.Category,
+                    p.Thickness,
+                    p.Width,
+                    p.Length,
+                    p.Diameter,
+                    p.Weight,
+                    p.PricePerUnit,
+                    p.StockQuantity,
+                    CurrencyExists = p.Currency != null
                 })
                 .FirstOrDefaultAsync();
 
-            if (product == null)
+            if (rawProduct == null)
             {
-                _logger.LogWarning("Product with ID {ProductId} not found for edit.", id);
+                _logger.LogInformation("Product with ID {ProductId} not found for edit.", id);
                 return Result<EditProductDetailResponse>.Failure(
                     message: "Product not found.",
                     statusCode: StatusCodes.Status404NotFound,
@@ -426,34 +484,94 @@ namespace Services.Services
                 );
             }
 
+            if (rawProduct.PricePerUnit < 0 ||
+                rawProduct.Weight < 0 ||
+                rawProduct.StockQuantity < 0 ||
+                rawProduct.Thickness < 0 ||
+                rawProduct.Width < 0 ||
+                rawProduct.Length < 0 ||
+                (rawProduct.Diameter.HasValue && rawProduct.Diameter.Value < 0) ||
+                rawProduct.UnitId == Guid.Empty ||
+                rawProduct.CurrencyId == Guid.Empty ||
+                rawProduct.SteelGradeId == Guid.Empty ||
+                !rawProduct.CurrencyExists)
+            {
+                _logger.LogError("Critical data corruption: Product {ProductId} contains negative values or unlinked dictionaries.", id);
+                throw new DataCorruptionException($"Product '{id}' has corrupted state or missing dictionary linkage.");
+            }
+
+            var response = new EditProductDetailResponse
+            {
+                ProductId = rawProduct.Id,
+                Name = rawProduct.Name,
+                SteelGradeId = rawProduct.SteelGradeId,
+                UnitId = rawProduct.UnitId,
+                CurrencyId = rawProduct.CurrencyId,
+                Category = rawProduct.Category.ToString(),
+
+                Thickness = rawProduct.Thickness / 10m,
+                Width = rawProduct.Width / 10m,
+                Length = rawProduct.Length / 10m,
+                Diameter = rawProduct.Diameter.HasValue ? rawProduct.Diameter.Value / 10m : null,
+                Weight = rawProduct.Weight / 1000m,
+                PricePerUnit = rawProduct.PricePerUnit / 10000m,
+                StockQuantity = rawProduct.StockQuantity
+            };
+
             return Result<EditProductDetailResponse>.Success(
                 message: "Product details retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
-                data: product
+                data: response
             );
         }
 
         public async Task<Result> DeleteProductAsync(Guid id)
         {
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+            var product = await _context.Products
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null)
             {
-                _logger.LogWarning("Product with this id {id} not found.", id);
+                _logger.LogInformation("Product with ID {ProductId} not found.", id);
                 return Result.Failure(
                     message: "Product not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.ProductNotFound
-                    );
+                );
+            }
+
+            if (product.CurrencyId == Guid.Empty ||
+                product.SteelGradeId == Guid.Empty ||
+                product.UnitId == Guid.Empty)
+            {
+                _logger.LogError("Critical data corruption: Product {ProductId} has corrupted dictionary relations.", id);
+                throw new DataCorruptionException($"Product '{id}' contains corrupted foreign key linkage.");
+            }
+
+            var hasActiveDeals = await _context.DealProducts
+                .AsNoTracking()
+                .AnyAsync(dp => dp.ProductId == id &&
+                                (dp.Deal.Status == DealsStatusEnum.ToDo || dp.Deal.Status == DealsStatusEnum.InProgress));
+
+            if (hasActiveDeals)
+            {
+                _logger.LogWarning("Attempt to delete product {ProductId} ('{ProductName}') which is currently locked in active deals.", product.Id, product.Name);
+                return Result.Failure(
+                    message: "Cannot delete product that is assigned to active deals.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
             }
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Product {ProductId} ('{ProductName}') deleted successfully.", product.Id, product.Name);
+
             return Result.Success(
                 message: "Product deleted successfully.",
                 statusCode: StatusCodes.Status200OK
-                );
+            );
         }
 
         public async Task<Result<List<ProductAutocompleteResponse>>> SearchProductsAutocompleteAsync(SearchProductAutocompleteCommand command)
@@ -469,29 +587,46 @@ namespace Services.Services
                 );
             }
 
-            var safeLimit = Math.Clamp(command.Limit, 1, 50);
+            var safeLimit = command.Limit <= 0 ? 10 : Math.Clamp(command.Limit, 1, 50);
+            var searchPattern = $"%{trimmedQuery}%";
 
-            var products = await _context.Products
+            var rawProducts = await _context.Products
                 .AsNoTracking()
-                .Where(p => !p.IsDeleted && (
-                    EF.Functions.ILike(p.Name, $"%{trimmedQuery}%") ||
-                    (p.SteelGrade != null && EF.Functions.ILike(p.SteelGrade.Name, $"%{trimmedQuery}%"))
-                ))
+                .Where(p =>
+                    EF.Functions.ILike(EF.Functions.Unaccent(p.Name), EF.Functions.Unaccent(searchPattern)) ||
+                    (p.SteelGrade != null && EF.Functions.ILike(EF.Functions.Unaccent(p.SteelGrade.Name), EF.Functions.Unaccent(searchPattern)))
+                )
                 .OrderBy(p => p.Name)
                 .Take(safeLimit)
-                .Select(p => new ProductAutocompleteResponse
+                .Select(p => new
                 {
-                    Id = p.Id,
-                    Name = p.Name,
-                    SteelGrade = p.SteelGrade != null ? p.SteelGrade.Name : string.Empty,
-                    PricePerUnit = p.PricePerUnit
+                    p.Id,
+                    p.Name,
+                    p.SteelGradeId,
+                    SteelGradeName = p.SteelGrade != null ? p.SteelGrade.Name : null,
+                    p.PricePerUnit
                 })
                 .ToListAsync();
+
+            var corrupted = rawProducts.FirstOrDefault(p => p.PricePerUnit < 0 || p.SteelGradeId == Guid.Empty || string.IsNullOrWhiteSpace(p.SteelGradeName));
+            if (corrupted != null)
+            {
+                _logger.LogError("Critical data corruption: Product {ProductId} has negative price or missing steel grade.", corrupted.Id);
+                throw new DataCorruptionException($"Product '{corrupted.Id}' has corrupted pricing or missing steel grade linkage.");
+            }
+
+            var response = rawProducts.Select(p => new ProductAutocompleteResponse
+            {
+                Id = p.Id,
+                Name = p.Name,
+                SteelGrade = p.SteelGradeName!,
+                PricePerUnit = p.PricePerUnit
+            }).ToList();
 
             return Result<List<ProductAutocompleteResponse>>.Success(
                 message: "Products retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
-                data: products
+                data: response
             );
         }
     }
