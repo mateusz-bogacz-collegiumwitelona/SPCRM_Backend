@@ -1,5 +1,6 @@
 ﻿using Domain.Constants;
 using Domain.Enum;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -627,6 +628,61 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(Domain.Constants.ErrorCodes.PromotionNotFound);
         }
 
+        [Test]
+        public async Task GetPromotionDetailAsync_WhenProductRelationIsCorrupted_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var promotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Skażona Promocja",
+                IsActive = true,
+                ProductId = product.Id,
+                DiscountPercentage = 20
+            };
+
+            _contextMock.Promotions.Add(promotion);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            await _contextMock.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                DELETE FROM ""Products"";
+                SET session_replication_role = 'origin';
+            ");
+
+            // Act & Assert
+            await Assert.That(async () => await _promotionServicesMock.GetPromotionDetailAsync(promotion.Id))
+                .Throws<DataCorruptionException>();
+        }
+
+        [Test]
+        public async Task GetPromotionDetailAsync_WhenPromotionalPriceHasMissingCurrency_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var corruptedPromotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja bez waluty",
+                IsActive = true,
+                ProductId = product.Id,
+                PromotionalPrice = 45000,
+                CurrencyId = null 
+            };
+
+            _contextMock.Promotions.Add(corruptedPromotion);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _promotionServicesMock.GetPromotionDetailAsync(corruptedPromotion.Id))
+                .Throws<DataCorruptionException>();
+        }
+
         // ─── DeactivatePromotionAsync ───────────────────────────────────────────────
         [Test]
         public async Task DeactivatePromotionAsync_WhenPromotionExistsAndIsActive_Return200()
@@ -835,6 +891,36 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
         }
 
+        [Test]
+        public async Task ActivatePromotionAsync_WhenPromotionHasCorruptedDiscount_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var corruptedPromotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Skażony Rabat",
+                IsActive = false,
+                ProductId = product.Id,
+                DiscountPercentage = 150 
+            };
+
+            _contextMock.Promotions.Add(corruptedPromotion);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ActivatePromotionCommand
+            {
+                Id = corruptedPromotion.Id,
+                EndDate = DateTime.UtcNow.AddDays(10)
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _promotionServicesMock.ActivatePromotionAsync(command))
+                .Throws<DataCorruptionException>();
+        }
+
         // ─── DeletePromotionAsync ───────────────────────────────────────────────────
 
         [Test]
@@ -853,13 +939,14 @@ namespace Tests.Services
 
             _contextMock.Promotions.Add(promotion);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var result = await _promotionServicesMock.DeletePromotionAsync(promotion.Id);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(200);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
 
             var hiddenPromotion = await _contextMock.Promotions.FirstOrDefaultAsync(p => p.Id == promotion.Id);
             await Assert.That(hiddenPromotion).IsNull();
@@ -886,6 +973,31 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(404);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
+        }
+
+        [Test]
+        public async Task DeletePromotionAsync_WhenPromotionalPriceLacksCurrencyInDatabase_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var product = await CreateDummyProductAsync();
+
+            var corruptedPromotion = new Promotion
+            {
+                Id = Guid.NewGuid(),
+                Name = "Promocja do usunięcia z błędem",
+                IsActive = false,
+                ProductId = product.Id,
+                PromotionalPrice = 20000,
+                CurrencyId = null
+            };
+
+            _contextMock.Promotions.Add(corruptedPromotion);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _promotionServicesMock.DeletePromotionAsync(corruptedPromotion.Id))
+                .Throws<DataCorruptionException>();
         }
 
         // ─── EditPromotionAsync ───────────────────────────────────────────────────
@@ -1081,6 +1193,7 @@ namespace Tests.Services
 
             _contextMock.Promotions.Add(promotion);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new EditPromotionCommand
             {
@@ -1094,7 +1207,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(400);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNotFound);
         }
 
@@ -1114,6 +1227,7 @@ namespace Tests.Services
 
             _contextMock.Promotions.Add(promotion);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new EditPromotionCommand
             {
@@ -1126,7 +1240,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(400);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
         }
 
@@ -1274,6 +1388,49 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task AddPromotionAsync_WhenTargetProductHasCorruptedPricingInDatabase_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235" };
+            var currency = new Currency { Id = Guid.NewGuid(), Name = "Złoty", Code = "PLN", DecimalPlaces = 2 };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var corruptedProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt ze złą ceną",
+                SteelGradeId = steelGrade.Id,
+                CurrencyId = currency.Id,
+                UnitId = unit.Id,
+                PricePerUnit = -1000,
+                StockQuantity = 10,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit,
+                Currency = currency
+            };
+
+            _contextMock.Products.Add(corruptedProduct);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new AddPromotionCommand
+            {
+                Name = "Nowa Promocja dla Skażonego Produktu",
+                ProductId = corruptedProduct.Id,
+                DiscountPercentage = 10
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _promotionServicesMock.AddPromotionAsync(command))
+                .Throws<DataCorruptionException>();
         }
     }
 }
