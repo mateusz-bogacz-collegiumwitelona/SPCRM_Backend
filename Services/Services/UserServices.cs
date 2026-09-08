@@ -145,8 +145,8 @@ namespace Services.Services
                  .AsNoTracking()
                  .AnyAsync(u => u.NormalizedEmail == command.Email.ToUpperInvariant());
 
-            if (isUserExist) 
-            { 
+            if (isUserExist)
+            {
                 _logger.LogWarning("Attempt to create a user with an existing email: {Email}", command.Email);
 
                 return Result.Failure(
@@ -207,8 +207,10 @@ namespace Services.Services
 
             if (!roleResult.Succeeded)
             {
-                _logger.LogError("Failed to assign role {Role} to newly created user {UserId}. Rolling back user creation.",
-                    command.Role, user.Id);
+                var errors = string.Join(", ", roleResult.Errors.Select(e => e.Description));
+
+                _logger.LogError("Failed to assign role {Role} to newly created user {UserId}. Rolling back user creation. Errors: {errors} ",
+                    command.Role, user.Id, errors);
                 await _userManager.DeleteAsync(user);
                 throw new DataCorruptionException($"Failed to assign role to created user '{user.Id}'.");
             }
@@ -231,14 +233,60 @@ namespace Services.Services
             };
 
             await _emailSender.SendCreateUserEmailAsync(createDomain);
-            
+
             _logger.LogInformation("User {UserId} ('{UserName}', '{Email}') created successfully with role {Role}.",
                 user.Id, user.UserName, user.Email, command.Role);
-            
+
             return Result.Success(
                 message: "User created successfully.",
                 statusCode: StatusCodes.Status201Created
             );
+        }
+
+        public async Task<Result> ConfirmEmailAsync(ConfirmEmailCommand command)
+        {
+            var user = await _userManager.FindByEmailAsync(command.Email);
+
+            if (user == null)
+            {
+                _logger.LogWarning("User with email {email} not found.", command.Email);
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                    );
+            }
+
+            if (user.EmailConfirmed)
+            {
+                _logger.LogInformation("Email already confirmed for user: {Email}", command.Email);
+                return Result.Failure(
+                    message: "Email is already confirmed.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                    );
+            }
+
+            var result = await _userManager.ConfirmEmailAsync(user, command.Token);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning("Email confirmation failed for {Email}. Errors: {Errors}", command.Email, errors);
+
+                return Result.Failure(
+                    message: "Invalid or expired confirmation token.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.TokenInvalid
+                );
+            }
+
+            _logger.LogInformation("Email successfully confirmed for user: {Email}", command.Email);
+
+            return Result.Success(
+                   message: "Email confirmed successfully. You can now log in.",
+                   statusCode: StatusCodes.Status200OK
+                   );
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Api.Validators.Validators.User
 {
     public class AddUserValidator : AbstractValidator<AddUserRequest>
     {
-        public AddUserValidator(RoleManager<IdentityRole> roleManager) 
+        public AddUserValidator(RoleManager<IdentityRole<Guid>> roleManager) 
         {
             RuleFor(x => x.FirstName).ApplyFirstNameRules();
             RuleFor(x => x.LastName).ApplyLastNameRules();

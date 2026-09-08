@@ -11,7 +11,8 @@ namespace Api.Mappers
         [MapProperty(nameof(UserListRequest.Role), nameof(UserListRequest.Role), Use = nameof(NormalizeName))]
         public partial UserListCommand MapList(UserListRequest request);
 
-        private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
+        [MapProperty(nameof(ConfirmEmailRequest.Email), nameof(ConfirmEmailRequest.Email), Use = nameof(NormalizeEmail))]
+        public partial ConfirmEmailCommand MapConfirmEmail(ConfirmEmailRequest request);
 
         public AddUserCommand MapAdd(AddUserRequest request)
         {
@@ -19,10 +20,14 @@ namespace Api.Mappers
             {
                 FirstName = NormalizeName(request.FirstName) ?? string.Empty,
                 LastName = NormalizeName(request.LastName) ?? string.Empty,
-                Email = request.Email.Trim().ToLowerInvariant(),
+                Email = NormalizeEmail(request.Email),
                 Role = request.Role,
                 Password = request.Password
             };
         }
+
+        private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
+
+        private string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
     }
 }

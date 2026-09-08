@@ -11,7 +11,8 @@
         public const string InvalidSortColumn = "INVALID_SORT_COLUMN";
         public const string InvalidOperation = "INVALID_OPERATION";
         public const string DataIntegrityError = "DATA_INTEGRITY_ERROR";
-
+        public const string TokenRequired = "TOKEN_REQUIRED";
+        public const string TokenInvalid = "TOKEN_INVALID";
         // Validation 
         public const string EmailRequired = "VAL_001";
         public const string EmailInvalid = "VAL_002";

@@ -10,5 +10,6 @@ namespace Services.Interfaces
         Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command);
         Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync();
         Task<Result> CreateUserAsync(AddUserCommand command);
+        Task<Result> ConfirmEmailAsync(ConfirmEmailCommand command);
     }
 }

@@ -817,6 +817,150 @@ namespace Tests.Services
             await Assert.That(userInDb).IsNull();
             await Assert.That(_emailSenderMock.SentCreateUserEmails).IsEmpty();
         }
+
+        // ─── ConfirmEmailAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task ConfirmEmailAsync_WhenValidTokenProvided_ConfirmsEmailSuccessfully()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"confirm_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                EmailConfirmed = false
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+
+            var validToken = await _userManagerMock.GenerateEmailConfirmationTokenAsync(user);
+
+            var command = new ConfirmEmailCommand
+            {
+                Email = email,
+                Token = validToken
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Email confirmed successfully. You can now log in.");
+
+            var updatedUser = await _userManagerMock.FindByEmailAsync(email);
+            await Assert.That(updatedUser).IsNotNull();
+            await Assert.That(updatedUser!.EmailConfirmed).IsTrue();
+        }
+
+        [Test]
+        public async Task ConfirmEmailAsync_WhenUserDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new ConfirmEmailCommand
+            {
+                Email = "nonexistent@test.pl",
+                Token = "dummy-token"
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+        }
+
+        [Test]
+        public async Task ConfirmEmailAsync_WhenEmailAlreadyConfirmed_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"already_confirmed_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Confirmed_{uniqueSuffix}",
+                NormalizedUserName = $"CONFIRMED_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                EmailConfirmed = true 
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+
+            var command = new ConfirmEmailCommand
+            {
+                Email = email,
+                Token = "some-token"
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Email is already confirmed.");
+        }
+
+        [Test]
+        public async Task ConfirmEmailAsync_WhenTokenIsInvalidOrExpired_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"invalid_token_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Adam",
+                LastName = "Kowalski",
+                EmailConfirmed = false
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+
+            var command = new ConfirmEmailCommand
+            {
+                Email = email,
+                Token = "completely-invalid-or-tampered-token"
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TokenInvalid);
+            await Assert.That(result.Message).IsEqualTo("Invalid or expired confirmation token.");
+
+            var userStillUnconfirmed = await _userManagerMock.FindByEmailAsync(email);
+            await Assert.That(userStillUnconfirmed!.EmailConfirmed).IsFalse();
+        }
     }
 }
 
