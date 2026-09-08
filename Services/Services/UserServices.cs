@@ -288,5 +288,51 @@ namespace Services.Services
                    statusCode: StatusCodes.Status200OK
                    );
         }
+
+        public async Task<Result> LockoutUserAsync(SetLockoutCommand command, Guid adminId)
+        {
+            var user = await _userManager.FindByIdAsync(command.UserId.ToString());
+
+            if (user == null)
+            {
+                _logger.LogWarning("User with id {UserId} not found.", command.UserId);
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                _logger.LogWarning("Cannot ban an admin: {Email}", user.NormalizedEmail);
+                return Result.Failure(
+                    message: "Cannot ban an admin.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.CannotBlockAdmin
+                );
+            }
+
+            await _userManager.SetLockoutEnabledAsync(user, true);
+
+            DateTimeOffset lockoutEnd = command.LockoutEnd.HasValue
+                ? DateTime.SpecifyKind(command.LockoutEnd.Value, DateTimeKind.Utc)
+                : DateTimeOffset.MaxValue;
+
+            await _userManager.SetLockoutEndDateAsync(user, lockoutEnd);
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await _emailSender.SendLockoutEmailAsync(user.Email, lockoutEnd);
+            }
+
+            _logger.LogInformation("User {Email} has been locked out by admin with id {AdminId}. LockoutEnd: {LockoutEnd}",
+                user.NormalizedEmail, adminId, lockoutEnd);
+
+            return Result.Success(
+                message: "User locked out successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

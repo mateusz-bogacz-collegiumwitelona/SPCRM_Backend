@@ -149,5 +149,6 @@
         public const string InvalidPassword = "USR_005";
         public const string PassowrdMismatch = "USR_006";
         public const string InvalidRole = "USR_007";
+        public const string CannotBlockAdmin = "USR_008";
     }
 }

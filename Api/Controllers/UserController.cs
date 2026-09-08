@@ -69,5 +69,19 @@ namespace Api.Controllers
             var result = await user.ConfirmEmailAsync(mapper.MapConfirmEmail(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Lock out a user")]
+        [EndpointDescription("Locks out a user account until a specified date or indefinitely.")]
+        [HttpPost("lockout")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> LockoutUserAsync(
+            [FromServices] IUserServices user,
+            [FromServices] UserMapper mapper,
+            [FromBody] SetLockoutRequest request
+            )
+        {
+            var result = await user.LockoutUserAsync(mapper.MapSetLockout(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }

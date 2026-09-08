@@ -899,7 +899,7 @@ namespace Tests.Services
                 NormalizedEmail = email.ToUpperInvariant(),
                 FirstName = "Piotr",
                 LastName = "Nowak",
-                EmailConfirmed = true 
+                EmailConfirmed = true
             };
 
             var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
@@ -960,6 +960,176 @@ namespace Tests.Services
 
             var userStillUnconfirmed = await _userManagerMock.FindByEmailAsync(email);
             await Assert.That(userStillUnconfirmed!.EmailConfirmed).IsFalse();
+        }
+
+        // ─── LockoutUserAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task LockoutUserAsync_WhenValidRequestWithSpecificDate_LocksUserAndSendsEmail()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userRole = "User";
+            var adminId = Guid.NewGuid();
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = userRole, NormalizedName = userRole.ToUpperInvariant() });
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"lock_target_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"LOCK_TARGET_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                LockoutEnd = null
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+            await _userManagerMock.AddToRoleAsync(user, userRole);
+
+            var targetLockoutDate = DateTime.UtcNow.AddDays(14);
+            var command = new SetLockoutCommand
+            {
+                UserId = user.Id,
+                LockoutEnd = targetLockoutDate
+            };
+
+            // Act
+            var result = await _userServicesMock.LockoutUserAsync(command, adminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("User locked out successfully.");
+
+            var updatedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(updatedUser).IsNotNull();
+            await Assert.That(updatedUser!.LockoutEnd.HasValue).IsTrue();
+            await Assert.That(await _userManagerMock.IsLockedOutAsync(updatedUser)).IsTrue();
+
+            // Weryfikacja wysłanego powiadomienia
+            await Assert.That(_emailSenderMock.SentLockoutEmails).Count().IsEqualTo(1);
+            var sentMail = _emailSenderMock.SentLockoutEmails[0];
+            await Assert.That(sentMail.Email).IsEqualTo(user.Email);
+            var diff = Math.Abs((sentMail.LockoutEnd - targetLockoutDate).TotalSeconds);
+            await Assert.That(diff < 2).IsTrue();
+        }
+
+        [Test]
+        public async Task LockoutUserAsync_WhenLockoutEndIsNull_LocksUserPermanentlyWithMaxValue()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"perm_lock_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"PERM_LOCK_{uniqueSuffix}@TEST.PL",
+                FirstName = "Tomasz",
+                LastName = "Nowak",
+                EmailConfirmed = true
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+
+            var command = new SetLockoutCommand
+            {
+                UserId = user.Id,
+                LockoutEnd = null
+            };
+
+            // Act
+            var result = await _userServicesMock.LockoutUserAsync(command, adminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(updatedUser).IsNotNull();
+            await Assert.That(updatedUser!.LockoutEnd).IsEqualTo(DateTimeOffset.MaxValue);
+            await Assert.That(await _userManagerMock.IsLockedOutAsync(updatedUser)).IsTrue();
+
+            await Assert.That(_emailSenderMock.SentLockoutEmails).Count().IsEqualTo(1);
+            await Assert.That(_emailSenderMock.SentLockoutEmails[0].LockoutEnd).IsEqualTo(DateTimeOffset.MaxValue);
+        }
+
+        [Test]
+        public async Task LockoutUserAsync_WhenUserDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new SetLockoutCommand
+            {
+                UserId = Guid.NewGuid(),
+                LockoutEnd = DateTime.UtcNow.AddDays(7)
+            };
+
+            // Act
+            var result = await _userServicesMock.LockoutUserAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+            await Assert.That(_emailSenderMock.SentLockoutEmails).IsEmpty();
+        }
+
+        [Test]
+        public async Task LockoutUserAsync_WhenUserIsAdmin_Returns403ForbiddenAndDoesNotLockUser()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminRole = "Admin";
+            var callingAdminId = Guid.NewGuid();
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = adminRole, NormalizedName = adminRole.ToUpperInvariant() });
+
+            var targetAdminUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Admin_{uniqueSuffix}",
+                NormalizedUserName = $"ADMIN_{uniqueSuffix}",
+                Email = $"target_admin_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"TARGET_ADMIN_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Administrator",
+                EmailConfirmed = true,
+                LockoutEnd = null
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(targetAdminUser, "Password123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+            await _userManagerMock.AddToRoleAsync(targetAdminUser, adminRole);
+
+            var command = new SetLockoutCommand
+            {
+                UserId = targetAdminUser.Id,
+                LockoutEnd = DateTime.UtcNow.AddDays(30)
+            };
+
+            // Act
+            var result = await _userServicesMock.LockoutUserAsync(command, callingAdminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CannotBlockAdmin);
+            await Assert.That(result.Message).IsEqualTo("Cannot ban an admin.");
+
+            var refreshedAdmin = await _userManagerMock.FindByIdAsync(targetAdminUser.Id.ToString());
+            await Assert.That(refreshedAdmin).IsNotNull();
+            await Assert.That(refreshedAdmin!.LockoutEnd).IsNull();
+            await Assert.That(_emailSenderMock.SentLockoutEmails).IsEmpty();
         }
     }
 }

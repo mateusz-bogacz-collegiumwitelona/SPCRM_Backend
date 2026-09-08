@@ -26,6 +26,8 @@ namespace Api.Mappers
             };
         }
 
+        public partial SetLockoutCommand MapSetLockout(SetLockoutRequest request);
+
         private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
 
         private string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();

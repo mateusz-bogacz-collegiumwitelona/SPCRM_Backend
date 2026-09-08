@@ -174,7 +174,43 @@ namespace Email
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in SendProductMailingAsync");
+                _logger.LogError(ex, "Error in SendCreateUserEmailAsync");
+            }
+        }
+
+        public async Task SendLockoutEmailAsync(string email, DateTimeOffset lockoutEnd)
+        {
+            try
+            {
+                var templatePath = Path.Combine(
+                  AppDomain.CurrentDomain.BaseDirectory,
+                  "Templates",
+                  "lockout.html"
+                  );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Email template not found at path: {templatePath}");
+                }
+
+                string template = await File.ReadAllTextAsync(templatePath);
+
+                if (lockoutEnd == DateTimeOffset.MaxValue)
+                {
+                    template = template.Replace("{{LockoutMessage}}", "<p>Twoje konto zostało zablokowane na stałe.</p>");
+                }
+                else
+                {
+                    template = template.Replace("{{LockoutMessage}}", $" <p>Twoje konto zostało zablokowane do {lockoutEnd.LocalDateTime}.</p>");
+                }
+
+                string subject = "Informacja o blokadzie konta";
+                _backgroundJobClient.Enqueue<ISmtpEmailService>(x => x.SendEmailAsync(email, subject, template));
+                _logger.LogInformation("Lockout email queued to {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendLockoutEmailAsync");
             }
         }
     }
