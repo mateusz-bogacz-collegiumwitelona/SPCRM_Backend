@@ -103,6 +103,13 @@ namespace Infrastructure
                 .Property(d => d.UpdateAt)
                 .IsConcurrencyToken(false);
 
+            builder.Entity<ApplicationUser>(b =>
+            {
+                b.HasIndex(u => u.PendingEmail)
+                    .IsUnique()
+                    .HasFilter("\"PendingEmail\" IS NOT NULL");
+            });
+
             foreach (var entityType in builder.Model.GetEntityTypes())
             {
                 if (entityType.BaseType != null) continue;

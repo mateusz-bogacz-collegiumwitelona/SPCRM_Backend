@@ -15,5 +15,7 @@ namespace Services.Interfaces
         Task<Result> UnlockUserAsync(Guid userId, Guid adminId);
         Task<Result> DeleteUserAsync(DeleteUserCommand command, Guid currentUserId);
         Task<Result> EditUserAsync(EditUserCommand command, Guid currentUserId);
+        Task<Result> ChangeUserEmailAsync(ChangeUserEmailCommand command, Guid adminId);
+        Task<Result> ConfirmChangeUserEmailAsync(ConfirmChangeUserEmailCommand command);
     }
 }

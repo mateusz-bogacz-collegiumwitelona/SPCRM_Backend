@@ -351,7 +351,7 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
-    
+
         public async Task<Result> UnlockUserAsync(Guid userId, Guid adminId)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
@@ -524,7 +524,7 @@ namespace Services.Services
         public async Task<Result> EditUserAsync(EditUserCommand command, Guid currentUserId)
         {
             var user = await _userManager.FindByIdAsync(command.UserId.ToString());
-           
+
             if (user == null || user.IsDeleted)
             {
                 _logger.LogWarning("User with ID {UserId} not found or is deleted.", command.UserId);
@@ -534,7 +534,7 @@ namespace Services.Services
                     statusCode: StatusCodes.Status404NotFound
                 );
             }
-            
+
             if (!string.IsNullOrEmpty(command.FirstName))
             {
                 user.FirstName = command.FirstName;
@@ -546,26 +546,8 @@ namespace Services.Services
             }
 
 
-            if (!string.IsNullOrEmpty(command.Email) && !string.Equals(user.Email, command.Email, StringComparison.OrdinalIgnoreCase))
-            {
-                bool emailExists = await _context.Users
-                    .AsNoTracking()
-                    .AnyAsync(u => u.NormalizedEmail == command.Email.ToUpperInvariant() && u.Id != user.Id);
-                
-                if (emailExists)
-                {
-                    _logger.LogWarning("Attempt to change email to an existing one: {Email}", command.Email);
-                    return Result.Failure(
-                        message: "A user with this email already exists.",
-                        errorCode: ErrorCodes.UserAlreadyExists,
-                        statusCode: StatusCodes.Status400BadRequest
-                    );
-                }
-                await _userManager.SetEmailAsync(user, command.Email);
-            }
-
             var updateResult = await _userManager.UpdateAsync(user);
-            
+
             if (!updateResult.Succeeded)
             {
                 var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
@@ -583,6 +565,150 @@ namespace Services.Services
                 message: "User updated successfully.",
                 statusCode: StatusCodes.Status200OK
             );
-        } 
+        }
+
+        public async Task<Result> ChangeUserEmailAsync(ChangeUserEmailCommand command, Guid adminId)
+        {
+            var user = await _userManager.FindByIdAsync(command.UserId.ToString());
+
+            if (user == null || user.IsDeleted)
+            {
+                _logger.LogWarning("Admin {AdminId} attempted to change email for non-existent or deleted user {UserId}.",
+                    adminId, command.UserId);
+
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var normalizedNewEmail = command.NewEmail.Trim().ToUpperInvariant();
+
+            if (string.Equals(user.NormalizedEmail, normalizedNewEmail, StringComparison.Ordinal))
+            {
+                _logger.LogInformation("New email is identical to current email for user {UserId}.", command.UserId);
+                return Result.Failure(
+                    message: "The new email address cannot be identical to the current one.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            bool emailOccupied = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(u => !u.IsDeleted &&
+                               u.Id != user.Id &&
+                               (u.NormalizedEmail == normalizedNewEmail ||
+                                (u.PendingEmail != null && u.PendingEmail.ToUpper() == normalizedNewEmail)));
+
+            if (emailOccupied)
+            {
+                _logger.LogWarning("Admin {AdminId} attempted to change user {UserId} email to an already occupied address: {Email}",
+                    adminId, command.UserId, command.NewEmail);
+
+                return Result.Failure(
+                    message: "A user with this email address already exists or has a pending change.",
+                    errorCode: ErrorCodes.UserAlreadyExists,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var targetNewEmail = command.NewEmail.Trim().ToLowerInvariant();
+            user.PendingEmail = targetNewEmail;
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
+                _logger.LogError("Failed to set PendingEmail for user {UserId}: {Errors}", user.Id, errors);
+                return Result.Failure(
+                    message: $"Failed to initiate email change: {errors}",
+                    errorCode: ErrorCodes.BadRequest,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var token = await _userManager.GenerateChangeEmailTokenAsync(user, targetNewEmail);
+
+            await _emailSender.SendEmailChangeConfirmationLinkAsync(new EmailChangeInitiatedDomain
+            {
+                UserId = user.Id,
+                UserName = user.UserName ?? string.Empty,
+                OldEmail = user.Email ?? string.Empty,
+                NewEmail = targetNewEmail,
+                Token = token
+            });
+
+            if (!string.IsNullOrEmpty(user.Email))
+            {
+                await _emailSender.SendEmailChangeSecurityAlertAsync(new EmailChangeAlertDomain
+                {
+                    UserName = user.UserName ?? string.Empty,
+                    OldEmail = user.Email,
+                    NewEmail = targetNewEmail
+                });
+            }
+
+            _logger.LogInformation("Email change initiated for user {UserId} to '{NewEmail}' by admin {AdminId}.",
+                user.Id, targetNewEmail, adminId);
+
+            return Result.Success(
+                message: "Email change initiated successfully. A confirmation link has been sent to the new email address.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> ConfirmChangeUserEmailAsync(ConfirmChangeUserEmailCommand command)
+        {
+            var user = await _userManager.FindByIdAsync(command.UserId.ToString());
+
+            if (user == null || user.IsDeleted)
+            {
+                _logger.LogWarning("Email change confirmation failed: User {UserId} not found or deleted.", command.UserId);
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (string.IsNullOrEmpty(user.PendingEmail))
+            {
+                _logger.LogWarning("User {UserId} attempted to confirm email change, but has no pending email.", command.UserId);
+                return Result.Failure(
+                    message: "There is no pending email change request for this account.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var newEmail = user.PendingEmail;
+
+            var result = await _userManager.ChangeEmailAsync(user, newEmail, command.Token);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning("ChangeEmailAsync failed for user {UserId}. Errors: {Errors}", user.Id, errors);
+
+                return Result.Failure(
+                    message: "Invalid or expired confirmation token.",
+                    errorCode: ErrorCodes.TokenInvalid,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            user.PendingEmail = null;
+            await _userManager.UpdateSecurityStampAsync(user);
+            await _userManager.UpdateAsync(user);
+
+            _logger.LogInformation("Email successfully updated to '{NewEmail}' for user {UserId}.", newEmail, user.Id);
+
+            return Result.Success(
+                message: "Email address changed successfully. You can now use your new email to log in.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

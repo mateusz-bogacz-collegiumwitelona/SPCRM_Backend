@@ -1673,13 +1673,11 @@ namespace Tests.Services
             var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
             await Assert.That(createResult.Succeeded).IsTrue();
 
-            var newEmail = $"new_email_{uniqueSuffix}@test.pl";
             var command = new EditUserCommand
             {
                 UserId = user.Id,
                 FirstName = "NoweImie",
                 LastName = "NoweNazwisko",
-                Email = newEmail
             };
 
             // Act
@@ -1694,8 +1692,6 @@ namespace Tests.Services
             await Assert.That(updatedUser).IsNotNull();
             await Assert.That(updatedUser!.FirstName).IsEqualTo("NoweImie");
             await Assert.That(updatedUser.LastName).IsEqualTo("NoweNazwisko");
-            await Assert.That(updatedUser.Email).IsEqualTo(newEmail);
-            await Assert.That(updatedUser.NormalizedEmail).IsEqualTo(newEmail.ToUpperInvariant());
         }
 
         [Test]
@@ -1727,7 +1723,6 @@ namespace Tests.Services
                 UserId = user.Id,
                 FirstName = "ZmienioneTylkoImie",
                 LastName = null,
-                Email = null
             };
 
             // Act
@@ -1754,7 +1749,6 @@ namespace Tests.Services
                 UserId = Guid.NewGuid(),
                 FirstName = "NoweImie",
                 LastName = "NoweNazwisko",
-                Email = "random@test.pl"
             };
 
             // Act
@@ -1804,99 +1798,277 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("User not found.");
         }
 
+        // ─── ChangeUserEmailAsync ──────────────────────────────────────────────
+
         [Test]
-        public async Task EditUserAsync_WhenNewEmailAlreadyTakenByAnotherUser_ReturnsBadRequest()
+        public async Task ChangeUserEmailAsync_WhenValidRequest_SetsPendingEmailAndSendsEmails()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var takenEmail = $"taken_{uniqueSuffix}@test.pl";
-
-            var existingUser = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"Existing_{uniqueSuffix}",
-                NormalizedUserName = $"EXISTING_{uniqueSuffix}",
-                Email = takenEmail,
-                NormalizedEmail = takenEmail.ToUpperInvariant(),
-                FirstName = "Istniejacy",
-                LastName = "Kowalski",
-                EmailConfirmed = true,
-                IsDeleted = false
-            };
-
-            var userToEdit = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"ToEdit_{uniqueSuffix}",
-                NormalizedUserName = $"TOEDIT_{uniqueSuffix}",
-                Email = $"user_to_edit_{uniqueSuffix}@test.pl",
-                NormalizedEmail = $"USER_TO_EDIT_{uniqueSuffix}@TEST.PL",
-                FirstName = "Edytowany",
-                LastName = "Nowak",
-                EmailConfirmed = true,
-                IsDeleted = false
-            };
-
-            await _userManagerMock.CreateAsync(existingUser, "Password123!");
-            await _userManagerMock.CreateAsync(userToEdit, "Password123!");
-
-            var command = new EditUserCommand
-            {
-                UserId = userToEdit.Id,
-                Email = takenEmail
-            };
-
-            // Act
-            var result = await _userServicesMock.EditUserAsync(command, Guid.NewGuid());
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserAlreadyExists);
-            await Assert.That(result.Message).IsEqualTo("A user with this email already exists.");
-
-            var refreshedUser = await _userManagerMock.FindByIdAsync(userToEdit.Id.ToString());
-            await Assert.That(refreshedUser!.Email).IsEqualTo($"user_to_edit_{uniqueSuffix}@test.pl");
-        }
-
-        [Test]
-        public async Task EditUserAsync_WhenEmailIsSameWithDifferentCasing_DoesNotThrowDuplicateError()
-        {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var currentEmail = $"same_{uniqueSuffix}@test.pl";
+            var adminId = Guid.NewGuid();
+            var oldEmail = $"user_{uniqueSuffix}@test.pl";
+            var newEmail = $"new_user_{uniqueSuffix}@test.pl";
 
             var user = new ApplicationUser
             {
                 Id = Guid.NewGuid(),
                 UserName = $"User_{uniqueSuffix}",
                 NormalizedUserName = $"USER_{uniqueSuffix}",
-                Email = currentEmail,
-                NormalizedEmail = currentEmail.ToUpperInvariant(),
-                FirstName = "Marek",
-                LastName = "Kowalski",
+                Email = oldEmail,
+                NormalizedEmail = oldEmail.ToUpperInvariant(),
+                FirstName = "Piotr",
+                LastName = "Nowak",
                 EmailConfirmed = true,
                 IsDeleted = false
             };
 
             await _userManagerMock.CreateAsync(user, "Password123!");
 
-            var command = new EditUserCommand
+            var command = new ChangeUserEmailCommand
             {
                 UserId = user.Id,
-                FirstName = "MarekNoweImie",
-                Email = currentEmail.ToUpperInvariant()
+                NewEmail = newEmail
             };
 
             // Act
-            var result = await _userServicesMock.EditUserAsync(command, Guid.NewGuid());
+            var result = await _userServicesMock.ChangeUserEmailAsync(command, adminId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
 
-            var updatedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
-            await Assert.That(updatedUser!.FirstName).IsEqualTo("MarekNoweImie");
+            var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(refreshedUser).IsNotNull();
+            await Assert.That(refreshedUser!.Email).IsEqualTo(oldEmail);
+            await Assert.That(refreshedUser.PendingEmail).IsEqualTo(newEmail.ToLowerInvariant());
+
+            await Assert.That(_emailSenderMock.SentEmailChangeConfirmationLinks).Count().IsEqualTo(1);
+            var sentConfirmation = _emailSenderMock.SentEmailChangeConfirmationLinks[0];
+            await Assert.That(sentConfirmation.NewEmail).IsEqualTo(newEmail.ToLowerInvariant());
+            await Assert.That(sentConfirmation.UserId).IsEqualTo(user.Id);
+            await Assert.That(sentConfirmation.Token).IsNotNull();
+
+            await Assert.That(_emailSenderMock.SentEmailChangeSecurityAlerts).Count().IsEqualTo(1);
+            var sentAlert = _emailSenderMock.SentEmailChangeSecurityAlerts[0];
+            await Assert.That(sentAlert.OldEmail).IsEqualTo(oldEmail);
+            await Assert.That(sentAlert.NewEmail).IsEqualTo(newEmail.ToLowerInvariant());
+        }
+
+        [Test]
+        public async Task ChangeUserEmailAsync_WhenNewEmailSameAsCurrent_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"same_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            var command = new ChangeUserEmailCommand
+            {
+                UserId = user.Id,
+                NewEmail = email.ToUpperInvariant()
+            };
+
+            // Act
+            var result = await _userServicesMock.ChangeUserEmailAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task ChangeUserEmailAsync_WhenEmailOccupiedAsPendingByAnotherUser_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var targetEmail = $"pending_target_{uniqueSuffix}@test.pl";
+
+            var userA = new ApplicationUser
+            {
+                FirstName = $"UserA_{uniqueSuffix}",
+                LastName = uniqueSuffix,
+                Id = Guid.NewGuid(),
+                UserName = $"UserA_{uniqueSuffix}",
+                NormalizedUserName = $"USERA_{uniqueSuffix}",
+                Email = $"userA_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USERA_{uniqueSuffix}@TEST.PL",
+                PendingEmail = targetEmail.ToLowerInvariant(),
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            var userB = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = $"UserB_{uniqueSuffix}",
+                LastName = uniqueSuffix,
+                UserName = $"UserB_{uniqueSuffix}",
+                NormalizedUserName = $"USERB_{uniqueSuffix}",
+                Email = $"userB_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USERB_{uniqueSuffix}@TEST.PL",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(userA, "Password123!");
+            await _userManagerMock.CreateAsync(userB, "Password123!");
+
+            var command = new ChangeUserEmailCommand
+            {
+                UserId = userB.Id,
+                NewEmail = targetEmail
+            };
+
+            // Act
+            var result = await _userServicesMock.ChangeUserEmailAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserAlreadyExists);
+        }
+
+        // ─── ConfirmChangeUserEmailAsync ───────────────────────────────────────
+
+        [Test]
+        public async Task ConfirmChangeUserEmailAsync_WhenTokenValid_UpdatesEmailAndClearsPendingEmail()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var oldEmail = $"old_{uniqueSuffix}@test.pl";
+            var newEmail = $"confirmed_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = oldEmail,
+                NormalizedEmail = oldEmail.ToUpperInvariant(),
+                PendingEmail = newEmail,
+                FirstName = "Anna",
+                LastName = "Kowalska",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            var validToken = await _userManagerMock.GenerateChangeEmailTokenAsync(user, newEmail);
+
+            var command = new ConfirmChangeUserEmailCommand
+            {
+                UserId = user.Id,
+                Token = validToken
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmChangeUserEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(refreshedUser).IsNotNull();
+            await Assert.That(refreshedUser!.Email).IsEqualTo(newEmail);
+            await Assert.That(refreshedUser.NormalizedEmail).IsEqualTo(newEmail.ToUpperInvariant());
+            await Assert.That(refreshedUser.PendingEmail).IsNull();
+            await Assert.That(refreshedUser.EmailConfirmed).IsTrue();
+        }
+
+        [Test]
+        public async Task ConfirmChangeUserEmailAsync_WhenNoPendingEmail_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Kowalska",
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                PendingEmail = null,
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            var command = new ConfirmChangeUserEmailCommand
+            {
+                UserId = user.Id,
+                Token = "some-token"
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmChangeUserEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("There is no pending email change request for this account.");
+        }
+
+        [Test]
+        public async Task ConfirmChangeUserEmailAsync_WhenTokenInvalid_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var newEmail = $"target_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Kowalska",
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"current_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"CURRENT_{uniqueSuffix}@TEST.PL",
+                PendingEmail = newEmail,
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            var command = new ConfirmChangeUserEmailCommand
+            {
+                UserId = user.Id,
+                Token = "invalid-token-value"
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmChangeUserEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TokenInvalid);
+
+            var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(refreshedUser!.Email).IsEqualTo($"current_{uniqueSuffix}@test.pl");
+            await Assert.That(refreshedUser.PendingEmail).IsEqualTo(newEmail);
         }
     }
 }

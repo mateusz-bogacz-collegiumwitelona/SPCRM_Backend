@@ -9,5 +9,7 @@ namespace Services.Interfaces
         Task SendCreateUserEmailAsync(CreateUserDomain create);
         Task SendLockoutEmailAsync(string email, DateTimeOffset lockoutEnd);
         Task SendUnlockEmailAsync(string email);
+        Task SendEmailChangeConfirmationLinkAsync(EmailChangeInitiatedDomain domain);
+        Task SendEmailChangeSecurityAlertAsync(EmailChangeAlertDomain domain);
     }
 }

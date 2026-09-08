@@ -14,6 +14,8 @@ namespace Domain.Models
 
         public bool IsDeleted { get; set; }
 
+        public string? PendingEmail { get; set; }
+
         public ICollection<Contact> Contacts { get; set; } = new List<Contact>();
         public ICollection<Deal> Deals { get; set; } = new List<Deal>();
         public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();

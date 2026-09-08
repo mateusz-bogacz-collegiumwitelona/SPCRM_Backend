@@ -6,13 +6,11 @@ namespace Api.Validators.Validators.User
 {
     public class EditUserValidator : AbstractValidator<EditUserRequest>
     {
-        public EditUserValidator() 
+        public EditUserValidator()
         {
             RuleFor(x => x.UserId).ApplyValidGuidRule();
             RuleFor(x => x.FirstName).ApplyFirstNameRules();
             RuleFor(x => x.LastName).ApplyLastNameRules();
-            RuleFor(x => x.Email).ApplyUserEmailRules();
-
         }
     }
 }

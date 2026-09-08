@@ -14,14 +14,14 @@ namespace Api.Mappers
         public ConfirmEmailCommand MapConfirmEmail(ConfirmEmailRequest request)
             => new ConfirmEmailCommand
             {
-                Email = NormalizeRequiredEmail(request.Email),
+                Email = NormalizeEmail(request.Email),
                 Token = request.Token,
                 Password = request.Password
             };
 
         [MapProperty(nameof(AddUserRequest.FirstName), nameof(AddUserCommand.FirstName), Use = nameof(NormalizeRequiredName))]
         [MapProperty(nameof(AddUserRequest.LastName), nameof(AddUserCommand.LastName), Use = nameof(NormalizeRequiredName))]
-        [MapProperty(nameof(AddUserRequest.Email), nameof(AddUserCommand.Email), Use = nameof(NormalizeRequiredEmail))]
+        [MapProperty(nameof(AddUserRequest.Email), nameof(AddUserCommand.Email), Use = nameof(NormalizeEmail))]
         public partial AddUserCommand MapAdd(AddUserRequest request);
 
         public partial SetLockoutCommand MapSetLockout(SetLockoutRequest request);
@@ -30,15 +30,17 @@ namespace Api.Mappers
 
         [MapProperty(nameof(EditUserRequest.FirstName), nameof(EditUserCommand.FirstName), Use = nameof(NormalizeNullableName))]
         [MapProperty(nameof(EditUserRequest.LastName), nameof(EditUserCommand.LastName), Use = nameof(NormalizeNullableName))]
-        [MapProperty(nameof(EditUserRequest.Email), nameof(EditUserCommand.Email), Use = nameof(NormalizeNullableEmail))]
         public partial EditUserCommand MapEdit(EditUserRequest request);
+
+        [MapProperty(nameof(ChangeUserEmailRequest.NewEmail), nameof(ChangeUserEmailCommand.NewEmail), Use = nameof(NormalizeEmail))]
+        public partial ChangeUserEmailCommand MapChangeEmail(ChangeUserEmailRequest request);
+
+        public partial ConfirmChangeUserEmailCommand MapConfirmChangeEmail(ConfirmChangeUserEmailRequest request);
 
         private string NormalizeRequiredName(string name) => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
 
         private string? NormalizeNullableName(string? name) => StringNormalizerHelper.NormalizeName(name);
 
-        private string NormalizeRequiredEmail(string email) => email.Trim().ToLowerInvariant();
-
-        private string? NormalizeNullableEmail(string? email) => string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
+        private string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
     }
 }

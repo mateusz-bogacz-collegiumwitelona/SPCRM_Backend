@@ -59,7 +59,7 @@ namespace Api.Controllers
         [EndpointSummary("Confirm email")]
         [EndpointDescription("Confirm email with token")]
         [HttpPost("confirm-email")]
-        [Authorize(Roles = "Admin")]
+        [AllowAnonymous]
         public async Task<IActionResult> ConfirmEmailAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -122,6 +122,34 @@ namespace Api.Controllers
         )
         {
             var result = await user.EditUserAsync(mapper.MapEdit(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Initiate email change")]
+        [EndpointDescription("Admin initiates an email change process for a user. Sends confirmation link to new email and alert to old email.")]
+        [HttpPost("change-email")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ChangeUserEmailAsync(
+            [FromServices] IUserServices userService,
+            [FromServices] UserMapper mapper,
+            [FromBody] ChangeUserEmailRequest request
+        )
+        {
+            var result = await userService.ChangeUserEmailAsync(mapper.MapChangeEmail(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Confirm email change")]
+        [EndpointDescription("Confirms user email change using the token sent to the new email address.")]
+        [HttpPost("confirm-email-change")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ConfirmChangeUserEmailAsync(
+            [FromServices] IUserServices userService,
+            [FromServices] UserMapper mapper,
+            [FromBody] ConfirmChangeUserEmailRequest request
+        )
+        {
+            var result = await userService.ConfirmChangeUserEmailAsync(mapper.MapConfirmChangeEmail(request));
             return HandleResult(result);
         }
     }

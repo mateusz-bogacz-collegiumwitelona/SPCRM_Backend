@@ -8,13 +8,26 @@ namespace Tests.Services.Fakes
         public List<CreateUserDomain> SentCreateUserEmails { get; } = new();
         public List<ReportDomain> SentReportEmails { get; } = new();
         public List<MailingOfferDomain> SentProductMailingEmails { get; } = new();
+        public List<(string Email, DateTimeOffset LockoutEnd)> SentLockoutEmails { get; } = new();
+        public List<string> SentUnlockEmails { get; } = new();
+
+        public List<EmailChangeInitiatedDomain> SentEmailChangeConfirmationLinks { get; } = new();
+        public List<EmailChangeAlertDomain> SentEmailChangeSecurityAlerts { get; } = new();
 
         public ReportDomain? SentReport => SentReportEmails.LastOrDefault();
         public MailingOfferDomain? LastSentProductMailing => SentProductMailingEmails.LastOrDefault();
-        public int CallCount => SentCreateUserEmails.Count + SentReportEmails.Count + SentProductMailingEmails.Count;
+        public EmailChangeInitiatedDomain? LastSentConfirmationLink => SentEmailChangeConfirmationLinks.LastOrDefault();
+        public EmailChangeAlertDomain? LastSentSecurityAlert => SentEmailChangeSecurityAlerts.LastOrDefault();
+
+        public int CallCount => SentCreateUserEmails.Count +
+                                SentReportEmails.Count +
+                                SentProductMailingEmails.Count +
+                                SentLockoutEmails.Count +
+                                SentUnlockEmails.Count +
+                                SentEmailChangeConfirmationLinks.Count +
+                                SentEmailChangeSecurityAlerts.Count;
+
         public bool EmailSent => CallCount > 0;
-        public List<(string Email, DateTimeOffset LockoutEnd)> SentLockoutEmails { get; } = new();
-        public List<string> SentUnlockEmails { get; } = new();
 
         public Task SendCreateUserEmailAsync(CreateUserDomain create)
         {
@@ -43,6 +56,18 @@ namespace Tests.Services.Fakes
         public Task SendUnlockEmailAsync(string email)
         {
             SentUnlockEmails.Add(email);
+            return Task.CompletedTask;
+        }
+
+        public Task SendEmailChangeConfirmationLinkAsync(EmailChangeInitiatedDomain domain)
+        {
+            SentEmailChangeConfirmationLinks.Add(domain);
+            return Task.CompletedTask;
+        }
+
+        public Task SendEmailChangeSecurityAlertAsync(EmailChangeAlertDomain domain)
+        {
+            SentEmailChangeSecurityAlerts.Add(domain);
             return Task.CompletedTask;
         }
     }

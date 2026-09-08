@@ -241,5 +241,73 @@ namespace Email
                 _logger.LogError(ex, "Error in SendUnlockEmailAsync");
             }
         }
+
+        public async Task SendEmailChangeConfirmationLinkAsync(EmailChangeInitiatedDomain domain)
+        {
+            try
+            {
+                var templatePath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Templates",
+                    "email-change-confirmation.html"
+                );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Email template not found at path: {templatePath}");
+                }
+
+                string template = await File.ReadAllTextAsync(templatePath);
+
+                string encodedToken = Uri.EscapeDataString(domain.Token);
+                string encodedUserId = Uri.EscapeDataString(domain.UserId.ToString());
+
+                string link = $"{_host}/auth/confirm-email-change?userId={encodedUserId}&token={encodedToken}";
+
+                template = template.Replace("{{UserName}}", domain.UserName)
+                                   .Replace("{{Link}}", link)
+                                   .Replace("{{Token}}", domain.Token);
+
+                string subject = "Potwierdzenie zmiany adresu e-mail w systemie SPCRM";
+
+                _backgroundJobClient.Enqueue<ISmtpEmailService>(x => x.SendEmailAsync(domain.NewEmail, subject, template));
+                _logger.LogInformation("Email change confirmation link queued to new address: {NewEmail}", domain.NewEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendEmailChangeConfirmationLinkAsync for user {UserId}", domain.UserId);
+            }
+        }
+
+        public async Task SendEmailChangeSecurityAlertAsync(EmailChangeAlertDomain domain)
+        {
+            try
+            {
+                var templatePath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Templates",
+                    "email-change-alert.html"
+                );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Email template not found at path: {templatePath}");
+                }
+
+                string template = await File.ReadAllTextAsync(templatePath);
+
+                template = template.Replace("{{UserName}}", domain.UserName)
+                                   .Replace("{{NewEmail}}", domain.NewEmail);
+
+                string subject = "Alert bezpieczeństwa: Zgłoszenie zmiany adresu e-mail w SPCRM";
+
+                _backgroundJobClient.Enqueue<ISmtpEmailService>(x => x.SendEmailAsync(domain.OldEmail, subject, template));
+                _logger.LogInformation("Email change security alert queued to old address: {OldEmail}", domain.OldEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendEmailChangeSecurityAlertAsync for user {UserName}", domain.UserName);
+            }
+        }
     }
 }

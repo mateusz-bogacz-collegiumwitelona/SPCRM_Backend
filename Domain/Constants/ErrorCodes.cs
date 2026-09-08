@@ -152,6 +152,7 @@
         public const string CannotBlockAdmin = "USR_008";
         public const string UserNotLockedOut = "USR_009";
         public const string PasswordSetFailed = "USR_010";
+        public const string EmailAlreadyTaken = "USR_011";
 
     }
 }
