@@ -351,7 +351,7 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
-
+    
         public async Task<Result> UnlockUserAsync(Guid userId, Guid adminId)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
@@ -520,5 +520,69 @@ namespace Services.Services
                 throw;
             }
         }
+
+        public async Task<Result> EditUserAsync(EditUserCommand command, Guid currentUserId)
+        {
+            var user = await _userManager.FindByIdAsync(command.UserId.ToString());
+           
+            if (user == null || user.IsDeleted)
+            {
+                _logger.LogWarning("User with ID {UserId} not found or is deleted.", command.UserId);
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+            
+            if (!string.IsNullOrEmpty(command.FirstName))
+            {
+                user.FirstName = command.FirstName;
+            }
+
+            if (!string.IsNullOrEmpty(command.LastName))
+            {
+                user.LastName = command.LastName;
+            }
+
+
+            if (!string.IsNullOrEmpty(command.Email) && !string.Equals(user.Email, command.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                bool emailExists = await _context.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => u.NormalizedEmail == command.Email.ToUpperInvariant() && u.Id != user.Id);
+                
+                if (emailExists)
+                {
+                    _logger.LogWarning("Attempt to change email to an existing one: {Email}", command.Email);
+                    return Result.Failure(
+                        message: "A user with this email already exists.",
+                        errorCode: ErrorCodes.UserAlreadyExists,
+                        statusCode: StatusCodes.Status400BadRequest
+                    );
+                }
+                await _userManager.SetEmailAsync(user, command.Email);
+            }
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            
+            if (!updateResult.Succeeded)
+            {
+                var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
+                _logger.LogError("Failed to update user {UserId}: {Errors}", command.UserId, errors);
+                return Result.Failure(
+                    message: $"Failed to update user: {errors}",
+                    errorCode: ErrorCodes.BadRequest,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            _logger.LogInformation("User {UserId} updated successfully by admin {AdminId}.", command.UserId, currentUserId);
+
+            return Result.Success(
+                message: "User updated successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        } 
     }
 }

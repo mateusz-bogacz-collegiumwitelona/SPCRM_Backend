@@ -7,30 +7,34 @@ namespace Api.Validators.Rule
 {
     public static class UserValiadtionRules
     {
-        public static IRuleBuilderOptions<T, string> ApplyFirstNameRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+        public static IRuleBuilderOptions<T, string?> ApplyFirstNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
-                .NotEmpty()
+                .Must(name => name == null || !string.IsNullOrWhiteSpace(name))
+                .WithErrorCode(ErrorCodes.InvalidFirstName)
                 .MaximumLength(50)
                 .WithErrorCode(ErrorCodes.InvalidFirstName);
 
-        public static IRuleBuilderOptions<T, string> ApplyLastNameRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+        public static IRuleBuilderOptions<T, string?> ApplyLastNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
-                .NotEmpty()
+                .Must(name => name == null || !string.IsNullOrWhiteSpace(name))
+                .WithErrorCode(ErrorCodes.InvalidLastName)
                 .MaximumLength(50)
                 .WithErrorCode(ErrorCodes.InvalidLastName);
 
-        public static IRuleBuilderOptions<T, string> ApplyUserEmailRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+        public static IRuleBuilderOptions<T, string?> ApplyUserEmailRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
-                .NotEmpty()
+                .Must(email => email == null || !string.IsNullOrWhiteSpace(email))
+                .WithErrorCode(ErrorCodes.InvalidEmail)
                 .EmailAddress()
+                .When(x => true, ApplyConditionTo.CurrentValidator)
                 .WithErrorCode(ErrorCodes.InvalidEmail);
 
         public static IRuleBuilderOptions<T, string> ApplyPasswordRules<T>(this IRuleBuilder<T, string> ruleBuilder)
             => ruleBuilder
-            .NotEmpty()
-            .MinimumLength(8)
-            .Matches(@"[^a-zA-Z0-9]")
-            .WithErrorCode(ErrorCodes.InvalidPassword);
+                .NotEmpty()
+                .MinimumLength(8)
+                .Matches(@"[^a-zA-Z0-9]")
+                .WithErrorCode(ErrorCodes.InvalidPassword);
 
         public static IRuleBuilderOptions<T, string> ApplyConfirmPasswordRules<T>(
             this IRuleBuilder<T, string> ruleBuilder,

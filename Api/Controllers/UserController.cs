@@ -110,5 +110,19 @@ namespace Api.Controllers
             var result = await user.DeleteUserAsync(mapper.MapDelete(request), CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Edit user details")]
+        [EndpointDescription("Updates user profile information such as first name, last name, or email.")]
+        [HttpPatch]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditUserAsync(
+            [FromServices] IUserServices user,
+            [FromServices] UserMapper mapper,
+            [FromBody] EditUserRequest request
+        )
+        {
+            var result = await user.EditUserAsync(mapper.MapEdit(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
