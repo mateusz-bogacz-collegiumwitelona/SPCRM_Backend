@@ -14,6 +14,7 @@ using Services.Command.Offer;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -25,7 +26,7 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
         private string _currentSchema = null!;
-        protected OfferTestFakeEmailSender _emailSenderMock = null!;
+        protected FakeEmailSender _emailSenderMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -92,7 +93,7 @@ namespace Tests.Services
 
             _loggerMock = new LoggerFactory().CreateLogger<OfferServices>();
 
-            _emailSenderMock = new OfferTestFakeEmailSender();
+            _emailSenderMock = new FakeEmailSender();
             _offerServicesMock = new OfferServices(_contextMock, _loggerMock, _emailSenderMock);
         }
 
@@ -2283,28 +2284,4 @@ namespace Tests.Services
         }
     }
 
-    public class OfferTestFakeEmailSender : IEmailSender
-    {
-        public MailingOfferDomain? LastSentProductMailing { get; private set; }
-        public bool EmailSent { get; private set; } = false;
-
-        public Task SendProductMailingAsync(MailingOfferDomain domain)
-        {
-            LastSentProductMailing = domain;
-            EmailSent = true;
-            return Task.CompletedTask;
-        }
-
-        public Task SendReportEmailAsync(ReportDomain domain)
-        {
-            EmailSent = true;
-            return Task.CompletedTask;
-        }
-
-        public Task SendEmailAsync(string to, string subject, string body)
-        {
-            EmailSent = true;
-            return Task.CompletedTask;
-        }
-    }
 }

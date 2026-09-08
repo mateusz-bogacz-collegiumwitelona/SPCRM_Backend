@@ -1,6 +1,7 @@
 ﻿using Domain.Comunication;
 using Email.Interfaces;
 using Hangfire;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Services.Interfaces;
 
@@ -10,11 +11,21 @@ namespace Email
     {
         private readonly ILogger<EmailSender> _logger;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly IConfiguration _config;
 
-        public EmailSender(ILogger<EmailSender> logger, IBackgroundJobClient backgroundJobClient)
+        private readonly string _host;
+
+        public EmailSender(
+            ILogger<EmailSender> logger, 
+            IBackgroundJobClient backgroundJobClient,
+            IConfiguration config
+            )
         {
             _logger = logger;
             _backgroundJobClient = backgroundJobClient;
+            _config = config;
+            _host = _config["Frontend:Url"] ?? "http://localhost:5173";
+
         }
 
         public async Task SendReportEmailAsync(ReportDomain report)
@@ -119,6 +130,47 @@ namespace Email
                 }
 
                 _logger.LogInformation("{Count} offer emails have been successfully queued.", domain.BccEmails.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendProductMailingAsync");
+            }
+        }
+
+        public async Task SendCreateUserEmailAsync(CreateUserDomain create)
+        {
+            try
+            {
+                var templatePath = Path.Combine(
+                   AppDomain.CurrentDomain.BaseDirectory,
+                   "Templates",
+                   "create-user.html"
+                   );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Email template not found at path: {templatePath}");
+                }
+                
+                string template = await File.ReadAllTextAsync(templatePath);
+
+                string encodeToken = Uri.EscapeDataString(create.Token);
+                string encodedEmail = Uri.EscapeDataString(create.Email);
+
+                string link = $"{_host}/auth/confirm?token={encodeToken}&email={encodedEmail}";
+
+                template = template.Replace("{{FirstName}}", create.FirstName)
+                                   .Replace("{{LastName}}", create.LastName)
+                                   .Replace("{{Email}}", create.Email)
+                                   .Replace("{{UserName}}", create.UserName)
+                                   .Replace("{{Link}}", link)
+                                   .Replace("{{Token}}", create.Token);
+
+                string subject = "Witamy w SPCRM";
+
+                _backgroundJobClient.Enqueue<ISmtpEmailService>(x => x.SendEmailAsync(create.Email, subject, template));
+
+                _logger.LogInformation("Create user email queued to {Email}", create.Email);
             }
             catch (Exception ex)
             {

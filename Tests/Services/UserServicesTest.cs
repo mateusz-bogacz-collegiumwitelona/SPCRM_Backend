@@ -1,4 +1,5 @@
-﻿using Domain.Exceptions.Exception;
+﻿using Domain.Constants;
+using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -14,6 +15,7 @@ using Npgsql;
 using Services.Command.User;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -27,6 +29,8 @@ namespace Tests.Services
         private string _currentSchema = null!;
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
+        protected FakeEmailSender _emailSenderMock = null!;
+
 
         [Before(Class)]
         [Obsolete]
@@ -123,12 +127,14 @@ namespace Tests.Services
             );
 
             _loggerMock = NullLogger<UserServices>.Instance;
+            _emailSenderMock = new FakeEmailSender();
 
             _userServicesMock = new UserServices(
                 _userManagerMock,
                 _roleManagerMock,
                 _contextMock,
-                _loggerMock
+                _loggerMock,
+                _emailSenderMock
             );
         }
 
@@ -709,5 +715,108 @@ namespace Tests.Services
             await Assert.That(async () => await _userServicesMock.GetAvailableOwnersAsync())
                 .Throws<MissingUserRoleException>();
         }
+
+        // ─── CreateUserAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task CreateUserAsync_WhenValidData_CreatesUserAssignsRoleAndQueuesEmail()
+        {
+            // Arrange
+            var roleName = "Salesman";
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = roleName, NormalizedName = roleName.ToUpperInvariant() });
+
+            var command = new AddUserCommand
+            {
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = "jan.kowalski@example.com",
+                Role = roleName,
+                Password = "Password123!"
+            };
+
+            // Act
+            var result = await _userServicesMock.CreateUserAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var createdUser = await _contextMock.Users.FirstOrDefaultAsync(u => u.Email == command.Email);
+            await Assert.That(createdUser).IsNotNull();
+            await Assert.That(createdUser!.FirstName).IsEqualTo("Jan");
+            await Assert.That(createdUser.LastName).IsEqualTo("Kowalski");
+            await Assert.That(createdUser.EmailConfirmed).IsFalse();
+            await Assert.That(createdUser.NormalizedEmail).IsEqualTo(command.Email.ToUpperInvariant());
+
+            var isUserInRole = await _userManagerMock.IsInRoleAsync(createdUser, roleName);
+            await Assert.That(isUserInRole).IsTrue();
+
+            await Assert.That(_emailSenderMock.SentCreateUserEmails).Count().IsEqualTo(1);
+            var sentEmail = _emailSenderMock.SentCreateUserEmails[0];
+            await Assert.That(sentEmail.Email).IsEqualTo(command.Email);
+            await Assert.That(sentEmail.UserName).IsEqualTo(createdUser.UserName);
+            await Assert.That(sentEmail.Token).IsNotNull();
+            await Assert.That(sentEmail.Token).IsNotEmpty();
+        }
+
+        [Test]
+        public async Task CreateUserAsync_WhenEmailAlreadyExists_ReturnsBadRequest()
+        {
+            // Arrange
+            var existingEmail = "duplicate@example.com";
+            var existingUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = "jankow1",
+                NormalizedUserName = "JANKOW1",
+                Email = existingEmail,
+                NormalizedEmail = existingEmail.ToUpperInvariant(),
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+            _contextMock.Users.Add(existingUser);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AddUserCommand
+            {
+                FirstName = "Adam",
+                LastName = "Nowak",
+                Email = existingEmail,
+                Role = "Salesman",
+                Password = "Password123!"
+            };
+
+            // Act
+            var result = await _userServicesMock.CreateUserAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserAlreadyExists);
+            await Assert.That(_emailSenderMock.SentCreateUserEmails).IsEmpty();
+        }
+
+        [Test]
+        public async Task CreateUserAsync_WhenRoleAssignmentFails_RollsBackUserAndThrowsDataCorruptionException()
+        {
+            // Arrange
+            var command = new AddUserCommand
+            {
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = "missingrole@example.com",
+                Role = "NonExistentRole",
+                Password = "Password123!"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _userServicesMock.CreateUserAsync(command))
+                .Throws<DataCorruptionException>();
+
+            var userInDb = await _contextMock.Users.FirstOrDefaultAsync(u => u.Email == command.Email);
+            await Assert.That(userInDb).IsNull();
+            await Assert.That(_emailSenderMock.SentCreateUserEmails).IsEmpty();
+        }
     }
 }
+

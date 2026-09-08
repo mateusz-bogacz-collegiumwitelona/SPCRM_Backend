@@ -31,6 +31,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Get list of users")]
         [EndpointDescription("Get list of users with search, paggination etc.")]
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserListAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -39,6 +41,20 @@ namespace Api.Controllers
         {
             var result = await user.GetUserListAsync(mapper.MapList(request));
             return HandleResult(result);    
+        }
+
+        [EndpointSummary("Add new user")]
+        [EndpointDescription("Add new user with role")]
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateUserAsync(
+            [FromServices] IUserServices user,
+            [FromServices] UserMapper mapper,
+            [FromBody] AddUserRequest request
+            )
+        {
+            var result = await user.CreateUserAsync(mapper.MapAdd(request));
+            return HandleResult(result);
         }
     }
 }

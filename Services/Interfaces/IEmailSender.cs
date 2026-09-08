@@ -6,5 +6,6 @@ namespace Services.Interfaces
     {
         Task SendReportEmailAsync(ReportDomain report);
         Task SendProductMailingAsync(MailingOfferDomain domain);
+        Task SendCreateUserEmailAsync(CreateUserDomain create);
     }
 }

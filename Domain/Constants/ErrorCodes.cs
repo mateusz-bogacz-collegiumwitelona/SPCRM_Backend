@@ -139,5 +139,14 @@
 
         // TASK
         public const string TaskNotFound = "TASK_001";
+
+        // User
+        public const string UserAlreadyExists = "USR_001";
+        public const string InvalidFirstName = "USR_002";
+        public const string InvalidLastName = "USR_003";
+        public const string InvalidEmail = "USR_004";
+        public const string InvalidPassword = "USR_005";
+        public const string PassowrdMismatch = "USR_006";
+        public const string InvalidRole = "USR_007";
     }
 }

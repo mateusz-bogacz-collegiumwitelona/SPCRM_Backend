@@ -14,6 +14,7 @@ using Services.Command.Support;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -527,24 +528,6 @@ namespace Tests.Services
             // Act & Assert
             await Assert.That(async () => await _supportServicesMock.SendProductMailingAsync(command, author.Id))
                 .Throws<DataCorruptionException>();
-        }
-    }
-
-    public class FakeEmailSender : IEmailSender
-    {
-        public ReportDomain? SentReport { get; private set; }
-        public int CallCount { get; private set; } = 0;
-
-        public Task SendReportEmailAsync(ReportDomain report)
-        {
-            SentReport = report;
-            CallCount++;
-            return Task.CompletedTask;
-        }
-
-        public Task SendProductMailingAsync(MailingOfferDomain domain)
-        {
-            return Task.CompletedTask;
         }
     }
 }
