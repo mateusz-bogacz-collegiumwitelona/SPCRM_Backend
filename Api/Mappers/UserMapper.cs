@@ -37,6 +37,8 @@ namespace Api.Mappers
 
         public partial ConfirmChangeUserEmailCommand MapConfirmChangeEmail(ConfirmChangeUserEmailRequest request);
 
+        public partial ChangeRoleCommand MapChangeRole(ChangeRoleRequest request);
+
         private string NormalizeRequiredName(string name) => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
 
         private string? NormalizeNullableName(string? name) => StringNormalizerHelper.NormalizeName(name);

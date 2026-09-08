@@ -20,5 +20,6 @@ namespace Services.Interfaces
         Task<Result> ConfirmChangeUserEmailAsync(ConfirmChangeUserEmailCommand command);
         Task<Result> ForgotPasswordAsync(ForgotPasswordCommand command);
         Task<Result> ResetPasswordAsync(ResetPasswordCommand command);
+        Task<Result> ChangeRoleAsync(ChangeRoleCommand command, Guid adminId);
     }
 }

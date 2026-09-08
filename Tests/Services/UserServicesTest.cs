@@ -65,15 +65,15 @@ namespace Tests.Services
         {
             _currentSchema = "test_schema_" + Guid.NewGuid().ToString("N");
 
-            using (var conn = new NpgsqlConnection(_connectionString))
+            await using (var conn = new NpgsqlConnection(_connectionString))
             {
                 await conn.OpenAsync();
-                using var cmd = conn.CreateCommand();
+                await using var cmd = conn.CreateCommand();
                 cmd.CommandText = $"CREATE SCHEMA IF NOT EXISTS {_currentSchema};";
                 await cmd.ExecuteNonQueryAsync();
             }
 
-            var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public";
+            var schemaConnectionString = $"{_connectionString};SearchPath={_currentSchema},public;Pooling=false;";
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                .UseNpgsql(schemaConnectionString, options =>
@@ -153,13 +153,25 @@ namespace Tests.Services
         [After(Test)]
         public async Task CleanupAsync()
         {
-            await _contextMock.DisposeAsync();
+            if (_contextMock != null)
+            {
+                await _contextMock.DisposeAsync();
+            }
 
-            using var conn = new NpgsqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
-            await cmd.ExecuteNonQueryAsync();
+            if (!string.IsNullOrEmpty(_connectionString) && !string.IsNullOrEmpty(_currentSchema))
+            {
+                try
+                {
+                    using var conn = new NpgsqlConnection(_connectionString);
+                    await conn.OpenAsync();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                }
+            }
         }
 
         // ─── GetUserSimpleListAsync ─────────────────────────────────────────────────
@@ -1649,6 +1661,87 @@ namespace Tests.Services
             await Assert.That(resultDeletedTarget.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
         }
 
+        [Test]
+        public async Task DeleteUserAsync_WhenIdentityUpdateFails_RollsBackTransactionAndThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminId = Guid.NewGuid();
+            var userRole = "User";
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = userRole, NormalizedName = userRole.ToUpperInvariant() });
+
+            var userToDelete = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"UserDelete_{uniqueSuffix}",
+                NormalizedUserName = $"USERDELETE_{uniqueSuffix}",
+                Email = $"to_delete_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"TO_DELETE_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            var targetUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"TargetUser_{uniqueSuffix}",
+                NormalizedUserName = $"TARGETUSER_{uniqueSuffix}",
+                Email = $"target_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"TARGET_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(userToDelete, "Password123!");
+            await _userManagerMock.CreateAsync(targetUser, "Password123!");
+            await _userManagerMock.AddToRoleAsync(userToDelete, userRole);
+            await _userManagerMock.AddToRoleAsync(targetUser, userRole);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma {uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userToDelete.Id
+            };
+
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            _userManagerMock.UserValidators.Add(new FailingUserValidator());
+
+            var command = new DeleteUserCommand
+            {
+                UserId = userToDelete.Id,
+                ReassignToUserId = targetUser.Id
+            };
+
+            // Act & Assert
+            try
+            {
+                await Assert.That(async () => await _userServicesMock.DeleteUserAsync(command, adminId))
+                    .Throws<DataCorruptionException>();
+
+                _contextMock.ChangeTracker.Clear();
+                var companyInDb = await _contextMock.Companies.FindAsync(company.Id);
+                await Assert.That(companyInDb).IsNotNull();
+                await Assert.That(companyInDb!.OwnerId).IsEqualTo(userToDelete.Id); 
+
+                var userInDb = await _userManagerMock.FindByIdAsync(userToDelete.Id.ToString());
+                await Assert.That(userInDb!.IsDeleted).IsFalse();
+            }
+            finally
+            {
+                _userManagerMock.UserValidators.Clear();
+                _userManagerMock.UserValidators.Add(new UserValidator<ApplicationUser>());
+            }
+        }
+
         // ─── EditUserAsync ──────────────────────────────────────────────────────
 
         [Test]
@@ -1799,6 +1892,47 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("User not found.");
         }
 
+        [Test]
+        public async Task EditUserAsync_WhenIdentityUpdateFails_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            _userManagerMock.UserValidators.Add(new FailingUserValidator());
+
+            var command = new EditUserCommand
+            {
+                UserId = user.Id,
+                FirstName = "NoweImie"
+            };
+
+            // Act & Assert
+            try
+            {
+                await Assert.That(async () => await _userServicesMock.EditUserAsync(command, Guid.NewGuid()))
+                    .Throws<DataCorruptionException>();
+            }
+            finally
+            {
+                _userManagerMock.UserValidators.Clear();
+                _userManagerMock.UserValidators.Add(new UserValidator<ApplicationUser>());
+            }
+        }
+
         // ─── ChangeUserEmailAsync ──────────────────────────────────────────────
 
         [Test]
@@ -1942,6 +2076,50 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserAlreadyExists);
+        }
+
+        [Test]
+        public async Task ChangeUserEmailAsync_WhenIdentityUpdateFails_ThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            _userManagerMock.UserValidators.Add(new FailingUserValidator());
+
+            var command = new ChangeUserEmailCommand
+            {
+                UserId = user.Id,
+                NewEmail = $"new_email_{uniqueSuffix}@test.pl"
+            };
+
+            // Act & Assert
+            try
+            {
+                await Assert.That(async () => await _userServicesMock.ChangeUserEmailAsync(command, Guid.NewGuid()))
+                    .Throws<DataCorruptionException>();
+
+                await Assert.That(_emailSenderMock.SentEmailChangeConfirmationLinks).IsEmpty();
+                await Assert.That(_emailSenderMock.SentEmailChangeSecurityAlerts).IsEmpty();
+            }
+            finally
+            {
+                _userManagerMock.UserValidators.Clear();
+                _userManagerMock.UserValidators.Add(new UserValidator<ApplicationUser>());
+            }
         }
 
         // ─── ConfirmChangeUserEmailAsync ───────────────────────────────────────
@@ -2388,6 +2566,269 @@ namespace Tests.Services
             var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
             await Assert.That(await _userManagerMock.CheckPasswordAsync(refreshedUser!, currentPassword)).IsTrue();
         }
+
+        // ─── ChangeRoleAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeRoleAsync_WhenValidRequest_ReplacesOldRolesWithNewRoleAndUpdatesSecurityStamp()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminId = Guid.NewGuid();
+            var oldRoleName = "User";
+            var newRoleName = "Manager";
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = oldRoleName, NormalizedName = oldRoleName.ToUpperInvariant() });
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = newRoleName, NormalizedName = newRoleName.ToUpperInvariant() });
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+            await _userManagerMock.AddToRoleAsync(user, oldRoleName);
+
+            var initialSecurityStamp = user.SecurityStamp;
+
+            var command = new ChangeRoleCommand
+            {
+                UserId = user.Id,
+                Role = newRoleName
+            };
+
+            // Act
+            var result = await _userServicesMock.ChangeRoleAsync(command, adminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("User role changed successfully.");
+
+            var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(refreshedUser).IsNotNull();
+
+            var updatedRoles = await _userManagerMock.GetRolesAsync(refreshedUser!);
+            await Assert.That(updatedRoles).Count().IsEqualTo(1);
+            await Assert.That(updatedRoles.Contains(newRoleName)).IsTrue();
+            await Assert.That(updatedRoles.Contains(oldRoleName)).IsFalse();
+
+            await Assert.That(refreshedUser!.SecurityStamp).IsNotEqualTo(initialSecurityStamp);
+        }
+
+        [Test]
+        public async Task ChangeRoleAsync_WhenUserAlreadyHasGivenRole_ReturnsSuccessWithoutModifyingSecurityStamp()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminId = Guid.NewGuid();
+            var roleName = "Salesman";
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = roleName, NormalizedName = roleName.ToUpperInvariant() });
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Adam",
+                LastName = "Nowak",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+            await _userManagerMock.AddToRoleAsync(user, roleName);
+
+            var refreshedUserBefore = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            var securityStampBefore = refreshedUserBefore!.SecurityStamp;
+
+            var command = new ChangeRoleCommand
+            {
+                UserId = user.Id,
+                Role = roleName.ToLowerInvariant()
+            };
+
+            // Act
+            var result = await _userServicesMock.ChangeRoleAsync(command, adminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("User already has this role.");
+
+            var refreshedUserAfter = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(refreshedUserAfter!.SecurityStamp).IsEqualTo(securityStampBefore);
+        }
+
+        [Test]
+        public async Task ChangeRoleAsync_WhenUserNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var command = new ChangeRoleCommand
+            {
+                UserId = Guid.NewGuid(),
+                Role = "Manager"
+            };
+
+            // Act
+            var result = await _userServicesMock.ChangeRoleAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+        }
+
+        [Test]
+        public async Task ChangeRoleAsync_WhenUserIsSoftDeleted_Returns404NotFound()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var deletedUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Deleted_{uniqueSuffix}",
+                NormalizedUserName = $"DELETED_{uniqueSuffix}",
+                Email = $"del_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"DEL_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Usuniety",
+                EmailConfirmed = true,
+                IsDeleted = true
+            };
+
+            await _userManagerMock.CreateAsync(deletedUser, "Password123!");
+
+            var command = new ChangeRoleCommand
+            {
+                UserId = deletedUser.Id,
+                Role = "Manager"
+            };
+
+            // Act
+            var result = await _userServicesMock.ChangeRoleAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+        }
+
+        [Test]
+        public async Task ChangeRoleAsync_WhenAdminAttemptsToChangeTheirOwnRole_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminId = Guid.NewGuid();
+            var adminRole = "Admin";
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = adminRole, NormalizedName = adminRole.ToUpperInvariant() });
+
+            var adminUser = new ApplicationUser
+            {
+                Id = adminId,
+                UserName = $"Admin_{uniqueSuffix}",
+                NormalizedUserName = $"ADMIN_{uniqueSuffix}",
+                Email = $"admin_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"ADMIN_{uniqueSuffix}@TEST.PL",
+                FirstName = "Admin",
+                LastName = "Glowny",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(adminUser, "Password123!");
+            await _userManagerMock.AddToRoleAsync(adminUser, adminRole);
+
+            var command = new ChangeRoleCommand
+            {
+                UserId = adminId,
+                Role = "User"
+            };
+
+            // Act
+            var result = await _userServicesMock.ChangeRoleAsync(command, adminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("You cannot change your own role.");
+
+            var roles = await _userManagerMock.GetRolesAsync(adminUser);
+            await Assert.That(roles.Contains(adminRole)).IsTrue();
+        }
+
+        [Test]
+        public async Task ChangeRoleAsync_WhenRoleDoesNotExist_RollsBackTransactionAndThrowsDataCorruptionException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminId = Guid.NewGuid();
+            var existingRole = "User";
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = existingRole, NormalizedName = existingRole.ToUpperInvariant() });
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"u_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"U_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+            await _userManagerMock.AddToRoleAsync(user, existingRole);
+
+            var command = new ChangeRoleCommand
+            {
+                UserId = user.Id,
+                Role = "NonExistentRole"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _userServicesMock.ChangeRoleAsync(command, adminId))
+                .Throws<DataCorruptionException>();
+
+            var userInDb = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            var roles = await _userManagerMock.GetRolesAsync(userInDb!);
+
+            await Assert.That(roles).Count().IsEqualTo(1);
+            await Assert.That(roles[0]).IsEqualTo(existingRole);
+        }
+
+        private class FailingUserValidator : IUserValidator<ApplicationUser>
+        {
+            public Task<IdentityResult> ValidateAsync(UserManager<ApplicationUser> manager, ApplicationUser user)
+            {
+                return Task.FromResult(IdentityResult.Failed(new IdentityError
+                {
+                    Code = "SimulatedFailure",
+                    Description = "Simulated identity update failure."
+                }));
+            }
+        }
     }
+
+
 }
 

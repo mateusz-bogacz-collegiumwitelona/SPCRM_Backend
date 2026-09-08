@@ -553,11 +553,7 @@ namespace Services.Services
             {
                 var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
                 _logger.LogError("Failed to update user {UserId}: {Errors}", command.UserId, errors);
-                return Result.Failure(
-                    message: $"Failed to update user: {errors}",
-                    errorCode: ErrorCodes.BadRequest,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
+                throw new DataCorruptionException($"Failed to update user '{command.UserId}'. Errors: {errors}");
             }
 
             _logger.LogInformation("User {UserId} updated successfully by admin {AdminId}.", command.UserId, currentUserId);
@@ -623,11 +619,7 @@ namespace Services.Services
             {
                 var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
                 _logger.LogError("Failed to set PendingEmail for user {UserId}: {Errors}", user.Id, errors);
-                return Result.Failure(
-                    message: $"Failed to initiate email change: {errors}",
-                    errorCode: ErrorCodes.BadRequest,
-                    statusCode: StatusCodes.Status400BadRequest
-                );
+                throw new DataCorruptionException($"Failed to set PendingEmail for user '{user.Id}'. Errors: {errors}");
             }
 
             var token = await _userManager.GenerateChangeEmailTokenAsync(user, targetNewEmail);
@@ -785,6 +777,87 @@ namespace Services.Services
 
             return Result.Success(
                 message: "Password has been reset successfully. You can now log in with your new password.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> ChangeRoleAsync(ChangeRoleCommand command, Guid adminId)
+        {
+            var user = await _userManager.FindByIdAsync(command.UserId.ToString());
+
+            if (user == null || user.IsDeleted)
+            {
+                _logger.LogWarning("Admin {AdminId} attempted to change role for non-existent or deleted user {UserId}.",
+                    adminId, command.UserId);
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (user.Id == adminId)
+            {
+                _logger.LogWarning("Admin {AdminId} attempted to change their own role.", adminId);
+                return Result.Failure(
+                    message: "You cannot change your own role.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+
+            if (currentRoles.Count == 1 && string.Equals(currentRoles[0], command.Role, StringComparison.OrdinalIgnoreCase))
+            {
+                return Result.Success(
+                    message: "User already has this role.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                if (currentRoles.Any())
+                {
+                    var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                    if (!removeResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", removeResult.Errors.Select(e => e.Description));
+                        _logger.LogError("Failed to remove roles from user {UserId}: {Errors}", user.Id, errors);
+                        throw new DataCorruptionException($"Failed to remove existing roles from user '{user.Id}'. Errors: {errors}");
+                    }
+                }
+
+                var addResult = await _userManager.AddToRoleAsync(user, command.Role);
+                if (!addResult.Succeeded)
+                {
+                    var errors = string.Join(", ", addResult.Errors.Select(e => e.Description));
+                    _logger.LogError("Failed to assign new role '{Role}' to user {UserId}: {Errors}", command.Role, user.Id, errors);
+                    throw new DataCorruptionException($"Failed to assign new role '{command.Role}' to user '{user.Id}'. Errors: {errors}");
+                }
+
+                await _userManager.UpdateSecurityStampAsync(user);
+
+                await transaction.CommitAsync();
+            }
+            catch (InvalidOperationException ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Invalid operation during role assignment for user {UserId}: {Message}", user.Id, ex.Message);
+                throw new DataCorruptionException($"Failed to assign role '{command.Role}' to user '{user.Id}'. Reason: {ex.Message}");
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+            _logger.LogInformation("User {UserId} role changed to '{NewRole}' by admin {AdminId}.", user.Id, command.Role, adminId);
+
+            return Result.Success(
+                message: "User role changed successfully.",
                 statusCode: StatusCodes.Status200OK
             );
         }

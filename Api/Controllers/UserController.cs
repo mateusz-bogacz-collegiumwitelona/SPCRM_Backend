@@ -152,5 +152,19 @@ namespace Api.Controllers
             var result = await userService.ConfirmChangeUserEmailAsync(mapper.MapConfirmChangeEmail(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Change user role")]
+        [EndpointDescription("Updates user role and invalidates user active security stamp.")]
+        [HttpPatch("role")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ChangeRoleAsync(
+            [FromServices] IUserServices userService,
+            [FromServices] UserMapper mapper,
+            [FromBody] ChangeRoleRequest request
+        )
+        {
+            var result = await userService.ChangeRoleAsync(mapper.MapChangeRole(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
