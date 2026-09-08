@@ -16,6 +16,9 @@ namespace Api.Validators.Validators.User
             RuleFor(x => x.Token)
                 .NotEmpty()
                 .WithErrorCode(ErrorCodes.TokenRequired);
+
+            RuleFor(x => x.Password).ApplyPasswordRules();
+            RuleFor(x => x.ConfirmPassword).ApplyConfirmPasswordRules(x => x.Password);
         }
     }
 }

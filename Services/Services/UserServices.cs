@@ -183,7 +183,7 @@ namespace Services.Services
                 LockoutEnabled = false
             };
 
-            var createResult = await _userManager.CreateAsync(user, command.Password);
+            var createResult = await _userManager.CreateAsync(user);
             if (!createResult.Succeeded)
             {
                 var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
@@ -251,12 +251,12 @@ namespace Services.Services
 
             if (user == null)
             {
-                _logger.LogWarning("User with email {email} not found.", command.Email);
+                _logger.LogWarning("User with email {Email} not found.", command.Email);
                 return Result.Failure(
                     message: "User not found.",
                     errorCode: ErrorCodes.UserNotFound,
                     statusCode: StatusCodes.Status404NotFound
-                    );
+                );
             }
 
             if (user.EmailConfirmed)
@@ -266,14 +266,13 @@ namespace Services.Services
                     message: "Email is already confirmed.",
                     statusCode: StatusCodes.Status400BadRequest,
                     errorCode: ErrorCodes.InvalidOperation
-                    );
+                );
             }
 
-            var result = await _userManager.ConfirmEmailAsync(user, command.Token);
-
-            if (!result.Succeeded)
+            var confirmResult = await _userManager.ConfirmEmailAsync(user, command.Token);
+            if (!confirmResult.Succeeded)
             {
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                var errors = string.Join(", ", confirmResult.Errors.Select(e => e.Description));
                 _logger.LogWarning("Email confirmation failed for {Email}. Errors: {Errors}", command.Email, errors);
 
                 return Result.Failure(
@@ -283,12 +282,28 @@ namespace Services.Services
                 );
             }
 
-            _logger.LogInformation("Email successfully confirmed for user: {Email}", command.Email);
+            var passwordResult = await _userManager.AddPasswordAsync(user, command.Password);
+            if (!passwordResult.Succeeded)
+            {
+                user.EmailConfirmed = false;
+                await _userManager.UpdateAsync(user);
+
+                var passwordErrors = string.Join(", ", passwordResult.Errors.Select(e => e.Description));
+                _logger.LogWarning("Failed to set password for user {Email}. Errors: {Errors}", command.Email, passwordErrors);
+
+                return Result.Failure(
+                    message: "Failed to set password. Please ensure it meets the required criteria.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.PasswordSetFailed
+                );
+            }
+
+            _logger.LogInformation("Email successfully confirmed and password set for user: {Email}", command.Email);
 
             return Result.Success(
-                   message: "Email confirmed successfully. You can now log in.",
-                   statusCode: StatusCodes.Status200OK
-                   );
+                message: "Email confirmed successfully. You can now log in.",
+                statusCode: StatusCodes.Status200OK
+            );
         }
 
         public async Task<Result> LockoutUserAsync(SetLockoutCommand command, Guid adminId)

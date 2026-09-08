@@ -11,20 +11,15 @@ namespace Api.Mappers
         [MapProperty(nameof(UserListRequest.Role), nameof(UserListRequest.Role), Use = nameof(NormalizeName))]
         public partial UserListCommand MapList(UserListRequest request);
 
-        [MapProperty(nameof(ConfirmEmailRequest.Email), nameof(ConfirmEmailRequest.Email), Use = nameof(NormalizeEmail))]
-        public partial ConfirmEmailCommand MapConfirmEmail(ConfirmEmailRequest request);
-
-        public AddUserCommand MapAdd(AddUserRequest request)
-        {
-            return new AddUserCommand
+        public ConfirmEmailCommand MapConfirmEmail(ConfirmEmailRequest request) 
+            => new ConfirmEmailCommand
             {
-                FirstName = NormalizeName(request.FirstName) ?? string.Empty,
-                LastName = NormalizeName(request.LastName) ?? string.Empty,
                 Email = NormalizeEmail(request.Email),
-                Role = request.Role,
+                Token = request.Token,
                 Password = request.Password
             };
-        }
+
+        public partial AddUserCommand MapAdd(AddUserRequest request);
 
         public partial SetLockoutCommand MapSetLockout(SetLockoutRequest request);
         

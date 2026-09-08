@@ -97,12 +97,22 @@ namespace Tests.Services
             var userManagerLogger = NullLogger<UserManager<ApplicationUser>>.Instance;
             var identityOptions = Options.Create(new IdentityOptions());
 
+            var passwordValidators = new List<IPasswordValidator<ApplicationUser>>
+            {
+                new PasswordValidator<ApplicationUser>()
+            };
+
+            var userValidators = new List<IUserValidator<ApplicationUser>>
+            {
+                new UserValidator<ApplicationUser>()
+            };
+
             _userManagerMock = new UserManager<ApplicationUser>(
                 userStore,
                 identityOptions,
                 passwordHasher,
-                null!,
-                null!,
+                userValidators,
+                passwordValidators,
                 normalizer,
                 new IdentityErrorDescriber(),
                 null!,
@@ -720,7 +730,7 @@ namespace Tests.Services
         // ─── CreateUserAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task CreateUserAsync_WhenValidData_CreatesUserAssignsRoleAndQueuesEmail()
+        public async Task CreateUserAsync_WhenValidData_CreatesUserWithoutPasswordAssignsRoleAndQueuesEmail()
         {
             // Arrange
             var roleName = "Salesman";
@@ -731,8 +741,7 @@ namespace Tests.Services
                 FirstName = "Jan",
                 LastName = "Kowalski",
                 Email = "jan.kowalski@example.com",
-                Role = roleName,
-                Password = "Password123!"
+                Role = roleName
             };
 
             // Act
@@ -748,6 +757,7 @@ namespace Tests.Services
             await Assert.That(createdUser.LastName).IsEqualTo("Kowalski");
             await Assert.That(createdUser.EmailConfirmed).IsFalse();
             await Assert.That(createdUser.NormalizedEmail).IsEqualTo(command.Email.ToUpperInvariant());
+            await Assert.That(createdUser.PasswordHash).IsNull();
 
             var isUserInRole = await _userManagerMock.IsInRoleAsync(createdUser, roleName);
             await Assert.That(isUserInRole).IsTrue();
@@ -783,8 +793,7 @@ namespace Tests.Services
                 FirstName = "Adam",
                 LastName = "Nowak",
                 Email = existingEmail,
-                Role = "Salesman",
-                Password = "Password123!"
+                Role = "Salesman"
             };
 
             // Act
@@ -806,8 +815,7 @@ namespace Tests.Services
                 FirstName = "Jan",
                 LastName = "Kowalski",
                 Email = "missingrole@example.com",
-                Role = "NonExistentRole",
-                Password = "Password123!"
+                Role = "NonExistentRole"
             };
 
             // Act & Assert
@@ -822,7 +830,7 @@ namespace Tests.Services
         // ─── ConfirmEmailAsync ───────────────────────────────────────────────────
 
         [Test]
-        public async Task ConfirmEmailAsync_WhenValidTokenProvided_ConfirmsEmailSuccessfully()
+        public async Task ConfirmEmailAsync_WhenValidTokenAndPasswordProvided_ConfirmsEmailAndSetsPassword()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -840,7 +848,7 @@ namespace Tests.Services
                 EmailConfirmed = false
             };
 
-            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            var createResult = await _userManagerMock.CreateAsync(user);
             await Assert.That(createResult.Succeeded).IsTrue();
 
             var validToken = await _userManagerMock.GenerateEmailConfirmationTokenAsync(user);
@@ -848,7 +856,8 @@ namespace Tests.Services
             var command = new ConfirmEmailCommand
             {
                 Email = email,
-                Token = validToken
+                Token = validToken,
+                Password = "Password123!"
             };
 
             // Act
@@ -862,6 +871,8 @@ namespace Tests.Services
             var updatedUser = await _userManagerMock.FindByEmailAsync(email);
             await Assert.That(updatedUser).IsNotNull();
             await Assert.That(updatedUser!.EmailConfirmed).IsTrue();
+            await Assert.That(await _userManagerMock.HasPasswordAsync(updatedUser)).IsTrue();
+            await Assert.That(await _userManagerMock.CheckPasswordAsync(updatedUser, "Password123!")).IsTrue();
         }
 
         [Test]
@@ -871,7 +882,8 @@ namespace Tests.Services
             var command = new ConfirmEmailCommand
             {
                 Email = "nonexistent@test.pl",
-                Token = "dummy-token"
+                Token = "dummy-token",
+                Password = "Password123!"
             };
 
             // Act
@@ -903,13 +915,14 @@ namespace Tests.Services
                 EmailConfirmed = true
             };
 
-            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            var createResult = await _userManagerMock.CreateAsync(user);
             await Assert.That(createResult.Succeeded).IsTrue();
 
             var command = new ConfirmEmailCommand
             {
                 Email = email,
-                Token = "some-token"
+                Token = "some-token",
+                Password = "Password123!"
             };
 
             // Act
@@ -941,13 +954,14 @@ namespace Tests.Services
                 EmailConfirmed = false
             };
 
-            var createResult = await _userManagerMock.CreateAsync(user, "Password123!");
+            var createResult = await _userManagerMock.CreateAsync(user);
             await Assert.That(createResult.Succeeded).IsTrue();
 
             var command = new ConfirmEmailCommand
             {
                 Email = email,
-                Token = "completely-invalid-or-tampered-token"
+                Token = "completely-invalid-or-tampered-token",
+                Password = "Password123!"
             };
 
             // Act
@@ -961,6 +975,52 @@ namespace Tests.Services
 
             var userStillUnconfirmed = await _userManagerMock.FindByEmailAsync(email);
             await Assert.That(userStillUnconfirmed!.EmailConfirmed).IsFalse();
+            await Assert.That(await _userManagerMock.HasPasswordAsync(userStillUnconfirmed)).IsFalse();
+        }
+
+        [Test]
+        public async Task ConfirmEmailAsync_WhenPasswordDoesNotMeetRequirements_ReturnsBadRequestAndDoesNotLeaveUserConfirmed()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"weak_password_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Krzysztof",
+                LastName = "Krawczyk",
+                EmailConfirmed = false
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user);
+            await Assert.That(createResult.Succeeded).IsTrue();
+
+            var validToken = await _userManagerMock.GenerateEmailConfirmationTokenAsync(user);
+
+            var command = new ConfirmEmailCommand
+            {
+                Email = email,
+                Token = validToken,
+                Password = "123"
+            };
+
+            // Act
+            var result = await _userServicesMock.ConfirmEmailAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PasswordSetFailed);
+
+            var refreshedUser = await _userManagerMock.FindByEmailAsync(email);
+            await Assert.That(refreshedUser).IsNotNull();
+            await Assert.That(refreshedUser!.EmailConfirmed).IsFalse();
+            await Assert.That(await _userManagerMock.HasPasswordAsync(refreshedUser)).IsFalse();
         }
 
         // ─── LockoutUserAsync ───────────────────────────────────────────────────
