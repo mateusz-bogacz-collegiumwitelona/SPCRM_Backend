@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Comunication;
 using Domain.Constants;
+using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
@@ -84,6 +85,7 @@ namespace Services.Services
 
             return await _context.Users
                 .AsNoTracking()
+                .Where(u => !u.IsDeleted)
                 .ApplySearch(command.SearchTerm, _context)
                 .ApplyFilter(command.Role, command.IsBlocked, _context)
                 .ApplySorting(command.SortBy, command.SortDescending, _context)
@@ -376,6 +378,132 @@ namespace Services.Services
                 message: "User unlocked successfully.",
                 statusCode: StatusCodes.Status200OK
             );
+        }
+
+        public async Task<Result> DeleteUserAsync(DeleteUserCommand command, Guid currentUserId)
+        {
+            if (command.UserId == currentUserId)
+            {
+                _logger.LogWarning("User {UserId} attempted to delete themselves.", currentUserId);
+                return Result.Failure(
+                    message: "You cannot delete your own account.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var userToDelete = await _userManager.FindByIdAsync(command.UserId.ToString());
+            if (userToDelete == null || userToDelete.IsDeleted)
+            {
+                _logger.LogWarning("User with ID {UserId} not found or already deleted.", command.UserId);
+                return Result.Failure(
+                    message: "User not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            if (await _userManager.IsInRoleAsync(userToDelete, "Admin"))
+            {
+                _logger.LogWarning("Attempted to delete admin account: {UserId}.", command.UserId);
+                return Result.Failure(
+                    message: "Cannot delete an administrator account.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.CannotBlockAdmin
+                );
+            }
+
+            var targetUser = await _userManager.FindByIdAsync(command.ReassignToUserId.ToString());
+
+            if (targetUser == null || targetUser.IsDeleted)
+            {
+                _logger.LogWarning("Target user for reassignment {TargetUserId} not found or inactive.", command.ReassignToUserId);
+                return Result.Failure(
+                    message: "Target user for reassignment does not exist or is inactive.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var companies = await _context.Companies
+                    .Where(c => c.OwnerId == command.UserId)
+                    .ToListAsync();
+
+                foreach (var company in companies)
+                {
+                    company.OwnerId = command.ReassignToUserId;
+                }
+
+                var contacts = await _context.Contacts
+                    .Where(c => c.OwnerId == command.UserId)
+                    .ToListAsync();
+
+                foreach (var contact in contacts)
+                {
+                    contact.OwnerId = command.ReassignToUserId;
+                }
+
+                var activeDeals = await _context.Deals
+                    .Where(d => d.OwnerId == command.UserId &&
+                               (d.Status == DealsStatusEnum.ToDo || d.Status == DealsStatusEnum.InProgress))
+                    .ToListAsync();
+
+                foreach (var deal in activeDeals)
+                {
+                    deal.OwnerId = command.ReassignToUserId;
+                }
+
+                var activeTasks = await _context.Tasks
+                    .Where(t => t.AssignedToId == command.UserId && t.Status != TaskStatusEnum.Complete)
+                    .ToListAsync();
+
+                foreach (var task in activeTasks)
+                {
+                    task.AssignedToId = command.ReassignToUserId;
+                }
+
+                await _context.SaveChangesAsync();
+
+                var originalEmail = userToDelete.Email;
+                var tombstone = $"deleted_{Guid.NewGuid():N}";
+
+                userToDelete.IsDeleted = true;
+                userToDelete.Email = $"{tombstone}_{originalEmail}";
+                userToDelete.UserName = $"{tombstone}_{userToDelete.UserName}";
+                userToDelete.LockoutEnabled = true;
+                userToDelete.LockoutEnd = DateTimeOffset.MaxValue;
+                userToDelete.UpdateAt = DateTime.UtcNow;
+
+                await _userManager.UpdateSecurityStampAsync(userToDelete);
+                var updateResult = await _userManager.UpdateAsync(userToDelete);
+
+                if (!updateResult.Succeeded)
+                {
+                    var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
+                    _logger.LogError("Failed to update user {UserId} soft-delete state: {Errors}", command.UserId, errors);
+                    throw new DataCorruptionException($"Failed to soft delete user '{command.UserId}'.");
+                }
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "User {UserId} ({Email}) soft-deleted by admin {AdminId}. Reassigned: {CompCount} companies, {ContCount} contacts, {DealCount} deals, {TaskCount} tasks to user {TargetUserId}.",
+                    command.UserId, originalEmail, currentUserId, companies.Count, contacts.Count, activeDeals.Count, activeTasks.Count, command.ReassignToUserId);
+
+                return Result.Success(
+                    message: "User deleted and operational resources reassigned successfully.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+            catch (Exception ex) when (ex is not DataCorruptionException)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Unexpected error occurred during soft deletion of user {UserId}.", command.UserId);
+                throw;
+            }
         }
     }
 }

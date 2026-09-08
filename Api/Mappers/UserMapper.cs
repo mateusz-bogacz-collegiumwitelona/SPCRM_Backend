@@ -27,6 +27,8 @@ namespace Api.Mappers
         }
 
         public partial SetLockoutCommand MapSetLockout(SetLockoutRequest request);
+        
+        public partial DeleteUserCommand MapDelete(DeleteUserRequest request);
 
         private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
 

@@ -96,5 +96,19 @@ namespace Api.Controllers
             var result = await user.UnlockUserAsync(id, CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Soft delete a user")]
+        [EndpointDescription("Soft-deletes a user account and reassigns active companies, contacts, open deals and tasks to another active user.")]
+        [HttpDelete]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUserAsync(
+            [FromServices] IUserServices user,
+            [FromServices] UserMapper mapper,
+            [FromBody] DeleteUserRequest request
+        )
+        {
+            var result = await user.DeleteUserAsync(mapper.MapDelete(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }

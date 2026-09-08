@@ -32,19 +32,14 @@ namespace Services.Services
 
         public async Task<int> LoginAsync(LoginCommand command)
         {
+            var normalizedInput = command.Name.Trim().ToUpperInvariant();
+
             var user = await _userManager.Users.FirstOrDefaultAsync(u =>
-                u.Email == command.Name ||
-                u.NormalizedUserName == command.Name.Trim().ToUpper()
+                !u.IsDeleted &&
+                (u.NormalizedEmail == normalizedInput || u.NormalizedUserName == normalizedInput)
             );
 
-            bool isPasswordValidate = false;
-
-            if (user != null)
-            {
-                isPasswordValidate = await _userManager.CheckPasswordAsync(user, command.Password);
-            }
-
-            if (user == null || !isPasswordValidate)
+            if (user == null)
             {
                 _logger.LogInformation("Invalid username or password.");
                 return StatusCodes.Status401Unauthorized;
@@ -52,31 +47,35 @@ namespace Services.Services
 
             if (!user.EmailConfirmed)
             {
-                _logger.LogInformation("User: {userName} has not confirmed email.", user.UserName);
+                _logger.LogInformation("User: {UserName} has not confirmed email.", user.UserName);
                 return StatusCodes.Status401Unauthorized;
             }
 
             var roles = await _userManager.GetRolesAsync(user);
-
             if (roles == null || !roles.Any())
             {
-                _logger.LogError("User: {userName}  has no roles assigned.", user.UserName);
+                _logger.LogError("User: {UserName} has no roles assigned.", user.UserName);
                 return StatusCodes.Status401Unauthorized;
-
             }
 
             var userName = user.UserName ?? string.Empty;
 
-            var singIn = await _signInManager.PasswordSignInAsync(
+            var signInResult = await _signInManager.PasswordSignInAsync(
                 userName,
                 command.Password,
                 isPersistent: false,
-                lockoutOnFailure: false
-                );
+                lockoutOnFailure: true
+            );
 
-            if (!singIn.Succeeded)
+            if (signInResult.IsLockedOut)
             {
-                _logger.LogError("User: {userName} failed to sign in.", user.UserName);
+                _logger.LogWarning("User: {UserName} account is locked out.", user.UserName);
+                return StatusCodes.Status423Locked;
+            }
+
+            if (!signInResult.Succeeded)
+            {
+                _logger.LogWarning("User: {UserName} failed to sign in.", user.UserName);
                 return StatusCodes.Status401Unauthorized;
             }
 

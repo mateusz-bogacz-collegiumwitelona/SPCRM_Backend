@@ -1,4 +1,5 @@
 ﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
@@ -1262,6 +1263,329 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotLockedOut);
             await Assert.That(result.Message).IsEqualTo("User is not locked out.");
             await Assert.That(_emailSenderMock.SentUnlockEmails).IsEmpty();
+        }
+
+        // ─── DeleteUserAsync ────────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteUserAsync_WhenValidRequest_ReassignsActiveResourcesPreservesCompletedAndReleasesEmail()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminId = Guid.NewGuid();
+            var userRole = "User";
+
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = userRole, NormalizedName = userRole.ToUpperInvariant() });
+
+            var originalEmail = $"user_to_delete_{uniqueSuffix}@test.pl";
+            var userToDelete = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"UserDelete_{uniqueSuffix}",
+                NormalizedUserName = $"USERDELETE_{uniqueSuffix}",
+                Email = originalEmail,
+                NormalizedEmail = originalEmail.ToUpperInvariant(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            var targetUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"TargetUser_{uniqueSuffix}",
+                NormalizedUserName = $"TARGETUSER_{uniqueSuffix}",
+                Email = $"target_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"TARGET_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(userToDelete, "Password123!");
+            await _userManagerMock.CreateAsync(targetUser, "Password123!");
+            await _userManagerMock.AddToRoleAsync(userToDelete, userRole);
+            await _userManagerMock.AddToRoleAsync(targetUser, userRole);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma {uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userToDelete.Id
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marek",
+                LastName = "Klient",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                OwnerId = userToDelete.Id,
+                Owner = userToDelete
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Code = $"C{uniqueSuffix[..2]}",
+                Name = $"{uniqueSuffix[..2]}"
+            };
+
+            _contextMock.Currencies.Add(currency);
+
+            var openDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Otarty Deal",
+                Status = DealsStatusEnum.InProgress,
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                OwnerId = userToDelete.Id
+            };
+
+            var completedDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Zrealizowany Deal",
+                Status = DealsStatusEnum.Complete,
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                OwnerId = userToDelete.Id
+            };
+
+            var openTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Otwarte zadanie",
+                Description = "Opis",
+                Status = TaskStatusEnum.InProgress,
+                Priority = TaskPriorityEnum.High,
+                AssignedToId = userToDelete.Id
+            };
+
+            var completedTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Wykonane zadanie",
+                Description = "Opis",
+                Status = TaskStatusEnum.Complete,
+                Priority = TaskPriorityEnum.Low,
+                AssignedToId = userToDelete.Id
+            };
+
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.AddRange(openDeal, completedDeal);
+            _contextMock.Tasks.AddRange(openTask, completedTask);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new DeleteUserCommand
+            {
+                UserId = userToDelete.Id,
+                ReassignToUserId = targetUser.Id
+            };
+
+            // Act
+            var result = await _userServicesMock.DeleteUserAsync(command, adminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedCompany = await _contextMock.Companies.FindAsync(company.Id);
+            await Assert.That(updatedCompany!.OwnerId).IsEqualTo(targetUser.Id);
+
+            var updatedContact = await _contextMock.Contacts.FindAsync(contact.Id);
+            await Assert.That(updatedContact!.OwnerId).IsEqualTo(targetUser.Id);
+
+            var updatedOpenDeal = await _contextMock.Deals.FindAsync(openDeal.Id);
+            await Assert.That(updatedOpenDeal!.OwnerId).IsEqualTo(targetUser.Id);
+
+            var updatedOpenTask = await _contextMock.Tasks.FindAsync(openTask.Id);
+            await Assert.That(updatedOpenTask!.AssignedToId).IsEqualTo(targetUser.Id);
+
+            var updatedCompletedDeal = await _contextMock.Deals.FindAsync(completedDeal.Id);
+            await Assert.That(updatedCompletedDeal!.OwnerId).IsEqualTo(userToDelete.Id);
+
+            var updatedCompletedTask = await _contextMock.Tasks.FindAsync(completedTask.Id);
+            await Assert.That(updatedCompletedTask!.AssignedToId).IsEqualTo(userToDelete.Id);
+
+            var deletedUserInDb = await _userManagerMock.FindByIdAsync(userToDelete.Id.ToString());
+            await Assert.That(deletedUserInDb).IsNotNull();
+            await Assert.That(deletedUserInDb!.IsDeleted).IsTrue();
+            await Assert.That(deletedUserInDb.LockoutEnd).IsEqualTo(DateTimeOffset.MaxValue);
+            await Assert.That(deletedUserInDb.Email!.StartsWith("deleted_")).IsTrue();
+            await Assert.That(deletedUserInDb.UserName!.StartsWith("deleted_")).IsTrue();
+
+            var reuseEmailUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"NewUser_{uniqueSuffix}",
+                NormalizedUserName = $"NEWUSER_{uniqueSuffix}",
+                Email = originalEmail,
+                NormalizedEmail = originalEmail.ToUpperInvariant(),
+                FirstName = "Nowy",
+                LastName = "Uzytkownik"
+            };
+
+            var reCreateResult = await _userManagerMock.CreateAsync(reuseEmailUser, "Password123!");
+            await Assert.That(reCreateResult.Succeeded).IsTrue();
+        }
+
+        [Test]
+        public async Task DeleteUserAsync_WhenAdminAttemptsToDeleteThemselves_ReturnsBadRequest()
+        {
+            // Arrange
+            var adminId = Guid.NewGuid();
+            var command = new DeleteUserCommand
+            {
+                UserId = adminId,
+                ReassignToUserId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _userServicesMock.DeleteUserAsync(command, adminId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("You cannot delete your own account.");
+        }
+
+        [Test]
+        public async Task DeleteUserAsync_WhenUserToDeleteNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var command = new DeleteUserCommand
+            {
+                UserId = Guid.NewGuid(),
+                ReassignToUserId = Guid.NewGuid()
+            };
+
+            // Act
+            var result = await _userServicesMock.DeleteUserAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+        }
+
+        [Test]
+        public async Task DeleteUserAsync_WhenTargetUserIsAdmin_Returns403Forbidden()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var adminRole = "Admin";
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = adminRole, NormalizedName = adminRole.ToUpperInvariant() });
+
+            var adminToDelete = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Admin_{uniqueSuffix}",
+                NormalizedUserName = $"ADMIN_{uniqueSuffix}",
+                Email = $"admin_del_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"ADMIN_DEL_{uniqueSuffix}@TEST.PL",
+                FirstName = "Admin",
+                LastName = "Jeden",
+                IsDeleted = false
+            };
+
+            var reassignUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"target_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"TARGET_{uniqueSuffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(adminToDelete, "Password123!");
+            await _userManagerMock.CreateAsync(reassignUser, "Password123!");
+            await _userManagerMock.AddToRoleAsync(adminToDelete, adminRole);
+
+            var command = new DeleteUserCommand
+            {
+                UserId = adminToDelete.Id,
+                ReassignToUserId = reassignUser.Id
+            };
+
+            // Act
+            var result = await _userServicesMock.DeleteUserAsync(command, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CannotBlockAdmin);
+            await Assert.That(result.Message).IsEqualTo("Cannot delete an administrator account.");
+        }
+
+        [Test]
+        public async Task DeleteUserAsync_WhenReassignUserDoesNotExistOrIsDeleted_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var userToDelete = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Adam",
+                LastName = "Kowalski",
+                IsDeleted = false
+            };
+
+            var deletedTargetUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"DeletedTarget_{uniqueSuffix}",
+                NormalizedUserName = $"DELETEDTARGET_{uniqueSuffix}",
+                Email = $"deleted_target_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"DELETED_TARGET_{uniqueSuffix}@TEST.PL",
+                FirstName = "Nieaktywny",
+                LastName = "Target",
+                IsDeleted = true
+            };
+
+            await _userManagerMock.CreateAsync(userToDelete, "Password123!");
+            await _userManagerMock.CreateAsync(deletedTargetUser, "Password123!");
+
+            var commandWithNonExistent = new DeleteUserCommand
+            {
+                UserId = userToDelete.Id,
+                ReassignToUserId = Guid.NewGuid()
+            };
+
+            var commandWithDeletedTarget = new DeleteUserCommand
+            {
+                UserId = userToDelete.Id,
+                ReassignToUserId = deletedTargetUser.Id
+            };
+
+            // Act
+            var resultNonExistent = await _userServicesMock.DeleteUserAsync(commandWithNonExistent, Guid.NewGuid());
+            var resultDeletedTarget = await _userServicesMock.DeleteUserAsync(commandWithDeletedTarget, Guid.NewGuid());
+
+            // Assert
+            await Assert.That(resultNonExistent.IsSuccess).IsFalse();
+            await Assert.That(resultNonExistent.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(resultNonExistent.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+
+            await Assert.That(resultDeletedTarget.IsSuccess).IsFalse();
+            await Assert.That(resultDeletedTarget.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(resultDeletedTarget.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
         }
     }
 }

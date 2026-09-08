@@ -107,8 +107,9 @@ namespace Infrastructure
             {
                 if (entityType.BaseType != null) continue;
 
-                var updateAtProp = entityType.FindProperty("UpdateAt");
+                if (entityType.ClrType == typeof(ApplicationUser)) continue;
 
+                var updateAtProp = entityType.FindProperty("UpdateAt");
                 if (updateAtProp != null)
                 {
                     updateAtProp.IsConcurrencyToken = false;

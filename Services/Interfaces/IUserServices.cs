@@ -13,5 +13,6 @@ namespace Services.Interfaces
         Task<Result> ConfirmEmailAsync(ConfirmEmailCommand command);
         Task<Result> LockoutUserAsync(SetLockoutCommand command, Guid adminId);
         Task<Result> UnlockUserAsync(Guid userId, Guid adminId);
+        Task<Result> DeleteUserAsync(DeleteUserCommand command, Guid currentUserId);
     }
 }
