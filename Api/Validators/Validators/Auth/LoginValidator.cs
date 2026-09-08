@@ -2,7 +2,7 @@
 using Domain.Constants;
 using FluentValidation;
 
-namespace Api.Validators.Validators.Login
+namespace Api.Validators.Validators.Auth
 {
     public class LoginValidator : AbstractValidator<LoginRequest>
     {

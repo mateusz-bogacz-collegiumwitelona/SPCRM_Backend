@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Services.Command.Auth;
 using Services.Command.User;
 using Services.Response.User;
 
@@ -17,5 +18,7 @@ namespace Services.Interfaces
         Task<Result> EditUserAsync(EditUserCommand command, Guid currentUserId);
         Task<Result> ChangeUserEmailAsync(ChangeUserEmailCommand command, Guid adminId);
         Task<Result> ConfirmChangeUserEmailAsync(ConfirmChangeUserEmailCommand command);
+        Task<Result> ForgotPasswordAsync(ForgotPasswordCommand command);
+        Task<Result> ResetPasswordAsync(ResetPasswordCommand command);
     }
 }

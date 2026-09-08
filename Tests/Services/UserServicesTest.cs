@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Services.Command.Auth;
 using Services.Command.User;
 using Services.Services;
 using Testcontainers.PostgreSql;
@@ -2069,6 +2070,323 @@ namespace Tests.Services
             var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
             await Assert.That(refreshedUser!.Email).IsEqualTo($"current_{uniqueSuffix}@test.pl");
             await Assert.That(refreshedUser.PendingEmail).IsEqualTo(newEmail);
+        }
+
+        // ─── ForgotPasswordAsync ────────────────────────────────────────────────
+
+        [Test]
+        public async Task ForgotPasswordAsync_WhenUserExistsAndConfirmed_GeneratesTokenAndSendsEmail()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"reset_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Piotr",
+                LastName = "Nowak",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            var createResult = await _userManagerMock.CreateAsync(user, "OldPassword123!");
+            await Assert.That(createResult.Succeeded).IsTrue();
+
+            var command = new ForgotPasswordCommand { Email = email };
+
+            // Act
+            var result = await _userServicesMock.ForgotPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("If an account associated with this email exists, a password reset link has been sent.");
+
+            await Assert.That(_emailSenderMock.SentResetPasswordEmails).Count().IsEqualTo(1);
+            var sentEmail = _emailSenderMock.SentResetPasswordEmails[0];
+            await Assert.That(sentEmail.UserId).IsEqualTo(user.Id);
+            await Assert.That(sentEmail.Email).IsEqualTo(email);
+            await Assert.That(sentEmail.UserName).IsEqualTo(user.UserName);
+            await Assert.That(sentEmail.Token).IsNotNull();
+            await Assert.That(sentEmail.Token).IsNotEmpty();
+        }
+
+        [Test]
+        public async Task ForgotPasswordAsync_WhenUserDoesNotExist_ReturnsSuccessWithoutSendingEmail()
+        {
+            // Arrange
+            var command = new ForgotPasswordCommand { Email = "nonexistent@test.pl" };
+
+            // Act
+            var result = await _userServicesMock.ForgotPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("If an account associated with this email exists, a password reset link has been sent.");
+            await Assert.That(_emailSenderMock.SentResetPasswordEmails).IsEmpty();
+        }
+
+        [Test]
+        public async Task ForgotPasswordAsync_WhenUserEmailNotConfirmed_ReturnsSuccessWithoutSendingEmail()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"unconfirmed_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Unconfirmed_{uniqueSuffix}",
+                NormalizedUserName = $"UNCONFIRMED_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Adam",
+                LastName = "Kowalski",
+                EmailConfirmed = false,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "OldPassword123!");
+
+            var command = new ForgotPasswordCommand { Email = email };
+
+            // Act
+            var result = await _userServicesMock.ForgotPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("If an account associated with this email exists, a password reset link has been sent.");
+            await Assert.That(_emailSenderMock.SentResetPasswordEmails).IsEmpty();
+        }
+
+        [Test]
+        public async Task ForgotPasswordAsync_WhenUserIsSoftDeleted_ReturnsSuccessWithoutSendingEmail()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"deleted_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Deleted_{uniqueSuffix}",
+                NormalizedUserName = $"DELETED_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Tomasz",
+                LastName = "Usuniety",
+                EmailConfirmed = true,
+                IsDeleted = true
+            };
+
+            await _userManagerMock.CreateAsync(user, "OldPassword123!");
+
+            var command = new ForgotPasswordCommand { Email = email };
+
+            // Act
+            var result = await _userServicesMock.ForgotPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(_emailSenderMock.SentResetPasswordEmails).IsEmpty();
+        }
+
+        [Test]
+        public async Task ForgotPasswordAsync_WhenUserIsLockedOut_ReturnsForbiddenAndDoesNotSendEmail()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"locked_{uniqueSuffix}@test.pl";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Locked_{uniqueSuffix}",
+                NormalizedUserName = $"LOCKED_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Piotr",
+                LastName = "Zablokowany",
+                EmailConfirmed = true,
+                LockoutEnabled = true,
+                LockoutEnd = DateTimeOffset.UtcNow.AddDays(7),
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "OldPassword123!");
+
+            var command = new ForgotPasswordCommand { Email = email };
+
+            // Act
+            var result = await _userServicesMock.ForgotPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.AccountLocked);
+            await Assert.That(result.Message).IsEqualTo("This account has been locked. Please contact support.");
+            await Assert.That(_emailSenderMock.SentResetPasswordEmails).IsEmpty();
+        }
+
+        // ─── ResetPasswordAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task ResetPasswordAsync_WhenValidToken_ResetsPasswordAndInvalidatesOldPassword()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"reset_pass_{uniqueSuffix}@test.pl";
+            var oldPassword = "OldPassword123!";
+            var newPassword = "NewPassword123!";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, oldPassword);
+
+            var resetToken = await _userManagerMock.GeneratePasswordResetTokenAsync(user);
+
+            var command = new ResetPasswordCommand
+            {
+                UserId = user.Id,
+                Token = resetToken,
+                Password = newPassword
+            };
+
+            // Act
+            var result = await _userServicesMock.ResetPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Password has been reset successfully. You can now log in with your new password.");
+
+            var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(refreshedUser).IsNotNull();
+
+            var checkNewPassword = await _userManagerMock.CheckPasswordAsync(refreshedUser!, newPassword);
+            var checkOldPassword = await _userManagerMock.CheckPasswordAsync(refreshedUser!, oldPassword);
+
+            await Assert.That(checkNewPassword).IsTrue();
+            await Assert.That(checkOldPassword).IsFalse();
+        }
+
+        [Test]
+        public async Task ResetPasswordAsync_WhenUserNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var command = new ResetPasswordCommand
+            {
+                UserId = Guid.NewGuid(),
+                Token = "any-token",
+                Password = "NewPassword123!"
+            };
+
+            // Act
+            var result = await _userServicesMock.ResetPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+        }
+
+        [Test]
+        public async Task ResetPasswordAsync_WhenUserIsSoftDeleted_Returns404NotFound()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Deleted_{uniqueSuffix}",
+                NormalizedUserName = $"DELETED_{uniqueSuffix}",
+                Email = $"deleted_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"DELETED_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Usuniety",
+                EmailConfirmed = true,
+                IsDeleted = true
+            };
+
+            await _userManagerMock.CreateAsync(user, "OldPassword123!");
+
+            var command = new ResetPasswordCommand
+            {
+                UserId = user.Id,
+                Token = "dummy-token",
+                Password = "NewPassword123!"
+            };
+
+            // Act
+            var result = await _userServicesMock.ResetPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task ResetPasswordAsync_WhenTokenIsInvalidOrTampered_ReturnsBadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var email = $"invalid_token_{uniqueSuffix}@test.pl";
+            var currentPassword = "CurrentPassword123!";
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = "Marek",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, currentPassword);
+
+            var command = new ResetPasswordCommand
+            {
+                UserId = user.Id,
+                Token = "invalid-tampered-token",
+                Password = "BrandNewPassword123!"
+            };
+
+            // Act
+            var result = await _userServicesMock.ResetPasswordAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TokenInvalid);
+            await Assert.That(result.Message).IsEqualTo("Invalid or expired password reset token.");
+
+            var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
+            await Assert.That(await _userManagerMock.CheckPasswordAsync(refreshedUser!, currentPassword)).IsTrue();
         }
     }
 }

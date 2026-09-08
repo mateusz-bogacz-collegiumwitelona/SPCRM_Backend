@@ -309,5 +309,42 @@ namespace Email
                 _logger.LogError(ex, "Error in SendEmailChangeSecurityAlertAsync for user {UserName}", domain.UserName);
             }
         }
+
+        public async Task SendPasswordResetEmailAsync(ResetPasswordEmailDomain domain)
+        {
+            try
+            {
+                var templatePath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Templates",
+                    "reset-password.html"
+                );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Email template not found at path: {templatePath}");
+                }
+
+                string template = await File.ReadAllTextAsync(templatePath);
+
+                string encodedToken = Uri.EscapeDataString(domain.Token);
+                string encodedUserId = Uri.EscapeDataString(domain.UserId.ToString());
+
+                string link = $"{_host}/auth/reset-password?userId={encodedUserId}&token={encodedToken}";
+
+                template = template.Replace("{{UserName}}", domain.UserName)
+                                   .Replace("{{Link}}", link)
+                                   .Replace("{{Token}}", domain.Token);
+
+                string subject = "Resetowanie hasła w systemie SPCRM";
+
+                _backgroundJobClient.Enqueue<ISmtpEmailService>(x => x.SendEmailAsync(domain.Email, subject, template));
+                _logger.LogInformation("Password reset email queued to: {Email}", domain.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendPasswordResetEmailAsync for user {UserId}", domain.UserId);
+            }
+        }
     }
 }

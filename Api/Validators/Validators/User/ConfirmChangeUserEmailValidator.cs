@@ -1,6 +1,5 @@
 ﻿using Api.Request.User;
 using Api.Validators.Rule;
-using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators.Validators.User
@@ -10,9 +9,7 @@ namespace Api.Validators.Validators.User
         public ConfirmChangeUserEmailValidator()
         {
             RuleFor(x => x.UserId).ApplyValidGuidRule();
-            RuleFor(x => x.Token)
-                .NotEmpty()
-                .WithErrorCode(ErrorCodes.TokenInvalid);
+            RuleFor(x => x.Token).ApplyValidTokenRule();
         }
     }
 }

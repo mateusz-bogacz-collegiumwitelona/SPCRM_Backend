@@ -61,5 +61,10 @@ namespace Api.Validators.Rule
                 })
                 .WithErrorCode(ErrorCodes.InvalidRole);
 
+        public static IRuleBuilderOptions<T, string> ApplyValidTokenRule<T>(this IRuleBuilder<T, string> ruleBuilder)
+            => ruleBuilder
+                .NotEmpty()
+                .WithErrorCode(ErrorCodes.TokenInvalid);
+
     }
 }

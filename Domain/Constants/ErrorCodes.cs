@@ -153,6 +153,6 @@
         public const string UserNotLockedOut = "USR_009";
         public const string PasswordSetFailed = "USR_010";
         public const string EmailAlreadyTaken = "USR_011";
-
+        public const string AccountLocked = "USR_012";
     }
 }

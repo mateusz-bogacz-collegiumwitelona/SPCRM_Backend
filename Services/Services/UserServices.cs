@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Command.Auth;
 using Services.Command.User;
 using Services.Helpers;
 using Services.Interfaces;
@@ -707,6 +708,83 @@ namespace Services.Services
 
             return Result.Success(
                 message: "Email address changed successfully. You can now use your new email to log in.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> ForgotPasswordAsync(ForgotPasswordCommand command)
+        {
+            var user = await _userManager.FindByEmailAsync(command.Email);
+
+            if (user == null || user.IsDeleted || !user.EmailConfirmed)
+            {
+                _logger.LogInformation("Password reset requested for non-existing, unconfirmed or deleted email: {Email}", command.Email);
+                return Result.Success(
+                    message: "If an account associated with this email exists, a password reset link has been sent.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                _logger.LogWarning("Password reset requested for locked out user {UserId}.", user.Id);
+                return Result.Failure(
+                    message: "This account has been locked. Please contact support.",
+                    errorCode: ErrorCodes.AccountLocked,
+                    statusCode: StatusCodes.Status403Forbidden
+                );
+            }
+
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            await _emailSender.SendPasswordResetEmailAsync(new ResetPasswordEmailDomain
+            {
+                UserId = user.Id,
+                Email = user.Email!,
+                UserName = user.UserName ?? string.Empty,
+                Token = resetToken
+            });
+
+            _logger.LogInformation("Password reset email sent to user {UserId}.", user.Id);
+
+            return Result.Success(
+                message: "If an account associated with this email exists, a password reset link has been sent.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> ResetPasswordAsync(ResetPasswordCommand command)
+        {
+            var user = await _userManager.FindByIdAsync(command.UserId.ToString());
+
+            if (user == null || user.IsDeleted)
+            {
+                _logger.LogWarning("Password reset attempt for non-existent or deleted user {UserId}.", command.UserId);
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var result = await _userManager.ResetPasswordAsync(user, command.Token, command.Password);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning("Failed to reset password for user {UserId}. Errors: {Errors}", command.UserId, errors);
+
+                return Result.Failure(
+                    message: "Invalid or expired password reset token.",
+                    errorCode: ErrorCodes.TokenInvalid,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            _logger.LogInformation("Password successfully reset for user {UserId}.", user.Id);
+
+            return Result.Success(
+                message: "Password has been reset successfully. You can now log in with your new password.",
                 statusCode: StatusCodes.Status200OK
             );
         }

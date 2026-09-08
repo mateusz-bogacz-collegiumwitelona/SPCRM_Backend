@@ -1,6 +1,5 @@
 ﻿using Api.Request.User;
 using Api.Validators.Rule;
-using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators.Validators.User
@@ -15,7 +14,7 @@ namespace Api.Validators.Validators.User
 
             RuleFor(x => x.Token)
                 .NotEmpty()
-                .WithErrorCode(ErrorCodes.TokenRequired);
+                .ApplyValidTokenRule();
 
             RuleFor(x => x.Password).ApplyPasswordRules();
             RuleFor(x => x.ConfirmPassword).ApplyConfirmPasswordRules(x => x.Password);

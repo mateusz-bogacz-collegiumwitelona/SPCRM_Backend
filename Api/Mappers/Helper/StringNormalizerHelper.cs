@@ -25,5 +25,7 @@ namespace Api.Mappers.Helper
 
         public static string? TrimAndLower(string? value)
             => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+
+        public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
     }
 }

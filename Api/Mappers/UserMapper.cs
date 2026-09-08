@@ -41,6 +41,6 @@ namespace Api.Mappers
 
         private string? NormalizeNullableName(string? name) => StringNormalizerHelper.NormalizeName(name);
 
-        private string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+        private string NormalizeEmail(string email) => StringNormalizerHelper.NormalizeEmail(email);
     }
 }

@@ -11,6 +11,8 @@ namespace Tests.Services.Fakes
         public List<(string Email, DateTimeOffset LockoutEnd)> SentLockoutEmails { get; } = new();
         public List<string> SentUnlockEmails { get; } = new();
 
+        public List<ResetPasswordEmailDomain> SentResetPasswordEmails { get; } = new();
+
         public List<EmailChangeInitiatedDomain> SentEmailChangeConfirmationLinks { get; } = new();
         public List<EmailChangeAlertDomain> SentEmailChangeSecurityAlerts { get; } = new();
 
@@ -68,6 +70,12 @@ namespace Tests.Services.Fakes
         public Task SendEmailChangeSecurityAlertAsync(EmailChangeAlertDomain domain)
         {
             SentEmailChangeSecurityAlerts.Add(domain);
+            return Task.CompletedTask;
+        }
+
+        public Task SendPasswordResetEmailAsync(ResetPasswordEmailDomain domain)
+        {
+            SentResetPasswordEmails.Add(domain);
             return Task.CompletedTask;
         }
     }
