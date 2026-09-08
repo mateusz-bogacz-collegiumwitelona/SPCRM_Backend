@@ -14,6 +14,7 @@ namespace Tests.Services.Fakes
         public int CallCount => SentCreateUserEmails.Count + SentReportEmails.Count + SentProductMailingEmails.Count;
         public bool EmailSent => CallCount > 0;
         public List<(string Email, DateTimeOffset LockoutEnd)> SentLockoutEmails { get; } = new();
+        public List<string> SentUnlockEmails { get; } = new();
 
         public Task SendCreateUserEmailAsync(CreateUserDomain create)
         {
@@ -36,6 +37,12 @@ namespace Tests.Services.Fakes
         public Task SendLockoutEmailAsync(string email, DateTimeOffset lockoutEnd)
         {
             SentLockoutEmails.Add((email, lockoutEnd));
+            return Task.CompletedTask;
+        }
+
+        public Task SendUnlockEmailAsync(string email)
+        {
+            SentUnlockEmails.Add(email);
             return Task.CompletedTask;
         }
     }

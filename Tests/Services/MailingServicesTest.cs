@@ -1,5 +1,4 @@
-﻿using Domain.Comunication;
-using Domain.Constants;
+﻿using Domain.Constants;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
@@ -11,7 +10,6 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Mailing;
 using Services.Command.Support;
-using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;

@@ -1,5 +1,4 @@
-﻿using Domain.Comunication;
-using Domain.Constants;
+﻿using Domain.Constants;
 using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
@@ -11,7 +10,6 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.List;
 using Services.Command.Offer;
-using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
@@ -559,7 +557,7 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 Name = "OF/ORPHAN/CREATOR",
                 ContactId = contact.Id,
-                CreatedByUserId = Guid.NewGuid(), 
+                CreatedByUserId = Guid.NewGuid(),
                 CurrencyId = currency.Id,
                 ValidUntil = DateTime.UtcNow.AddDays(7),
                 Status = OfferStatusEnum.Sent
@@ -1563,10 +1561,10 @@ namespace Tests.Services
                 OfferId = offer.Id,
                 Items = new List<OfferProductItemCommand>
                 {
-                    new() { 
-                        ProductId = product.Id, 
-                        Quantity = 2, 
-                        QuotedPrice = 50000 
+                    new() {
+                        ProductId = product.Id,
+                        Quantity = 2,
+                        QuotedPrice = 50000
                     }
                 }
             };

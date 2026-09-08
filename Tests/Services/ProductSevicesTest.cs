@@ -529,7 +529,7 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 Currency = currency,
                 Category = ProductCategoryEnum.Bar,
-                PricePerUnit = -500, 
+                PricePerUnit = -500,
                 StockQuantity = 10
             };
 

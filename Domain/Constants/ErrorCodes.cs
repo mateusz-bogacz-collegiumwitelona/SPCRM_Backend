@@ -150,5 +150,6 @@
         public const string PassowrdMismatch = "USR_006";
         public const string InvalidRole = "USR_007";
         public const string CannotBlockAdmin = "USR_008";
+        public const string UserNotLockedOut = "USR_009";
     }
 }

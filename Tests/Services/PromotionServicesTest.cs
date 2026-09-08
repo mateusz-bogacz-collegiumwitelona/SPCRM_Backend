@@ -32,6 +32,11 @@ namespace Tests.Services
                 .WithDatabase("testdb")
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
+                .WithCommand(
+                    "-c", "max_connections=300",
+                    "-c", "max_locks_per_transaction=1024",
+                    "-c", "shared_buffers=256MB"
+                )
                 .Build();
 
             await _dbContainer.StartAsync();
@@ -671,7 +676,7 @@ namespace Tests.Services
                 IsActive = true,
                 ProductId = product.Id,
                 PromotionalPrice = 45000,
-                CurrencyId = null 
+                CurrencyId = null
             };
 
             _contextMock.Promotions.Add(corruptedPromotion);
@@ -903,7 +908,7 @@ namespace Tests.Services
                 Name = "Skażony Rabat",
                 IsActive = false,
                 ProductId = product.Id,
-                DiscountPercentage = 150 
+                DiscountPercentage = 150
             };
 
             _contextMock.Promotions.Add(corruptedPromotion);

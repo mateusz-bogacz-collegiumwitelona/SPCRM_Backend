@@ -776,7 +776,7 @@ namespace Tests.Services
             var contact = new Contact
             {
                 Id = Guid.NewGuid(),
-                FirstName = "   ", 
+                FirstName = "   ",
                 LastName = "Nowak",
                 CompanyId = company.Id,
                 Company = company,

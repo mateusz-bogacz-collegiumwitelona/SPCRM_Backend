@@ -83,5 +83,18 @@ namespace Api.Controllers
             var result = await user.LockoutUserAsync(mapper.MapSetLockout(request), CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Unlock a user")]
+        [EndpointDescription("Unlocks a currently locked user account.")]
+        [HttpPost("{id:guid}/unlock")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UnlockUserAsync(
+            [FromRoute] Guid id,
+            [FromServices] IUserServices user
+        )
+        {
+            var result = await user.UnlockUserAsync(id, CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }

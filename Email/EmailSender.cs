@@ -16,7 +16,7 @@ namespace Email
         private readonly string _host;
 
         public EmailSender(
-            ILogger<EmailSender> logger, 
+            ILogger<EmailSender> logger,
             IBackgroundJobClient backgroundJobClient,
             IConfiguration config
             )
@@ -151,7 +151,7 @@ namespace Email
                 {
                     throw new FileNotFoundException($"Email template not found at path: {templatePath}");
                 }
-                
+
                 string template = await File.ReadAllTextAsync(templatePath);
 
                 string encodeToken = Uri.EscapeDataString(create.Token);
@@ -211,6 +211,34 @@ namespace Email
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in SendLockoutEmailAsync");
+            }
+        }
+
+        public async Task SendUnlockEmailAsync(string email)
+        {
+            try
+            {
+                var templatePath = Path.Combine(
+                  AppDomain.CurrentDomain.BaseDirectory,
+                  "Templates",
+                  "unlock.html"
+                  );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Email template not found at path: {templatePath}");
+                }
+
+                string template = await File.ReadAllTextAsync(templatePath);
+                string subject = "Informacja o odblokowaniu konta";
+
+                _backgroundJobClient.Enqueue<ISmtpEmailService>(x => x.SendEmailAsync(email, subject, template));
+
+                _logger.LogInformation("Unlock email queued to {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendUnlockEmailAsync");
             }
         }
     }

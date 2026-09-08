@@ -334,5 +334,48 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result> UnlockUserAsync(Guid userId, Guid adminId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user == null)
+            {
+                _logger.LogWarning("User with ID {UserId} not found.", userId);
+                return Result.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var isLockedOut = await _userManager.IsLockedOutAsync(user);
+            if (!isLockedOut)
+            {
+                _logger.LogWarning("User {Email} is not currently locked out, cannot unlock.", user.Email);
+                return Result.Failure(
+                    message: "User is not locked out.",
+                    errorCode: ErrorCodes.UserNotLockedOut,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            await _userManager.SetLockoutEndDateAsync(user, null);
+
+            await _userManager.ResetAccessFailedCountAsync(user);
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await _emailSender.SendUnlockEmailAsync(user.Email);
+            }
+
+            _logger.LogInformation("User {Email} ({UserId}) has been unlocked by admin with ID {AdminId}.",
+                user.Email, user.Id, adminId);
+
+            return Result.Success(
+                message: "User unlocked successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

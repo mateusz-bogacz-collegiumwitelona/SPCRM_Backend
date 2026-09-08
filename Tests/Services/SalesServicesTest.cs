@@ -852,7 +852,7 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = "Skażona ujemna wartość",
-                Value = -50000, 
+                Value = -50000,
                 Status = DealsStatusEnum.InProgress,
                 CloseDate = DateTime.UtcNow,
                 CompanyId = company.Id,

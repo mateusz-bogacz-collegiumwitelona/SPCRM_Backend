@@ -12,5 +12,6 @@ namespace Services.Interfaces
         Task<Result> CreateUserAsync(AddUserCommand command);
         Task<Result> ConfirmEmailAsync(ConfirmEmailCommand command);
         Task<Result> LockoutUserAsync(SetLockoutCommand command, Guid adminId);
+        Task<Result> UnlockUserAsync(Guid userId, Guid adminId);
     }
 }
