@@ -1079,5 +1079,481 @@ namespace Tests.Services
             await Assert.That(async () => await _taskServicesMock.GetTaskDealAsync(taskId))
                 .Throws<DataCorruptionException>();
         }
+
+        // ─── GetUserTasksAsync ──────────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetUserTasksAsync_FiltersByUserAndSoftDelete()
+        {
+            // Arrange
+            var targetUserId = Guid.NewGuid();
+            var otherUserId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var targetUser = new ApplicationUser
+            {
+                Id = targetUserId,
+                UserName = $"Target_{uniqueSuffix}",
+                Email = $"target_{uniqueSuffix}@t.pl",
+                FirstName = "Piotr",
+                LastName = "Kowalski"
+            };
+
+            var otherUser = new ApplicationUser
+            {
+                Id = otherUserId,
+                UserName = $"Other_{uniqueSuffix}",
+                Email = $"other_{uniqueSuffix}@t.pl",
+                FirstName = "Marek",
+                LastName = "Nowak"
+            };
+
+            var validTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie target usera",
+                AssignedToId = targetUserId,
+                Status = TaskStatusEnum.ToDo,
+                Priority = TaskPriorityEnum.Medium,
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var deletedTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Usunięte zadanie",
+                AssignedToId = targetUserId,
+                Status = TaskStatusEnum.ToDo,
+                Priority = TaskPriorityEnum.Low,
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Description = "Opis",
+                IsDeleted = true
+            };
+
+            var otherUserTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie innego usera",
+                AssignedToId = otherUserId,
+                Status = TaskStatusEnum.ToDo,
+                Priority = TaskPriorityEnum.High,
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            _contextMock.Users.AddRange(targetUser, otherUser);
+            _contextMock.Tasks.AddRange(validTask, deletedTask, otherUserTask);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UserTaskListCommand
+            {
+                UserId = targetUserId,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _taskServicesMock.GetUserTasksAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var paged = result.Data!;
+            await Assert.That(paged.TotalCount).IsEqualTo(1);
+            await Assert.That(paged.Items[0].Id).IsEqualTo(validTask.Id);
+            await Assert.That(paged.Items[0].Title).IsEqualTo("Zadanie target usera");
+        }
+
+        [Test]
+        public async Task GetUserTasksAsync_MapsRelationsProperly()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1111111111",
+                OwnerId = userId
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Klient",
+                CompanyId = company.Id,
+                OwnerId = userId,
+                Owner = user,
+                IsPrimary = true
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Projekt Alfa",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                OwnerId = userId,
+                Status = DealsStatusEnum.InProgress
+            };
+
+            var taskWithRelations = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie powiązane",
+                AssignedToId = userId,
+                ContactId = contact.Id,
+                DealId = deal.Id,
+                DueAt = DateTime.UtcNow.AddDays(4),
+                Status = TaskStatusEnum.InProgress,
+                Priority = TaskPriorityEnum.High,
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var taskWithoutRelations = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie pojedyncze",
+                AssignedToId = userId,
+                ContactId = null,
+                DealId = null,
+                DueAt = DateTime.UtcNow.AddDays(5),
+                Status = TaskStatusEnum.ToDo,
+                Priority = TaskPriorityEnum.Low,
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Tasks.AddRange(taskWithRelations, taskWithoutRelations);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UserTaskListCommand
+            {
+                UserId = userId,
+                PageNumber = 1,
+                PageSize = 10,
+                SortBy = "title",
+                SortDescending = true
+            };
+
+            // Act
+            var result = await _taskServicesMock.GetUserTasksAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            var mappedWithRelations = items.First(t => t.Id == taskWithRelations.Id);
+            await Assert.That(mappedWithRelations.ContactName).IsEqualTo("Adam Klient");
+            await Assert.That(mappedWithRelations.DealName).IsEqualTo("Projekt Alfa");
+            await Assert.That(mappedWithRelations.Status).IsEqualTo(TaskStatusEnum.InProgress.ToString());
+            await Assert.That(mappedWithRelations.Priority).IsEqualTo(TaskPriorityEnum.High.ToString());
+
+            var mappedWithoutRelations = items.First(t => t.Id == taskWithoutRelations.Id);
+            await Assert.That(mappedWithoutRelations.ContactName).IsNull();
+            await Assert.That(mappedWithoutRelations.DealName).IsNull();
+        }
+
+        [Test]
+        public async Task GetUserTasksAsync_FiltersByStatusAndPriority()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"FilterUser_{uniqueSuffix}",
+                Email = $"filter_{uniqueSuffix}@t.pl",
+                FirstName = "Filter",
+                LastName = "User"
+            };
+
+            var taskMatching = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Idealne",
+                AssignedToId = userId,
+                Status = TaskStatusEnum.InProgress,
+                Priority = TaskPriorityEnum.High,
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var taskWrongStatus = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zły status",
+                AssignedToId = userId,
+                Status = TaskStatusEnum.ToDo,
+                Priority = TaskPriorityEnum.High,
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var taskWrongPriority = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zły priorytet",
+                AssignedToId = userId,
+                Status = TaskStatusEnum.InProgress,
+                Priority = TaskPriorityEnum.Low,
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Tasks.AddRange(taskMatching, taskWrongStatus, taskWrongPriority);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UserTaskListCommand
+            {
+                UserId = userId,
+                Status = TaskStatusEnum.InProgress,
+                Priority = TaskPriorityEnum.High,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _taskServicesMock.GetUserTasksAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items.Count).IsEqualTo(1);
+            await Assert.That(items[0].Id).IsEqualTo(taskMatching.Id);
+        }
+
+        [Test]
+        public async Task GetUserTasksAsync_WhenSearchTermProvided_SearchesByTitleDealAndContact()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Search_{uniqueSuffix}",
+                Email = $"search_{uniqueSuffix}@test.pl",
+                FirstName = "Search",
+                LastName = "User"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "2222222222",
+                OwnerId = userId
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Stanisław",
+                LastName = "Wyszukiwany",
+                CompanyId = company.Id,
+                OwnerId = userId,
+                Owner = user,
+                IsPrimary = true
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "EUR",
+                Code = "EUR",
+                DecimalPlaces = 2
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kontrakt Specjalny",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                OwnerId = userId,
+                Status = DealsStatusEnum.ToDo
+            };
+
+            var taskByTitle = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Raport kwartalny żółty",
+                AssignedToId = userId,
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var taskByDeal = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Analiza",
+                AssignedToId = userId,
+                DealId = deal.Id,
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var taskByContact = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Spotkanie",
+                AssignedToId = userId,
+                ContactId = contact.Id,
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var taskIrrelevant = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Niezwiązany temat",
+                AssignedToId = userId,
+                DueAt = DateTime.UtcNow.AddDays(4),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Tasks.AddRange(taskByTitle, taskByDeal, taskByContact, taskIrrelevant);
+            await _contextMock.SaveChangesAsync();
+
+            var resultTitle = await _taskServicesMock.GetUserTasksAsync(new UserTaskListCommand
+            {
+                UserId = userId,
+                SearchTerm = "zolty",
+                PageNumber = 1,
+                PageSize = 10
+            });
+            await Assert.That(resultTitle.Data!.Items.Count).IsEqualTo(1);
+            await Assert.That(resultTitle.Data.Items[0].Id).IsEqualTo(taskByTitle.Id);
+
+            var resultDeal = await _taskServicesMock.GetUserTasksAsync(new UserTaskListCommand
+            {
+                UserId = userId,
+                SearchTerm = "Specjalny",
+                PageNumber = 1,
+                PageSize = 10
+            });
+            await Assert.That(resultDeal.Data!.Items.Count).IsEqualTo(1);
+            await Assert.That(resultDeal.Data.Items[0].Id).IsEqualTo(taskByDeal.Id);
+
+            var resultContact = await _taskServicesMock.GetUserTasksAsync(new UserTaskListCommand
+            {
+                UserId = userId,
+                SearchTerm = "Stanislaw",
+                PageNumber = 1,
+                PageSize = 10
+            });
+            await Assert.That(resultContact.Data!.Items.Count).IsEqualTo(1);
+            await Assert.That(resultContact.Data.Items[0].Id).IsEqualTo(taskByContact.Id);
+        }
+
+        [Test]
+        public async Task GetUserTasksAsync_AppliesPaginationAndSortingCorrectly()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"PageUser_{uniqueSuffix}",
+                Email = $"page_{uniqueSuffix}@t.pl",
+                FirstName = "Page",
+                LastName = "User"
+            };
+
+            var baseDate = new DateTime(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
+            var tasks = Enumerable.Range(1, 5).Select(i => new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = $"Task_{i}",
+                AssignedToId = userId,
+                DueAt = baseDate.AddDays(i),
+                Status = TaskStatusEnum.ToDo,
+                Priority = TaskPriorityEnum.Medium,
+                Description = "Opis",
+                IsDeleted = false
+            }).ToList();
+
+            _contextMock.Users.Add(user);
+            _contextMock.Tasks.AddRange(tasks);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new UserTaskListCommand
+            {
+                UserId = userId,
+                PageNumber = 2,
+                PageSize = 2,
+                SortBy = "dueat",
+                SortDescending = false
+            };
+
+            // Act
+            var result = await _taskServicesMock.GetUserTasksAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var paged = result.Data!;
+            await Assert.That(paged.TotalCount).IsEqualTo(5);
+            await Assert.That(paged.TotalPages).IsEqualTo(3);
+            await Assert.That(paged.PageNumber).IsEqualTo(2);
+            await Assert.That(paged.Items.Count).IsEqualTo(2);
+            await Assert.That(paged.HasPreviousPage).IsTrue();
+            await Assert.That(paged.HasNextPage).IsTrue();
+            await Assert.That(paged.Items[0].Title).IsEqualTo("Task_3");
+            await Assert.That(paged.Items[1].Title).IsEqualTo("Task_4");
+        }
     }
 }

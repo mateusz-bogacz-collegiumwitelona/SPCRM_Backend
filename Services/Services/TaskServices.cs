@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.Task;
+using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
 using Services.Response.Contact;
@@ -35,8 +36,7 @@ namespace Services.Services
                 .Where(t => t.AssignedToId == command.UserId)
                 .Where(t => t.DueAt >= fromUtc && t.DueAt <= toUtc)
                 .OrderBy(t => t.DueAt)
-                .ApplyFilterByStatus(command.TaskStatus ?? string.Empty)
-                .ApplyFilterByPriority(command.TaskPriority ?? string.Empty)
+                .ApplyFilter(command.TaskStatus, command.TaskPriority)
                 .Select(t => new TaskCalendarResponse
                 {
                     Id = t.Id,
@@ -227,6 +227,25 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result<PagedResult<UserTaskResponse>>> GetUserTasksAsync(UserTaskListCommand command)
+            => await _context.Tasks
+                    .AsNoTracking()
+                    .Where(t => t.AssignedToId == command.UserId)
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .ApplySorting(command.SortBy ?? string.Empty, command.SortDescending)
+                    .ApplyFilter(command.Status, command.Priority)
+                    .Select(t => new UserTaskResponse
+                    {
+                        Id = t.Id,
+                        Title = t.Title,
+                        DueAt = t.DueAt,
+                        Status = t.Status.ToString(),
+                        Priority = t.Priority.ToString(),
+                        ContactName = t.Contact != null ? $"{t.Contact.FirstName} {t.Contact.LastName}".Trim() : null,
+                        DealName = t.Deal != null ? t.Deal.Name : null
+                    })
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "user-tasks");
 
         private List<object> GetStatusDictionary()
             => new List<object>

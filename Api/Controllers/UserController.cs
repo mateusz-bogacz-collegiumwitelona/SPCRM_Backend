@@ -4,6 +4,7 @@ using Api.Request.Company;
 using Api.Request.Contact;
 using Api.Request.List;
 using Api.Request.Sale;
+using Api.Request.Task;
 using Api.Request.User;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -217,7 +218,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns a paginated list of contacts assigned to the specified user " +
             "with optional filtering, sorting, and search term.")]
         [HttpGet("{userId:guid}/contacts")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserContactsAsync(
             [FromRoute] Guid userId,
             [FromServices] ContactMapper mapper,
@@ -243,7 +244,7 @@ namespace Api.Controllers
         [EndpointSummary("Get paginated list of sales/deals owned by user")]
         [EndpointDescription("Returns a paginated list of deals assigned to the specified user with optional filtering, sorting, and search term.")]
         [HttpGet("{userId:guid}/sales")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserSalesAsync(
             [FromRoute] Guid userId,
             [FromServices] ISalesServices salesServices,
@@ -257,5 +258,19 @@ namespace Api.Controllers
             var result = await salesServices.GetUserSales(userId, mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }
+
+        [HttpGet("{userId:guid}/tasks")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserTasksAsync(
+            [FromRoute] Guid userId,
+            [FromServices] ITaskServices taskServices,
+            [FromServices] TaskMapper mapper,
+            [FromQuery] UserTaskListRequest request
+        )
+        {
+            var result = await taskServices.GetUserTasksAsync(mapper.MapUserTask(userId, request));
+            return HandleResult(result);
+        }
+
     }
 }
