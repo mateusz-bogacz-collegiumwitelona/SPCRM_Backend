@@ -13,6 +13,7 @@
         public const string DataIntegrityError = "DATA_INTEGRITY_ERROR";
         public const string TokenRequired = "TOKEN_REQUIRED";
         public const string TokenInvalid = "TOKEN_INVALID";
+
         // Validation 
         public const string EmailRequired = "VAL_001";
         public const string EmailInvalid = "VAL_002";
@@ -93,6 +94,8 @@
 
         // Mailing
         public const string ClientNotFound = "MAIL_001";
+        public const string InvalidMalingPrice = "MAIL_002";
+        public const string InvalidMalingQuantity = "MAIL_003";
 
         // Promotion
         public const string InvalidPromotionDiscount = "PROMO_001";
@@ -134,6 +137,8 @@
 
         // Offer
         public const string OfferNotFound = "OFF_001";
+        public const string OfferQuantityInvalid = "OFF_002";
+        public const string OfferQuotedPriceInvalid = "OFF_003";
 
         // DEAL
         public const string DealNotFound = "DEAL_001";
