@@ -747,13 +747,15 @@ namespace Services.Services
             }
 
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var tokenBytes = Encoding.UTF8.GetBytes(resetToken);
+            var safeToken = WebEncoders.Base64UrlEncode(tokenBytes);
 
             await _emailSender.SendPasswordResetEmailAsync(new ResetPasswordEmailDomain
             {
                 UserId = user.Id,
                 Email = user.Email!,
                 UserName = user.UserName ?? string.Empty,
-                Token = resetToken
+                Token = safeToken
             });
 
             _logger.LogInformation("Password reset email sent to user {UserId}.", user.Id);
@@ -778,7 +780,23 @@ namespace Services.Services
                 );
             }
 
-            var result = await _userManager.ResetPasswordAsync(user, command.Token, command.Password);
+            string decodedToken;
+            try
+            {
+                var decodedBytes = WebEncoders.Base64UrlDecode(command.Token);
+                decodedToken = Encoding.UTF8.GetString(decodedBytes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Token decoding failed for password reset for user {UserId}", user.Id);
+                return Result.Failure(
+                    message: "Invalid or expired password reset token.",
+                    errorCode: ErrorCodes.TokenInvalid,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var result = await _userManager.ResetPasswordAsync(user, decodedToken, command.Password);
 
             if (!result.Succeeded)
             {

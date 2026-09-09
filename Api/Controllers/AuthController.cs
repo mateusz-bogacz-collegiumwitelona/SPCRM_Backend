@@ -34,7 +34,6 @@ namespace Api.Controllers
                 : NoContent();
         }
 
-
         [EndpointSummary("Logout user (Login Step 2)")]
         [EndpointDescription("Logs out the authenticated user by clearing the authentication cookie.")]
         [HttpPost("logout")]

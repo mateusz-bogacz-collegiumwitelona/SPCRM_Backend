@@ -324,10 +324,9 @@ namespace Email
 
                 string template = await File.ReadAllTextAsync(templatePath);
 
-                string encodedToken = Uri.EscapeDataString(domain.Token);
                 string encodedUserId = Uri.EscapeDataString(domain.UserId.ToString());
 
-                string link = $"{_host}/auth/reset-password?userId={encodedUserId}&token={encodedToken}";
+                string link = $"{_host}/auth/reset-password?userId={encodedUserId}&token={domain.Token}";
 
                 template = template.Replace("{{UserName}}", domain.UserName)
                                    .Replace("{{Link}}", link)
