@@ -3158,7 +3158,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _userServicesMock.GetRolesAsync();
+            var result = await _userServicesMock .GetRolesAsync();
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

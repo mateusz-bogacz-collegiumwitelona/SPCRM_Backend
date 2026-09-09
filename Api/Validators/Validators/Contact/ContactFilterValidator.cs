@@ -8,7 +8,6 @@ namespace Api.Validators.Validators.Contact
     {
         public ContactFilterValidator()
         {
-            RuleFor(x => x.ComapnyName).ApplyCompanyNameRules();
             RuleFor(x => x.OwnerId).ApplyValidGuidRule();
         }
     }
