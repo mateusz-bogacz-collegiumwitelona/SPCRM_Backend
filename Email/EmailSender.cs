@@ -157,14 +157,13 @@ namespace Email
                 string encodeToken = Uri.EscapeDataString(create.Token);
                 string encodedEmail = Uri.EscapeDataString(create.Email);
 
-                string link = $"{_host}/auth/confirm?token={encodeToken}&email={encodedEmail}";
+                string link = $"{_host}/auth/confirm-registration?token={encodeToken}&email={encodedEmail}";
 
                 template = template.Replace("{{FirstName}}", create.FirstName)
                                    .Replace("{{LastName}}", create.LastName)
                                    .Replace("{{Email}}", create.Email)
                                    .Replace("{{UserName}}", create.UserName)
-                                   .Replace("{{Link}}", link)
-                                   .Replace("{{Token}}", create.Token);
+                                   .Replace("{{Link}}", link);
 
                 string subject = "Witamy w SPCRM";
 

@@ -15,7 +15,6 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using Services.Command.Auth;
 using Services.Command.User;
-using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
@@ -3158,7 +3157,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _userServicesMock .GetRolesAsync();
+            var result = await _userServicesMock.GetRolesAsync();
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

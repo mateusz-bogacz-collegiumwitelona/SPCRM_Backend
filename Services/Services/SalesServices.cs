@@ -33,33 +33,33 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(Guid userId, SalesListCommand command)
-      => await _context.Deals
-              .AsNoTracking()
-              .Include(d => d.Company)
-              .Include(d => d.Currency)
-              .Where(d => d.OwnerId == userId)
-              .ApplyFilter(
-                  command.CompanyName,
-                  command.Value,
-                  command.DateFrom,
-                  command.DateTo,
-                  command.StatusType
-              )
-              .ApplySorting(command.SortBy, command.SortDescending)
-              .ApplySearch(command.SearchTerm ?? string.Empty)
-              .Select(d => new UserSalesResponse
-              {
-                  Id = d.Id,
-                  Name = d.Name,
-                  Nip = d.Company.NIP,
-                  CloseDate = d.CloseDate,
-                  Value = d.Value, 
-                  DecimalPlace = d.Currency.DecimalPlaces,
-                  Currency = d.Currency.Code, 
-                  CompanyName = d.Company.Name,
-                  Status = d.Status.ToString()
-              })
-              .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
+              => await _context.Deals
+                      .AsNoTracking()
+                      .Include(d => d.Company)
+                      .Include(d => d.Currency)
+                      .Where(d => d.OwnerId == userId)
+                      .ApplyFilter(
+                          command.CompanyName,
+                          command.Value,
+                          command.DateFrom,
+                          command.DateTo,
+                          command.StatusType
+                      )
+                      .ApplySorting(command.SortBy, command.SortDescending)
+                      .ApplySearch(command.SearchTerm ?? string.Empty)
+                      .Select(d => new UserSalesResponse
+                      {
+                          Id = d.Id,
+                          Name = d.Name,
+                          Nip = d.Company.NIP,
+                          CloseDate = d.CloseDate,
+                          Value = d.Value,
+                          DecimalPlace = d.Currency.DecimalPlaces,
+                          Currency = d.Currency.Code,
+                          CompanyName = d.Company.Name,
+                          Status = d.Status.ToString()
+                      })
+                      .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
 
         public async Task<Result<List<string>>> GetSalesStatus()
             => Result<List<string>>.Success(
