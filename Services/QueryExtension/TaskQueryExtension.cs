@@ -13,7 +13,7 @@ namespace Services.QueryExtension
             if (status.HasValue) query = query.Where(t => t.Status == status.Value);
 
             if (priority.HasValue) query = query.Where(t => t.Priority == priority.Value);
-            
+
             return query;
         }
 

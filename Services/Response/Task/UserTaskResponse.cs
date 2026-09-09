@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Services.Response.Task
+﻿namespace Services.Response.Task
 {
     public record UserTaskResponse
     {

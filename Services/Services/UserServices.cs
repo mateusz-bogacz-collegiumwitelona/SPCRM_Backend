@@ -878,10 +878,10 @@ namespace Services.Services
 
             int companyOwnerCount = await _context.Companies.CountAsync(c => c.OwnerId == userId);
             int contactOwnerCount = await _context.Contacts.CountAsync(c => c.OwnerId == userId);
-            int activeDealCount = await _context.Deals.CountAsync(d => d.OwnerId == userId 
+            int activeDealCount = await _context.Deals.CountAsync(d => d.OwnerId == userId
                 && (d.Status == DealsStatusEnum.ToDo || d.Status == DealsStatusEnum.InProgress));
-           int activeTaskCount = await _context.Tasks.CountAsync(t => t.AssignedToId == userId 
-                && (t.Status != TaskStatusEnum.Complete && t.Status != TaskStatusEnum.Break));
+            int activeTaskCount = await _context.Tasks.CountAsync(t => t.AssignedToId == userId
+                 && (t.Status != TaskStatusEnum.Complete && t.Status != TaskStatusEnum.Break));
 
             var response = new UserDetailResponse
             {
@@ -892,12 +892,12 @@ namespace Services.Services
                 PendingEmail = user.PendingEmail,
                 IsEmailVerified = user.EmailConfirmed,
 
-                IsLocked = user.LockoutEnabled 
-                    && user.LockoutEnd.HasValue 
+                IsLocked = user.LockoutEnabled
+                    && user.LockoutEnd.HasValue
                     && user.LockoutEnd.Value > DateTime.UtcNow,
 
                 LockoutEndDate = user.LockoutEnd?.UtcDateTime,
-                
+
                 CompanyOwnerCount = companyOwnerCount,
                 ContactOwnerCount = contactOwnerCount,
                 ActiveDealCount = activeDealCount,

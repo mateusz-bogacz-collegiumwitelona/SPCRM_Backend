@@ -10,9 +10,6 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
-using Services.Response.Company;
-using Services.Response.Contact;
-using Services.Response.Sale;
 
 namespace Api.Controllers
 {
@@ -259,6 +256,8 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get paginated list of tasks assigned to user")]
+        [EndpointDescription("Returns a paginated list of tasks assigned to the specified user with optional filtering, sorting, and search term.")]
         [HttpGet("{userId:guid}/tasks")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserTasksAsync(
@@ -271,6 +270,5 @@ namespace Api.Controllers
             var result = await taskServices.GetUserTasksAsync(mapper.MapUserTask(userId, request));
             return HandleResult(result);
         }
-
     }
 }

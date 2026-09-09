@@ -6,7 +6,7 @@ namespace Api.Validators.Validators.List
 {
     public class UserTaskListValidator : AbstractValidator<UserTaskListRequest>
     {
-        public UserTaskListValidator() 
+        public UserTaskListValidator()
         {
             RuleFor(x => x.PageNumber)
                 .ApplyPageNumberRules();

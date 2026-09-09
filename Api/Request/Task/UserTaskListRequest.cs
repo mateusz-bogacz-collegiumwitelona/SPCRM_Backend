@@ -8,6 +8,6 @@
         public string? Status { get; init; }
         public string? Priority { get; init; }
         public string? SortBy { get; init; }
-        public bool SortDescending { get; init; } = false; 
+        public bool SortDescending { get; init; } = false;
     }
 }

@@ -1730,7 +1730,7 @@ namespace Tests.Services
                 _contextMock.ChangeTracker.Clear();
                 var companyInDb = await _contextMock.Companies.FindAsync(company.Id);
                 await Assert.That(companyInDb).IsNotNull();
-                await Assert.That(companyInDb!.OwnerId).IsEqualTo(userToDelete.Id); 
+                await Assert.That(companyInDb!.OwnerId).IsEqualTo(userToDelete.Id);
 
                 var userInDb = await _userManagerMock.FindByIdAsync(userToDelete.Id.ToString());
                 await Assert.That(userInDb!.IsDeleted).IsFalse();
@@ -2904,80 +2904,89 @@ namespace Tests.Services
             });
 
             _contextMock.Deals.AddRange(
-                new Deal {
-                    Id = Guid.NewGuid(), 
-                    Name = "Deal ToDo", 
-                    Status = DealsStatusEnum.ToDo, 
-                    CurrencyId = currency.Id, 
-                    CompanyId = userCompany1.Id,
-                    OwnerId = user.Id 
-                },
-                new Deal { 
-                    Id = Guid.NewGuid(), 
-                    Name = "Deal InProgress", 
-                    Status = DealsStatusEnum.InProgress, 
-                    CurrencyId = currency.Id, 
-                    CompanyId = userCompany1.Id, 
-                    OwnerId = user.Id 
-                },
-                new Deal { 
-                    Id = Guid.NewGuid(), 
-                    Name = "Deal Complete", 
-                    Status = DealsStatusEnum.Complete, 
-                    CurrencyId = currency.Id, 
-                    CompanyId = userCompany1.Id, 
-                    OwnerId = user.Id 
-                },
-                new Deal { 
+                new Deal
+                {
                     Id = Guid.NewGuid(),
-                    Name = "Deal Other", 
-                    Status = DealsStatusEnum.ToDo, 
-                    CurrencyId = currency.Id, 
-                    CompanyId = otherCompany.Id, 
-                    OwnerId = otherUser.Id 
+                    Name = "Deal ToDo",
+                    Status = DealsStatusEnum.ToDo,
+                    CurrencyId = currency.Id,
+                    CompanyId = userCompany1.Id,
+                    OwnerId = user.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Deal InProgress",
+                    Status = DealsStatusEnum.InProgress,
+                    CurrencyId = currency.Id,
+                    CompanyId = userCompany1.Id,
+                    OwnerId = user.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Deal Complete",
+                    Status = DealsStatusEnum.Complete,
+                    CurrencyId = currency.Id,
+                    CompanyId = userCompany1.Id,
+                    OwnerId = user.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Deal Other",
+                    Status = DealsStatusEnum.ToDo,
+                    CurrencyId = currency.Id,
+                    CompanyId = otherCompany.Id,
+                    OwnerId = otherUser.Id
                 }
             );
 
             _contextMock.Tasks.AddRange(
-                new Tasks { 
+                new Tasks
+                {
                     Id = Guid.NewGuid(),
-                    Title = "Task InProgress", 
-                    Description = "Desc", 
-                    Status = TaskStatusEnum.InProgress, 
-                    Priority = TaskPriorityEnum.High, 
+                    Title = "Task InProgress",
+                    Description = "Desc",
+                    Status = TaskStatusEnum.InProgress,
+                    Priority = TaskPriorityEnum.High,
                     AssignedToId = user.Id
                 },
-                new Tasks { 
+                new Tasks
+                {
                     Id = Guid.NewGuid(),
                     Title = "Task ToDo",
-                    Description = "Desc", 
-                    Status = TaskStatusEnum.ToDo, 
-                    Priority = TaskPriorityEnum.Medium, 
-                    AssignedToId = user.Id 
+                    Description = "Desc",
+                    Status = TaskStatusEnum.ToDo,
+                    Priority = TaskPriorityEnum.Medium,
+                    AssignedToId = user.Id
                 },
-                new Tasks { 
+                new Tasks
+                {
                     Id = Guid.NewGuid(),
-                    Title = "Task Complete", 
-                    Description = "Desc", 
-                    Status = TaskStatusEnum.Complete, 
-                    Priority = TaskPriorityEnum.Low, 
-                    AssignedToId = user.Id 
+                    Title = "Task Complete",
+                    Description = "Desc",
+                    Status = TaskStatusEnum.Complete,
+                    Priority = TaskPriorityEnum.Low,
+                    AssignedToId = user.Id
                 },
-                new Tasks { 
-                    Id = Guid.NewGuid(), 
-                    Title = "Task Break", 
-                    Description = "Desc", 
-                    Status = TaskStatusEnum.Break, 
-                    Priority = TaskPriorityEnum.Low, 
-                    AssignedToId = user.Id 
+                new Tasks
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Task Break",
+                    Description = "Desc",
+                    Status = TaskStatusEnum.Break,
+                    Priority = TaskPriorityEnum.Low,
+                    AssignedToId = user.Id
                 },
-                new Tasks { 
-                    Id = Guid.NewGuid(), 
-                    Title = "Task Other", 
-                    Description = "Desc", 
-                    Status = TaskStatusEnum.InProgress, 
-                    Priority = TaskPriorityEnum.High, 
-                    AssignedToId = otherUser.Id 
+                new Tasks
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Task Other",
+                    Description = "Desc",
+                    Status = TaskStatusEnum.InProgress,
+                    Priority = TaskPriorityEnum.High,
+                    AssignedToId = otherUser.Id
                 }
             );
 

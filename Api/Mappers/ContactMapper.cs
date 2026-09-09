@@ -62,7 +62,7 @@ namespace Api.Mappers
             SortBy = sorting?.SortBy,
             SortDescending = sorting?.SortDescending ?? false,
             SearchTerm = search?.SearchTerm,
-            OwnerId = userId 
+            OwnerId = userId
         };
 
         private string? NormalizeName(string? value) => StringNormalizerHelper.NormalizeName(value);
