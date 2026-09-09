@@ -3,6 +3,7 @@ using Api.Mappers;
 using Api.Request.Company;
 using Api.Request.Contact;
 using Api.Request.List;
+using Api.Request.Sale;
 using Api.Request.User;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
 using Services.Response.Company;
 using Services.Response.Contact;
+using Services.Response.Sale;
 
 namespace Api.Controllers
 {
@@ -235,6 +237,24 @@ namespace Api.Controllers
             );
 
             var result = await contactServices.GetContactsAsync(command);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get paginated list of sales/deals owned by user")]
+        [EndpointDescription("Returns a paginated list of deals assigned to the specified user with optional filtering, sorting, and search term.")]
+        [HttpGet("{userId:guid}/sales")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetUserSalesAsync(
+            [FromRoute] Guid userId,
+            [FromServices] ISalesServices salesServices,
+            [FromServices] SalesMapper mapper,
+            [FromQuery] PaggedRequest pagged,
+            [FromQuery] SortingRequest sorting,
+            [FromQuery] SearchRequest search,
+            [FromQuery] SalesFilterRequest filter
+        )
+        {
+            var result = await salesServices.GetUserSales(userId, mapper.MapList(pagged, sorting, search, filter));
             return HandleResult(result);
         }
     }
