@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,6 +17,7 @@ using Npgsql;
 using Services.Command.Auth;
 using Services.Command.User;
 using Services.Services;
+using System.Text;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
 
@@ -2148,12 +2150,13 @@ namespace Tests.Services
 
             await _userManagerMock.CreateAsync(user, "Password123!");
 
-            var validToken = await _userManagerMock.GenerateChangeEmailTokenAsync(user, newEmail);
+            var rawToken = await _userManagerMock.GenerateChangeEmailTokenAsync(user, newEmail);
+            var safeToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
 
             var command = new ConfirmChangeUserEmailCommand
             {
                 UserId = user.Id,
-                Token = validToken
+                Token = safeToken
             };
 
             // Act
@@ -2440,12 +2443,13 @@ namespace Tests.Services
 
             await _userManagerMock.CreateAsync(user, oldPassword);
 
-            var resetToken = await _userManagerMock.GeneratePasswordResetTokenAsync(user);
+            var rawResetToken = await _userManagerMock.GeneratePasswordResetTokenAsync(user);
+            var safeResetToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawResetToken));
 
             var command = new ResetPasswordCommand
             {
                 UserId = user.Id,
-                Token = resetToken,
+                Token = safeResetToken,
                 Password = newPassword
             };
 
