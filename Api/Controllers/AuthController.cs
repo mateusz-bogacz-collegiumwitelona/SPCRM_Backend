@@ -26,7 +26,8 @@ namespace Api.Controllers
             [FromServices] IAuthServices authServices
             )
         {
-            var statusCode = await authServices.LoginAsync(mapper.MapLogin(request));
+            var command = mapper.MapLogin(request);
+            var statusCode = await authServices.LoginAsync(command);
 
             return statusCode == StatusCodes.Status401Unauthorized
                 ? Unauthorized()

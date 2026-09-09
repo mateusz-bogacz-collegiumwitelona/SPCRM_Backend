@@ -8,7 +8,12 @@ namespace Api.Mappers
     [Mapper]
     public partial class AuthMapper
     {
-        public partial LoginCommand MapLogin(LoginRequest request);
+        public LoginCommand MapLogin(LoginRequest request)
+            => new LoginCommand
+            {
+                Name = request.Name,
+                Password = request.Password
+            };
 
         [MapProperty(nameof(ForgotPasswordRequest.Email), nameof(ForgotPasswordCommand.Email), Use = nameof(NormalizeEmail))]
         public partial ForgotPasswordCommand MapForgotPassword(ForgotPasswordRequest request);

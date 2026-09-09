@@ -64,7 +64,7 @@ namespace Services.Services
                 userName,
                 command.Password,
                 isPersistent: false,
-                lockoutOnFailure: true
+                lockoutOnFailure: false
             );
 
             if (signInResult.IsLockedOut)
