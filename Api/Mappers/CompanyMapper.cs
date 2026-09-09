@@ -69,6 +69,25 @@ namespace Api.Mappers
 
         public partial ChangeCompanyOwnerCommand MapChangeOwner(ChangeCompanyOwnerRequest request);
 
+        public CompanyListCommand MapUserCompaniesList(
+            Guid userId,
+            PaggedRequest pagged,
+            CompanyFilterRequest filter,
+            SortingRequest sorting,
+            SearchRequest search)
+            => new CompanyListCommand
+            {
+                UserId = userId,
+                PageNumber = pagged?.PageNumber,
+                PageSize = pagged?.PageSize,
+                IsYour = true,
+                CreatedAtFrom = filter?.CreatedAtFrom,
+                CreatedAtTo = filter?.CreatedAtTo,
+                SortBy = sorting?.SortBy,
+                SortDescending = sorting?.SortDescending ?? false,
+                SearchTerm = search?.SearchTerm
+            };
+
         private string NormalizeName(string? name)
             => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
 

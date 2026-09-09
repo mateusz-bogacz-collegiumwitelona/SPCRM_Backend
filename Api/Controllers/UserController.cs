@@ -1,10 +1,13 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
+using Api.Request.Company;
+using Api.Request.List;
 using Api.Request.User;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Company;
 
 namespace Api.Controllers
 {
@@ -177,6 +180,32 @@ namespace Api.Controllers
         )
         {
             var result = await userService.GetUserDetailAsync(id);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get paginated list of companies owned by user")]
+        [EndpointDescription("Returns a paginated list of companies assigned to the specified user " +
+            "with optional filtering, sorting, and search term.")]
+        [HttpGet("{userId:guid}/companies")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserCompaniesAsync(
+            [FromRoute] Guid userId,
+            [FromServices] CompanyMapper mapper,
+            [FromServices] ICompanyServices companyServices,
+            [FromQuery] PaggedRequest pagged,
+            [FromQuery] CompanyFilterRequest filter,
+            [FromQuery] SortingRequest sorting,
+            [FromQuery] SearchRequest search)
+        {
+            var command = mapper.MapUserCompaniesList(
+                userId,
+                pagged,
+                filter,
+                sorting,
+                search
+            );
+
+            var result = await companyServices.GetCompanyListAsync(command);
             return HandleResult(result);
         }
     }
