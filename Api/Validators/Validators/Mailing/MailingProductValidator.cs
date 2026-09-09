@@ -18,10 +18,10 @@ namespace Api.Validators.Validators.Mailing
                 .GreaterThan(0)
                 .When(x => x.Price.HasValue)
                 .WithErrorCode(ErrorCodes.InvalidMalingPrice);
-            
-                RuleFor(x => x.Quantity)
-                .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidMalingQuantity);
+
+            RuleFor(x => x.Quantity)
+            .GreaterThan(0)
+            .WithErrorCode(ErrorCodes.InvalidMalingQuantity);
         }
     }
 }

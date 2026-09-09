@@ -6,8 +6,8 @@ namespace Api.Validators.Validators.Mailing
 {
     public class MailingValidator : AbstractValidator<MailingRequest>
     {
-        public MailingValidator() 
-        { 
+        public MailingValidator()
+        {
             RuleForEach(x => x.To).ApplyValidGuidRule();
 
             RuleForEach(x => x.Products).SetValidator(new MailingProductValidator());

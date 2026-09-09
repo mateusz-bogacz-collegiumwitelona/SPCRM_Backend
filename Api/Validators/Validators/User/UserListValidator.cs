@@ -6,8 +6,8 @@ namespace Api.Validators.Validators.User
 {
     public class UserListValidator : AbstractValidator<UserListRequest>
     {
-        public UserListValidator() 
-        { 
+        public UserListValidator()
+        {
             RuleFor(x => x.PageNumber).ApplyPageNumberRules();
             RuleFor(x => x.PageSize).ApplyPageSizeRules();
         }

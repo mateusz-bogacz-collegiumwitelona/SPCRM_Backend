@@ -6,8 +6,8 @@ namespace Api.Validators.Validators.List
 {
     public class SimpleListValidator : AbstractValidator<SimpleListRequest>
     {
-        public SimpleListValidator() 
-        { 
+        public SimpleListValidator()
+        {
             RuleFor(x => x.PageNumber).ApplyPageNumberRules();
             RuleFor(x => x.PageSize).ApplyPageSizeRules();
         }
