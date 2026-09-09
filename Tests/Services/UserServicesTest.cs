@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using Services.Command.Auth;
 using Services.Command.User;
+using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
@@ -3090,6 +3091,80 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.IsLocked).IsFalse();
+        }
+
+        // ─── GetRolesAsync ──────────────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetRolesAsync_WhenRolesExist_ReturnsSortedRoleNames()
+        {
+            var roleNames = new[] { "User", "Admin", "Manager" };
+
+            foreach (var roleName in roleNames)
+            {
+                await _roleManagerMock.CreateAsync(new IdentityRole<Guid>
+                {
+                    Id = Guid.NewGuid(),
+                    Name = roleName,
+                    NormalizedName = roleName.ToUpperInvariant()
+                });
+            }
+
+            // Act
+            var result = await _userServicesMock.GetRolesAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var roles = result.Data!;
+            await Assert.That(roles).Count().IsEqualTo(3);
+            await Assert.That(roles[0]).IsEqualTo("Admin");
+            await Assert.That(roles[1]).IsEqualTo("Manager");
+            await Assert.That(roles[2]).IsEqualTo("User");
+        }
+
+        [Test]
+        public async Task GetRolesAsync_WhenNoRolesExist_ReturnsEmptyList()
+        {
+            // Act
+            var result = await _userServicesMock.GetRolesAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!).IsEmpty();
+        }
+
+        [Test]
+        public async Task GetRolesAsync_WhenRoleHasNullName_IgnoresIt()
+        {
+            // Arrange
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "ValidRole",
+                NormalizedName = "VALIDROLE"
+            });
+
+            _contextMock.Roles.Add(new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = null,
+                NormalizedName = null
+            });
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _userServicesMock.GetRolesAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!).Count().IsEqualTo(1);
+            await Assert.That(result.Data![0]).IsEqualTo("ValidRole");
         }
 
         private class FailingUserValidator : IUserValidator<ApplicationUser>

@@ -270,5 +270,15 @@ namespace Api.Controllers
             var result = await taskServices.GetUserTasksAsync(mapper.MapUserTask(userId, request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get list of system roles")]
+        [EndpointDescription("Returns list of available system roles for filters and selects.")]
+        [HttpGet("roles")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetRolesAsync([FromServices] IUserServices userServices)
+        {
+            var result = await userServices.GetRolesAsync();
+            return HandleResult(result);
+        }
     }
 }

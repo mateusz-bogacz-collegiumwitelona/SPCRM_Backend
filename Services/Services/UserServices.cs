@@ -914,5 +914,17 @@ namespace Services.Services
                 data: response
             );
         }
+
+        public async Task<Result<List<string>>> GetRolesAsync()
+            => Result<List<string>>.Success(
+                    message: "Roles retrieved successfully",
+                    data: await _roleManager.Roles
+                        .AsNoTracking()
+                        .Where(r => r.Name != null)
+                        .OrderBy(r => r.Name)
+                        .Select(r => r.Name!)
+                        .ToListAsync(),
+                    statusCode: StatusCodes.Status200OK
+                );
     }
 }
