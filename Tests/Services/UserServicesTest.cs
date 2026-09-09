@@ -2816,6 +2816,273 @@ namespace Tests.Services
             await Assert.That(roles[0]).IsEqualTo(existingRole);
         }
 
+        // ─── GetUserDetailAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetUserDetailAsync_WhenUserExists_ReturnsMappedDetailsAndCorrectCounters()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"DetailUser_{uniqueSuffix}",
+                NormalizedUserName = $"DETAILUSER_{uniqueSuffix}",
+                Email = $"detail_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"DETAIL_{uniqueSuffix}@TEST.PL",
+                PendingEmail = $"pending_{uniqueSuffix}@test.pl",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                EmailConfirmed = true,
+                LockoutEnabled = true,
+                LockoutEnd = DateTimeOffset.UtcNow.AddDays(3),
+                CreatedAt = DateTime.UtcNow.AddMonths(-1),
+                UpdateAt = DateTime.UtcNow.AddDays(-2),
+                IsDeleted = false
+            };
+
+            var otherUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"OtherUser_{uniqueSuffix}",
+                NormalizedUserName = $"OTHERUSER_{uniqueSuffix}",
+                Email = $"other_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OTHER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Marek",
+                LastName = "Inny",
+                EmailConfirmed = true,
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+            await _userManagerMock.CreateAsync(otherUser, "Password123!");
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Code = $"C{uniqueSuffix[..2]}",
+                Name = $"{uniqueSuffix[..2]}"
+            };
+            _contextMock.Currencies.Add(currency);
+
+            var userCompany1 = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma1 {uniqueSuffix}",
+                NIP = "1111111111",
+                OwnerId = user.Id
+            };
+
+            var userCompany2 = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma2 {uniqueSuffix}",
+                NIP = "2222222222",
+                OwnerId = user.Id
+            };
+
+            var otherCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma3 {uniqueSuffix}",
+                NIP = "3333333333",
+                OwnerId = otherUser.Id
+            };
+
+            _contextMock.Companies.AddRange(userCompany1, userCompany2, otherCompany);
+
+            _contextMock.Contacts.Add(new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Klient",
+                OwnerId = user.Id,
+                CompanyId = userCompany1.Id,
+                IsPrimary = true,
+                Owner = user,
+            });
+
+            _contextMock.Deals.AddRange(
+                new Deal {
+                    Id = Guid.NewGuid(), 
+                    Name = "Deal ToDo", 
+                    Status = DealsStatusEnum.ToDo, 
+                    CurrencyId = currency.Id, 
+                    CompanyId = userCompany1.Id,
+                    OwnerId = user.Id 
+                },
+                new Deal { 
+                    Id = Guid.NewGuid(), 
+                    Name = "Deal InProgress", 
+                    Status = DealsStatusEnum.InProgress, 
+                    CurrencyId = currency.Id, 
+                    CompanyId = userCompany1.Id, 
+                    OwnerId = user.Id 
+                },
+                new Deal { 
+                    Id = Guid.NewGuid(), 
+                    Name = "Deal Complete", 
+                    Status = DealsStatusEnum.Complete, 
+                    CurrencyId = currency.Id, 
+                    CompanyId = userCompany1.Id, 
+                    OwnerId = user.Id 
+                },
+                new Deal { 
+                    Id = Guid.NewGuid(),
+                    Name = "Deal Other", 
+                    Status = DealsStatusEnum.ToDo, 
+                    CurrencyId = currency.Id, 
+                    CompanyId = otherCompany.Id, 
+                    OwnerId = otherUser.Id 
+                }
+            );
+
+            _contextMock.Tasks.AddRange(
+                new Tasks { 
+                    Id = Guid.NewGuid(),
+                    Title = "Task InProgress", 
+                    Description = "Desc", 
+                    Status = TaskStatusEnum.InProgress, 
+                    Priority = TaskPriorityEnum.High, 
+                    AssignedToId = user.Id
+                },
+                new Tasks { 
+                    Id = Guid.NewGuid(),
+                    Title = "Task ToDo",
+                    Description = "Desc", 
+                    Status = TaskStatusEnum.ToDo, 
+                    Priority = TaskPriorityEnum.Medium, 
+                    AssignedToId = user.Id 
+                },
+                new Tasks { 
+                    Id = Guid.NewGuid(),
+                    Title = "Task Complete", 
+                    Description = "Desc", 
+                    Status = TaskStatusEnum.Complete, 
+                    Priority = TaskPriorityEnum.Low, 
+                    AssignedToId = user.Id 
+                },
+                new Tasks { 
+                    Id = Guid.NewGuid(), 
+                    Title = "Task Break", 
+                    Description = "Desc", 
+                    Status = TaskStatusEnum.Break, 
+                    Priority = TaskPriorityEnum.Low, 
+                    AssignedToId = user.Id 
+                },
+                new Tasks { 
+                    Id = Guid.NewGuid(), 
+                    Title = "Task Other", 
+                    Description = "Desc", 
+                    Status = TaskStatusEnum.InProgress, 
+                    Priority = TaskPriorityEnum.High, 
+                    AssignedToId = otherUser.Id 
+                }
+            );
+
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _userServicesMock.GetUserDetailAsync(user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.Id).IsEqualTo(user.Id);
+            await Assert.That(data.FirstName).IsEqualTo("Piotr");
+            await Assert.That(data.LastName).IsEqualTo("Kowalski");
+            await Assert.That(data.Email).IsEqualTo(user.Email);
+            await Assert.That(data.PendingEmail).IsEqualTo(user.PendingEmail);
+            await Assert.That(data.IsEmailVerified).IsTrue();
+            await Assert.That(data.IsLocked).IsTrue();
+            await Assert.That(data.LockoutEndDate.HasValue).IsTrue();
+
+            await Assert.That(data.CompanyOwnerCount).IsEqualTo(2);
+            await Assert.That(data.ContactOwnerCount).IsEqualTo(1);
+            await Assert.That(data.ActiveDealCount).IsEqualTo(2);
+            await Assert.That(data.ActiveTaskCount).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task GetUserDetailAsync_WhenUserNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _userServicesMock.GetUserDetailAsync(nonExistentUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+            await Assert.That(result.Message).IsEqualTo("User not found.");
+        }
+
+        [Test]
+        public async Task GetUserDetailAsync_WhenUserIsSoftDeleted_Returns404NotFound()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"DeletedUser_{uniqueSuffix}",
+                NormalizedUserName = $"DELETEDUSER_{uniqueSuffix}",
+                Email = $"deleted_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"DELETED_{uniqueSuffix}@TEST.PL",
+                FirstName = "Adam",
+                LastName = "Usuniety",
+                EmailConfirmed = true,
+                IsDeleted = true
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            // Act
+            var result = await _userServicesMock.GetUserDetailAsync(user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task GetUserDetailAsync_WhenLockoutExpiredInPast_ReturnsIsLockedFalse()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"PastLockUser_{uniqueSuffix}",
+                NormalizedUserName = $"PASTLOCKUSER_{uniqueSuffix}",
+                Email = $"pastlock_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"PASTLOCK_{uniqueSuffix}@TEST.PL",
+                FirstName = "Tomasz",
+                LastName = "Odblokowany",
+                EmailConfirmed = true,
+                LockoutEnabled = true,
+                LockoutEnd = DateTimeOffset.UtcNow.AddHours(-2),
+                IsDeleted = false
+            };
+
+            await _userManagerMock.CreateAsync(user, "Password123!");
+
+            // Act
+            var result = await _userServicesMock.GetUserDetailAsync(user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.IsLocked).IsFalse();
+        }
+
         private class FailingUserValidator : IUserValidator<ApplicationUser>
         {
             public Task<IdentityResult> ValidateAsync(UserManager<ApplicationUser> manager, ApplicationUser user)
@@ -2828,7 +3095,5 @@ namespace Tests.Services
             }
         }
     }
-
-
 }
 

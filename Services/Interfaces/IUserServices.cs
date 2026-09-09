@@ -21,5 +21,6 @@ namespace Services.Interfaces
         Task<Result> ForgotPasswordAsync(ForgotPasswordCommand command);
         Task<Result> ResetPasswordAsync(ResetPasswordCommand command);
         Task<Result> ChangeRoleAsync(ChangeRoleCommand command, Guid adminId);
+        Task<Result<UserDetailResponse>> GetUserDetailAsync(Guid userId);
     }
 }

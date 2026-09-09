@@ -166,5 +166,18 @@ namespace Api.Controllers
             var result = await userService.ChangeRoleAsync(mapper.MapChangeRole(request), CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get user detail")]
+        [EndpointDescription("Retrieves the details of a specific user.")]
+        [HttpGet("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserDetailAsync(
+            [FromServices] IUserServices userService,
+            [FromRoute] Guid id
+        )
+        {
+            var result = await userService.GetUserDetailAsync(id);
+            return HandleResult(result);
+        }
     }
 }

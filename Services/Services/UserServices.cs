@@ -861,5 +861,58 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result<UserDetailResponse>> GetUserDetailAsync(Guid userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user == null || user.IsDeleted)
+            {
+                _logger.LogWarning("User with ID {UserId} not found or is deleted.", userId);
+                return Result<UserDetailResponse>.Failure(
+                    message: "User not found.",
+                    errorCode: ErrorCodes.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            int companyOwnerCount = await _context.Companies.CountAsync(c => c.OwnerId == userId);
+            int contactOwnerCount = await _context.Contacts.CountAsync(c => c.OwnerId == userId);
+            int activeDealCount = await _context.Deals.CountAsync(d => d.OwnerId == userId 
+                && (d.Status == DealsStatusEnum.ToDo || d.Status == DealsStatusEnum.InProgress));
+           int activeTaskCount = await _context.Tasks.CountAsync(t => t.AssignedToId == userId 
+                && (t.Status != TaskStatusEnum.Complete && t.Status != TaskStatusEnum.Break));
+
+            var response = new UserDetailResponse
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email ?? throw new DataCorruptionException("User email is required"),
+                PendingEmail = user.PendingEmail,
+                IsEmailVerified = user.EmailConfirmed,
+
+                IsLocked = user.LockoutEnabled 
+                    && user.LockoutEnd.HasValue 
+                    && user.LockoutEnd.Value > DateTime.UtcNow,
+
+                LockoutEndDate = user.LockoutEnd?.UtcDateTime,
+                
+                CompanyOwnerCount = companyOwnerCount,
+                ContactOwnerCount = contactOwnerCount,
+                ActiveDealCount = activeDealCount,
+                ActiveTaskCount = activeTaskCount,
+
+
+                CreatedAt = user.CreatedAt,
+                UpdatedAt = user.UpdateAt
+            };
+
+            return Result<UserDetailResponse>.Success(
+                message: "User details retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+            );
+        }
     }
 }
