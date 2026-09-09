@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Company;
+using Api.Request.Contact;
 using Api.Request.List;
 using Api.Request.User;
 using Domain.Common;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
 using Services.Response.Company;
+using Services.Response.Contact;
 
 namespace Api.Controllers
 {
@@ -206,6 +208,33 @@ namespace Api.Controllers
             );
 
             var result = await companyServices.GetCompanyListAsync(command);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get paginated list of contacts owned by user")]
+        [EndpointDescription("Returns a paginated list of contacts assigned to the specified user " +
+            "with optional filtering, sorting, and search term.")]
+        [HttpGet("{userId:guid}/contacts")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetUserContactsAsync(
+            [FromRoute] Guid userId,
+            [FromServices] ContactMapper mapper,
+            [FromServices] IContactServices contactServices,
+            [FromQuery] PaggedRequest pagged,
+            [FromQuery] ContactFilterRequest filter,
+            [FromQuery] SortingRequest sorting,
+            [FromQuery] SearchRequest search
+        )
+        {
+            var command = mapper.MapUserContactsList(
+                userId,
+                pagged,
+                filter,
+                sorting,
+                search
+            );
+
+            var result = await contactServices.GetContactsAsync(command);
             return HandleResult(result);
         }
     }

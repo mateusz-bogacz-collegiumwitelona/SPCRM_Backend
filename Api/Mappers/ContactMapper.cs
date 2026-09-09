@@ -47,6 +47,24 @@ namespace Api.Mappers
 
         public partial ChangeContactOwnerCommand MapChangeOwner(ChangeContactOwnerRequest request);
 
+        public ContactListCommand MapUserContactsList(
+            Guid userId,
+            PaggedRequest pagged,
+            ContactFilterRequest filter,
+            SortingRequest sorting,
+            SearchRequest search)
+        => new ContactListCommand
+        {
+            PageNumber = pagged?.PageNumber,
+            PageSize = pagged?.PageSize,
+            ComapnyName = filter?.ComapnyName,
+            IsPrimary = filter?.IsPrimary,
+            SortBy = sorting?.SortBy,
+            SortDescending = sorting?.SortDescending ?? false,
+            SearchTerm = search?.SearchTerm,
+            OwnerId = userId 
+        };
+
         private string? NormalizeName(string? value) => StringNormalizerHelper.NormalizeName(value);
         private string? Trim(string? value) => StringNormalizerHelper.Trim(value);
     }
