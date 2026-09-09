@@ -200,7 +200,7 @@ namespace Email
                 }
                 else
                 {
-                    template = template.Replace("{{LockoutMessage}}", $" <p>Twoje konto zostało zablokowane do {lockoutEnd.LocalDateTime}.</p>");
+                    template = template.Replace("{{LockoutMessage}}", $" <p>Twoje konto zostało zablokowane do {lockoutEnd.LocalDateTime.ToString("dd.MM.yyyy HH:mm")}.</p>");
                 }
 
                 string subject = "Informacja o blokadzie konta";
@@ -258,14 +258,12 @@ namespace Email
 
                 string template = await File.ReadAllTextAsync(templatePath);
 
-                string encodedToken = Uri.EscapeDataString(domain.Token);
                 string encodedUserId = Uri.EscapeDataString(domain.UserId.ToString());
 
-                string link = $"{_host}/auth/confirm-email-change?userId={encodedUserId}&token={encodedToken}";
+                string link = $"{_host}/auth/confirm-email-change?userId={encodedUserId}&token={domain.Token}";
 
                 template = template.Replace("{{UserName}}", domain.UserName)
-                                   .Replace("{{Link}}", link)
-                                   .Replace("{{Token}}", domain.Token);
+                                   .Replace("{{Link}}", link);
 
                 string subject = "Potwierdzenie zmiany adresu e-mail w systemie SPCRM";
 

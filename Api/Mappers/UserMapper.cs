@@ -35,7 +35,12 @@ namespace Api.Mappers
         [MapProperty(nameof(ChangeUserEmailRequest.NewEmail), nameof(ChangeUserEmailCommand.NewEmail), Use = nameof(NormalizeEmail))]
         public partial ChangeUserEmailCommand MapChangeEmail(ChangeUserEmailRequest request);
 
-        public partial ConfirmChangeUserEmailCommand MapConfirmChangeEmail(ConfirmChangeUserEmailRequest request);
+        public ConfirmChangeUserEmailCommand MapConfirmChangeEmail(ConfirmChangeUserEmailRequest request)
+            => new ConfirmChangeUserEmailCommand
+            {
+                UserId = request.UserId,
+                Token = request.Token
+            };
 
         public partial ChangeRoleCommand MapChangeRole(ChangeRoleRequest request);
 

@@ -7,6 +7,7 @@ using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.Auth;
@@ -15,6 +16,7 @@ using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
 using Services.Response.User;
+using System.Text;
 
 namespace Services.Services
 {
@@ -622,7 +624,9 @@ namespace Services.Services
                 throw new DataCorruptionException($"Failed to set PendingEmail for user '{user.Id}'. Errors: {errors}");
             }
 
-            var token = await _userManager.GenerateChangeEmailTokenAsync(user, targetNewEmail);
+            var rawToken = await _userManager.GenerateChangeEmailTokenAsync(user, targetNewEmail);
+            var tokenBytes = Encoding.UTF8.GetBytes(rawToken);
+            var safeToken = WebEncoders.Base64UrlEncode(tokenBytes);
 
             await _emailSender.SendEmailChangeConfirmationLinkAsync(new EmailChangeInitiatedDomain
             {
@@ -630,7 +634,7 @@ namespace Services.Services
                 UserName = user.UserName ?? string.Empty,
                 OldEmail = user.Email ?? string.Empty,
                 NewEmail = targetNewEmail,
-                Token = token
+                Token = safeToken
             });
 
             if (!string.IsNullOrEmpty(user.Email))
@@ -676,14 +680,30 @@ namespace Services.Services
                 );
             }
 
-            var newEmail = user.PendingEmail;
+            string decodedToken;
+            try
+            {
+                var decodedBytes = WebEncoders.Base64UrlDecode(command.Token);
+                decodedToken = Encoding.UTF8.GetString(decodedBytes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ">>> [ChangeEmail-CONFIRM] Base64UrlDecode failed on incoming token: '{Token}'", command.Token);
+                return Result.Failure(
+                    message: "Invalid or expired confirmation token.",
+                    errorCode: ErrorCodes.TokenInvalid,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
 
-            var result = await _userManager.ChangeEmailAsync(user, newEmail, command.Token);
+            var newEmail = user.PendingEmail.Trim().ToLowerInvariant();
+
+            var result = await _userManager.ChangeEmailAsync(user, newEmail, decodedToken);
 
             if (!result.Succeeded)
             {
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                _logger.LogWarning("ChangeEmailAsync failed for user {UserId}. Errors: {Errors}", user.Id, errors);
+                var errors = string.Join("; ", result.Errors.Select(e => $"{e.Code}: {e.Description}"));
+                _logger.LogWarning(">>> [ChangeEmail-CONFIRM-FAILED] ChangeEmailAsync rejected token. Errors: {Errors}", errors);
 
                 return Result.Failure(
                     message: "Invalid or expired confirmation token.",
@@ -693,7 +713,6 @@ namespace Services.Services
             }
 
             user.PendingEmail = null;
-            await _userManager.UpdateSecurityStampAsync(user);
             await _userManager.UpdateAsync(user);
 
             _logger.LogInformation("Email successfully updated to '{NewEmail}' for user {UserId}.", newEmail, user.Id);
