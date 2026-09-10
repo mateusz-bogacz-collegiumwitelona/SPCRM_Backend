@@ -253,7 +253,7 @@ namespace Api.Controllers
         )
         {
             var command = mapper.MapList(pagged, sorting, search, filter);
-            var result = await salesServices.GetSalesAsync(command, forcedOwnerId: userId);
+            var result = await salesServices.GetDealsAsync(command, forcedOwnerId: userId);
             return HandleResult(result);
         }
 

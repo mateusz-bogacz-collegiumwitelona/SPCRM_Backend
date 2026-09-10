@@ -110,10 +110,10 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // ─── GetSalesAsync ─────────────────────────────────────────────────
+        // ─── GetDealsAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetSalesAsync_FiltersByOwnerAndMapsPropertiesCorrectly()
+        public async Task GetDealsAsync_FiltersByOwnerAndMapsPropertiesCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -202,7 +202,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _salesServicesMock.GetSalesAsync(command, targetUserId);
+            var result = await _salesServicesMock.GetDealsAsync(command, targetUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -227,7 +227,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetSalesAsync_WhenUserHasNoSales_ReturnsEmptyListWithSuccessStatus()
+        public async Task GetDealsAsync_WhenUserHasNoSales_ReturnsEmptyListWithSuccessStatus()
         {
             // Arrange
             var randomUserId = Guid.NewGuid();
@@ -235,7 +235,7 @@ namespace Tests.Services
             var command = new DealListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act 
-            var result = await _salesServicesMock.GetSalesAsync(command, randomUserId);
+            var result = await _salesServicesMock.GetDealsAsync(command, randomUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -244,16 +244,16 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).IsEmpty();
         }
 
-        // ─── GetSalesStatus ─────────────────────────────────────────────────
+        // ─── GetDealsStatus ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetSalesStatus_ReturnsAllEnumValues()
+        public async Task GetDealsStatus_ReturnsAllEnumValues()
         {
             // Arrange
             var expectedStatuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
 
             // Act
-            var result = await _salesServicesMock.GetSalesStatus();
+            var result = await _salesServicesMock.GetDealsStatus();
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -270,10 +270,10 @@ namespace Tests.Services
             }
         }
 
-        // ─── GetComapanySalesAsync ─────────────────────────────────────────────────
+        // ─── GetComapanyDealsAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetComapanySalesAsync_FiltersByCompanyAndMapsPropertiesCorrectly()
+        public async Task GetComapanyDealsAsync_FiltersByCompanyAndMapsPropertiesCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -360,7 +360,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _salesServicesMock.GetComapanySalesAsync(command);
+            var result = await _salesServicesMock.GetComapanyDealsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -382,7 +382,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetComapanySalesAsync_AppliesPaginationCorrectly()
+        public async Task GetComapanyDealsAsync_AppliesPaginationCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -475,7 +475,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _salesServicesMock.GetComapanySalesAsync(command);
+            var result = await _salesServicesMock.GetComapanyDealsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -483,14 +483,14 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetComapanySalesAsync_WhenNoSalesFound_ReturnsEmptyListWithSuccessStatus()
+        public async Task GetComapanyDealsAsync_WhenNoSalesFound_ReturnsEmptyListWithSuccessStatus()
         {
             // Arrange
             var randomCompanyId = Guid.NewGuid();
             var command = new CompanyCommand { PageNumber = 1, PageSize = 10, CompanyId = randomCompanyId };
 
             // Act
-            var result = await _salesServicesMock.GetComapanySalesAsync(command);
+            var result = await _salesServicesMock.GetComapanyDealsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -500,7 +500,7 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).IsEmpty();
         }
 
-        // ─── GetSaleDetailAsync ─────────────────────────────────────────────────
+        // ─── GetDealDetailAsync ─────────────────────────────────────────────────
 
         [Test]
         public async Task GetSaleDetailAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -510,16 +510,16 @@ namespace Tests.Services
             var randomUserId = Guid.NewGuid();
 
             // Act
-            var result = await _salesServicesMock.GetSaleDetailAsync(randomDealId, randomUserId);
+            var result = await _salesServicesMock.GetDealDetailAsync(randomDealId, randomUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo("Sale not found.");
+            await Assert.That(result.Message).IsEqualTo("Deal not found.");
         }
 
         [Test]
-        public async Task GetSaleDetailAsync_WhenDealHasNoInvoices_ReturnsAggregatesAsZero()
+        public async Task GetDealDetailAsync_WhenDealHasNoInvoices_ReturnsAggregatesAsZero()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -575,7 +575,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _salesServicesMock.GetSaleDetailAsync(deal.Id, userId);
+            var result = await _salesServicesMock.GetDealDetailAsync(deal.Id, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -591,7 +591,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetSaleDetailAsync_CalculatesAggregatesAndOverdueStatusCorrectly()
+        public async Task GetDealDetailAsync_CalculatesAggregatesAndOverdueStatusCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -675,7 +675,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _salesServicesMock.GetSaleDetailAsync(deal.Id, userId);
+            var result = await _salesServicesMock.GetDealDetailAsync(deal.Id, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -692,7 +692,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetSaleDetailAsync_WhenDealHasMissingCompanyRelation_ThrowsDataCorruptionException()
+        public async Task GetDealDetailAsync_WhenDealHasMissingCompanyRelation_ThrowsDataCorruptionException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -752,12 +752,12 @@ namespace Tests.Services
             ");
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(deal.Id, userId))
+            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
         [Test]
-        public async Task GetSaleDetailAsync_WhenDealHasMissingCurrencyRelation_ThrowsDataCorruptionException()
+        public async Task GetDealDetailAsync_WhenDealHasMissingCurrencyRelation_ThrowsDataCorruptionException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -817,12 +817,12 @@ namespace Tests.Services
             ");
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(deal.Id, userId))
+            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
         [Test]
-        public async Task GetSaleDetailAsync_WhenDealHasCorruptedNegativeValue_ThrowsDataCorruptionException()
+        public async Task GetDealDetailAsync_WhenDealHasCorruptedNegativeValue_ThrowsDataCorruptionException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -879,12 +879,12 @@ namespace Tests.Services
             _contextMock.ChangeTracker.Clear();
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(corruptedDeal.Id, userId))
+            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(corruptedDeal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
         [Test]
-        public async Task GetSaleDetailAsync_WhenInvoiceHasCorruptedNegativePaidAmount_ThrowsDataCorruptionException()
+        public async Task GetDealDetailAsync_WhenInvoiceHasCorruptedNegativePaidAmount_ThrowsDataCorruptionException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -958,12 +958,12 @@ namespace Tests.Services
             _contextMock.ChangeTracker.Clear();
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(deal.Id, userId))
+            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
         [Test]
-        public async Task GetSaleDetailAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        public async Task GetDealDetailAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1020,14 +1020,14 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetSaleDetailAsync(deal.Id, unauthorizedUserId))
+            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, unauthorizedUserId))
                 .Throws<ForbiddenException>();
         }
 
-        // ─── GetDealProductAsync ─────────────────────────────────────────────────
+        // ─── GetSaleProductAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetDealProductAsync_MapsDeepRelationsAndCalculatesTotalsCorrectly()
+        public async Task GetSaleProductAsync_MapsDeepRelationsAndCalculatesTotalsCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1129,7 +1129,7 @@ namespace Tests.Services
             var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
-            var result = await _salesServicesMock.GetDealProductAsync(deal.Id, command, userId);
+            var result = await _salesServicesMock.GetSaleProductAsync(deal.Id, command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1154,7 +1154,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetDealProductAsync_ReturnsProductsOnlyForSpecificDeal()
+        public async Task GetSaleProductAsync_ReturnsProductsOnlyForSpecificDeal()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1279,7 +1279,7 @@ namespace Tests.Services
             };
 
             // Act 
-            var result = await _salesServicesMock.GetDealProductAsync(targetDeal.Id, command, userId);
+            var result = await _salesServicesMock.GetSaleProductAsync(targetDeal.Id, command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1292,7 +1292,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetDealProductAsync_WhenDealHasNoProducts_ReturnsEmptyListWithSuccessStatus()
+        public async Task GetSaleProductAsync_WhenDealHasNoProducts_ReturnsEmptyListWithSuccessStatus()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1349,7 +1349,7 @@ namespace Tests.Services
             var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
-            var result = await _salesServicesMock.GetDealProductAsync(dealWithoutProducts.Id, command, userId);
+            var result = await _salesServicesMock.GetSaleProductAsync(dealWithoutProducts.Id, command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1359,7 +1359,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetDealProductAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        public async Task GetSaleProductAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1417,7 +1417,7 @@ namespace Tests.Services
             var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetDealProductAsync(deal.Id, command, unauthorizedUserId))
+            await Assert.That(async () => await _salesServicesMock.GetSaleProductAsync(deal.Id, command, unauthorizedUserId))
                 .Throws<ForbiddenException>();
         }
     }

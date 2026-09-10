@@ -14,7 +14,6 @@ using Services.Interfaces;
 using Services.QueryExtension;
 using Services.Response.Company;
 using Services.Response.Deal;
-using Services.Response.Sale;
 
 namespace Services.Services
 {
@@ -35,7 +34,7 @@ namespace Services.Services
             _entityAuth = entityAuth;
         }
 
-        public async Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(DealListCommand command, Guid? forcedOwnerId = null)
+        public async Task<Result<PagedResult<UserDealResponse>>> GetDealsAsync(DealListCommand command, Guid? forcedOwnerId = null)
         {
             var effectiveOwnerId = forcedOwnerId ?? command.OwnerId;
 
@@ -51,7 +50,7 @@ namespace Services.Services
                        )
                        .ApplySorting(command.SortBy, command.SortDescending)
                        .ApplySearch(command.SearchTerm ?? string.Empty)
-                       .Select(d => new UserSalesResponse
+                       .Select(d => new UserDealResponse
                        {
                            Id = d.Id,
                            Name = d.Name,
@@ -71,17 +70,17 @@ namespace Services.Services
             return query;
         }
 
-        public async Task<Result<List<string>>> GetSalesStatus()
+        public async Task<Result<List<string>>> GetDealsStatus()
             => Result<List<string>>.Success(
-                message: "Sales statuses retrieved successfully",
+                message: "Deals statuses retrieved successfully",
                 statusCode: StatusCodes.Status200OK,
                 data: Enum.GetNames(typeof(DealsStatusEnum)).ToList()
                 );
 
-        public async Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command)
+        public async Task<Result<PagedResult<CompanyDealsResponse>>> GetComapanyDealsAsync(CompanyCommand command)
             => await _context.Deals
                     .Where(d => d.CompanyId == command.CompanyId)
-                    .Select(d => new CompanySalesResponse
+                    .Select(d => new CompanyDealsResponse
                     {
                         Id = d.Id,
                         SalesmanFirstName = d.Owner.FirstName,
@@ -96,7 +95,7 @@ namespace Services.Services
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_sales");
 
-        public async Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId, Guid currentUserId)
+        public async Task<Result<DealDetailResponse>> GetDealDetailAsync(Guid dealId, Guid currentUserId)
         {
             var now = DateTime.UtcNow;
 
@@ -143,9 +142,9 @@ namespace Services.Services
 
             if (query == null)
             {
-                _logger.LogInformation("Sale with ID {DealId} not found.", dealId);
-                return Result<SaleDetailResponse>.Failure(
-                    message: "Sale not found.",
+                _logger.LogInformation("Deal with ID {DealId} not found.", dealId);
+                return Result<DealDetailResponse>.Failure(
+                    message: "Deal not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.DealNotFound
                 );
@@ -163,7 +162,7 @@ namespace Services.Services
                 string.IsNullOrWhiteSpace(query.CurrencyCode) ||
                 !query.DecimalPlaces.HasValue)
             {
-                _logger.LogError("Critical data corruption: Deal {DealId} has missing Currency, Owner, or Company linkage.", dealId);
+                _logger.LogError("Critical data corruption: Sale {DealId} has missing Currency, Owner, or Company linkage.", dealId);
                 throw new DataCorruptionException($"Deal '{dealId}' contains corrupted relational linkages.");
             }
 
@@ -180,7 +179,7 @@ namespace Services.Services
                     MidpointRounding.AwayFromZero)
                 : 0;
 
-            var response = new SaleDetailResponse
+            var response = new DealDetailResponse
             {
                 Id = query.Id,
                 Name = query.Name,
@@ -198,14 +197,14 @@ namespace Services.Services
                 PaymentPercentage = paymentPercentage
             };
 
-            return Result<SaleDetailResponse>.Success(
-                message: "Sale detail retrieved successfully.",
+            return Result<DealDetailResponse>.Success(
+                message: "Deal detail retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
                 data: response
             );
         }
 
-        public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
+        public async Task<Result<PagedResult<DealProductResponse>>> GetSaleProductAsync(
             Guid dealId,
             ProductListCommand command,
             Guid currentUserId)

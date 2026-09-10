@@ -1,6 +1,6 @@
-﻿namespace Services.Response.Sale
+﻿namespace Services.Response.Deal
 {
-    public record UserSalesResponse
+    public record UserDealResponse
     {
         public required Guid Id { get; init; }
         public required string Name { get; init; }

@@ -83,14 +83,14 @@ namespace Api.Controllers
             "This endpoint return only name, value, close date and status")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("sales")]
-        public async Task<IActionResult> GetComapanySalesAsync(
+        public async Task<IActionResult> GetComapanyDealsAsync(
             [FromServices] CompanyMapper mapper,
             [FromServices] IDealServices salesServices,
             [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged
         )
         {
-            var result = await salesServices.GetComapanySalesAsync(mapper.MapBasic(companyId, pagged));
+            var result = await salesServices.GetComapanyDealsAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
 

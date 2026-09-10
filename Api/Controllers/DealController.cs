@@ -8,7 +8,7 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
-using Services.Response.Sale;
+using Services.Response.Deal;
 
 namespace Api.Controllers
 {
@@ -21,7 +21,7 @@ namespace Api.Controllers
     {
         [EndpointSummary("Get user deals")]
         [EndpointDescription("Show data of deals. Regular users only see their own deals, managers can see all or filter by OwnerId.")]
-        [ProducesResponseType(typeof(Result<PagedResult<UserSalesResponse>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<UserDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSalesAsync(
@@ -36,7 +36,7 @@ namespace Api.Controllers
             Guid? forcedOwnerId = User.IsInRole("Manager") ? null : CurrentUserId;
 
             var command = mapper.MapList(pagged, sorting, search, filter);
-            var result = await salesServices.GetSalesAsync(command, forcedOwnerId);
+            var result = await salesServices.GetDealsAsync(command, forcedOwnerId);
 
             return HandleResult(result);
         }
@@ -46,9 +46,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("statuses")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetSalesStatuses([FromServices] IDealServices salesServices)
+        public async Task<IActionResult> GetDealsStatuses([FromServices] IDealServices salesServices)
         {
-            var result = await salesServices.GetSalesStatus();
+            var result = await salesServices.GetDealsStatus();
             return HandleResult(result);
         }
 
@@ -57,11 +57,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{dealId}")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetSaleDetailAsync(
+        public async Task<IActionResult> GetDealDetailAsync(
             [FromServices] IDealServices salesServices,
             [FromRoute] Guid dealId)
         {
-            var result = await salesServices.GetSaleDetailAsync(dealId, CurrentUserId);
+            var result = await salesServices.GetDealDetailAsync(dealId, CurrentUserId);
             return HandleResult(result);
         }
 
@@ -70,7 +70,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{dealId}/products")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetDealProductAsync(
+        public async Task<IActionResult> GetSaleProductAsync(
             [FromServices] IDealServices salesServices,
             [FromServices] ProductMapper mapper,
             [FromRoute] Guid dealId,
@@ -80,7 +80,7 @@ namespace Api.Controllers
             [FromQuery] ProductFilterRequest filter)
         {
             var command = mapper.MapList(pagged, sorting, search, filter);
-            var result = await salesServices.GetDealProductAsync(dealId, command, CurrentUserId);
+            var result = await salesServices.GetSaleProductAsync(dealId, command, CurrentUserId);
             return HandleResult(result);
         }
 
