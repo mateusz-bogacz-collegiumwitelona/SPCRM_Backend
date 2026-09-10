@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.List;
 using Services.Command.Offer;
+using Services.Factory;
+using Services.Factory.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
@@ -25,6 +27,7 @@ namespace Tests.Services
         private static string _connectionString = null!;
         private string _currentSchema = null!;
         protected FakeEmailSender _emailSenderMock = null!;
+        protected IOfferStateMachineFactory _stateMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -92,7 +95,14 @@ namespace Tests.Services
             _loggerMock = new LoggerFactory().CreateLogger<OfferServices>();
 
             _emailSenderMock = new FakeEmailSender();
-            _offerServicesMock = new OfferServices(_contextMock, _loggerMock, _emailSenderMock);
+
+            _stateMock = new OfferStateMachineFactory();
+
+            _offerServicesMock = new OfferServices(
+                _contextMock,
+                _loggerMock,
+                _emailSenderMock,
+                _stateMock);
         }
 
         [After(Test)]

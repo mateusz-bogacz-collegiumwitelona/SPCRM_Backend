@@ -2,15 +2,16 @@
 using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Enum.Triggers;
 using Domain.Exceptions.Exception;
 using Domain.Models;
-using Domain.State;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.List;
 using Services.Command.Offer;
+using Services.Factory.Interfaces;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
@@ -23,12 +24,18 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<OfferServices> _logger;
         private readonly IEmailSender _emailSender;
+        private readonly IOfferStateMachineFactory _state;
 
-        public OfferServices(AppDbContext context, ILogger<OfferServices> logger, IEmailSender emailSender)
+        public OfferServices(
+            AppDbContext context, 
+            ILogger<OfferServices> logger, 
+            IEmailSender emailSender,
+            IOfferStateMachineFactory state)
         {
             _context = context;
             _logger = logger;
             _emailSender = emailSender;
+            _state = state;
         }
 
         public async Task<Result<PagedResult<OfferListResponse>>> GetOfferListAsync(OfferListCommand command)
@@ -233,7 +240,7 @@ namespace Services.Services
                 ? DateTime.SpecifyKind(command.NewValidUntil.Value, DateTimeKind.Utc)
                 : DateTime.UtcNow.AddDays(7);
 
-            var stateCheck = offer.CanExtendValidity(targetDate);
+            var stateCheck = _state.Create(offer).CanExtendValidity(targetDate);
             if (!stateCheck.IsSuccess)
             {
                 _logger.LogWarning("Cannot extend validity for offer {OfferId}: {Reason}", offer.Id, stateCheck.Message);
@@ -284,16 +291,33 @@ namespace Services.Services
                 throw new DataCorruptionException($"Offer '{offer.Id}' is missing essential relational data to proceed with status transition.");
             }
 
-            var stateCheck = offer.CanTransitionTo(command.NewStatus);
-            if (!stateCheck.IsSuccess)
+            var trigger = command.NewStatus switch
             {
-                _logger.LogWarning("Invalid status transition for Offer {OfferId} from {CurrentStatus} to {NewStatus}. Reason: {Reason}",
-                    offer.Id, offer.Status, command.NewStatus, stateCheck.Message);
+                OfferStatusEnum.Accepted => OfferTriggerEnum.Accept,
+                OfferStatusEnum.Rejected => OfferTriggerEnum.Reject,
+                _ => (OfferTriggerEnum?)null
+            };
+
+            if (!trigger.HasValue)
+            {
+                return Result<Guid?>.Failure(
+                    message: "Invalid target status. Status can only be changed to 'Accepted' or 'Rejected'.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var stateMachine = _state.Create(offer);
+
+            if (!stateMachine.CanFire(trigger.Value))
+            {
+                _logger.LogWarning("Invalid status transition for Offer {OfferId} from {CurrentStatus} to {NewStatus}.",
+                    offer.Id, offer.Status, command.NewStatus);
 
                 return Result<Guid?>.Failure(
-                    message: stateCheck.Message ?? "Invalid status transition.",
-                    statusCode: stateCheck.StatusCode,
-                    errorCode: stateCheck.ErrorCode ?? ErrorCodes.InvalidOperation
+                    message: $"Cannot transition offer from status '{offer.Status}' to '{command.NewStatus}'.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
                 );
             }
 
@@ -321,7 +345,15 @@ namespace Services.Services
 
             try
             {
-                offer.Status = command.NewStatus;
+                var fireResult = stateMachine.Fire(trigger.Value);
+                if (!fireResult.IsSuccess)
+                {
+                    return Result<Guid?>.Failure(
+                        fireResult.Message ?? "An error occurred while transitioning the offer status.", 
+                        fireResult.ErrorCode ?? ErrorCodes.InternalError, 
+                        fireResult.StatusCode);
+                }
+
                 offer.UpdateAt = DateTime.UtcNow;
                 Guid? createdDealId = null;
 
@@ -396,7 +428,7 @@ namespace Services.Services
                 throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
             }
 
-            var stateCheck = offer.CanEditProducts();
+            var stateCheck = _state.Create(offer).CanEditProducts();
             if (!stateCheck.IsSuccess)
             {
                 _logger.LogWarning("Attempt to update products for offer {OfferId} in invalid state: {Message}", command.OfferId, stateCheck.Message);
@@ -525,7 +557,7 @@ namespace Services.Services
                 throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted contact or currency state.");
             }
 
-            var statusCheck = offer.CanResendEmail();
+            var statusCheck = _state.Create(offer).CanResendEmail();
             if (!statusCheck.IsSuccess)
             {
                 _logger.LogWarning("Attempt to resend email for offer {OfferId} in invalid state: {Message}", command.OfferId, statusCheck.Message);
@@ -628,7 +660,7 @@ namespace Services.Services
                 throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
             }
 
-            var stateCheck = offer.CanDelete();
+            var stateCheck = _state.Create(offer).CanDelete();
             if (!stateCheck.IsSuccess)
             {
                 _logger.LogWarning("Attempt to delete an offer in invalid state {OfferStatus} for ID {OfferId}: {Reason}",
@@ -670,22 +702,24 @@ namespace Services.Services
 
             var allowedTransitions = new List<string>();
 
-            if (offer.CanTransitionTo(OfferStatusEnum.Accepted).IsSuccess)
+            var stateMachine = _state.Create(offer);
+
+            if (stateMachine.CanFire(OfferTriggerEnum.Accept))
             {
                 allowedTransitions.Add(OfferStatusEnum.Accepted.ToString());
             }
 
-            if (offer.CanTransitionTo(OfferStatusEnum.Rejected).IsSuccess)
+            if (stateMachine.CanFire(OfferTriggerEnum.Reject))
             {
                 allowedTransitions.Add(OfferStatusEnum.Rejected.ToString());
             }
 
             var response = new OfferAllowedActionsResponse
             {
-                CanEdit = offer.CanEditProducts().IsSuccess,
-                CanDelete = offer.CanDelete().IsSuccess,
-                CanResendEmail = offer.CanResendEmail().IsSuccess,
-                CanExtendValidity = offer.CanExtendValidity(DateTime.UtcNow.AddDays(7)).IsSuccess,
+                CanEdit = stateMachine.CanEditProducts().IsSuccess,
+                CanDelete = stateMachine.CanDelete().IsSuccess,
+                CanResendEmail = stateMachine.CanResendEmail().IsSuccess,
+                CanExtendValidity = stateMachine.CanExtendValidity(DateTime.UtcNow.AddDays(7)).IsSuccess,
                 AllowedStatusTransitions = allowedTransitions
             };
 

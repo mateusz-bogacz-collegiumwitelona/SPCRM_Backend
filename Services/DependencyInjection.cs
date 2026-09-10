@@ -2,6 +2,8 @@
 using Hangfire.PostgreSql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Services.Factory;
+using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
 using Services.Workers;
@@ -29,6 +31,8 @@ namespace Services
             services.AddScoped<IOfferServices, OfferServices>();
             services.AddScoped<IEntityAuthorizationService, EntityAuthorizationService>();
             services.AddScoped<IUserServices, UserServices>();
+
+            services.AddScoped<IOfferStateMachineFactory, OfferStateMachineFactory>();
 
             services.AddScoped<PromotionCleanupWorker>();
             services.AddScoped<OfferExpirationWorker>();
