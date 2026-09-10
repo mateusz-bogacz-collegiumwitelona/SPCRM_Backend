@@ -6,15 +6,15 @@ using Services.Command.Sales;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class SalesMapper
+    public partial class DealMapper
     {
-        public SalesListCommand MapList(
+        public DealListCommand MapList(
             PaggedRequest pagged,
             SortingRequest sorting,
             SearchRequest search,
-            SalesFilterRequest filter
+            DealsFilterRequest filter
             )
-            => new SalesListCommand
+            => new DealListCommand
             {
                 PageNumber = pagged.PageNumber,
                 PageSize = pagged.PageSize,

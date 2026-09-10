@@ -85,7 +85,7 @@ namespace Api.Controllers
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanySalesAsync(
             [FromServices] CompanyMapper mapper,
-            [FromServices] ISalesServices salesServices,
+            [FromServices] IDealServices salesServices,
             [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged
         )

@@ -16,15 +16,15 @@ using Testcontainers.PostgreSql;
 
 namespace Tests.Services
 {
-    public class SalesServicesTest
+    public class DealServicesTest
     {
         protected AppDbContext _contextMock = null!;
 
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
 
-        protected SalesServices _salesServicesMock = null!;
-        protected ILogger<SalesServices> _loggerMock = null!;
+        protected DealServices _salesServicesMock = null!;
+        protected ILogger<DealServices> _loggerMock = null!;
 
         private string _currentSchema = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
@@ -91,11 +91,11 @@ namespace Tests.Services
             var createScript = _contextMock.Database.GenerateCreateScript();
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
-            _loggerMock = new LoggerFactory().CreateLogger<SalesServices>();
+            _loggerMock = new LoggerFactory().CreateLogger<DealServices>();
 
             _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _salesServicesMock = new SalesServices(_contextMock, _loggerMock, _entityAuthMock);
+            _salesServicesMock = new DealServices(_contextMock, _loggerMock, _entityAuthMock);
         }
 
         [After(Test)]
@@ -195,7 +195,7 @@ namespace Tests.Services
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SalesListCommand
+            var command = new DealListCommand
             {
                 PageNumber = 1,
                 PageSize = 10
@@ -232,7 +232,7 @@ namespace Tests.Services
             // Arrange
             var randomUserId = Guid.NewGuid();
 
-            var command = new SalesListCommand { PageNumber = 1, PageSize = 10 };
+            var command = new DealListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act 
             var result = await _salesServicesMock.GetSalesAsync(command, randomUserId);

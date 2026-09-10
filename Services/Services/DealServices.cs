@@ -18,15 +18,15 @@ using Services.Response.Sale;
 
 namespace Services.Services
 {
-    public class SalesServices : ISalesServices
+    public class DealServices : IDealServices
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<SalesServices> _logger;
+        private readonly ILogger<DealServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
 
-        public SalesServices(
+        public DealServices(
             AppDbContext context,
-            ILogger<SalesServices> logger,
+            ILogger<DealServices> logger,
             IEntityAuthorizationService entityAuth
             )
         {
@@ -35,7 +35,7 @@ namespace Services.Services
             _entityAuth = entityAuth;
         }
 
-        public async Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(SalesListCommand command, Guid? forcedOwnerId = null)
+        public async Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(DealListCommand command, Guid? forcedOwnerId = null)
         {
             var effectiveOwnerId = forcedOwnerId ?? command.OwnerId;
 

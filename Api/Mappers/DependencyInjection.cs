@@ -9,7 +9,7 @@
             services.AddScoped<ContactMapper>();
             services.AddScoped<NoteMapper>();
             services.AddScoped<ProductMapper>();
-            services.AddScoped<SalesMapper>();
+            services.AddScoped<DealMapper>();
             services.AddScoped<MailingMapper>();
             services.AddScoped<TaskMapper>();
             services.AddScoped<PromotionMapper>();

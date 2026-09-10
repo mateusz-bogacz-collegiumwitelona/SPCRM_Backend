@@ -1,6 +1,6 @@
 ﻿namespace Api.Request.Sale
 {
-    public record SalesFilterRequest
+    public record DealsFilterRequest
     {
         public string? CompanyName { get; init; }
         public decimal? Value { get; init; }

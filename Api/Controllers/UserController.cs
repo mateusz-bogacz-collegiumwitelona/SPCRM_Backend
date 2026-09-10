@@ -244,12 +244,12 @@ namespace Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserSalesAsync(
             [FromRoute] Guid userId,
-            [FromServices] ISalesServices salesServices,
-            [FromServices] SalesMapper mapper,
+            [FromServices] IDealServices salesServices,
+            [FromServices] DealMapper mapper,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] SalesFilterRequest filter
+            [FromQuery] DealsFilterRequest filter
         )
         {
             var command = mapper.MapList(pagged, sorting, search, filter);

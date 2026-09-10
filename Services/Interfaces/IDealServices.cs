@@ -8,9 +8,9 @@ using Services.Response.Sale;
 
 namespace Services.Interfaces
 {
-    public interface ISalesServices
+    public interface IDealServices
     {
-        Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(SalesListCommand command, Guid? forcedOwnerId = null);
+        Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(DealListCommand command, Guid? forcedOwnerId = null);
         Task<Result<List<String>>> GetSalesStatus();
         Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command);
         Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId, Guid currentUserId);

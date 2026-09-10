@@ -19,7 +19,7 @@ namespace Services
             services.AddScoped<IAuthServices, AuthServices>();
             services.AddScoped<IMailingServices, MailingServices>();
             services.AddScoped<ICompanyServices, CompanyServices>();
-            services.AddScoped<ISalesServices, SalesServices>();
+            services.AddScoped<IDealServices, DealServices>();
             services.AddScoped<IContactServices, ContactServices>();
             services.AddScoped<IDebtService, DebtService>();
             services.AddScoped<ITaskServices, TaskServices>();

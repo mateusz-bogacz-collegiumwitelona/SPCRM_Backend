@@ -17,7 +17,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class SalesController : AuthControllerBase
+    public class DealController : AuthControllerBase
     {
         [EndpointSummary("Get user deals")]
         [EndpointDescription("Show data of deals. Regular users only see their own deals, managers can see all or filter by OwnerId.")]
@@ -25,12 +25,12 @@ namespace Api.Controllers
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSalesAsync(
-            [FromServices] ISalesServices salesServices,
+            [FromServices] IDealServices salesServices,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] SalesFilterRequest filter,
-            [FromServices] SalesMapper mapper
+            [FromQuery] DealsFilterRequest filter,
+            [FromServices] DealMapper mapper
         )
         {
             Guid? forcedOwnerId = User.IsInRole("Manager") ? null : CurrentUserId;
@@ -46,7 +46,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("statuses")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetSalesStatuses([FromServices] ISalesServices salesServices)
+        public async Task<IActionResult> GetSalesStatuses([FromServices] IDealServices salesServices)
         {
             var result = await salesServices.GetSalesStatus();
             return HandleResult(result);
@@ -58,7 +58,7 @@ namespace Api.Controllers
         [HttpGet("{dealId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSaleDetailAsync(
-            [FromServices] ISalesServices salesServices,
+            [FromServices] IDealServices salesServices,
             [FromRoute] Guid dealId)
         {
             var result = await salesServices.GetSaleDetailAsync(dealId, CurrentUserId);
@@ -71,7 +71,7 @@ namespace Api.Controllers
         [HttpGet("{dealId}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealProductAsync(
-            [FromServices] ISalesServices salesServices,
+            [FromServices] IDealServices salesServices,
             [FromServices] ProductMapper mapper,
             [FromRoute] Guid dealId,
             [FromQuery] PaggedRequest pagged,

@@ -1,6 +1,6 @@
 ﻿namespace Services.Command.Sales
 {
-    public record SalesListCommand
+    public record DealListCommand
     {
         public int? PageNumber { get; init; }
         public int? PageSize { get; init; }
