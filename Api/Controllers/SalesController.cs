@@ -3,6 +3,7 @@ using Api.Mappers;
 using Api.Request.List;
 using Api.Request.Product;
 using Api.Request.Sale;
+using Api.Request.Task;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -93,6 +94,21 @@ namespace Api.Controllers
             [FromRoute] Guid dealId)
         {
             var result = await note.GetDealNotesAsync(dealId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get deal tasks")]
+        [EndpointDescription("Returns a paginated list of tasks associated with a specific deal.")]
+        [HttpGet("{dealId}/tasks")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetDealTasksAsync(
+            [FromServices] ITaskServices task,
+            [FromServices] TaskMapper mapper,
+            [FromRoute] Guid dealId,
+            [FromQuery] SalesTaskListRequest request
+            )
+        {
+            var result = await task.GetDealTasksAsync(dealId, mapper.MapSaleTasks(request), CurrentUserId);
             return HandleResult(result);
         }
     }

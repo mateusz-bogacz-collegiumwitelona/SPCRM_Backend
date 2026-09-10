@@ -31,6 +31,10 @@ namespace Api.Mappers
                 SortDescending = request.SortDescending
             };
 
+        [MapProperty(nameof(SalesTaskListRequest.Status), nameof(SalesTaskListCommand.Status), Use = nameof(ParseTaskStatus))]
+        [MapProperty(nameof(SalesTaskListRequest.Priority), nameof(SalesTaskListCommand.Priority), Use = nameof(ParseTaskPriority))]
+        public partial SalesTaskListCommand MapSaleTasks(SalesTaskListRequest request);
+
         private TaskStatusEnum? ParseTaskStatus(string? status)
             => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed) ? parsed : null;
 

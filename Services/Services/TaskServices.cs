@@ -19,11 +19,15 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<TaskServices> _logger;
-
-        public TaskServices(AppDbContext context, ILogger<TaskServices> logger)
+        private readonly IEntityAuthorizationService _entityAuth;
+        public TaskServices(
+            AppDbContext context, 
+            ILogger<TaskServices> logger,
+            IEntityAuthorizationService entityAuth)
         {
             _context = context;
             _logger = logger;
+            _entityAuth = entityAuth;
         }
 
         public async Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(TaskCalendarCommand command)
@@ -246,6 +250,57 @@ namespace Services.Services
                         DealName = t.Deal != null ? t.Deal.Name : null
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "user-tasks");
+
+        public async Task<Result<PagedResult<SaleTaskResponse>>> GetDealTasksAsync(
+            Guid dealId,
+            SalesTaskListCommand command,
+            Guid currentUserId)
+        {
+            var dealOwnerId = await _context.Deals
+                .AsNoTracking()
+                .Where(d => d.Id == dealId)
+                .Select(d => (Guid?)d.OwnerId)
+                .FirstOrDefaultAsync();
+
+            if (!dealOwnerId.HasValue)
+            {
+                _logger.LogInformation("Deal {DealId} not found when retrieving tasks.", dealId);
+                return Result<PagedResult<SaleTaskResponse>>.Failure(
+                    message: "Sale not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.DealNotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, dealOwnerId.Value);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} unauthorized access to tasks of Deal {DealId}.", currentUserId, dealId);
+                throw new ForbiddenException("You do not have permission to view tasks for this deal.");
+            }
+
+            return await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.DealId == dealId)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .ApplyFilter(command.Status, command.Priority)
+                .ApplySorting(command.SortBy, command.SortDescending)
+                .Select(t => new SaleTaskResponse
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    DueAt = t.DueAt,
+                    Status = t.Status.ToString(),
+                    Priority = t.Priority.ToString(),
+                    AssignedToId = t.AssignedToId,
+                    AssignedToFirstName = t.AssignedTo.FirstName,
+                    AssignedToLastName = t.AssignedTo.LastName,
+                    ContactId = t.ContactId,
+                    ContactFirstName = t.Contact != null ? t.Contact.FirstName : null,
+                    ContactLastName = t.Contact != null ? t.Contact.LastName: null
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-tasks");
+        }
 
         private List<object> GetStatusDictionary()
             => new List<object>

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Task;
+using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -22,6 +23,7 @@ namespace Tests.Services
 
         protected TaskServices _taskServicesMock = null!;
         protected ILogger<TaskServices> _loggerMock = null!;
+        protected IEntityAuthorizationService _entityAuthMock = null!;
 
         private string _currentSchema = null!;
 
@@ -85,7 +87,9 @@ namespace Tests.Services
 
             _loggerMock = new LoggerFactory().CreateLogger<TaskServices>();
 
-            _taskServicesMock = new TaskServices(_contextMock, _loggerMock);
+            _entityAuthMock = new EntityAuthorizationService(_contextMock);
+
+            _taskServicesMock = new TaskServices(_contextMock, _loggerMock, _entityAuthMock);
         }
 
         [After(Test)]
@@ -1554,6 +1558,377 @@ namespace Tests.Services
             await Assert.That(paged.HasNextPage).IsTrue();
             await Assert.That(paged.Items[0].Title).IsEqualTo("Task_3");
             await Assert.That(paged.Items[1].Title).IsEqualTo("Task_4");
+        }
+
+        // ─── GetDealTasksAsync ──────────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetDealTasksAsync_MapsRelationsAndAppliesPaginationCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var assignedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                FirstName = "Właściciel",
+                LastName = "Deala"
+            };
+
+            var assignedUser = new ApplicationUser
+            {
+                Id = assignedUserId,
+                UserName = $"Assigned_{uniqueSuffix}",
+                Email = $"assigned_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Pracownik"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Company_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Transakcja Testowa",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                OwnerId = ownerId,
+                Owner = owner,
+                CloseDate = DateTime.UtcNow
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner,
+                IsPrimary = true
+            };
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Kontakt z klientem w sprawie blachy",
+                Description = "Zadzwonić do firmy",
+                DealId = deal.Id,
+                Deal = deal,
+                ContactId = contact.Id,
+                Contact = contact,
+                AssignedToId = assignedUserId,
+                AssignedTo = assignedUser,
+                DueAt = new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc),
+                Status = TaskStatusEnum.InProgress,
+                Priority = TaskPriorityEnum.High,
+                IsDeleted = false
+            };
+
+            _contextMock.Users.AddRange(owner, assignedUser);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SalesTaskListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _taskServicesMock.GetDealTasksAsync(deal.Id, command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var paged = result.Data!;
+            await Assert.That(paged.TotalCount).IsEqualTo(1);
+
+            var item = paged.Items.First();
+            await Assert.That(item.Id).IsEqualTo(task.Id);
+            await Assert.That(item.Title).IsEqualTo("Kontakt z klientem w sprawie blachy");
+            await Assert.That(item.Status).IsEqualTo(TaskStatusEnum.InProgress.ToString());
+            await Assert.That(item.Priority).IsEqualTo(TaskPriorityEnum.High.ToString());
+            await Assert.That(item.AssignedToId).IsEqualTo(assignedUserId);
+            await Assert.That(item.AssignedToFirstName).IsEqualTo("Jan");
+            await Assert.That(item.AssignedToLastName).IsEqualTo("Pracownik");
+            await Assert.That(item.ContactId).IsEqualTo(contact.Id);
+            await Assert.That(item.ContactFirstName).IsEqualTo("Adam");
+            await Assert.That(item.ContactLastName).IsEqualTo("Kowalski");
+        }
+
+        [Test]
+        public async Task GetDealTasksAsync_ReturnsTasksOnlyForSpecifiedDeal()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Tomasz",
+                LastName = "Kowalski"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "EUR",
+                Code = "EUR",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "9998887766",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var targetDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Docelowy Deal",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                OwnerId = ownerId,
+                Owner = owner,
+                CloseDate = DateTime.UtcNow
+            };
+
+            var otherDeal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Inny Deal",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                OwnerId = ownerId,
+                Owner = owner,
+                CloseDate = DateTime.UtcNow
+            };
+
+            var targetTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie z docelowego deala",
+                DealId = targetDeal.Id,
+                Deal = targetDeal,
+                AssignedToId = ownerId,
+                AssignedTo = owner,
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            var otherTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie z innego deala",
+                DealId = otherDeal.Id,
+                Deal = otherDeal,
+                AssignedToId = ownerId,
+                AssignedTo = owner,
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Description = "Opis",
+                IsDeleted = false
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.AddRange(targetDeal, otherDeal);
+            _contextMock.Tasks.AddRange(targetTask, otherTask);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _taskServicesMock.GetDealTasksAsync(targetDeal.Id, command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items[0].Id).IsEqualTo(targetTask.Id);
+        }
+
+        [Test]
+        public async Task GetDealTasksAsync_WhenDealDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomDealId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _taskServicesMock.GetDealTasksAsync(randomDealId, command, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.Message).IsEqualTo("Sale not found.");
+        }
+
+        [Test]
+        public async Task GetDealTasksAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@t.pl",
+                FirstName = "Owner",
+                LastName = "User"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Comp_{uniqueSuffix}",
+                NIP = "1112223344",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Prywatny Deal",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                OwnerId = ownerId,
+                Owner = owner,
+                CloseDate = DateTime.UtcNow
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.GetDealTasksAsync(deal.Id, command, unauthorizedUserId))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task GetDealTasksAsync_WhenDealHasNoTasks_ReturnsEmptyListWithSuccessStatus()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"EmptyOwner_{uniqueSuffix}",
+                Email = $"empty_{uniqueSuffix}@t.pl",
+                FirstName = "Piotr",
+                LastName = "Kowal"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"EmptyComp_{uniqueSuffix}",
+                NIP = "5556667788",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var dealWithoutTasks = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Deal Bez Zadań",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                OwnerId = ownerId,
+                Owner = owner,
+                CloseDate = DateTime.UtcNow
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Deals.Add(dealWithoutTasks);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _taskServicesMock.GetDealTasksAsync(dealWithoutTasks.Id, command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
         }
     }
 }
