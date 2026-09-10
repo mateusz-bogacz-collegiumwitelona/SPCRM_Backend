@@ -22,19 +22,20 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<SalesServices> _logger;
+        private readonly IEntityAuthorizationService _entityAuth;
 
         public SalesServices(
             AppDbContext context,
-            ILogger<SalesServices> logger
+            ILogger<SalesServices> logger,
+            IEntityAuthorizationService entityAuth
             )
         {
             _context = context;
             _logger = logger;
+            _entityAuth = entityAuth;
         }
 
-        public async Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(
-    SalesListCommand command,
-    Guid? forcedOwnerId = null)
+        public async Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(SalesListCommand command, Guid? forcedOwnerId = null)
         {
             var effectiveOwnerId = forcedOwnerId ?? command.OwnerId;
 
@@ -95,7 +96,7 @@ namespace Services.Services
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_sales");
 
-        public async Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId)
+        public async Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId, Guid currentUserId)
         {
             var now = DateTime.UtcNow;
 
@@ -150,6 +151,14 @@ namespace Services.Services
                 );
             }
 
+            var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, query.OwnerId);
+            
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized access to Deal {DealId}.", currentUserId, dealId);
+                throw new ForbiddenException("You are not authorized to modify this company.");
+            }
+
             if (!query.HasCurrency || !query.HasOwner || !query.HasCompany ||
                 string.IsNullOrWhiteSpace(query.CurrencyCode) ||
                 !query.DecimalPlaces.HasValue)
@@ -196,34 +205,61 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, ProductListCommand command)
-            => await _context.DealProducts
-                    .AsNoTracking()
-                    .Where(dp => dp.DealId == dealId)
-                    .ApplySearch(command.SearchTerm ?? string.Empty)
-                    .ApplyFilter(command.ProductCategory, command.SteelGrade)
-                    .ApplySorting(command.SortBy, command.SortDescending)
-                    .Select(dp => new DealProductResponse
-                    {
-                        ProductId = dp.ProductId,
-                        Name = dp.Product.Name,
-                        SteelGrade = dp.Product.SteelGrade.Name,
+        public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
+            Guid dealId,
+            ProductListCommand command,
+            Guid currentUserId)
+        {
+            var dealOwnerId = await _context.Deals
+                .AsNoTracking()
+                .Where(d => d.Id == dealId)
+                .Select(d => (Guid?)d.OwnerId)
+                .FirstOrDefaultAsync();
 
-                        Dimensions = DimensionsFormatter.Format(
+            if (!dealOwnerId.HasValue)
+            {
+                _logger.LogInformation("Sale with ID {DealId} not found when fetching products.", dealId);
+                return Result<PagedResult<DealProductResponse>>.Failure(
+                    message: "Sale not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.DealNotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, dealOwnerId.Value);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized access to products of Deal {DealId}.", currentUserId, dealId);
+                throw new ForbiddenException("You don't have access to this");
+            }
+
+            return await _context.DealProducts
+                .AsNoTracking()
+                .Where(dp => dp.DealId == dealId)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .ApplyFilter(command.ProductCategory, command.SteelGrade)
+                .ApplySorting(command.SortBy, command.SortDescending)
+                .Select(dp => new DealProductResponse
+                {
+                    ProductId = dp.ProductId,
+                    Name = dp.Product.Name,
+                    SteelGrade = dp.Product.SteelGrade.Name,
+                    Dimensions = DimensionsFormatter.Format(
                         dp.Product.Category,
                         dp.Product.Diameter,
                         dp.Product.Thickness,
                         dp.Product.Width,
                         dp.Product.Length
                     ),
-
-                        Quantity = dp.Quantity,
-                        UnitSymbol = dp.Product.Unit.Symbol,
-                        BaseUnitPrice = dp.Product.PricePerUnit,
-                        UnitPrice = dp.UnitPrice,
-                        TotalPrice = dp.Quantity * dp.UnitPrice,
-                        CurrencyCode = dp.Deal.Currency.Code,
-                        DecimalPlaces = dp.Deal.Currency.DecimalPlaces
-                    }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
+                    Quantity = dp.Quantity,
+                    UnitSymbol = dp.Product.Unit.Symbol,
+                    BaseUnitPrice = dp.Product.PricePerUnit,
+                    UnitPrice = dp.UnitPrice,
+                    TotalPrice = dp.Quantity * dp.UnitPrice,
+                    CurrencyCode = dp.Deal.Currency.Code,
+                    DecimalPlaces = dp.Deal.Currency.DecimalPlaces
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
+        }
     }
 }

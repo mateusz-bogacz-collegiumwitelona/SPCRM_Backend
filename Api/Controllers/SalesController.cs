@@ -60,7 +60,7 @@ namespace Api.Controllers
             [FromServices] ISalesServices salesServices,
             [FromRoute] Guid dealId)
         {
-            var result = await salesServices.GetSaleDetailAsync(dealId);
+            var result = await salesServices.GetSaleDetailAsync(dealId, CurrentUserId);
             return HandleResult(result);
         }
 
@@ -76,10 +76,10 @@ namespace Api.Controllers
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
-            [FromQuery] ProductFilterRequest filter
-            )
+            [FromQuery] ProductFilterRequest filter)
         {
-            var result = await salesServices.GetDealProductAsync(dealId, mapper.MapList(pagged, sorting, search, filter));
+            var command = mapper.MapList(pagged, sorting, search, filter);
+            var result = await salesServices.GetDealProductAsync(dealId, command, CurrentUserId);
             return HandleResult(result);
         }
 

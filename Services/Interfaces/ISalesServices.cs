@@ -13,7 +13,7 @@ namespace Services.Interfaces
         Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(SalesListCommand command, Guid? forcedOwnerId = null);
         Task<Result<List<String>>> GetSalesStatus();
         Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command);
-        Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId);
-        Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, ProductListCommand command);
+        Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId, Guid currentUserId);
+        Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, ProductListCommand command, Guid currentUserId);
     }
 }
