@@ -3,9 +3,9 @@ using Domain.Constants;
 using Domain.Enum;
 using Domain.Enum.Triggers;
 using Domain.Models;
+using Domain.State.Helpers;
 using Microsoft.AspNetCore.Http;
 using Stateless;
-using Domain.State.Helpers;
 
 namespace Domain.State
 {

@@ -21,7 +21,7 @@ namespace Services.Services
         private readonly ILogger<TaskServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
         public TaskServices(
-            AppDbContext context, 
+            AppDbContext context,
             ILogger<TaskServices> logger,
             IEntityAuthorizationService entityAuth)
         {
@@ -297,7 +297,7 @@ namespace Services.Services
                     AssignedToLastName = t.AssignedTo.LastName,
                     ContactId = t.ContactId,
                     ContactFirstName = t.Contact != null ? t.Contact.FirstName : null,
-                    ContactLastName = t.Contact != null ? t.Contact.LastName: null
+                    ContactLastName = t.Contact != null ? t.Contact.LastName : null
                 })
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-tasks");
         }

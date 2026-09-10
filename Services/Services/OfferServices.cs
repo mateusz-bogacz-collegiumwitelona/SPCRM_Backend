@@ -27,8 +27,8 @@ namespace Services.Services
         private readonly IOfferStateMachineFactory _state;
 
         public OfferServices(
-            AppDbContext context, 
-            ILogger<OfferServices> logger, 
+            AppDbContext context,
+            ILogger<OfferServices> logger,
             IEmailSender emailSender,
             IOfferStateMachineFactory state)
         {
@@ -349,8 +349,8 @@ namespace Services.Services
                 if (!fireResult.IsSuccess)
                 {
                     return Result<Guid?>.Failure(
-                        fireResult.Message ?? "An error occurred while transitioning the offer status.", 
-                        fireResult.ErrorCode ?? ErrorCodes.InternalError, 
+                        fireResult.Message ?? "An error occurred while transitioning the offer status.",
+                        fireResult.ErrorCode ?? ErrorCodes.InternalError,
                         fireResult.StatusCode);
                 }
 

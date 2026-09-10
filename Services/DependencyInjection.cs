@@ -14,6 +14,7 @@ namespace Services
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
+            // Services
             services.AddScoped<TokenServices>();
             services.AddScoped<IAuthServices, AuthServices>();
             services.AddScoped<IMailingServices, MailingServices>();
@@ -32,11 +33,15 @@ namespace Services
             services.AddScoped<IEntityAuthorizationService, EntityAuthorizationService>();
             services.AddScoped<IUserServices, UserServices>();
 
+            // State Factories
             services.AddScoped<IOfferStateMachineFactory, OfferStateMachineFactory>();
+            services.AddScoped<IDealStateMachineFactory, DealStateMachineFactory>();
 
+            // Workers
             services.AddScoped<PromotionCleanupWorker>();
             services.AddScoped<OfferExpirationWorker>();
 
+            // Hangfire
             services.AddHangfire(config => config
                 .UsePostgreSqlStorage(configuration.GetConnectionString("DefaultConnection")));
 

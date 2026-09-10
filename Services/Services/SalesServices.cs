@@ -152,7 +152,7 @@ namespace Services.Services
             }
 
             var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, query.OwnerId);
-            
+
             if (!hasAccess)
             {
                 _logger.LogWarning("User {UserId} attempted unauthorized access to Deal {DealId}.", currentUserId, dealId);
