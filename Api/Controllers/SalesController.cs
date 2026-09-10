@@ -7,6 +7,7 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Sale;
 
 namespace Api.Controllers
 {
@@ -18,20 +19,24 @@ namespace Api.Controllers
     public class SalesController : AuthControllerBase
     {
         [EndpointSummary("Get user deals")]
-        [EndpointDescription("Show data of every user deals.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [EndpointDescription("Show data of deals. Regular users only see their own deals, managers can see all or filter by OwnerId.")]
+        [ProducesResponseType(typeof(Result<PagedResult<UserSalesResponse>>), StatusCodes.Status200OK)]
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetUserSales(
+        public async Task<IActionResult> GetSalesAsync(
             [FromServices] ISalesServices salesServices,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
             [FromQuery] SalesFilterRequest filter,
             [FromServices] SalesMapper mapper
-            )
+        )
         {
-            var result = await salesServices.GetUserSales(CurrentUserId, mapper.MapList(pagged, sorting, search, filter));
+            Guid? forcedOwnerId = User.IsInRole("Manager") ? null : CurrentUserId;
+
+            var command = mapper.MapList(pagged, sorting, search, filter);
+            var result = await salesServices.GetSalesAsync(command, forcedOwnerId);
+
             return HandleResult(result);
         }
 

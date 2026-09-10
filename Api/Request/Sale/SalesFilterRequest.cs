@@ -8,5 +8,7 @@
         public DateTime? DateTo { get; init; }
 
         public string? StatusType { get; init; }
+
+        public Guid? OwnerId { get; init; }
     }
 }

@@ -12,9 +12,15 @@ namespace Services.QueryExtension
             decimal? value,
             DateTime? dateFrom,
             DateTime? dateTo,
-            string? statusType
+            string? statusType,
+            Guid? ownerId = null
             )
         {
+            if (ownerId.HasValue)
+            {
+                query = query.Where(d => d.OwnerId == ownerId.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(companyName))
             {
                 var search = companyName.ToLower();
@@ -66,6 +72,10 @@ namespace Services.QueryExtension
             "date" => sortDescending
                 ? query.OrderByDescending(x => x.CloseDate)
                 : query.OrderBy(x => x.CloseDate),
+
+            "owner" => sortDescending
+                ? query.OrderByDescending(x => x.Owner.LastName).ThenByDescending(x => x.Owner.FirstName)
+                : query.OrderBy(x => x.Owner.LastName).ThenBy(x => x.Owner.FirstName),
 
             _ => query.OrderByDescending(x => x.CloseDate)
         };

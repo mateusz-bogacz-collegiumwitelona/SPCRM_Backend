@@ -10,7 +10,7 @@ namespace Services.Interfaces
 {
     public interface ISalesServices
     {
-        Task<Result<PagedResult<UserSalesResponse>>> GetUserSales(Guid userId, SalesListCommand command);
+        Task<Result<PagedResult<UserSalesResponse>>> GetSalesAsync(SalesListCommand command, Guid? forcedOwnerId = null);
         Task<Result<List<String>>> GetSalesStatus();
         Task<Result<PagedResult<CompanySalesResponse>>> GetComapanySalesAsync(CompanyCommand command);
         Task<Result<SaleDetailResponse>> GetSaleDetailAsync(Guid dealId);

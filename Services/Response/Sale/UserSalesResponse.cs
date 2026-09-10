@@ -11,5 +11,9 @@
         public required int DecimalPlace { get; init; }
         public required string Currency { get; init; }
         public required string CompanyName { get; init; }
+
+        public Guid OwnerId { get; init; }
+        public string OwnerFirstName { get; init; } = null!;
+        public string OwnerLastName { get; init; } = null!;
     }
 }

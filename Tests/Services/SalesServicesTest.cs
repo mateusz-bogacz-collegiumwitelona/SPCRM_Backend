@@ -106,10 +106,10 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // ─── GetUserSales ─────────────────────────────────────────────────
+        // ─── GetSalesAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetUserSales_FiltersByOwnerAndMapsPropertiesCorrectly()
+        public async Task GetSalesAsync_FiltersByOwnerAndMapsPropertiesCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -119,8 +119,7 @@ namespace Tests.Services
             var targetUser = new ApplicationUser
             {
                 Id = targetUserId,
-                UserName =
-                $"Target_{uniqueSuffix}",
+                UserName = $"Target_{uniqueSuffix}",
                 NormalizedUserName = $"TARGET_{uniqueSuffix}",
                 Email = $"t_{uniqueSuffix}@t.pl",
                 NormalizedEmail = $"T_{uniqueSuffix}@T.PL",
@@ -175,7 +174,7 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = "Other Deal",
-                Value = 3000000, // 300.00
+                Value = 3000000,
                 Status = DealsStatusEnum.Complete,
                 CloseDate = DateTime.UtcNow,
                 CompanyId = company.Id,
@@ -199,7 +198,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _salesServicesMock.GetUserSales(targetUserId, command);
+            var result = await _salesServicesMock.GetSalesAsync(command, targetUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -212,24 +211,27 @@ namespace Tests.Services
             var mappedDeal = items.First();
 
             await Assert.That(mappedDeal.Id).IsEqualTo(targetDeal.Id);
-            await Assert.That(mappedDeal.Value).IsEqualTo(1500000m);
+            await Assert.That(mappedDeal.Value).IsEqualTo(1500000L);
             await Assert.That(mappedDeal.Currency).IsEqualTo("PLN");
             await Assert.That(mappedDeal.DecimalPlace).IsEqualTo(2);
             await Assert.That(mappedDeal.CompanyName).IsEqualTo(company.Name);
             await Assert.That(mappedDeal.Nip).IsEqualTo(company.NIP);
             await Assert.That(mappedDeal.Status).IsEqualTo(targetDeal.Status.ToString());
+            await Assert.That(mappedDeal.OwnerId).IsEqualTo(targetUserId);
+            await Assert.That(mappedDeal.OwnerFirstName).IsEqualTo("Target");
+            await Assert.That(mappedDeal.OwnerLastName).IsEqualTo("User");
         }
 
         [Test]
-        public async Task GetUserSales_WhenUserHasNoSales_ReturnsEmptyListWithSuccessStatus()
+        public async Task GetSalesAsync_WhenUserHasNoSales_ReturnsEmptyListWithSuccessStatus()
         {
             // Arrange
             var randomUserId = Guid.NewGuid();
 
             var command = new SalesListCommand { PageNumber = 1, PageSize = 10 };
 
-            // Act
-            var result = await _salesServicesMock.GetUserSales(randomUserId, command);
+            // Act 
+            var result = await _salesServicesMock.GetSalesAsync(command, randomUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

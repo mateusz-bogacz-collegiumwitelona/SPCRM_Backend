@@ -25,7 +25,8 @@ namespace Api.Mappers
                 Value = filter.Value,
                 DateFrom = filter.DateFrom,
                 DateTo = filter.DateTo,
-                StatusType = filter.StatusType
+                StatusType = filter.StatusType,
+                OwnerId = filter.OwnerId
             };
     }
 }

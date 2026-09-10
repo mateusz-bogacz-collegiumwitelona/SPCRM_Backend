@@ -252,7 +252,8 @@ namespace Api.Controllers
             [FromQuery] SalesFilterRequest filter
         )
         {
-            var result = await salesServices.GetUserSales(userId, mapper.MapList(pagged, sorting, search, filter));
+            var command = mapper.MapList(pagged, sorting, search, filter);
+            var result = await salesServices.GetSalesAsync(command, forcedOwnerId: userId);
             return HandleResult(result);
         }
 
