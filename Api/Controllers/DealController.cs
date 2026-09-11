@@ -26,7 +26,7 @@ namespace Api.Controllers
         [HttpGet("")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSalesAsync(
-            [FromServices] IDealServices salesServices,
+            [FromServices] IDealServices deal,
             [FromQuery] PaggedRequest pagged,
             [FromQuery] SortingRequest sorting,
             [FromQuery] SearchRequest search,
@@ -37,7 +37,7 @@ namespace Api.Controllers
             Guid? forcedOwnerId = User.IsInRole("Manager") ? null : CurrentUserId;
 
             var command = mapper.MapList(pagged, sorting, search, filter);
-            var result = await salesServices.GetDealsAsync(command, forcedOwnerId);
+            var result = await deal.GetDealsAsync(command, forcedOwnerId);
 
             return HandleResult(result);
         }
@@ -47,9 +47,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("statuses")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetDealsStatuses([FromServices] IDealServices salesServices)
+        public async Task<IActionResult> GetDealsStatuses([FromServices] IDealServices deal)
         {
-            var result = await salesServices.GetDealsStatus();
+            var result = await deal.GetDealsStatus();
             return HandleResult(result);
         }
 
@@ -59,10 +59,10 @@ namespace Api.Controllers
         [HttpGet("{dealId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealDetailAsync(
-            [FromServices] IDealServices salesServices,
+            [FromServices] IDealServices deal,
             [FromRoute] Guid dealId)
         {
-            var result = await salesServices.GetDealDetailAsync(dealId, CurrentUserId);
+            var result = await deal.GetDealDetailAsync(dealId, CurrentUserId);
             return HandleResult(result);
         }
 
@@ -72,7 +72,7 @@ namespace Api.Controllers
         [HttpGet("{dealId}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealProductAsync(
-            [FromServices] IDealServices salesServices,
+            [FromServices] IDealServices deal,
             [FromServices] ProductMapper mapper,
             [FromRoute] Guid dealId,
             [FromQuery] PaggedRequest pagged,
@@ -81,7 +81,7 @@ namespace Api.Controllers
             [FromQuery] ProductFilterRequest filter)
         {
             var command = mapper.MapList(pagged, sorting, search, filter);
-            var result = await salesServices.GetDealProductAsync(dealId, command, CurrentUserId);
+            var result = await deal.GetDealProductAsync(dealId, command, CurrentUserId);
             return HandleResult(result);
         }
 
@@ -118,11 +118,11 @@ namespace Api.Controllers
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddDealAsync(
-            [FromServices] IDealServices salesServices,
+            [FromServices] IDealServices deal,
             [FromServices] DealMapper mapper,
             [FromBody] AddDealRequest request)
         {
-            var result = await salesServices.AddDealAsync(mapper.MapAdd(request), CurrentUserId);
+            var result = await deal.AddDealAsync(mapper.MapAdd(request), CurrentUserId);
             return HandleResult(result);
         }
 
@@ -131,10 +131,10 @@ namespace Api.Controllers
         [HttpDelete("{dealId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> DeleteDealAsync(
-            [FromServices] IDealServices salesServices,
+            [FromServices] IDealServices deal,
             [FromRoute] Guid dealId)
         {
-            var result = await salesServices.DeleteDealAsync(CurrentUserId, dealId);
+            var result = await deal.DeleteDealAsync(CurrentUserId, dealId);
             return HandleResult(result);
         }
 
@@ -143,13 +143,28 @@ namespace Api.Controllers
         [HttpPut("extend-close-date")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> ExtendDealCloseDateAsync(
-            [FromServices] IDealServices salesServices,
+            [FromServices] IDealServices deal,
             [FromServices] DealMapper mapper,
             [FromBody] ExtendDealCloseDateRequest request)
         {
-            var result = await salesServices.ExtendDealCloseDateAsync(mapper.MapExtendCloseDate(request), CurrentUserId);
+            var result = await deal.ExtendDealCloseDateAsync(mapper.MapExtendCloseDate(request), CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Add a product to a deal")]
+        [EndpointDescription("Adds a product to a specific deal.")]
+        [HttpPut("{dealId}/products")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> AddDealProductAsync(
+            [FromServices] IDealServices deal,
+            [FromServices] DealMapper mapper,
+            [FromRoute] Guid dealId,
+            [FromBody] AddDealProductRequest request)
+        {
+            var result = await deal.AddDealProductAsync(dealId, mapper.MapAdd(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
     }
 }
 

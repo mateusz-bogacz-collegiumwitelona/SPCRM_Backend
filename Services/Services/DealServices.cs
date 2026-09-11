@@ -480,5 +480,79 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result> AddDealProductAsync(Guid dealId, AddDealProductCommand command, Guid userId)
+        {
+            var deal = await _context.Deals
+                .Include(d => d.DealProducts)
+                .FirstOrDefaultAsync(d => d.Id == dealId);
+
+            if (deal == null)
+            {
+                _logger.LogInformation("Deal with ID {DealId} not found when attempting to add products.", dealId);
+                return Result.Failure(
+                    message: "Deal not found.",
+                    errorCode: ErrorCodes.DealNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(userId, deal.OwnerId);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized modification of Deal {DealId}.", userId, dealId);
+                throw new ForbiddenException("You are not authorized to modify this deal.");
+            }
+
+            var stateMachine = _state.Create(deal);
+            var canModify = stateMachine.CanModify();
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Cannot add products to Deal {DealId} due to status: {Status}.", dealId, deal.Status);
+                return canModify;
+            }
+
+            if (deal.DealProducts.Any(dp => dp.ProductId == command.ProductId))
+            {
+                _logger.LogInformation("Product with ID {ProductId} already exists in Deal {DealId}.", command.ProductId, dealId);
+                return Result.Failure(
+                    message: "Product already exists in the deal.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var productExists = await _context.Products.AnyAsync(p => p.Id == command.ProductId);
+            if (!productExists)
+            {
+                _logger.LogInformation("Product with ID {ProductId} not found when attempting to add to Deal {DealId}.", command.ProductId, dealId);
+                return Result.Failure(
+                    message: "Product not found.",
+                    errorCode: ErrorCodes.ProductNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var dealProduct = new DealProduct
+            {
+                DealId = dealId,
+                ProductId = command.ProductId,
+                Quantity = command.Quantity,
+                UnitPrice = command.UnitPrice
+            };
+
+            _context.DealProducts.Add(dealProduct);
+
+            deal.Value += (long)dealProduct.Quantity * dealProduct.UnitPrice;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Product {ProductId} added to Deal {DealId} by User {UserId}.", command.ProductId, dealId, userId);
+
+            return Result.Success(
+                message: "Product added to deal successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }
