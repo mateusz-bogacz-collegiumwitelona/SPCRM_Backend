@@ -2,7 +2,6 @@
 using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
-using Domain.State;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
@@ -12,7 +11,6 @@ using Npgsql;
 using Services.Command.Company;
 using Services.Command.Deal;
 using Services.Command.Product;
-using Services.Command.Sales;
 using Services.Factory;
 using Services.Factory.Interfaces;
 using Services.Interfaces;
@@ -105,8 +103,8 @@ namespace Tests.Services
             _stateMock = new DealStateMachineFactory();
 
             _dealServicesMock = new DealServices(
-                _contextMock, 
-                _loggerMock, 
+                _contextMock,
+                _loggerMock,
                 _entityAuthMock,
                 _stateMock);
         }
@@ -1985,7 +1983,7 @@ namespace Tests.Services
             var command = new ExtendDealCloseDateCommand
             {
                 DealId = deal.Id,
-                NewCloseDate = currentCloseDate.AddDays(-2) 
+                NewCloseDate = currentCloseDate.AddDays(-2)
             };
 
             // Act
@@ -2355,6 +2353,322 @@ namespace Tests.Services
             await Assert.That(addedItem).IsNotNull();
             await Assert.That(addedItem!.Quantity).IsEqualTo(addedQuantity);
             await Assert.That(addedItem.UnitPrice).IsEqualTo(addedUnitPrice);
+        }
+
+        // ─── DeleteDealProductAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteDealProductAsync_WhenDealDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+            var randomDealId = Guid.NewGuid();
+            var randomDealProductId = Guid.NewGuid();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealProductAsync(randomDealId, randomDealProductId, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotFound);
+        }
+
+        [Test]
+        public async Task DeleteDealProductAsync_WhenUserIsNotAuthorized_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0030",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _dealServicesMock.DeleteDealProductAsync(deal.Id, Guid.NewGuid(), unauthorizedUserId))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        [Arguments(DealsStatusEnum.Complete)]
+        [Arguments(DealsStatusEnum.Cancelled)]
+        public async Task DeleteDealProductAsync_WhenDealIsFinalized_ReturnsBadRequest(DealsStatusEnum status)
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0031",
+                Value = 50000,
+                Status = status,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealProductAsync(deal.Id, Guid.NewGuid(), owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task DeleteDealProductAsync_WhenDealProductDoesNotExistInDeal_Returns404NotFound()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Blacha",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Sheet,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0032",
+                Value = 40000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                DealProducts = new List<DealProduct>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductId = product.Id,
+                        Quantity = 2,
+                        UnitPrice = 20000
+                    }
+                }
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var nonExistentDealProductId = Guid.NewGuid();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealProductAsync(deal.Id, nonExistentDealProductId, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+        }
+
+        [Test]
+        public async Task DeleteDealProductAsync_WhenTryingToRemoveLastProduct_ReturnsBadRequest()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Rura",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 10000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
+            var dealProductId = Guid.NewGuid();
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0033",
+                Value = 10000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                DealProducts = new List<DealProduct>
+                {
+                    new()
+                    {
+                        Id = dealProductId,
+                        ProductId = product.Id,
+                        Quantity = 1,
+                        UnitPrice = 10000
+                    }
+                }
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealProductAsync(deal.Id, dealProductId, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Deal must contain at least one product. Cancel the deal instead.");
+        }
+
+        [Test]
+        [Arguments(DealsStatusEnum.ToDo)]
+        [Arguments(DealsStatusEnum.InProgress)]
+        public async Task DeleteDealProductAsync_WhenValid_RemovesProductAndRecalculatesDealValue(DealsStatusEnum status)
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var productA = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt A",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Sheet,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+
+            var productB = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt B",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 15000,
+                StockQuantity = 30,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+
+            _contextMock.Products.AddRange(productA, productB);
+
+            var dealProductToKeepId = Guid.NewGuid();
+            var dealProductToRemoveId = Guid.NewGuid();
+
+            var quantityKeep = 2;
+            var priceKeep = 20000L; 
+
+            var quantityRemove = 3;
+            var priceRemove = 15000L; 
+
+            var initialValue = (quantityKeep * priceKeep) + (quantityRemove * priceRemove); 
+            var expectedFinalValue = quantityKeep * priceKeep; 
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0034",
+                Value = initialValue,
+                Status = status,
+                CloseDate = DateTime.UtcNow.AddDays(20),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                DealProducts = new  List<DealProduct>
+                {
+                    new()
+                    {
+                        Id = dealProductToKeepId,
+                        ProductId = productA.Id,
+                        Quantity = quantityKeep,
+                        UnitPrice = priceKeep
+                    },
+                    new()
+                    {
+                        Id = dealProductToRemoveId,
+                        ProductId = productB.Id,
+                        Quantity = quantityRemove,
+                        UnitPrice = priceRemove
+                    }
+                }
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealProductAsync(deal.Id, dealProductToRemoveId, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var dbDeal = await _contextMock.Deals
+                .Include(d => d.DealProducts)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.Id == deal.Id);
+
+            await Assert.That(dbDeal).IsNotNull();
+            await Assert.That(dbDeal!.Value).IsEqualTo(expectedFinalValue);
+            await Assert.That(dbDeal.DealProducts.Count).IsEqualTo(1);
+            await Assert.That(dbDeal.DealProducts.First().Id).IsEqualTo(dealProductToKeepId);
+
+            var removedExistsInDb = await _contextMock.DealProducts
+                .AnyAsync(dp => dp.Id == dealProductToRemoveId);
+            await Assert.That(removedExistsInDb).IsFalse();
         }
     }
 }

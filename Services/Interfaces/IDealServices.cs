@@ -2,7 +2,6 @@
 using Services.Command.Company;
 using Services.Command.Deal;
 using Services.Command.Product;
-using Services.Command.Sales;
 using Services.Response.Company;
 using Services.Response.Deal;
 
@@ -19,5 +18,6 @@ namespace Services.Interfaces
         Task<Result> DeleteDealAsync(Guid userId, Guid dealId);
         Task<Result> ExtendDealCloseDateAsync(ExtendDealCloseDateCommand command, Guid userId);
         Task<Result> AddDealProductAsync(Guid dealId, AddDealProductCommand command, Guid userId);
+        Task<Result> DeleteDealProductAsync(Guid dealId, Guid dealProductId, Guid userId);
     }
 }

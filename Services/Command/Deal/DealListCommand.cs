@@ -1,4 +1,4 @@
-﻿namespace Services.Command.Sales
+﻿namespace Services.Command.Deal
 {
     public record DealListCommand
     {

@@ -165,6 +165,18 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Delete a product from a deal")]
+        [EndpointDescription("Deletes a specific product from a deal.")]
+        [HttpDelete("{dealId}/products/{dealProductId}")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> DeleteDealProductAsync(
+            [FromServices] IDealServices deal,
+            [FromRoute] Guid dealId,
+            [FromRoute] Guid dealProductId)
+        {
+            var result = await deal.DeleteDealProductAsync(dealId, dealProductId, CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
 

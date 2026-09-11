@@ -10,7 +10,6 @@ using Microsoft.Extensions.Logging;
 using Services.Command.Company;
 using Services.Command.Deal;
 using Services.Command.Product;
-using Services.Command.Sales;
 using Services.Factory.Interfaces;
 using Services.Helpers;
 using Services.Interfaces;
@@ -551,6 +550,72 @@ namespace Services.Services
 
             return Result.Success(
                 message: "Product added to deal successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> DeleteDealProductAsync(Guid dealId, Guid dealProductId, Guid userId)
+        {
+            var deal = await _context.Deals
+                .Include(d => d.DealProducts)
+                .FirstOrDefaultAsync(d => d.Id == dealId);
+
+            if (deal == null)
+            {
+                _logger.LogInformation("Deal with ID {DealId} not found when attempting to remove product.", dealId);
+                return Result.Failure(
+                    message: "Deal not found.",
+                    errorCode: ErrorCodes.DealNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(userId, deal.OwnerId);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized modification of Deal {DealId}.", userId, dealId);
+                throw new ForbiddenException("You are not authorized to modify this deal.");
+            }
+
+            var stateMachine = _state.Create(deal);
+            var canModify = stateMachine.CanModify();
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Cannot remove products from Deal {DealId} due to status: {Status}.", dealId, deal.Status);
+                return canModify;
+            }
+
+            var dealProduct = deal.DealProducts.FirstOrDefault(dp => dp.Id == dealProductId);
+            if (dealProduct == null)
+            {
+                _logger.LogInformation("DealProduct with ID {DealProductId} does not exist in Deal {DealId}.", dealProductId, dealId);
+                return Result.Failure(
+                    message: "Product does not exist in the deal.",
+                    errorCode: ErrorCodes.ProductNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (deal.DealProducts.Count <= 1)
+            {
+                _logger.LogWarning("Attempted to remove the last product from Deal {DealId}.", dealId);
+                return Result.Failure(
+                    message: "Deal must contain at least one product. Cancel the deal instead.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            _context.DealProducts.Remove(dealProduct);
+
+            deal.Value -= (long)dealProduct.Quantity * dealProduct.UnitPrice;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("DealProduct {DealProductId} removed from Deal {DealId} by User {UserId}.", dealProductId, dealId, userId);
+
+            return Result.Success(
+                message: "Product removed from deal successfully.",
                 statusCode: StatusCodes.Status200OK
             );
         }
