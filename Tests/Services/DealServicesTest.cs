@@ -2,6 +2,7 @@
 using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
+using Domain.State;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
@@ -12,6 +13,8 @@ using Services.Command.Company;
 using Services.Command.Deal;
 using Services.Command.Product;
 using Services.Command.Sales;
+using Services.Factory;
+using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
@@ -30,6 +33,7 @@ namespace Tests.Services
 
         private string _currentSchema = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
+        protected IDealStateMachineFactory _stateMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -41,6 +45,7 @@ namespace Tests.Services
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
                 .WithCommand(
+                    "-c", "max_connections=300",
                     "-c", "max_locks_per_transaction=1024",
                     "-c", "shared_buffers=256MB"
                 )
@@ -97,7 +102,13 @@ namespace Tests.Services
 
             _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _dealServicesMock = new DealServices(_contextMock, _loggerMock, _entityAuthMock);
+            _stateMock = new DealStateMachineFactory();
+
+            _dealServicesMock = new DealServices(
+                _contextMock, 
+                _loggerMock, 
+                _entityAuthMock,
+                _stateMock);
         }
 
         [After(Test)]
@@ -1703,5 +1714,153 @@ namespace Tests.Services
             await Assert.That(productAEntry.UnitPrice).IsEqualTo(18000);
         }
 
+        // ─── DeleteDealAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteDealAsync_WhenDealDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+            var randomDealId = Guid.NewGuid();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealAsync(randomUserId, randomDealId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotFound);
+        }
+
+        [Test]
+        public async Task DeleteDealAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0001",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _dealServicesMock.DeleteDealAsync(unauthorizedUserId, deal.Id))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        [Arguments(DealsStatusEnum.ToDo)]
+        [Arguments(DealsStatusEnum.InProgress)]
+        public async Task DeleteDealAsync_WhenDealIsInValidStatus_TransitionsToCancelledAndSaves(DealsStatusEnum initialStatus)
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0002",
+                Value = 100000,
+                Status = initialStatus,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealAsync(owner.Id, deal.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedDeal = await _contextMock.Deals.AsNoTracking().FirstOrDefaultAsync(d => d.Id == deal.Id);
+            await Assert.That(updatedDeal).IsNotNull();
+            await Assert.That(updatedDeal!.Status).IsEqualTo(DealsStatusEnum.Cancelled);
+        }
+
+        [Test]
+        public async Task DeleteDealAsync_WhenDealIsAlreadyComplete_ReturnsBadRequestAndDoesNotChangeStatus()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0003",
+                Value = 75000,
+                Status = DealsStatusEnum.Complete,
+                CloseDate = DateTime.UtcNow.AddDays(-1),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealAsync(owner.Id, deal.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var dbDeal = await _contextMock.Deals.AsNoTracking().FirstOrDefaultAsync(d => d.Id == deal.Id);
+            await Assert.That(dbDeal).IsNotNull();
+            await Assert.That(dbDeal!.Status).IsEqualTo(DealsStatusEnum.Complete);
+        }
+
+        [Test]
+        public async Task DeleteDealAsync_WhenDealIsAlreadyCancelled_ReturnsBadRequest()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0004",
+                Value = 25000,
+                Status = DealsStatusEnum.Cancelled,
+                CloseDate = DateTime.UtcNow,
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.DeleteDealAsync(owner.Id, deal.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Deal is already in status 'Cancelled'.");
+        }
     }
 }

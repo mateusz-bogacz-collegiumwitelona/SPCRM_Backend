@@ -125,6 +125,18 @@ namespace Api.Controllers
             var result = await salesServices.AddDealAsync(mapper.MapAdd(request), CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Delete a deal")]
+        [EndpointDescription("Deletes a specific deal by its ID. (Changed status into Cancelled)")]
+        [HttpDelete("{dealId}")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> DeleteDealAsync(
+            [FromServices] IDealServices salesServices,
+            [FromRoute] Guid dealId)
+        {
+            var result = await salesServices.DeleteDealAsync(CurrentUserId, dealId);
+            return HandleResult(result);
+        }
     }
 }
 

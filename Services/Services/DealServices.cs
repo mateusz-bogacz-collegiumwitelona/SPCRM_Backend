@@ -11,6 +11,7 @@ using Services.Command.Company;
 using Services.Command.Deal;
 using Services.Command.Product;
 using Services.Command.Sales;
+using Services.Factory.Interfaces;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
@@ -24,16 +25,19 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<DealServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
+        private readonly IDealStateMachineFactory _state;
 
         public DealServices(
             AppDbContext context,
             ILogger<DealServices> logger,
-            IEntityAuthorizationService entityAuth
+            IEntityAuthorizationService entityAuth,
+            IDealStateMachineFactory state
             )
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
+            _state = state;
         }
 
         public async Task<Result<PagedResult<UserDealResponse>>> GetDealsAsync(DealListCommand command, Guid? forcedOwnerId = null)
@@ -383,6 +387,46 @@ namespace Services.Services
                 _logger.LogError("An error occurred while adding a new deal. Transaction rolled back.");
                 throw;
             }
+        }
+
+        public async Task<Result> DeleteDealAsync(Guid userId, Guid dealId)
+        {
+            var deal = await _context.Deals.FirstOrDefaultAsync(d => d.Id == dealId);
+
+            if (deal == null)
+            {
+                _logger.LogInformation("Deal with ID {DealId} not found for deletion.", dealId);
+                return Result.Failure(
+                    message: "Deal not found.",
+                    errorCode: ErrorCodes.DealNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(userId, deal.OwnerId);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized deletion of Deal {DealId}.", userId, dealId);
+                throw new ForbiddenException("You are not authorized to delete this deal.");
+            }
+
+            var stateMachine = _state.Create(deal);
+            var transitionResult = stateMachine.TransitionTo(DealsStatusEnum.Cancelled);
+
+            if (!transitionResult.IsSuccess)
+            {
+                _logger.LogWarning("Deal {DealId} cannot be deleted due to its current status: {Status}.", dealId, deal.Status);
+                return transitionResult;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Deal {DealId} marked as Cancelled by User {UserId}.", dealId, userId);
+
+            return Result.Success(
+                message: "Deal deleted successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
         }
     }
 }
