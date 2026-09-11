@@ -1862,5 +1862,186 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
             await Assert.That(result.Message).IsEqualTo("Deal is already in status 'Cancelled'.");
         }
+
+        // ─── ExtendDealCloseDateAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task ExtendDealCloseDateAsync_WhenDealDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+            var command = new ExtendDealCloseDateCommand
+            {
+                DealId = Guid.NewGuid(),
+                NewCloseDate = DateTime.UtcNow.AddDays(30)
+            };
+
+            // Act
+            var result = await _dealServicesMock.ExtendDealCloseDateAsync(command, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotFound);
+        }
+
+        [Test]
+        public async Task ExtendDealCloseDateAsync_WhenUserIsNotOwnerNorAuthorized_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0010",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendDealCloseDateCommand
+            {
+                DealId = deal.Id,
+                NewCloseDate = DateTime.UtcNow.AddDays(14)
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _dealServicesMock.ExtendDealCloseDateAsync(command, unauthorizedUserId))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        [Arguments(DealsStatusEnum.Complete)]
+        [Arguments(DealsStatusEnum.Cancelled)]
+        public async Task ExtendDealCloseDateAsync_WhenDealIsFinalized_ReturnsBadRequest(DealsStatusEnum finalizedStatus)
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0011",
+                Value = 50000,
+                Status = finalizedStatus,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendDealCloseDateCommand
+            {
+                DealId = deal.Id,
+                NewCloseDate = DateTime.UtcNow.AddDays(14)
+            };
+
+            // Act
+            var result = await _dealServicesMock.ExtendDealCloseDateAsync(command, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Cannot modify a finalized deal with status '" + finalizedStatus + "'.");
+        }
+
+        [Test]
+        public async Task ExtendDealCloseDateAsync_WhenNewDateIsEarlierOrEqualToCurrent_ReturnsBadRequest()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var currentCloseDate = DateTime.UtcNow.AddDays(10);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0012",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = currentCloseDate,
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendDealCloseDateCommand
+            {
+                DealId = deal.Id,
+                NewCloseDate = currentCloseDate.AddDays(-2) 
+            };
+
+            // Act
+            var result = await _dealServicesMock.ExtendDealCloseDateAsync(command, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("New close date must be later than the current close date.");
+        }
+
+        [Test]
+        [Arguments(DealsStatusEnum.ToDo)]
+        [Arguments(DealsStatusEnum.InProgress)]
+        public async Task ExtendDealCloseDateAsync_WhenDataIsValid_UpdatesCloseDateAndReturnsOk(DealsStatusEnum status)
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var initialDate = DateTime.UtcNow.AddDays(5);
+            var extendedDate = DateTime.UtcNow.AddDays(20);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0013",
+                Value = 50000,
+                Status = status,
+                CloseDate = initialDate,
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendDealCloseDateCommand
+            {
+                DealId = deal.Id,
+                NewCloseDate = extendedDate
+            };
+
+            // Act
+            var result = await _dealServicesMock.ExtendDealCloseDateAsync(command, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedDeal = await _contextMock.Deals.AsNoTracking().FirstOrDefaultAsync(d => d.Id == deal.Id);
+            await Assert.That(updatedDeal).IsNotNull();
+
+            var difference = (updatedDeal!.CloseDate - extendedDate).Duration();
+            await Assert.That(difference < TimeSpan.FromSeconds(1)).IsTrue();
+        }
     }
 }

@@ -428,5 +428,57 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result> ExtendDealCloseDateAsync(ExtendDealCloseDateCommand command, Guid userId)
+        {
+            var deal = await _context.Deals.FirstOrDefaultAsync(d => d.Id == command.DealId);
+
+            if (deal == null)
+            {
+                _logger.LogInformation("Deal with ID {DealId} not found for extending close date.", command.DealId);
+                return Result.Failure(
+                    message: "Deal not found.",
+                    errorCode: ErrorCodes.DealNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(userId, deal.OwnerId);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized close date extension of Deal {DealId}.", userId, command.DealId);
+                throw new ForbiddenException("You are not authorized to modify this deal.");
+            }
+
+            var stateMachine = _state.Create(deal);
+            var canModify = stateMachine.CanModify();
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("User {UserId} attempted to extend finalized Deal {DealId} with status {Status}.", userId, command.DealId, deal.Status);
+                return canModify;
+            }
+
+            var targetCloseDate = DateTime.SpecifyKind(command.NewCloseDate, DateTimeKind.Utc);
+
+            if (targetCloseDate <= deal.CloseDate)
+            {
+                _logger.LogWarning("User {UserId} attempted to extend Deal {DealId} to a date earlier than or equal to current: {NewCloseDate}.", userId, command.DealId, targetCloseDate);
+                return Result.Failure(
+                    message: "New close date must be later than the current close date.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            deal.CloseDate = targetCloseDate;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Deal {DealId} close date extended to {NewCloseDate} by User {UserId}.", command.DealId, targetCloseDate, userId);
+
+            return Result.Success(
+                message: "Deal close date extended successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

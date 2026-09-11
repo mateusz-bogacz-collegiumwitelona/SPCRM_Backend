@@ -137,6 +137,19 @@ namespace Api.Controllers
             var result = await salesServices.DeleteDealAsync(CurrentUserId, dealId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Extend deal close date")]
+        [EndpointDescription("Extends the close date of a specific deal.")]
+        [HttpPut("extend-close-date")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> ExtendDealCloseDateAsync(
+            [FromServices] IDealServices salesServices,
+            [FromServices] DealMapper mapper,
+            [FromBody] ExtendDealCloseDateRequest request)
+        {
+            var result = await salesServices.ExtendDealCloseDateAsync(mapper.MapExtendCloseDate(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
 

@@ -33,5 +33,7 @@ namespace Api.Mappers
 
         public partial AddDealCommand MapAdd(AddDealRequest request);
         public partial AddDealProductCommand MapAdd(AddDealProductRequest request);
+
+        public partial ExtendDealCloseDateCommand MapExtendCloseDate(ExtendDealCloseDateRequest request);
     }
 }

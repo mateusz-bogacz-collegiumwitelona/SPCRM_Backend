@@ -17,5 +17,6 @@ namespace Services.Interfaces
         Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(Guid dealId, ProductListCommand command, Guid currentUserId);
         Task<Result> AddDealAsync(AddDealCommand command, Guid userId);
         Task<Result> DeleteDealAsync(Guid userId, Guid dealId);
+        Task<Result> ExtendDealCloseDateAsync(ExtendDealCloseDateCommand command, Guid userId);
     }
 }

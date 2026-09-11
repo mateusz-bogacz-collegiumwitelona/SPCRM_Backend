@@ -94,19 +94,19 @@ namespace Domain.State
             return Fire(trigger.Value);
         }
 
-        public Result CanModifyProducts()
+        public Result CanModify()
         {
-            if (_deal.Status == DealsStatusEnum.Complete || _deal.Status == DealsStatusEnum.Cancelled)
+            if (_deal.Status is DealsStatusEnum.Complete or DealsStatusEnum.Cancelled)
             {
                 return Result.Failure(
-                    message: $"Cannot modify products for a finalized deal with status '{_deal.Status}'.",
+                    message: $"Cannot modify a finalized deal with status '{_deal.Status}'.",
                     errorCode: ErrorCodes.InvalidOperation,
                     statusCode: StatusCodes.Status400BadRequest
                 );
             }
 
             return Result.Success(
-                message: "Deal products can be modified.",
+                message: "Deal can be modified.",
                 statusCode: StatusCodes.Status200OK
             );
         }
