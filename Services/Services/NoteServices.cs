@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Constants;
+using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
@@ -189,7 +190,7 @@ namespace Services.Services
                 throw new UserNotFoundException(command.AuthorId);
             }
 
-            if (!Enum.IsDefined(typeof(NoteEnum), command.NoteType))
+            if (!Enum.IsDefined(typeof(NoteTypeEnum), command.NoteType))
             {
                 _logger.LogWarning("Invalid note type provided: {NoteType}.", command.NoteType);
                 return Result.Failure(
@@ -201,9 +202,9 @@ namespace Services.Services
 
             bool targetExists = command.NoteType switch
             {
-                NoteEnum.Contact => await _context.Contacts.AsNoTracking().AnyAsync(c => c.Id == command.TargetId),
-                NoteEnum.Deal => await _context.Deals.AsNoTracking().AnyAsync(d => d.Id == command.TargetId),
-                NoteEnum.Task => await _context.Tasks.AsNoTracking().AnyAsync(t => t.Id == command.TargetId),
+                NoteTypeEnum.Contact => await _context.Contacts.AsNoTracking().AnyAsync(c => c.Id == command.TargetId),
+                NoteTypeEnum.Deal => await _context.Deals.AsNoTracking().AnyAsync(d => d.Id == command.TargetId),
+                NoteTypeEnum.Task => await _context.Tasks.AsNoTracking().AnyAsync(t => t.Id == command.TargetId),
                 _ => false
             };
 
@@ -219,21 +220,21 @@ namespace Services.Services
 
             Note newNote = command.NoteType switch
             {
-                NoteEnum.Contact => new ContactNote
+                NoteTypeEnum.Contact => new ContactNote
                 {
                     ContactId = command.TargetId,
                     Title = command.Title.Trim(),
                     Content = command.Content.Trim(),
                     Author = user
                 },
-                NoteEnum.Deal => new DealNote
+                NoteTypeEnum.Deal => new DealNote
                 {
                     DealId = command.TargetId,
                     Title = command.Title.Trim(),
                     Content = command.Content.Trim(),
                     Author = user
                 },
-                NoteEnum.Task => new TaskNote
+                NoteTypeEnum.Task => new TaskNote
                 {
                     TaskId = command.TargetId,
                     Title = command.Title.Trim(),

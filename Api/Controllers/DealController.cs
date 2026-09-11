@@ -2,12 +2,14 @@
 using Api.Mappers;
 using Api.Request.Deal;
 using Api.Request.List;
+using Api.Request.Note;
 using Api.Request.Product;
 using Api.Request.Sale;
 using Api.Request.Task;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Services.Command.Note;
 using Services.Interfaces;
 using Services.Response.Deal;
 
@@ -192,6 +194,33 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+
+        [HttpPost("{dealId}/notes")]
+        [EndpointSummary("Add a note to a deal")]
+        [Authorize(Roles = "User,Manager,Admin")]
+        public async Task<IActionResult> AddDealNote(
+            [FromServices] INoteServices note,
+            [FromServices] NoteMapper mapper,
+            [FromRoute] Guid dealId,
+            [FromBody] AddDealNoteRequest request)
+        {
+            var result = await note.AddNoteAsync(mapper.MapAddToDeal(request, CurrentUserId, dealId));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Add a note to a deal")]
+        [EndpointDescription("Adds a new note to a specific deal.")]
+        [HttpPost("{dealId}/notes")]
+        public async Task<IActionResult> AddDealNoteAsync(
+            [FromServices] INoteServices note,
+            [FromServices] NoteMapper mapper,
+            [FromRoute] Guid dealId,
+            [FromBody] AddDealNoteRequest request
+            )
+        {
+            var result = await note.AddNoteAsync(mapper.MapAddToDeal(request, CurrentUserId, dealId));
+            return HandleResult(result);
+        }
     }
 }
 

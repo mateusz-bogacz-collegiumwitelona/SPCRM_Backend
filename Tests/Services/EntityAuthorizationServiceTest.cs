@@ -214,5 +214,125 @@ namespace Tests.Services
             // Assert
             await Assert.That(result).IsFalse();
         }
+
+        // ─── CanAccessAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task CanAccessAsync_WhenUserIsManager_ReturnsTrue()
+        {
+            // Arrange
+            var managerId = Guid.NewGuid();
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = "ManagerAccessUser",
+                Email = "manager_access@test.pl",
+                FirstName = "Adam",
+                LastName = "Manager"
+            };
+
+            var managerRole = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = "MANAGER"
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = managerRole.Id
+            };
+
+            _contextMock.Users.Add(manager);
+            _contextMock.Roles.Add(managerRole);
+            _contextMock.UserRoles.Add(userRole);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _entityAuthMock.CanAccessAsync(managerId);
+
+            // Assert
+            await Assert.That(result).IsTrue();
+        }
+
+        [Test]
+        public async Task CanAccessAsync_WhenUserHasDifferentRole_ReturnsFalse()
+        {
+            // Arrange
+            var employeeId = Guid.NewGuid();
+
+            var employee = new ApplicationUser
+            {
+                Id = employeeId,
+                UserName = "EmployeeAccessUser",
+                Email = "employee_access@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var employeeRole = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Employee",
+                NormalizedName = "EMPLOYEE"
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = employeeId,
+                RoleId = employeeRole.Id
+            };
+
+            _contextMock.Users.Add(employee);
+            _contextMock.Roles.Add(employeeRole);
+            _contextMock.UserRoles.Add(userRole);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _entityAuthMock.CanAccessAsync(employeeId);
+
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
+
+        [Test]
+        public async Task CanAccessAsync_WhenUserHasNoRoles_ReturnsFalse()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "NoRoleAccessUser",
+                Email = "norole_access@test.pl",
+                FirstName = "Piotr",
+                LastName = "Nowak"
+            };
+
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _entityAuthMock.CanAccessAsync(userId);
+
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
+
+        [Test]
+        public async Task CanAccessAsync_WhenUserDoesNotExist_ReturnsFalse()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _entityAuthMock.CanAccessAsync(randomUserId);
+
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
     }
 }

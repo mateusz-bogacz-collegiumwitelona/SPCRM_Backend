@@ -2,6 +2,7 @@
 using Domain.Constants;
 using Domain.Enum;
 using Domain.Exceptions.Exception;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -300,6 +301,93 @@ namespace Services.Services
                     ContactLastName = t.Contact != null ? t.Contact.LastName : null
                 })
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-tasks");
+        }
+
+        public async Task<Result> AddTaskAsync(CreateTaskCommand command, Guid userId)
+        {
+            var targetAssigneeId = command.AssignedToId ?? userId;
+
+            if (targetAssigneeId != userId)
+            {
+                var isManager = await _entityAuth.CanAccessAsync(userId);
+                if (!isManager)
+                {
+                    _logger.LogWarning("User {UserId} attempted to assign task to user {TargetAssigneeId} without permissions.", userId, targetAssigneeId);
+                    throw new ForbiddenException("You do not have permission to assign tasks to another user.");
+                }
+            }
+
+            var userExists = await _context.Users
+                .AnyAsync(u => u.Id == targetAssigneeId && !u.IsDeleted);
+
+            if (!userExists)
+            {
+                _logger.LogInformation("User with ID {UserId} not found when adding a task.", targetAssigneeId);
+                return Result.Failure(
+                    message: "User not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            Guid? dealId = null;
+            Guid? contactId = null;
+
+            if (command.TargetId.HasValue && command.TargetType != TaskTargetTypeEnum.None)
+            {
+                switch (command.TargetType)
+                {
+                    case TaskTargetTypeEnum.Deal:
+                        var dealExists = await _context.Deals.AnyAsync(d => d.Id == command.TargetId.Value);
+                        if (!dealExists)
+                        {
+                            _logger.LogInformation("Deal with ID {DealId} not found for task.", command.TargetId.Value);
+                            return Result.Failure(
+                                message: "Deal for this task not found.",
+                                statusCode: StatusCodes.Status404NotFound,
+                                errorCode: ErrorCodes.DealNotFound
+                            );
+                        }
+                        dealId = command.TargetId.Value;
+                        break;
+
+                    case TaskTargetTypeEnum.Contact:
+                        var contactExists = await _context.Contacts.AnyAsync(c => c.Id == command.TargetId.Value);
+                        if (!contactExists)
+                        {
+                            _logger.LogInformation("Contact with ID {ContactId} not found for task.", command.TargetId.Value);
+                            return Result.Failure(
+                                message: "Contact for this task not found.",
+                                statusCode: StatusCodes.Status404NotFound,
+                                errorCode: ErrorCodes.ContactNotFound
+                            );
+                        }
+                        contactId = command.TargetId.Value;
+                        break;
+                }
+            }
+
+            var task = new Tasks
+            {
+                Title = command.Title,
+                Description = command.Description,
+                DueAt = DateTime.SpecifyKind(command.DueAt, DateTimeKind.Utc),
+                Priority = command.Priority,
+                Status = TaskStatusEnum.ToDo,
+                AssignedToId = targetAssigneeId,
+                DealId = dealId,
+                ContactId = contactId
+            };
+
+            _context.Tasks.Add(task);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} created successfully and assigned to {AssignedToId} by user {UserId}.", task.Id, targetAssigneeId, userId);
+
+            return Result.Success(
+                message: "Task created successfully.",
+                statusCode: StatusCodes.Status201Created
+            );
         }
 
         private List<object> GetStatusDictionary()

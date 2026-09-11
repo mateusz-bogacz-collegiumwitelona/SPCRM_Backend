@@ -1,5 +1,5 @@
-﻿using Domain.Common;
-using Domain.Constants;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
@@ -1107,7 +1107,7 @@ namespace Tests.Services
                 Title = "Tytuł",
                 Content = "Treść",
                 TargetId = Guid.NewGuid(),
-                NoteType = NoteEnum.Contact,
+                NoteType = NoteTypeEnum.Contact,
                 AuthorId = Guid.NewGuid()
             };
 
@@ -1138,7 +1138,7 @@ namespace Tests.Services
                 Title = "Tytuł",
                 Content = "Treść",
                 TargetId = Guid.NewGuid(),
-                NoteType = NoteEnum.Contact,
+                NoteType = NoteTypeEnum.Contact,
                 AuthorId = userId
             };
 
@@ -1148,7 +1148,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.Message).IsEqualTo($"{NoteEnum.Contact} for this note not found");
+            await Assert.That(result.Message).IsEqualTo($"{NoteTypeEnum.Contact} for this note not found");
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NoteTargetNotFound);
         }
 
@@ -1199,7 +1199,7 @@ namespace Tests.Services
                 Title = "Ważna notatka",
                 Content = "To jest treść notatki do kontaktu",
                 TargetId = contactId,
-                NoteType = NoteEnum.Contact,
+                NoteType = NoteTypeEnum.Contact,
                 AuthorId = userId
             };
 
@@ -1242,7 +1242,7 @@ namespace Tests.Services
                 Title = "Tytuł",
                 Content = "Treść",
                 TargetId = Guid.NewGuid(),
-                NoteType = (NoteEnum)999,
+                NoteType = (NoteTypeEnum)999,
                 AuthorId = userId
             };
 

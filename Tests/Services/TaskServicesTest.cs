@@ -1,9 +1,11 @@
-﻿using Domain.Enum;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -102,6 +104,71 @@ namespace Tests.Services
             using var cmd = conn.CreateCommand();
             cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
             await cmd.ExecuteNonQueryAsync();
+        }
+
+
+        private async Task<(Company Company, ApplicationUser User, Currency Currency)> SeedCompanyAndUserAsync()
+        {
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Piotr",
+                LastName = "Kowalski"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+
+            return (company, user, currency);
+        }
+
+        private async Task AssignManagerRoleAsync(Guid userId)
+        {
+            var role = await _contextMock.Roles
+                .FirstOrDefaultAsync(r => r.NormalizedName == "MANAGER");
+
+            if (role == null)
+            {
+                role = new IdentityRole<Guid>
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Manager",
+                    NormalizedName = "MANAGER"
+                };
+                _contextMock.Roles.Add(role);
+            }
+
+            _contextMock.UserRoles.Add(new IdentityUserRole<Guid>
+            {
+                UserId = userId,
+                RoleId = role.Id
+            });
+
+            await _contextMock.SaveChangesAsync();
         }
 
         // ─── GetTasksForCalendarAsync ─────────────────────────────────────────────────
@@ -1929,6 +1996,331 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items).IsEmpty();
+        }
+
+        // ─── AddTaskAsync ────────────────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddTaskAsync_WhenAssigningToAnotherUserWithoutManagerRole_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (_, creator, _) = await SeedCompanyAndUserAsync();
+            var otherUserId = Guid.NewGuid();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Zadanie zablokowane",
+                Description = "Próba delegacji bez roli managera",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Medium,
+                AssignedToId = otherUserId,
+                TargetType = TaskTargetTypeEnum.None
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.AddTaskAsync(command, creator.Id))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenAssignedUserDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var nonExistentUserId = Guid.NewGuid();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Zadanie do nikogo",
+                Description = "Pracownik nie istnieje w bazie",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Low,
+                AssignedToId = nonExistentUserId,
+                TargetType = TaskTargetTypeEnum.None
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenCreatorDoesNotExistAndNoAssignedToProvided_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentCreatorId = Guid.NewGuid();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Zadanie widmo",
+                Description = "Twórca nie istnieje",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Low,
+                AssignedToId = null,
+                TargetType = TaskTargetTypeEnum.None
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, nonExistentCreatorId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenTargetDealDoesNotExist_Returns404DealNotFound()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+            var nonExistentDealId = Guid.NewGuid();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Zadanie pod deal",
+                Description = "Deal nie istnieje",
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Priority = TaskPriorityEnum.High,
+                AssignedToId = null,
+                TargetId = nonExistentDealId,
+                TargetType = TaskTargetTypeEnum.Deal
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotFound);
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenTargetContactDoesNotExist_Returns404ContactNotFound()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+            var nonExistentContactId = Guid.NewGuid();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Zadanie pod kontakt",
+                Description = "Kontakt nie istnieje",
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Priority = TaskPriorityEnum.Medium,
+                AssignedToId = null,
+                TargetId = nonExistentContactId,
+                TargetType = TaskTargetTypeEnum.Contact
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenAssignedToIdIsNull_AssignsTaskToCreatorByDefault()
+        {
+            // Arrange
+            var (_, creator, _) = await SeedCompanyAndUserAsync();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Własne zadanie handlowca",
+                Description = "Przygotować ofertę",
+                DueAt = DateTime.UtcNow.AddDays(4),
+                Priority = TaskPriorityEnum.Medium,
+                AssignedToId = null,
+                TargetType = TaskTargetTypeEnum.None
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, creator.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var task = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Title == "Własne zadanie handlowca");
+            await Assert.That(task).IsNotNull();
+            await Assert.That(task!.AssignedToId).IsEqualTo(creator.Id);
+            await Assert.That(task.Status).IsEqualTo(TaskStatusEnum.ToDo);
+            await Assert.That(task.DealId).IsNull();
+            await Assert.That(task.ContactId).IsNull();
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenExplicitlyAssigningToSelf_DoesNotRequireManagerPermissions()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Zadanie przypisane jawnie do siebie",
+                Description = "Brak roli managera nie powinien blokować",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Low,
+                AssignedToId = user.Id, // Jawne ID bieżącego usera
+                TargetType = TaskTargetTypeEnum.None
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var task = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Title == "Zadanie przypisane jawnie do siebie");
+            await Assert.That(task).IsNotNull();
+            await Assert.That(task!.AssignedToId).IsEqualTo(user.Id);
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenTargetIsDeal_CreatesTaskLinkedCorrectly()
+        {
+            // Arrange
+            var (company, user, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0070",
+                Value = 150000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = user.Id,
+                CurrencyId = currency.Id
+            };
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Przygotować umowę ramową",
+                Description = "Klient prosi o wgląd w zapisy",
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Priority = TaskPriorityEnum.High,
+                AssignedToId = null,
+                TargetId = deal.Id,
+                TargetType = TaskTargetTypeEnum.Deal
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var task = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.DealId == deal.Id);
+            await Assert.That(task).IsNotNull();
+            await Assert.That(task!.Title).IsEqualTo("Przygotować umowę ramową");
+            await Assert.That(task.DealId).IsEqualTo(deal.Id);
+            await Assert.That(task.ContactId).IsNull();
+            await Assert.That(task.AssignedToId).IsEqualTo(user.Id);
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenTargetIsContact_CreatesTaskLinkedCorrectly()
+        {
+            // Arrange
+            var (company, user, _) = await SeedCompanyAndUserAsync();
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marek",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                OwnerId = user.Id,
+                IsPrimary = true,
+                Owner = user
+            };
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Telefon wstępny",
+                Description = "Poznać zapotrzebowanie klienta",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Medium,
+                AssignedToId = null,
+                TargetId = contact.Id,
+                TargetType = TaskTargetTypeEnum.Contact
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var task = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.ContactId == contact.Id);
+            await Assert.That(task).IsNotNull();
+            await Assert.That(task!.ContactId).IsEqualTo(contact.Id);
+            await Assert.That(task.DealId).IsNull();
+            await Assert.That(task.AssignedToId).IsEqualTo(user.Id);
+        }
+
+        [Test]
+        public async Task AddTaskAsync_WhenManagerAssignsToOtherUser_CreatesTaskSuccessfully()
+        {
+            // Arrange
+            var (company, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Employee_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@test.pl",
+                FirstName = "Tomasz",
+                LastName = "Pracownik",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new CreateTaskCommand
+            {
+                Title = "Zadanie z delegacji menedżera",
+                Description = "Pilna weryfikacja magazynu",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.High,
+                AssignedToId = employee.Id,
+                TargetType = TaskTargetTypeEnum.None
+            };
+
+            // Act
+            var result = await _taskServicesMock.AddTaskAsync(command, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var task = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Title == "Zadanie z delegacji menedżera");
+            await Assert.That(task).IsNotNull();
+            await Assert.That(task!.AssignedToId).IsEqualTo(employee.Id);
         }
     }
 }

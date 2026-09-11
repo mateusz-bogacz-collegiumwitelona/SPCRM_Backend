@@ -1,9 +1,9 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Domain.Common
+namespace Domain.Enum
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum NoteEnum
+    public enum NoteTypeEnum
     {
         Contact,
         Deal,

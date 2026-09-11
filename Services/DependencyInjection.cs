@@ -36,7 +36,7 @@ namespace Services
             // State Factories
             services.AddScoped<IOfferStateMachineFactory, OfferStateMachineFactory>();
             services.AddScoped<IDealStateMachineFactory, DealStateMachineFactory>();
-
+            services.AddScoped<ITaskStateMachineFactory, TaskStateMachineFactory>();
             // Workers
             services.AddScoped<PromotionCleanupWorker>();
             services.AddScoped<OfferExpirationWorker>();
