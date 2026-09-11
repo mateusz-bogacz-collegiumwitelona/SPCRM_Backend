@@ -619,5 +619,72 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result> EditDealProductAsync(Guid dealId, Guid userId, EditDealProductCommand command)
+        {
+            var deal = await _context.Deals
+                .Include(d => d.DealProducts)
+                .FirstOrDefaultAsync(d => d.Id == dealId);
+
+            if (deal == null)
+            {
+                _logger.LogInformation("Deal with ID {DealId} not found when attempting to remove product.", dealId);
+                return Result.Failure(
+                    message: "Deal not found.",
+                    errorCode: ErrorCodes.DealNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(userId, deal.OwnerId);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized modification of Deal {DealId}.", userId, dealId);
+                throw new ForbiddenException("You are not authorized to modify this deal.");
+            }
+
+            var stateMachine = _state.Create(deal);
+            var canModify = stateMachine.CanModify();
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Cannot remove products from Deal {DealId} due to status: {Status}.", dealId, deal.Status);
+                return canModify;
+            }
+
+            var dealProduct = deal.DealProducts.FirstOrDefault(dp => dp.Id == command.DealProductId);
+            if (dealProduct == null)
+            {
+                _logger.LogInformation("DealProduct with ID {DealProductId} does not exist in Deal {DealId}.", command.DealProductId, dealId);
+                return Result.Failure(
+                    message: "Product does not exist in the deal.",
+                    errorCode: ErrorCodes.ProductNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var oldValue = deal.Value - (long)dealProduct.Quantity * dealProduct.UnitPrice;
+            deal.Value = oldValue;
+
+            if (command.Quantity.HasValue)
+            {
+                dealProduct.Quantity = command.Quantity.Value;
+            }
+
+            if (command.UnitPrice.HasValue)
+            {
+                dealProduct.UnitPrice = command.UnitPrice.Value;
+            }
+
+            deal.Value += (long)dealProduct.Quantity * dealProduct.UnitPrice;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("DealProduct {DealProductId} updated in Deal {DealId} by User {UserId}.", command.DealProductId, dealId, userId);
+
+            return Result.Success(
+                message: "Product updated in deal successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

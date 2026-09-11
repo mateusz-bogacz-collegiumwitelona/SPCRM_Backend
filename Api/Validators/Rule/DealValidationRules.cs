@@ -15,6 +15,10 @@ namespace Api.Validators.Rule
             => ruleBuilder
                 .GreaterThan(0).WithErrorCode(ErrorCodes.DealQuantityInvalid);
 
+        public static IRuleBuilderOptions<T, int?> ApplyDealProductQuantityRules<T>(this IRuleBuilder<T, int?> ruleBuilder)
+            => ruleBuilder
+                .GreaterThan(0).WithErrorCode(ErrorCodes.DealQuantityInvalid);
+
         public static IRuleBuilderOptions<T, long> ApplyDealProductUnitPriceRules<T>(this IRuleBuilderOptions<T, long> ruleBuilder)
             => ruleBuilder
                 .GreaterThanOrEqualTo(0)

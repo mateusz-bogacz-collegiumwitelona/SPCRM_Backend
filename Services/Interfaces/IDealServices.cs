@@ -19,5 +19,6 @@ namespace Services.Interfaces
         Task<Result> ExtendDealCloseDateAsync(ExtendDealCloseDateCommand command, Guid userId);
         Task<Result> AddDealProductAsync(Guid dealId, AddDealProductCommand command, Guid userId);
         Task<Result> DeleteDealProductAsync(Guid dealId, Guid dealProductId, Guid userId);
+        Task<Result> EditDealProductAsync(Guid dealId, Guid userId, EditDealProductCommand command);
     }
 }

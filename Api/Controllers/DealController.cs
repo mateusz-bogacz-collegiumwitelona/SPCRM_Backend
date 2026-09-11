@@ -177,6 +177,21 @@ namespace Api.Controllers
             var result = await deal.DeleteDealProductAsync(dealId, dealProductId, CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Update a product in a deal")]
+        [EndpointDescription("Updates a specific product in a deal.")]
+        [HttpPatch("{dealId}/products")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> EditDealProductAsync(
+            [FromServices] IDealServices deal,
+            [FromServices] DealMapper mapper,
+            [FromRoute] Guid dealId,
+            [FromBody] EditDealProductRequest request)
+        {
+            var result = await deal.EditDealProductAsync(dealId, CurrentUserId, mapper.MapEditProduct(request));
+            return HandleResult(result);
+        }
+
     }
 }
 
