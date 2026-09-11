@@ -1,5 +1,6 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
+using Api.Request.Deal;
 using Api.Request.List;
 using Api.Request.Product;
 using Api.Request.Sale;
@@ -70,7 +71,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("{dealId}/products")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetSaleProductAsync(
+        public async Task<IActionResult> GetDealProductAsync(
             [FromServices] IDealServices salesServices,
             [FromServices] ProductMapper mapper,
             [FromRoute] Guid dealId,
@@ -80,7 +81,7 @@ namespace Api.Controllers
             [FromQuery] ProductFilterRequest filter)
         {
             var command = mapper.MapList(pagged, sorting, search, filter);
-            var result = await salesServices.GetSaleProductAsync(dealId, command, CurrentUserId);
+            var result = await salesServices.GetDealProductAsync(dealId, command, CurrentUserId);
             return HandleResult(result);
         }
 
@@ -109,6 +110,19 @@ namespace Api.Controllers
             )
         {
             var result = await task.GetDealTasksAsync(dealId, mapper.MapSaleTasks(request), CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Add a new deal")]
+        [EndpointDescription("Creates a new deal with the provided details.")]
+        [HttpPost]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> AddDealAsync(
+            [FromServices] IDealServices salesServices,
+            [FromServices] DealMapper mapper,
+            [FromBody] AddDealRequest request)
+        {
+            var result = await salesServices.AddDealAsync(mapper.MapAdd(request), CurrentUserId);
             return HandleResult(result);
         }
     }

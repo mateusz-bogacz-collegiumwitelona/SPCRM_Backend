@@ -65,7 +65,6 @@
         public const string AddressNotFound = "CAD_013";
         public const string MissingCoordinates = "CAD_014";
 
-
         // Contact
         public const string InvalidContactDetailType = "CON_001";
         public const string PrimaryContactDetailRequired = "CON_002";
@@ -143,6 +142,9 @@
         // DEAL
         public const string DealNotFound = "DEAL_001";
 
+        public const string DealQuantityInvalid = "DEAL_002";
+        public const string DealProductUnitPriceInvalid = "DEAL_003";
+
         // TASK
         public const string TaskNotFound = "TASK_001";
 
@@ -157,7 +159,8 @@
         public const string CannotBlockAdmin = "USR_008";
         public const string UserNotLockedOut = "USR_009";
         public const string PasswordSetFailed = "USR_010";
-        public const string EmailAlreadyTaken = "USR_011";
-        public const string AccountLocked = "USR_012";
+        public const string AccountLocked = "USR_011";
+
+
     }
 }

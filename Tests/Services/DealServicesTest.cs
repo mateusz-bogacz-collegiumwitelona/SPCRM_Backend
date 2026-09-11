@@ -1,4 +1,5 @@
-﻿using Domain.Enum;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Company;
+using Services.Command.Deal;
 using Services.Command.Product;
 using Services.Command.Sales;
 using Services.Interfaces;
@@ -23,7 +25,7 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
 
-        protected DealServices _salesServicesMock = null!;
+        protected DealServices _dealServicesMock = null!;
         protected ILogger<DealServices> _loggerMock = null!;
 
         private string _currentSchema = null!;
@@ -95,7 +97,7 @@ namespace Tests.Services
 
             _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _salesServicesMock = new DealServices(_contextMock, _loggerMock, _entityAuthMock);
+            _dealServicesMock = new DealServices(_contextMock, _loggerMock, _entityAuthMock);
         }
 
         [After(Test)]
@@ -108,6 +110,49 @@ namespace Tests.Services
             using var cmd = conn.CreateCommand();
             cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
             await cmd.ExecuteNonQueryAsync();
+        }
+
+
+        private async Task<(Company Company, ApplicationUser User, Currency Currency)> SeedCompanyAndUserAsync()
+        {
+            var unique = Guid.NewGuid().ToString("N")[..8];
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"User_{unique}",
+                NormalizedUserName = $"USER_{unique}",
+                Email = $"user_{unique}@test.com",
+                NormalizedEmail = $"USER_{unique}@TEST.COM",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{unique}",
+                NIP = "5252525252",
+                OwnerId = userId,
+                Owner = user
+            };
+
+            _contextMock.Users.Add(user);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            return (company, user, currency);
         }
 
         // ─── GetDealsAsync ─────────────────────────────────────────────────
@@ -202,7 +247,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _salesServicesMock.GetDealsAsync(command, targetUserId);
+            var result = await _dealServicesMock.GetDealsAsync(command, targetUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -235,7 +280,7 @@ namespace Tests.Services
             var command = new DealListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act 
-            var result = await _salesServicesMock.GetDealsAsync(command, randomUserId);
+            var result = await _dealServicesMock.GetDealsAsync(command, randomUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -253,7 +298,7 @@ namespace Tests.Services
             var expectedStatuses = Enum.GetNames(typeof(DealsStatusEnum)).ToList();
 
             // Act
-            var result = await _salesServicesMock.GetDealsStatus();
+            var result = await _dealServicesMock.GetDealsStatus();
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -360,7 +405,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _salesServicesMock.GetComapanyDealsAsync(command);
+            var result = await _dealServicesMock.GetComapanyDealsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -475,7 +520,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _salesServicesMock.GetComapanyDealsAsync(command);
+            var result = await _dealServicesMock.GetComapanyDealsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -490,7 +535,7 @@ namespace Tests.Services
             var command = new CompanyCommand { PageNumber = 1, PageSize = 10, CompanyId = randomCompanyId };
 
             // Act
-            var result = await _salesServicesMock.GetComapanyDealsAsync(command);
+            var result = await _dealServicesMock.GetComapanyDealsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -510,7 +555,7 @@ namespace Tests.Services
             var randomUserId = Guid.NewGuid();
 
             // Act
-            var result = await _salesServicesMock.GetDealDetailAsync(randomDealId, randomUserId);
+            var result = await _dealServicesMock.GetDealDetailAsync(randomDealId, randomUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
@@ -575,7 +620,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _salesServicesMock.GetDealDetailAsync(deal.Id, userId);
+            var result = await _dealServicesMock.GetDealDetailAsync(deal.Id, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -675,7 +720,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _salesServicesMock.GetDealDetailAsync(deal.Id, userId);
+            var result = await _dealServicesMock.GetDealDetailAsync(deal.Id, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -752,7 +797,7 @@ namespace Tests.Services
             ");
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, userId))
+            await Assert.That(async () => await _dealServicesMock.GetDealDetailAsync(deal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
@@ -817,7 +862,7 @@ namespace Tests.Services
             ");
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, userId))
+            await Assert.That(async () => await _dealServicesMock.GetDealDetailAsync(deal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
@@ -879,7 +924,7 @@ namespace Tests.Services
             _contextMock.ChangeTracker.Clear();
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(corruptedDeal.Id, userId))
+            await Assert.That(async () => await _dealServicesMock.GetDealDetailAsync(corruptedDeal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
@@ -958,7 +1003,7 @@ namespace Tests.Services
             _contextMock.ChangeTracker.Clear();
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, userId))
+            await Assert.That(async () => await _dealServicesMock.GetDealDetailAsync(deal.Id, userId))
                 .Throws<DataCorruptionException>();
         }
 
@@ -1020,14 +1065,14 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetDealDetailAsync(deal.Id, unauthorizedUserId))
+            await Assert.That(async () => await _dealServicesMock.GetDealDetailAsync(deal.Id, unauthorizedUserId))
                 .Throws<ForbiddenException>();
         }
 
-        // ─── GetSaleProductAsync ─────────────────────────────────────────────────
+        // ─── GetDealProductAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetSaleProductAsync_MapsDeepRelationsAndCalculatesTotalsCorrectly()
+        public async Task GetDealProductAsync_MapsDeepRelationsAndCalculatesTotalsCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1129,7 +1174,7 @@ namespace Tests.Services
             var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
-            var result = await _salesServicesMock.GetSaleProductAsync(deal.Id, command, userId);
+            var result = await _dealServicesMock.GetDealProductAsync(deal.Id, command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1154,7 +1199,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetSaleProductAsync_ReturnsProductsOnlyForSpecificDeal()
+        public async Task GetDealProductAsync_ReturnsProductsOnlyForSpecificDeal()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1279,7 +1324,7 @@ namespace Tests.Services
             };
 
             // Act 
-            var result = await _salesServicesMock.GetSaleProductAsync(targetDeal.Id, command, userId);
+            var result = await _dealServicesMock.GetDealProductAsync(targetDeal.Id, command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1292,7 +1337,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetSaleProductAsync_WhenDealHasNoProducts_ReturnsEmptyListWithSuccessStatus()
+        public async Task GetDealProductAsync_WhenDealHasNoProducts_ReturnsEmptyListWithSuccessStatus()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1349,7 +1394,7 @@ namespace Tests.Services
             var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
-            var result = await _salesServicesMock.GetSaleProductAsync(dealWithoutProducts.Id, command, userId);
+            var result = await _dealServicesMock.GetDealProductAsync(dealWithoutProducts.Id, command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1359,7 +1404,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetSaleProductAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        public async Task GetDealProductAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1417,8 +1462,246 @@ namespace Tests.Services
             var command = new ProductListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act & Assert
-            await Assert.That(async () => await _salesServicesMock.GetSaleProductAsync(deal.Id, command, unauthorizedUserId))
+            await Assert.That(async () => await _dealServicesMock.GetDealProductAsync(deal.Id, command, unauthorizedUserId))
                 .Throws<ForbiddenException>();
         }
+
+        // ─── AddDealAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddDealAsync_ThrowsUserNotFoundException_WhenUserDoesNotExist()
+        {
+            // Arrange
+            var nonExistentUserId = Guid.NewGuid();
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = Guid.NewGuid(),
+                CurrencyId = Guid.NewGuid(),
+                Products = new List<AddDealProductCommand>()
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _dealServicesMock.AddDealAsync(command, nonExistentUserId))
+                .Throws<UserNotFoundException>();
+        }
+
+        [Test]
+        public async Task AddDealAsync_ReturnsNotFound_WhenCompanyDoesNotExist()
+        {
+            // Arrange
+            var (company, user, currency) = await SeedCompanyAndUserAsync();
+            var nonExistentCompanyId = Guid.NewGuid();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = nonExistentCompanyId,
+                CurrencyId = currency.Id,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = Guid.NewGuid(), Quantity = 1, UnitPrice = 1000 }
+                }
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CompanyNotFound);
+        }
+
+        [Test]
+        public async Task AddDealAsync_ReturnsNotFound_WhenCurrencyDoesNotExist()
+        {
+            // Arrange
+            var (company, user, _) = await SeedCompanyAndUserAsync();
+            var nonExistentCurrencyId = Guid.NewGuid();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                CurrencyId = nonExistentCurrencyId,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = Guid.NewGuid(), Quantity = 1, UnitPrice = 1000 }
+                }
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNotFound);
+        }
+
+        [Test]
+        public async Task AddDealAsync_ReturnsBadRequest_WhenProductsListIsEmpty()
+        {
+            // Arrange
+            var (company, user, currency) = await SeedCompanyAndUserAsync();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                Products = new List<AddDealProductCommand>()
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        [Arguments(0, 1000)]
+        [Arguments(-5, 1000)]
+        [Arguments(1, -50)]
+        public async Task AddDealAsync_ReturnsBadRequest_WhenProductsContainInvalidQuantityOrPrice(int quantity, long unitPrice)
+        {
+            // Arrange
+            var (company, user, currency) = await SeedCompanyAndUserAsync();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = Guid.NewGuid(), Quantity = quantity, UnitPrice = unitPrice }
+                }
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task AddDealAsync_ReturnsNotFound_WhenSpecifiedProductDoesNotExistInDatabase()
+        {
+            // Arrange
+            var (company, user, currency) = await SeedCompanyAndUserAsync();
+            var nonExistentProductId = Guid.NewGuid();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = nonExistentProductId, Quantity = 2, UnitPrice = 5000 }
+                }
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+            await Assert.That(result.Errors).IsNotNull();
+            await Assert.That(result.Errors!.Count).IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task AddDealAsync_CreatesDealAndDealProducts_WhenDataIsValid()
+        {
+            // Arrange
+            var (company, user, currency) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var productA = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt A",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            var productB = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt B",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 30000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Sheet,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.AddRange(productA, productB);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var closeDate = DateTime.UtcNow.AddDays(30);
+            var command = new AddDealCommand
+            {
+                CloseDate = closeDate,
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = productA.Id, Quantity = 2, UnitPrice = 18000 },
+                    new() { ProductId = productB.Id, Quantity = 4, UnitPrice = 25000 }
+                }
+            };
+
+            var expectedTotalValue = (2L * 18000) + (4L * 25000);
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var createdDeal = await _contextMock.Deals
+            .Include(d => d.DealProducts)
+            .FirstOrDefaultAsync(d => d.CompanyId == company.Id && d.OwnerId == user.Id);
+
+            await Assert.That(createdDeal).IsNotNull();
+            await Assert.That(createdDeal!.Name.StartsWith("D/")).IsTrue();
+            await Assert.That(createdDeal!.OwnerId).IsEqualTo(user.Id);
+            await Assert.That(createdDeal.CompanyId).IsEqualTo(company.Id);
+            await Assert.That(createdDeal.CurrencyId).IsEqualTo(currency.Id);
+            await Assert.That(createdDeal.Status).IsEqualTo(DealsStatusEnum.ToDo);
+            await Assert.That(createdDeal.Value).IsEqualTo(expectedTotalValue);
+            await Assert.That(createdDeal.DealProducts.Count).IsEqualTo(2);
+
+            var productAEntry = createdDeal.DealProducts.FirstOrDefault(dp => dp.ProductId == productA.Id);
+            await Assert.That(productAEntry).IsNotNull();
+            await Assert.That(productAEntry!.Quantity).IsEqualTo(2);
+            await Assert.That(productAEntry.UnitPrice).IsEqualTo(18000);
+        }
+
     }
 }

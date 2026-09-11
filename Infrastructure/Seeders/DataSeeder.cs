@@ -585,9 +585,17 @@ namespace Infrastructure.Seeders
                 var currency = currencies[random.Next(currencies.Count)];
                 var status = dealStatuses[random.Next(dealStatuses.Length)];
 
+                var today = DateTime.UtcNow.Date;
+                var tomorrow = today.AddDays(1);
+
+                var countToday = await _context.Deals
+                    .CountAsync(d => d.CreatedAt >= today && d.CreatedAt < tomorrow);
+
+                var dealName = $"D/{today:yyyy/MM/dd}/{(countToday + 1):D4}";
+
                 var deal = new Deal
                 {
-                    Name = $"Zamówienie hurtowe nr {i}/{DateTime.Now.Year}",
+                    Name = dealName,
                     Value = random.Next(10000, 500000) * 10000L,
                     Status = status,
                     CloseDate = DateTime.UtcNow.AddDays(random.Next(-30, 90)),

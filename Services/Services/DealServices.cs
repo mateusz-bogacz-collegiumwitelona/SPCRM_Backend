@@ -2,11 +2,13 @@
 using Domain.Constants;
 using Domain.Enum;
 using Domain.Exceptions.Exception;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.Company;
+using Services.Command.Deal;
 using Services.Command.Product;
 using Services.Command.Sales;
 using Services.Helpers;
@@ -204,7 +206,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<PagedResult<DealProductResponse>>> GetSaleProductAsync(
+        public async Task<Result<PagedResult<DealProductResponse>>> GetDealProductAsync(
             Guid dealId,
             ProductListCommand command,
             Guid currentUserId)
@@ -259,6 +261,128 @@ namespace Services.Services
                     DecimalPlaces = dp.Deal.Currency.DecimalPlaces
                 })
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
+        }
+
+        public async Task<Result> AddDealAsync(AddDealCommand command, Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                _logger.LogWarning("User with ID {UserId} not found when attempting to add a deal.", userId);
+                throw new UserNotFoundException(userId);
+            }
+
+            var company = await _context.Companies.FindAsync(command.CompanyId);
+
+            if (company == null)
+            {
+                _logger.LogWarning("Company with ID {CompanyId} not found when attempting to add a deal.", command.CompanyId);
+                return Result<Guid>.Failure(
+                    message: "Company does not exist.",
+                    errorCode: ErrorCodes.CompanyNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var currencyExists = await _context.Currencies.AnyAsync(c => c.Id == command.CurrencyId);
+            if (!currencyExists)
+            {
+                _logger.LogWarning("Currency with ID {CurrencyId} not found when attempting to add a deal.", command.CurrencyId);
+                return Result<Guid>.Failure(
+                    message: "Currency does not exist.",
+                    errorCode: ErrorCodes.CurrencyNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (command.Products == null || !command.Products.Any())
+            {
+                return Result<Guid>.Failure(
+                    message: "Deal must contain at least one product.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var hasInvalidItems = command.Products.Any(p => p.Quantity <= 0 || p.UnitPrice < 0 || p.ProductId == Guid.Empty);
+            if (hasInvalidItems)
+            {
+                return Result<Guid>.Failure(
+                    message: "All products must have positive quantity and non-negative unit price.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var requestedProductIds = command.Products.Select(p => p.ProductId).Distinct().ToList();
+            var existingProductIds = await _context.Products
+                .AsNoTracking()
+                .Where(p => requestedProductIds.Contains(p.Id))
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            var missingProducts = requestedProductIds.Except(existingProductIds).ToList();
+            if (missingProducts.Any())
+            {
+                return Result<Guid>.Failure(
+                    message: "One or more products specified do not exist.",
+                    errorCode: ErrorCodes.ProductNotFound,
+                    statusCode: StatusCodes.Status404NotFound,
+                    errors: missingProducts.Select(id => $"Product with ID {id} does not exist.").ToList()
+                );
+            }
+
+            var totalValue = command.Products.Sum(p => (long)p.Quantity * p.UnitPrice);
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var today = DateTime.UtcNow.Date;
+                var tomorrow = today.AddDays(1);
+
+                var countToday = await _context.Deals
+                    .CountAsync(d => d.CreatedAt >= today && d.CreatedAt < tomorrow);
+
+                var dealName = $"D/{today:yyyy/MM/dd}/{(countToday + 1):D4}";
+
+                var deal = new Deal
+                {
+                    Name = dealName,
+                    Value = totalValue,
+                    Status = DealsStatusEnum.ToDo,
+                    CloseDate = DateTime.SpecifyKind(command.CloseDate, DateTimeKind.Utc),
+                    CurrencyId = command.CurrencyId,
+                    CompanyId = command.CompanyId,
+                    OwnerId = userId,
+                    DealProducts = command.Products.Select(p => new DealProduct
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductId = p.ProductId,
+                        Quantity = p.Quantity,
+                        UnitPrice = p.UnitPrice
+                    }).ToList()
+                };
+
+                _context.Deals.Add(deal);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("New deal with ID {DealId} added successfully by user {UserId}.", deal.Id, userId);
+
+                return Result.Success(
+                    message: "Deal added successfully.",
+                    statusCode: StatusCodes.Status201Created
+                );
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError("An error occurred while adding a new deal. Transaction rolled back.");
+                throw;
+            }
         }
     }
 }

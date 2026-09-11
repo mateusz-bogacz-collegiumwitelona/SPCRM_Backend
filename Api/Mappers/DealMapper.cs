@@ -1,6 +1,8 @@
-﻿using Api.Request.List;
+﻿using Api.Request.Deal;
+using Api.Request.List;
 using Api.Request.Sale;
 using Riok.Mapperly.Abstractions;
+using Services.Command.Deal;
 using Services.Command.Sales;
 
 namespace Api.Mappers
@@ -28,5 +30,8 @@ namespace Api.Mappers
                 StatusType = filter.StatusType,
                 OwnerId = filter.OwnerId
             };
+
+        public partial AddDealCommand MapAdd(AddDealRequest request);
+        public partial AddDealProductCommand MapAdd(AddDealProductRequest request);
     }
 }
