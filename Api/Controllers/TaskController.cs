@@ -98,6 +98,8 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Delete task")]
+        [EndpointDescription("Delete a specific task.")]
         [HttpDelete("{taskId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> DeleteTaskAsync(
@@ -106,6 +108,36 @@ namespace Api.Controllers
             )
         {
             var result = await task.DeleteTaskAsync(taskId, CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Edit task")]
+        [EndpointDescription("Edit a specific task.")]
+        [HttpPut("{taskId}")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> EditTaskAsync(
+            [FromServices] TaskMapper mapper,
+            [FromServices] ITaskServices task,
+            [FromRoute] Guid taskId,
+            [FromBody] EditTaskRequest request
+            )
+        {
+            var result = await task.EditTaskAsync(mapper.MapEdit(request, taskId, CurrentUserId));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Extend task due date")]
+        [EndpointDescription("Extend the due date of a specific task.")]
+        [HttpPut("{taskId}/extend-due-date")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> ExtendTaskDueDateAsync(
+            [FromServices] TaskMapper mapper,
+            [FromServices] ITaskServices task,
+            [FromRoute] Guid taskId,
+            [FromBody] ExtendTaskDueDateRequest request
+            )
+        {
+            var result = await task.ExtendTaskDueDateAsync(mapper.MapExtendDueDate(request, taskId, CurrentUserId));
             return HandleResult(result);
         }
     }

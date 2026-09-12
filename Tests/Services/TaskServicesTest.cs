@@ -2087,7 +2087,7 @@ namespace Tests.Services
             var (_, creator, _) = await SeedCompanyAndUserAsync();
             var otherUserId = Guid.NewGuid();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Zadanie zablokowane",
                 Description = "Próba delegacji bez roli managera",
@@ -2111,7 +2111,7 @@ namespace Tests.Services
 
             var nonExistentUserId = Guid.NewGuid();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Zadanie do nikogo",
                 Description = "Pracownik nie istnieje w bazie",
@@ -2136,7 +2136,7 @@ namespace Tests.Services
             // Arrange
             var nonExistentCreatorId = Guid.NewGuid();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Zadanie widmo",
                 Description = "Twórca nie istnieje",
@@ -2162,7 +2162,7 @@ namespace Tests.Services
             var (_, user, _) = await SeedCompanyAndUserAsync();
             var nonExistentDealId = Guid.NewGuid();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Zadanie pod deal",
                 Description = "Deal nie istnieje",
@@ -2189,7 +2189,7 @@ namespace Tests.Services
             var (_, user, _) = await SeedCompanyAndUserAsync();
             var nonExistentContactId = Guid.NewGuid();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Zadanie pod kontakt",
                 Description = "Kontakt nie istnieje",
@@ -2215,7 +2215,7 @@ namespace Tests.Services
             // Arrange
             var (_, creator, _) = await SeedCompanyAndUserAsync();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Własne zadanie handlowca",
                 Description = "Przygotować ofertę",
@@ -2246,7 +2246,7 @@ namespace Tests.Services
             // Arrange
             var (_, user, _) = await SeedCompanyAndUserAsync();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Zadanie przypisane jawnie do siebie",
                 Description = "Brak roli managera nie powinien blokować",
@@ -2289,7 +2289,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Przygotować umowę ramową",
                 Description = "Klient prosi o wgląd w zapisy",
@@ -2335,7 +2335,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Telefon wstępny",
                 Description = "Poznać zapotrzebowanie klienta",
@@ -2381,7 +2381,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            var command = new CreateTaskCommand
+            var command = new AddTaskCommand
             {
                 Title = "Zadanie z delegacji menedżera",
                 Description = "Pilna weryfikacja magazynu",
@@ -2649,6 +2649,650 @@ namespace Tests.Services
 
             var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
             await Assert.That(taskInDb).IsNotNull();
+        }
+
+        // ─── EditTaskAsync ───────────────────────────────────────────────────────────
+
+        [Test]
+        public async Task EditTaskAsync_WhenTaskDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomTaskId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = randomTaskId,
+                UserId = randomUserId,
+                Title = "Zaktualizowany tytuł",
+                Description = "Zaktualizowany opis"
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TaskNotFound);
+        }
+
+        [Test]
+        public async Task EditTaskAsync_WhenTaskDelegatedByManager_EmployeeCannotEditAndThrowsForbiddenException()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Jan",
+                LastName = "Pracownik",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie od kierownika",
+                Description = "Opis pierwotny",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.High,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = manager.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = employee.Id,
+                Title = "Próba zmiany przez pracownika",
+                Description = "Nowy opis"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.EditTaskAsync(command))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task EditTaskAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (_, taskOwner, _) = await SeedCompanyAndUserAsync();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Prywatne zadanie handlowca",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Low,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = taskOwner.Id,
+                AssignedToId = taskOwner.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = unauthorizedUserId,
+                Title = "Atak hakerski"
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.EditTaskAsync(command))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task EditTaskAsync_WhenTaskIsComplete_Returns400BadRequestFromStateMachine()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var completedTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zakończone zadanie",
+                Description = "Stary opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.Complete,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(completedTask);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = completedTask.Id,
+                UserId = user.Id,
+                Title = "Nowy tytuł dla zakończonego zadania"
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var unchangedTask = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == completedTask.Id);
+            await Assert.That(unchangedTask.Title).IsEqualTo("Zakończone zadanie");
+        }
+
+        [Test]
+        public async Task EditTaskAsync_WhenOwnerUpdatesOnlyDescription_LeavesTitleUntouched()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Niezmienny tytuł",
+                Description = "Stary opis do poprawy",
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Title = null,
+                Description = "   Zaktualizowany opis zadania ze spacjami   "
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedTask = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(updatedTask.Title).IsEqualTo("Niezmienny tytuł");
+            await Assert.That(updatedTask.Description).IsEqualTo("Zaktualizowany opis zadania ze spacjami");
+        }
+
+        [Test]
+        public async Task EditTaskAsync_WhenOwnerUpdatesOnlyTitle_LeavesDescriptionUntouched()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Stary tytuł",
+                Description = "Niezmienny opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Low,
+                Status = TaskStatusEnum.InProgress,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Title = "   Świeżo zaktualizowany tytuł   ",
+                Description = null
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedTask = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(updatedTask.Title).IsEqualTo("Świeżo zaktualizowany tytuł");
+            await Assert.That(updatedTask.Description).IsEqualTo("Niezmienny opis");
+        }
+
+        [Test]
+        public async Task EditTaskAsync_WhenManagerUpdatesDelegatedTask_UpdatesSuccessfully()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Stary tytuł pracownika",
+                Description = "Stary opis pracownika",
+                DueAt = DateTime.UtcNow.AddDays(4),
+                Priority = TaskPriorityEnum.High,
+                Status = TaskStatusEnum.InProgress,
+                CreatedById = employee.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = manager.Id,
+                Title = "Poprawione przez managera",
+                Description = "Nowe wytyczne kierownicze"
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedTask = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(updatedTask.Title).IsEqualTo("Poprawione przez managera");
+            await Assert.That(updatedTask.Description).IsEqualTo("Nowe wytyczne kierownicze");
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.ToDo)]
+        [Arguments(TaskStatusEnum.InProgress)]
+        [Arguments(TaskStatusEnum.Break)]
+        public async Task EditTaskAsync_WhenTaskInModifiableState_AllowsModification(TaskStatusEnum initialStatus)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = $"Tytuł w stanie {initialStatus}",
+                Description = "Pierwotny opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Medium,
+                Status = initialStatus,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Title = $"Zaktualizowany tytuł ze stanu {initialStatus}",
+                Description = "Nowy opis"
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNotNull();
+            await Assert.That(taskInDb!.Title).IsEqualTo($"Zaktualizowany tytuł ze stanu {initialStatus}");
+            await Assert.That(taskInDb.Description).IsEqualTo("Nowy opis");
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.Complete)]
+        public async Task EditTaskAsync_WhenTaskIsFinalized_ReturnsBadRequest(TaskStatusEnum status)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Niezmienne zadanie zakończone",
+                Description = "Stary opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Low,
+                Status = status,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Title = "Próba zmiany zakończonego zadania",
+                Description = "Próba zmiany opisu"
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNotNull();
+            await Assert.That(taskInDb!.Title).IsEqualTo("Niezmienne zadanie zakończone");
+            await Assert.That(taskInDb.Description).IsEqualTo("Stary opis");
+        }
+
+        // ─── ExtendTaskDueDateAsync ──────────────────────────────────────────────────
+
+        [Test]
+        public async Task ExtendTaskDueDateAsync_WhenTaskDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomTaskId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            var command = new ExtendTaskDueDateCommand
+            {
+                TaskId = randomTaskId,
+                UserId = randomUserId,
+                NewDueDate = DateTime.UtcNow.AddDays(5)
+            };
+
+            // Act
+            var result = await _taskServicesMock.ExtendTaskDueDateAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TaskNotFound);
+        }
+
+        [Test]
+        public async Task ExtendTaskDueDateAsync_WhenTaskDelegatedByManager_EmployeeCannotExtendAndThrowsForbiddenException()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Jan",
+                LastName = "Pracownik",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie kierownicze",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.High,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = manager.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendTaskDueDateCommand
+            {
+                TaskId = task.Id,
+                UserId = employee.Id,
+                NewDueDate = DateTime.UtcNow.AddDays(5)
+            };
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.ExtendTaskDueDateAsync(command))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.ToDo)]
+        [Arguments(TaskStatusEnum.InProgress)]
+        [Arguments(TaskStatusEnum.Break)]
+        public async Task ExtendTaskDueDateAsync_WhenTaskInModifiableState_ExtendsDueDateSuccessfully(TaskStatusEnum status)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+            var currentDueDate = DateTime.UtcNow.AddDays(2);
+            var extendedDueDate = DateTime.UtcNow.AddDays(10);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Własne zadanie",
+                Description = "Opis",
+                DueAt = currentDueDate,
+                Priority = TaskPriorityEnum.Medium,
+                Status = status,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendTaskDueDateCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                NewDueDate = extendedDueDate
+            };
+
+            // Act
+            var result = await _taskServicesMock.ExtendTaskDueDateAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb.DueAt).IsEqualTo(extendedDueDate).Within(TimeSpan.FromSeconds(1));
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.Complete)]
+        public async Task ExtendTaskDueDateAsync_WhenTaskIsFinalized_ReturnsBadRequest(TaskStatusEnum status)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zamknięte zadanie",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Low,
+                Status = status,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendTaskDueDateCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                NewDueDate = DateTime.UtcNow.AddDays(7)
+            };
+
+            // Act
+            var result = await _taskServicesMock.ExtendTaskDueDateAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task ExtendTaskDueDateAsync_WhenNewDueDateIsEarlierOrEqualToCurrentDueDate_ReturnsBadRequest()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+            var currentDueDate = DateTime.UtcNow.AddDays(5);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie z odległym terminem",
+                Description = "Opis",
+                DueAt = currentDueDate,
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendTaskDueDateCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                NewDueDate = currentDueDate.AddDays(-1) 
+            };
+
+            // Act
+            var result = await _taskServicesMock.ExtendTaskDueDateAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidDate);
+        }
+
+        [Test]
+        public async Task ExtendTaskDueDateAsync_WhenManagerExtendsDelegatedTask_ExtendsSuccessfully()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Tomasz",
+                LastName = "Pracownik",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+
+            var currentDue = DateTime.UtcNow.AddDays(2);
+            var extendedDue = DateTime.UtcNow.AddDays(14);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie delegowane do przedłużenia",
+                Description = "Opis",
+                DueAt = currentDue,
+                Priority = TaskPriorityEnum.High,
+                Status = TaskStatusEnum.InProgress,
+                CreatedById = manager.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ExtendTaskDueDateCommand
+            {
+                TaskId = task.Id,
+                UserId = manager.Id,
+                NewDueDate = extendedDue
+            };
+
+            // Act
+            var result = await _taskServicesMock.ExtendTaskDueDateAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb.DueAt).IsEqualTo(extendedDue).Within(TimeSpan.FromSeconds(1));
         }
     }
 }

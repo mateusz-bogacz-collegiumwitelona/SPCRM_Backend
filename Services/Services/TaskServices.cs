@@ -309,7 +309,7 @@ namespace Services.Services
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-tasks");
         }
 
-        public async Task<Result> AddTaskAsync(CreateTaskCommand command, Guid userId)
+        public async Task<Result> AddTaskAsync(AddTaskCommand command, Guid userId)
         {
             var targetAssigneeId = command.AssignedToId ?? userId;
 
@@ -453,6 +453,113 @@ namespace Services.Services
 
             return Result.Success(
                 message: "Task deleted successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> EditTaskAsync(EditTaskCommand command)
+        {
+            var task = await _context.Tasks.FindAsync(command.TaskId);
+
+            if (task == null)
+            {
+                _logger.LogInformation("Task with ID {TaskId} not found.", command.TaskId);
+                return Result.Failure(
+                    message: "Task not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.TaskNotFound
+                );
+            }
+
+            var isManager = await _entityAuth.CanAccessAsync(command.UserId);
+            var isSelfOwnedTask = task.CreatedById == command.UserId && task.AssignedToId == command.UserId;
+
+            if (!isManager && !isSelfOwnedTask)
+            {
+                _logger.LogWarning("User {UserId} unauthorized attempt to edit Task {TaskId} created by {CreatedById}.", command.UserId, command.TaskId, task.CreatedById);
+                throw new ForbiddenException("You do not have permission to edit this task.");
+            }
+
+            var stateMachine = _state.Create(task);
+            var canModify = stateMachine.CanModify();
+
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Task {TaskId} cannot be edited due to its current state.", command.TaskId);
+                return canModify;
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Title))
+            {
+                task.Title = command.Title.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(command.Description))
+            {
+                task.Description = command.Description.Trim();
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} updated successfully by user {UserId}.", task.Id, command.UserId);
+
+            return Result.Success(
+                message: "Task updated successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result> ExtendTaskDueDateAsync(ExtendTaskDueDateCommand command)
+        {
+            var task = await _context.Tasks.FindAsync(command.TaskId);
+
+            if (task == null)
+            {
+                _logger.LogInformation("Task with ID {TaskId} not found.", command.TaskId);
+                return Result.Failure(
+                    message: "Task not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.TaskNotFound
+                );
+            }
+
+            var isManager = await _entityAuth.CanAccessAsync(command.UserId);
+            var isSelfOwnedTask = task.CreatedById == command.UserId && task.AssignedToId == command.UserId;
+
+            if (!isManager && !isSelfOwnedTask)
+            {
+                _logger.LogWarning("User {UserId} unauthorized attempt to extend due date for Task {TaskId} created by {CreatedById}.", command.UserId, command.TaskId, task.CreatedById);
+                throw new ForbiddenException("You do not have permission to change the due date for this task.");
+            }
+
+            var stateMachine = _state.Create(task);
+            var canModify = stateMachine.CanModify();
+
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Due date for Task {TaskId} cannot be modified due to its current state.", command.TaskId);
+                return canModify;
+            }
+
+            var utcNewDueDate = DateTime.SpecifyKind(command.NewDueDate, DateTimeKind.Utc);
+
+            if (utcNewDueDate <= task.DueAt)
+            {
+                _logger.LogWarning("Attempted to set NewDueDate {NewDueDate} earlier or equal to current DueAt {CurrentDueAt} for task {TaskId}.", utcNewDueDate, task.DueAt, command.TaskId);
+                return Result.Failure(
+                    message: "New due date must be later than the current due date.",
+                    errorCode: ErrorCodes.InvalidDate,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            task.DueAt = utcNewDueDate;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} due date extended successfully to {NewDueDate} by user {UserId}.", task.Id, task.DueAt, command.UserId);
+
+            return Result.Success(
+                message: "Task due date extended successfully.",
                 statusCode: StatusCodes.Status200OK
             );
         }

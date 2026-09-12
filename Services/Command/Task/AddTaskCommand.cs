@@ -2,7 +2,7 @@
 
 namespace Services.Command.Task
 {
-    public record CreateTaskCommand
+    public record AddTaskCommand
     {
         public required string Title { get; init; }
         public required string Description { get; init; }

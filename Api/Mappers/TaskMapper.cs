@@ -37,8 +37,8 @@ namespace Api.Mappers
         [MapProperty(nameof(SalesTaskListRequest.Priority), nameof(SalesTaskListCommand.Priority), Use = nameof(ParseTaskPriority))]
         public partial SalesTaskListCommand MapSaleTasks(SalesTaskListRequest request);
 
-        public CreateTaskCommand MapAddTaskToDeal(AddDealTaskRequest request, Guid dealId)
-            => new CreateTaskCommand
+        public AddTaskCommand MapAddTaskToDeal(AddDealTaskRequest request, Guid dealId)
+            => new AddTaskCommand
             {
                 Title = NormalizeName(request.Title),
                 Description = Trim(request.Description),
@@ -47,6 +47,23 @@ namespace Api.Mappers
                 AssignedToId = request.AssignedToId,
                 TargetId = dealId,
                 TargetType = TaskTargetTypeEnum.Deal
+            };
+
+        public EditTaskCommand MapEdit(EditTaskRequest request, Guid taskId, Guid userId)
+            => new EditTaskCommand
+            {
+                TaskId = taskId,
+                UserId = userId,
+                Title = request.Title != null ? NormalizeName(request.Title) : null,
+                Description = request.Description != null ? Trim(request.Description) : null
+            };
+
+        public ExtendTaskDueDateCommand MapExtendDueDate(ExtendTaskDueDateRequest request, Guid taskId, Guid userId)
+            => new ExtendTaskDueDateCommand
+            {
+                TaskId = taskId,
+                UserId = userId,
+                NewDueDate = request.NewDueDate
             };
 
         private TaskStatusEnum? ParseTaskStatus(string? status)

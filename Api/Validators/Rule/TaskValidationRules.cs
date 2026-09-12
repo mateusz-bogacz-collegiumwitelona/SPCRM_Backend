@@ -6,12 +6,12 @@ namespace Api.Validators.Rule
 {
     public static class TaskValidationRules
     {
-        public static IRuleBuilderOptions<T, string> ApplyTaskTitleRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+        public static IRuleBuilderOptions<T, string?> ApplyTaskTitleRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
                 .MaximumLength(150).WithErrorCode(ErrorCodes.InvalidOperation);
 
-        public static IRuleBuilderOptions<T, string> ApplyTaskDescriptionRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+        public static IRuleBuilderOptions<T, string?> ApplyTaskDescriptionRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
                 .MaximumLength(1000).WithErrorCode(ErrorCodes.InvalidOperation);
