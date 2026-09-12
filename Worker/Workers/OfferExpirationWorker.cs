@@ -3,7 +3,7 @@ using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Services.Workers
+namespace Worker.Workers
 {
     public class OfferExpirationWorker
     {

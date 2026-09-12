@@ -8,4 +8,5 @@
   <Project Path="Infrastructure/Infrastructure.csproj" Id="3d42fb4a-471f-4831-afd2-eb65cd5b7620" />
   <Project Path="Services/Services.csproj" Id="d08974e4-78d6-45ea-b743-5e7426656bd0" />
   <Project Path="Tests/Tests.csproj" />
+  <Project Path="Worker/Worker.csproj" Id="dcb030f8-c00a-45ce-bf12-3b2a2d3fbbe8" />
 </Solution>

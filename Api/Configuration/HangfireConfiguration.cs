@@ -1,6 +1,6 @@
 ﻿using Hangfire;
 using Hangfire.Dashboard;
-using Services.Workers;
+using Worker.Workers;
 
 namespace Api.Configuration
 {

@@ -1,12 +1,9 @@
-﻿using Hangfire;
-using Hangfire.PostgreSql;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Services.Factory;
 using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
-using Services.Workers;
 
 namespace Services
 {
@@ -37,15 +34,6 @@ namespace Services
             services.AddScoped<IOfferStateMachineFactory, OfferStateMachineFactory>();
             services.AddScoped<IDealStateMachineFactory, DealStateMachineFactory>();
             services.AddScoped<ITaskStateMachineFactory, TaskStateMachineFactory>();
-            // Workers
-            services.AddScoped<PromotionCleanupWorker>();
-            services.AddScoped<OfferExpirationWorker>();
-
-            // Hangfire
-            services.AddHangfire(config => config
-                .UsePostgreSqlStorage(configuration.GetConnectionString("DefaultConnection")));
-
-            services.AddHangfireServer();
 
             return services;
         }

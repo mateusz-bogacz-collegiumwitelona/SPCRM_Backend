@@ -2,7 +2,7 @@ name: Run Tests
 
 on:
   push:
-    branches: [ "main", "stage2" ]
+    branches: [ "main", "stage2", "invoice" ]
   pull_request:
     branches: [ "main" ]
 

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Services;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+using Worker;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -59,6 +60,7 @@ try
     builder.Services.AddEmailModule(builder.Configuration);
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
+    builder.Services.AddWorkerServices(builder.Configuration); 
 
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {

@@ -1,5 +1,7 @@
 ﻿using Domain.Models;
 using Infrastructure.Interceptors;
+using Infrastructure.Pdf;
+using Infrastructure.Pdf.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -40,6 +42,11 @@ namespace Infrastructure
             })
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
+
+
+            // pdf config
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+            services.AddScoped<IInvoicePdfGenerator, InvoicePdfGenerator>();
 
             return services;
         }

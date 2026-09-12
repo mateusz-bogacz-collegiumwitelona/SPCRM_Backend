@@ -4,7 +4,6 @@ using Hangfire;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Services.Interfaces;
-
 namespace Email
 {
     public class EmailSender : IEmailSender
@@ -340,6 +339,48 @@ namespace Email
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in SendPasswordResetEmailAsync for user {UserId}", domain.UserId);
+            }
+        }
+
+        public async Task SendInvoiceEmailAsync(InvoiceEmailDomain domain)
+        {
+            try
+            {
+                string language = domain.Language?.ToLower() == "en" ? "en" : "pl";
+
+                var templatePath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Templates",
+                    "Invoice",
+                    $"invoice-mail-{language}.html"
+                );
+
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Invoice email template not found at: {templatePath}");
+                }
+
+                string template = await File.ReadAllTextAsync(templatePath);
+
+                template = template.Replace("{{RecipientName}}", domain.RecipientName)
+                                   .Replace("{{InvoiceNumber}}", domain.InvoiceNumber)
+                                   .Replace("{{TotalAmount}}", domain.TotalGrossAmount.ToString("F2"))
+                                   .Replace("{{Currency}}", domain.CurrencyCode)
+                                   .Replace("{{DueDate}}", domain.DueDate.ToString("yyyy-MM-dd"));
+
+                string subject = language == "en"
+                    ? $"VAT Invoice {domain.InvoiceNumber}"
+                    : $"Faktura VAT nr {domain.InvoiceNumber}";
+
+
+                _backgroundJobClient.Enqueue<IInvoiceEmailWorker>(x =>
+                x.GenerateAndSendInvoiceEmailAsync(domain.InvoiceId, domain.RecipientEmail, subject, template, language));
+
+                _logger.LogInformation("Invoice email queued to Hangfire ({Language}) for recipient {Email}", language, domain.RecipientEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error queueing invoice email for InvoiceId: {InvoiceId}", domain.InvoiceId);
             }
         }
     }
