@@ -97,5 +97,16 @@ namespace Api.Controllers
             var result = await note.GetTaskNotesAsync(taskId);
             return HandleResult(result);
         }
+
+        [HttpDelete("{taskId}")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> DeleteTaskAsync(
+            [FromServices] ITaskServices task,
+            [FromRoute] Guid taskId
+            )
+        {
+            var result = await task.DeleteTaskAsync(taskId, CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
