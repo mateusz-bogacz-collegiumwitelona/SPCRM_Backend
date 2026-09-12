@@ -12,6 +12,9 @@ namespace Domain.Models
         public Guid AssignedToId { get; set; }
         public ApplicationUser AssignedTo { get; set; } = null!;
 
+        public Guid CreatedById { get; set; }
+        public ApplicationUser CreatedBy { get; set; } = null!;
+
         public Guid? ContactId { get; set; }
         public Contact? Contact { get; set; }
 

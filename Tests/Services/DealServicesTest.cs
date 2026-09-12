@@ -2608,13 +2608,13 @@ namespace Tests.Services
             var dealProductToRemoveId = Guid.NewGuid();
 
             var quantityKeep = 2;
-            var priceKeep = 20000L; 
+            var priceKeep = 20000L;
 
             var quantityRemove = 3;
-            var priceRemove = 15000L; 
+            var priceRemove = 15000L;
 
-            var initialValue = (quantityKeep * priceKeep) + (quantityRemove * priceRemove); 
-            var expectedFinalValue = quantityKeep * priceKeep; 
+            var initialValue = (quantityKeep * priceKeep) + (quantityRemove * priceRemove);
+            var expectedFinalValue = quantityKeep * priceKeep;
 
             var deal = new Deal
             {
@@ -2626,7 +2626,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
-                DealProducts = new  List<DealProduct>
+                DealProducts = new List<DealProduct>
                 {
                     new()
                     {

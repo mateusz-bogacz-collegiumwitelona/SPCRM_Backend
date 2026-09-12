@@ -2,14 +2,12 @@
 using Api.Mappers;
 using Api.Request.Deal;
 using Api.Request.List;
-using Api.Request.Note;
 using Api.Request.Product;
 using Api.Request.Sale;
 using Api.Request.Task;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Services.Command.Note;
 using Services.Interfaces;
 using Services.Response.Deal;
 

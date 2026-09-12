@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.Task;
+using Services.Factory.Interfaces;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
@@ -21,14 +22,19 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<TaskServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
+
+        private readonly ITaskStateMachineFactory _state;
+
         public TaskServices(
             AppDbContext context,
             ILogger<TaskServices> logger,
-            IEntityAuthorizationService entityAuth)
+            IEntityAuthorizationService entityAuth,
+            ITaskStateMachineFactory state)
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
+            _state = state;
         }
 
         public async Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(TaskCalendarCommand command)
@@ -317,14 +323,31 @@ namespace Services.Services
                 }
             }
 
-            var userExists = await _context.Users
-                .AnyAsync(u => u.Id == targetAssigneeId && !u.IsDeleted);
+            var requiredUserIds = targetAssigneeId == userId
+                ? new[] { userId }
+                : new[] { userId, targetAssigneeId };
 
-            if (!userExists)
+            var existingUserIds = await _context.Users
+                .AsNoTracking()
+                .Where(u => requiredUserIds.Contains(u.Id) && !u.IsDeleted)
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            if (!existingUserIds.Contains(userId))
             {
-                _logger.LogInformation("User with ID {UserId} not found when adding a task.", targetAssigneeId);
+                _logger.LogInformation("Creator user with ID {UserId} not found or deleted.", userId);
                 return Result.Failure(
                     message: "User not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            if (!existingUserIds.Contains(targetAssigneeId))
+            {
+                _logger.LogInformation("Assigned user with ID {AssignedToId} not found or deleted.", targetAssigneeId);
+                return Result.Failure(
+                    message: "Assigned user not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.UserNotFound
                 );
@@ -375,6 +398,7 @@ namespace Services.Services
                 Priority = command.Priority,
                 Status = TaskStatusEnum.ToDo,
                 AssignedToId = targetAssigneeId,
+                CreatedById = userId,
                 DealId = dealId,
                 ContactId = contactId
             };
@@ -382,11 +406,54 @@ namespace Services.Services
             _context.Tasks.Add(task);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Task {TaskId} created successfully and assigned to {AssignedToId} by user {UserId}.", task.Id, targetAssigneeId, userId);
+            _logger.LogInformation("Task {TaskId} created successfully by {CreatorId} and assigned to {AssignedToId}.", task.Id, userId, targetAssigneeId);
 
             return Result.Success(
                 message: "Task created successfully.",
                 statusCode: StatusCodes.Status201Created
+            );
+        }
+
+        public async Task<Result> DeleteTaskAsync(Guid taskId, Guid userId)
+        {
+            var task = await _context.Tasks.FindAsync(taskId);
+
+            if (task == null)
+            {
+                _logger.LogInformation("Task with ID {TaskId} not found.", taskId);
+                return Result.Failure(
+                    message: "Task not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.TaskNotFound
+                );
+            }
+
+            var isManager = await _entityAuth.CanAccessAsync(userId);
+            var isSelfOwnedTask = task.CreatedById == userId && task.AssignedToId == userId;
+
+            if (!isManager && !isSelfOwnedTask)
+            {
+                _logger.LogWarning("User {UserId} unauthorized attempt to delete Task {TaskId} created by {CreatedById}.", userId, taskId, task.CreatedById);
+                throw new ForbiddenException("You do not have permission to delete this task.");
+            }
+
+            var stateMachine = _state.Create(task);
+            var canModify = stateMachine.CanModify();
+
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Task {TaskId} cannot be deleted due to its current state.", taskId);
+                return canModify;
+            }
+
+            _context.Tasks.Remove(task);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} deleted successfully by user {UserId}.", taskId, userId);
+
+            return Result.Success(
+                message: "Task deleted successfully.",
+                statusCode: StatusCodes.Status200OK
             );
         }
 

@@ -1444,7 +1444,8 @@ namespace Tests.Services
                 Description = "Opis",
                 Status = TaskStatusEnum.InProgress,
                 Priority = TaskPriorityEnum.High,
-                AssignedToId = userToDelete.Id
+                AssignedToId = userToDelete.Id,
+                CreatedById = userToDelete.Id
             };
 
             var completedTask = new Tasks
@@ -1454,7 +1455,8 @@ namespace Tests.Services
                 Description = "Opis",
                 Status = TaskStatusEnum.Complete,
                 Priority = TaskPriorityEnum.Low,
-                AssignedToId = userToDelete.Id
+                AssignedToId = userToDelete.Id,
+                CreatedById = userToDelete.Id
             };
 
             _contextMock.Companies.Add(company);
@@ -2959,7 +2961,8 @@ namespace Tests.Services
                     Description = "Desc",
                     Status = TaskStatusEnum.InProgress,
                     Priority = TaskPriorityEnum.High,
-                    AssignedToId = user.Id
+                    AssignedToId = user.Id,
+                    CreatedById = user.Id
                 },
                 new Tasks
                 {
@@ -2968,7 +2971,8 @@ namespace Tests.Services
                     Description = "Desc",
                     Status = TaskStatusEnum.ToDo,
                     Priority = TaskPriorityEnum.Medium,
-                    AssignedToId = user.Id
+                    AssignedToId = user.Id,
+                    CreatedById = user.Id
                 },
                 new Tasks
                 {
@@ -2977,7 +2981,8 @@ namespace Tests.Services
                     Description = "Desc",
                     Status = TaskStatusEnum.Complete,
                     Priority = TaskPriorityEnum.Low,
-                    AssignedToId = user.Id
+                    AssignedToId = user.Id,
+                    CreatedById = user.Id
                 },
                 new Tasks
                 {
@@ -2986,7 +2991,8 @@ namespace Tests.Services
                     Description = "Desc",
                     Status = TaskStatusEnum.Break,
                     Priority = TaskPriorityEnum.Low,
-                    AssignedToId = user.Id
+                    AssignedToId = user.Id,
+                    CreatedById = user.Id
                 },
                 new Tasks
                 {
@@ -2995,7 +3001,8 @@ namespace Tests.Services
                     Description = "Desc",
                     Status = TaskStatusEnum.InProgress,
                     Priority = TaskPriorityEnum.High,
-                    AssignedToId = otherUser.Id
+                    AssignedToId = otherUser.Id,
+                    CreatedById = otherUser.Id
                 }
             );
 

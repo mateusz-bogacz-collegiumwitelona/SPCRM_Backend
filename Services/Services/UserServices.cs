@@ -475,11 +475,16 @@ namespace Services.Services
                 }
 
                 var activeTasks = await _context.Tasks
-                    .Where(t => t.AssignedToId == command.UserId && t.Status != TaskStatusEnum.Complete)
-                    .ToListAsync();
+                     .Where(t => t.AssignedToId == command.UserId && t.Status != TaskStatusEnum.Complete)
+                     .ToListAsync();
 
                 foreach (var task in activeTasks)
                 {
+                    if (task.CreatedById == command.UserId)
+                    {
+                        task.CreatedById = command.ReassignToUserId;
+                    }
+
                     task.AssignedToId = command.ReassignToUserId;
                 }
 

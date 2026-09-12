@@ -666,7 +666,9 @@ namespace Infrastructure.Seeders
                         Deal = deal,
                         Status = taskStatuses[random.Next(taskStatuses.Length)],
                         Priority = taskPriorities[random.Next(taskPriorities.Length)],
-                        Notes = new List<TaskNote>()
+                        Notes = new List<TaskNote>(),
+                        CreatedBy = owner,
+                        CreatedById = owner.Id
                     };
 
                     if (random.Next(100) < 25)
@@ -800,6 +802,7 @@ namespace Infrastructure.Seeders
                 .Where(u => u.Email == "user@example.pl" || u.Email == "manager@example.pl")
                 .ToListAsync();
 
+            var managerUser = await _userManager.FindByEmailAsync("manager@example.pl");
             var contacts = await _context.Contacts.ToListAsync();
             var random = new Random();
             var tasks = new List<Tasks>();
@@ -825,12 +828,17 @@ namespace Infrastructure.Seeders
 
                     var contact = random.Next(100) < 50 && contacts.Any() ? contacts[random.Next(contacts.Count)] : null;
 
+                    var creator = (user.Email == "user@example.pl" && managerUser != null && i % 4 == 0)
+                        ? managerUser
+                        : user;
+
                     var task = new Tasks
                     {
                         Title = $"{title} (Test #{i})",
                         Description = "To jest automatycznie wygenerowane zadanie testowe dla kalendarza.",
                         DueAt = dueAt,
                         AssignedTo = user,
+                        CreatedBy = creator,
                         Status = status,
                         Priority = priority,
                         Contact = contact,

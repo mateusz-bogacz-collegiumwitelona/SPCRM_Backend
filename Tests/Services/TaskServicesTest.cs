@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Task;
+using Services.Factory;
+using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
@@ -26,8 +28,9 @@ namespace Tests.Services
         protected TaskServices _taskServicesMock = null!;
         protected ILogger<TaskServices> _loggerMock = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
-
         private string _currentSchema = null!;
+        protected ITaskStateMachineFactory _stateMock = null!;
+
 
         [Before(Class)]
         [Obsolete]
@@ -38,6 +41,11 @@ namespace Tests.Services
                 .WithDatabase("testdb")
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
+                .WithCommand(
+                    "-c", "max_connections=300",
+                    "-c", "max_locks_per_transaction=1024",
+                    "-c", "shared_buffers=256MB"
+                )
                 .Build();
 
             await _dbContainer.StartAsync();
@@ -91,7 +99,9 @@ namespace Tests.Services
 
             _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _taskServicesMock = new TaskServices(_contextMock, _loggerMock, _entityAuthMock);
+            _stateMock = new TaskStateMachineFactory();
+
+            _taskServicesMock = new TaskServices(_contextMock, _loggerMock, _entityAuthMock, _stateMock);
         }
 
         [After(Test)]
@@ -209,7 +219,9 @@ namespace Tests.Services
                 IsDeleted = false,
                 Status = TaskStatusEnum.ToDo,
                 Priority = TaskPriorityEnum.Medium,
-                Description = "Zadanie poprawne do testu"
+                Description = "Zadanie poprawne do testu",
+                CreatedById = targetUserId,
+                CreatedBy = targetUser
             };
 
             var outOfDateTask = new Tasks
@@ -222,7 +234,9 @@ namespace Tests.Services
                 IsDeleted = false,
                 Status = TaskStatusEnum.ToDo,
                 Priority = TaskPriorityEnum.Medium,
-                Description = "Zadanie poza zakresem dat do testu"
+                Description = "Zadanie poza zakresem dat do testu",
+                CreatedById = targetUserId,
+                CreatedBy = targetUser
             };
 
             var deletedTask = new Tasks
@@ -235,7 +249,9 @@ namespace Tests.Services
                 IsDeleted = true,
                 Status = TaskStatusEnum.ToDo,
                 Priority = TaskPriorityEnum.Medium,
-                Description = "Zadanie usunięte do testu"
+                Description = "Zadanie usunięte do testu",
+                CreatedById = targetUserId,
+                CreatedBy = targetUser
             };
 
             var otherUserTask = new Tasks
@@ -248,7 +264,9 @@ namespace Tests.Services
                 IsDeleted = false,
                 Status = TaskStatusEnum.ToDo,
                 Priority = TaskPriorityEnum.Medium,
-                Description = "Zadanie przypisane do innego użytkownika do testu"
+                Description = "Zadanie przypisane do innego użytkownika do testu",
+                CreatedById = otherUserId,
+                CreatedBy = otherUser
             };
 
             _contextMock.Users.AddRange(targetUser, otherUser);
@@ -346,7 +364,9 @@ namespace Tests.Services
                 Contact = contact,
                 DealId = deal.Id,
                 Deal = deal,
-                Description = "Zadanie z relacjami do testu"
+                Description = "Zadanie z relacjami do testu",
+                CreatedById = owner.Id,
+                CreatedBy = owner
             };
 
             var taskWithoutRelations = new Tasks
@@ -358,7 +378,9 @@ namespace Tests.Services
                 DueAt = new DateTime(2026, 5, 2, 10, 0, 0, DateTimeKind.Utc),
                 ContactId = null,
                 DealId = null,
-                Description = "Zadanie bez relacji do testu"
+                Description = "Zadanie bez relacji do testu",
+                CreatedById = owner.Id,
+                CreatedBy = owner
             };
 
             _contextMock.Users.Add(owner);
@@ -417,7 +439,10 @@ namespace Tests.Services
                 AssignedToId = userId,
                 AssignedTo = user,
                 DueAt = new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc),
-                Description = "Zadanie w środku miesiąca"
+                Description = "Zadanie w środku miesiąca",
+                CreatedBy = user,
+                CreatedById = user.Id,
+
             };
 
             var taskDay1 = new Tasks
@@ -427,7 +452,9 @@ namespace Tests.Services
                 AssignedToId = userId,
                 AssignedTo = user,
                 DueAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc),
-                Description = "Zadanie na początku miesiąca"
+                Description = "Zadanie na początku miesiąca",
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             var taskDay30 = new Tasks
@@ -437,7 +464,9 @@ namespace Tests.Services
                 AssignedToId = userId,
                 AssignedTo = user,
                 DueAt = new DateTime(2026, 8, 30, 15, 0, 0, DateTimeKind.Utc),
-                Description = "Zadanie na końcu miesiąca"
+                Description = "Zadanie na końcu miesiąca",
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Users.Add(user);
@@ -530,7 +559,9 @@ namespace Tests.Services
                 Status = TaskStatusEnum.InProgress,
                 Priority = TaskPriorityEnum.High,
                 AssignedToId = userId,
-                AssignedTo = user
+                AssignedTo = user,
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Users.Add(user);
@@ -588,6 +619,8 @@ namespace Tests.Services
                 AssignedTo = user,
                 DueAt = DateTime.UtcNow,
                 Description = "Zadanie z pustym tytułem do testu",
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Users.Add(user);
@@ -655,7 +688,9 @@ namespace Tests.Services
                 AssignedTo = user,
                 DealId = deal.Id,
                 Deal = deal,
-                Description = "Zadanie"
+                Description = "Zadanie",
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Users.Add(user);
@@ -711,7 +746,6 @@ namespace Tests.Services
                 IsPrimary = true
             };
 
-            // Detale kontaktu
             var detailPrimary = new ContactDetail
             {
                 Id = Guid.NewGuid(),
@@ -750,6 +784,8 @@ namespace Tests.Services
                 ContactId = contact.Id,
                 Contact = contact,
                 Description = "Zadanie z kontaktem",
+                CreatedBy = owner,
+                CreatedById = owner.Id
             };
 
             _contextMock.Users.Add(owner);
@@ -800,7 +836,9 @@ namespace Tests.Services
                 AssignedToId = userId,
                 AssignedTo = user,
                 ContactId = null,
-                Description = "Zadanie bez kontaktu"
+                Description = "Zadanie bez kontaktu",
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Tasks.Add(taskNoContact);
@@ -864,7 +902,9 @@ namespace Tests.Services
                 AssignedTo = owner,
                 ContactId = contact.Id,
                 Contact = contact,
-                Description = "Opis"
+                Description = "Opis",
+                CreatedBy = owner,
+                CreatedById = owner.Id
             };
 
             _contextMock.Users.Add(owner);
@@ -925,7 +965,9 @@ namespace Tests.Services
                 AssignedTo = owner,
                 ContactId = contact.Id,
                 Contact = contact,
-                Description = "Opis"
+                Description = "Opis",
+                CreatedBy = owner,
+                CreatedById = owner.Id
             };
 
             _contextMock.Users.Add(owner);
@@ -1005,6 +1047,8 @@ namespace Tests.Services
                 DealId = deal.Id,
                 Deal = deal,
                 Description = "Zadanie z dealem",
+                CreatedById = owner.Id,
+                CreatedBy = owner,
             };
 
             _contextMock.Users.Add(owner);
@@ -1054,7 +1098,9 @@ namespace Tests.Services
                 AssignedToId = userId,
                 AssignedTo = user,
                 DealId = null,
-                Description = "Zadanie bez deala"
+                Description = "Zadanie bez deala",
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Tasks.Add(taskNoDeal);
@@ -1129,7 +1175,9 @@ namespace Tests.Services
                 AssignedTo = owner,
                 DealId = deal.Id,
                 Deal = deal,
-                Description = "Opis"
+                Description = "Opis",
+                CreatedById = owner.Id,
+                CreatedBy = owner
             };
 
             _contextMock.Users.Add(owner);
@@ -1188,7 +1236,9 @@ namespace Tests.Services
                 Priority = TaskPriorityEnum.Medium,
                 DueAt = DateTime.UtcNow.AddDays(2),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedById = targetUserId,
+                CreatedBy = targetUser
             };
 
             var deletedTask = new Tasks
@@ -1200,7 +1250,9 @@ namespace Tests.Services
                 Priority = TaskPriorityEnum.Low,
                 DueAt = DateTime.UtcNow.AddDays(1),
                 Description = "Opis",
-                IsDeleted = true
+                IsDeleted = true,
+                CreatedById = targetUserId,
+                CreatedBy = targetUser
             };
 
             var otherUserTask = new Tasks
@@ -1212,7 +1264,9 @@ namespace Tests.Services
                 Priority = TaskPriorityEnum.High,
                 DueAt = DateTime.UtcNow.AddDays(3),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedById = targetUserId,
+                CreatedBy = targetUser
             };
 
             _contextMock.Users.AddRange(targetUser, otherUser);
@@ -1303,7 +1357,9 @@ namespace Tests.Services
                 Status = TaskStatusEnum.InProgress,
                 Priority = TaskPriorityEnum.High,
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             var taskWithoutRelations = new Tasks
@@ -1317,7 +1373,9 @@ namespace Tests.Services
                 Status = TaskStatusEnum.ToDo,
                 Priority = TaskPriorityEnum.Low,
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Users.Add(user);
@@ -1381,7 +1439,9 @@ namespace Tests.Services
                 Priority = TaskPriorityEnum.High,
                 DueAt = DateTime.UtcNow.AddDays(1),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedById = userId,
+                CreatedBy = user
             };
 
             var taskWrongStatus = new Tasks
@@ -1393,7 +1453,9 @@ namespace Tests.Services
                 Priority = TaskPriorityEnum.High,
                 DueAt = DateTime.UtcNow.AddDays(2),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedById = userId,
+                CreatedBy = user
             };
 
             var taskWrongPriority = new Tasks
@@ -1405,7 +1467,9 @@ namespace Tests.Services
                 Priority = TaskPriorityEnum.Low,
                 DueAt = DateTime.UtcNow.AddDays(3),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedById = userId,
+                CreatedBy = user
             };
 
             _contextMock.Users.Add(user);
@@ -1493,7 +1557,9 @@ namespace Tests.Services
                 AssignedToId = userId,
                 DueAt = DateTime.UtcNow.AddDays(1),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             var taskByDeal = new Tasks
@@ -1504,7 +1570,9 @@ namespace Tests.Services
                 DealId = deal.Id,
                 DueAt = DateTime.UtcNow.AddDays(2),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             var taskByContact = new Tasks
@@ -1515,7 +1583,9 @@ namespace Tests.Services
                 ContactId = contact.Id,
                 DueAt = DateTime.UtcNow.AddDays(3),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             var taskIrrelevant = new Tasks
@@ -1525,7 +1595,9 @@ namespace Tests.Services
                 AssignedToId = userId,
                 DueAt = DateTime.UtcNow.AddDays(4),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = user,
+                CreatedById = user.Id
             };
 
             _contextMock.Users.Add(user);
@@ -1593,7 +1665,9 @@ namespace Tests.Services
                 Status = TaskStatusEnum.ToDo,
                 Priority = TaskPriorityEnum.Medium,
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = user,
+                CreatedById = user.Id
             }).ToList();
 
             _contextMock.Users.Add(user);
@@ -1711,7 +1785,9 @@ namespace Tests.Services
                 DueAt = new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc),
                 Status = TaskStatusEnum.InProgress,
                 Priority = TaskPriorityEnum.High,
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = owner,
+                CreatedById = ownerId
             };
 
             _contextMock.Users.AddRange(owner, assignedUser);
@@ -1820,7 +1896,9 @@ namespace Tests.Services
                 AssignedTo = owner,
                 DueAt = DateTime.UtcNow.AddDays(1),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = owner,
+                CreatedById = ownerId
             };
 
             var otherTask = new Tasks
@@ -1833,7 +1911,9 @@ namespace Tests.Services
                 AssignedTo = owner,
                 DueAt = DateTime.UtcNow.AddDays(2),
                 Description = "Opis",
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedBy = owner,
+                CreatedById = ownerId
             };
 
             _contextMock.Users.Add(owner);
@@ -2321,6 +2401,254 @@ namespace Tests.Services
             var task = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Title == "Zadanie z delegacji menedżera");
             await Assert.That(task).IsNotNull();
             await Assert.That(task!.AssignedToId).IsEqualTo(employee.Id);
+        }
+
+        // ─── DeleteTaskAsync ─────────────────────────────────────────────────────────
+
+        [Test]
+        public async Task DeleteTaskAsync_WhenTaskDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomTaskId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _taskServicesMock.DeleteTaskAsync(randomTaskId, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TaskNotFound);
+        }
+
+        [Test]
+        public async Task DeleteTaskAsync_WhenTaskDelegatedByManager_EmployeeCannotDeleteAndThrowsForbiddenException()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Jan",
+                LastName = "Pracownik",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie od przełożonego",
+                Description = "Pilne zadanie kierownicze",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.High,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = manager.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.DeleteTaskAsync(task.Id, employee.Id))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task DeleteTaskAsync_WhenTaskCreatedBySelfForSelf_EmployeeDeletesSuccessfully()
+        {
+            // Arrange
+            var (_, employee, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Własna notatka robocza",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Low,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = employee.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.DeleteTaskAsync(task.Id, employee.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNull();
+        }
+
+        [Test]
+        public async Task DeleteTaskAsync_WhenManagerDeletesAnyTask_DeletesSuccessfully()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp2_{uniqueSuffix}",
+                Email = $"emp2_{uniqueSuffix}@t.pl",
+                FirstName = "Adam",
+                LastName = "Kowalski",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie do usunięcia przez kierownika",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.InProgress,
+                CreatedById = employee.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.DeleteTaskAsync(task.Id, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNull();
+        }
+
+        [Test]
+        public async Task DeleteTaskAsync_WhenTaskIsComplete_Returns400BadRequestFromStateMachine()
+        {
+            // Arrange
+            var (_, employee, _) = await SeedCompanyAndUserAsync();
+
+            var completedTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zrealizowane zadanie",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.Complete,
+                CreatedById = employee.Id,
+                AssignedToId = employee.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(completedTask);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.DeleteTaskAsync(completedTask.Id, employee.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == completedTask.Id);
+            await Assert.That(taskInDb).IsNotNull();
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.ToDo)]
+        [Arguments(TaskStatusEnum.InProgress)]
+        [Arguments(TaskStatusEnum.Break)]
+        public async Task DeleteTaskAsync_WhenTaskInModifiableState_AllowsDeletion(TaskStatusEnum initialStatus)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = $"Zadanie w stanie {initialStatus}",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Medium,
+                Status = initialStatus,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.DeleteTaskAsync(task.Id, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNull();
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.Complete)]
+        public async Task DeleteTaskAsync_WhenTaskIsFinalized_ReturnsBadRequest(TaskStatusEnum status)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zakończone zadanie",
+                Description = "Opis zadania zakończonego",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Low,
+                Status = status,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.DeleteTaskAsync(task.Id, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNotNull();
         }
     }
 }
