@@ -140,5 +140,19 @@ namespace Api.Controllers
             var result = await task.ExtendTaskDueDateAsync(mapper.MapExtendDueDate(request, taskId, CurrentUserId));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Change assigned user")]
+        [EndpointDescription("Change the assigned user of a specific task.")]
+        [HttpPut("{taskId}/change-assigned-user/{assigneeId}")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ChangeAssignedToUserAsync(
+            [FromServices] ITaskServices task,
+            [FromRoute] Guid taskId,
+            [FromRoute] Guid assigneeId
+            )
+        {
+            var result = await task.ChangeAssignedToUserAsync(taskId, assigneeId, CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }

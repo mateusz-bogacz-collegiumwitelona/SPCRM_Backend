@@ -3226,7 +3226,7 @@ namespace Tests.Services
             {
                 TaskId = task.Id,
                 UserId = user.Id,
-                NewDueDate = currentDueDate.AddDays(-1) 
+                NewDueDate = currentDueDate.AddDays(-1)
             };
 
             // Act
@@ -3293,6 +3293,267 @@ namespace Tests.Services
 
             var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
             await Assert.That(taskInDb.DueAt).IsEqualTo(extendedDue).Within(TimeSpan.FromSeconds(1));
+        }
+
+        // ─── ChangeAssignedToUserAsync ───────────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeAssignedToUserAsync_WhenTaskNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var randomTaskId = Guid.NewGuid();
+            var randomAssigneeId = Guid.NewGuid();
+            var managerId = Guid.NewGuid();
+
+            // Act
+            var result = await _taskServicesMock.ChangeAssignedToUserAsync(randomTaskId, randomAssigneeId, managerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TaskNotFound);
+        }
+
+        [Test]
+        public async Task ChangeAssignedToUserAsync_WhenTaskIsFinalized_ReturnsBadRequestFromStateMachine()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            var newAssigneeId = Guid.NewGuid();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zakończone zadanie",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Low,
+                Status = TaskStatusEnum.Complete,
+                CreatedById = manager.Id,
+                AssignedToId = manager.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.ChangeAssignedToUserAsync(task.Id, newAssigneeId, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task ChangeAssignedToUserAsync_WhenNewUserDoesNotExistOrDeleted_Returns404NotFound()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+            var missingUserId = Guid.NewGuid();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie do przepięcia",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = manager.Id,
+                AssignedToId = manager.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.ChangeAssignedToUserAsync(task.Id, missingUserId, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task ChangeAssignedToUserAsync_WhenTaskAlreadyAssignedToThisUser_ReturnsBadRequest()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie testowe",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = manager.Id,
+                AssignedToId = manager.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act: Próba ponownego przypisania do managera
+            var result = await _taskServicesMock.ChangeAssignedToUserAsync(task.Id, manager.Id, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+        }
+
+        [Test]
+        public async Task ChangeAssignedToUserAsync_WhenValidRequest_ReassignsUserSuccessfully()
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var employee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Wojciech",
+                LastName = "Nowak",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(employee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie do delegowania",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Priority = TaskPriorityEnum.High,
+                Status = TaskStatusEnum.InProgress,
+                CreatedById = manager.Id,
+                AssignedToId = manager.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.ChangeAssignedToUserAsync(task.Id, employee.Id, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb.AssignedToId).IsEqualTo(employee.Id);
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.ToDo)]
+        [Arguments(TaskStatusEnum.InProgress)]
+        [Arguments(TaskStatusEnum.Break)]
+        public async Task ChangeAssignedToUserAsync_WhenTaskInModifiableState_AllowsReassignment(TaskStatusEnum initialStatus)
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var targetEmployee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Piotr",
+                LastName = "Kowalski",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(targetEmployee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = $"Zadanie w stanie {initialStatus}",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(3),
+                Priority = TaskPriorityEnum.Medium,
+                Status = initialStatus,
+                CreatedById = manager.Id,
+                AssignedToId = manager.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.ChangeAssignedToUserAsync(task.Id, targetEmployee.Id, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNotNull();
+            await Assert.That(taskInDb!.AssignedToId).IsEqualTo(targetEmployee.Id);
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.Complete)]
+        public async Task ChangeAssignedToUserAsync_WhenTaskIsFinalized_ReturnsBadRequest(TaskStatusEnum status)
+        {
+            // Arrange
+            var (_, manager, _) = await SeedCompanyAndUserAsync();
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var targetEmployee = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Emp_{uniqueSuffix}",
+                Email = $"emp_{uniqueSuffix}@t.pl",
+                FirstName = "Adam",
+                LastName = "Nowak",
+                IsDeleted = false
+            };
+            _contextMock.Users.Add(targetEmployee);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zakończone zadanie",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Low,
+                Status = status,
+                CreatedById = manager.Id,
+                AssignedToId = manager.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _taskServicesMock.ChangeAssignedToUserAsync(task.Id, targetEmployee.Id, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb).IsNotNull();
+            await Assert.That(taskInDb!.AssignedToId).IsEqualTo(manager.Id);
         }
     }
 }

@@ -564,6 +564,63 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result> ChangeAssignedToUserAsync(Guid taskId, Guid newAssignedToUserId, Guid managerId)
+        {
+            var task = await _context.Tasks.FindAsync(taskId);
+
+            if (task == null)
+            {
+                _logger.LogInformation("Task with ID {TaskId} not found.", taskId);
+                return Result.Failure(
+                    message: "Task not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.TaskNotFound
+                );
+            }
+
+            var stateMachine = _state.Create(task);
+            var canModify = stateMachine.CanModify();
+
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Task {TaskId} assignee cannot be changed due to its current state.", taskId);
+                return canModify;
+            }
+
+            var newUser = await _context.Users.FindAsync(newAssignedToUserId);
+
+            if (newUser == null || newUser.IsDeleted)
+            {
+                _logger.LogInformation("User with ID {NewAssignedToUserId} not found or deleted.", newAssignedToUserId);
+                return Result.Failure(
+                    message: "Assigned user not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            if (task.AssignedToId == newAssignedToUserId)
+            {
+                _logger.LogInformation("Task {TaskId} is already assigned to user {NewAssignedToUserId}.", taskId, newAssignedToUserId);
+                return Result.Failure(
+                    message: "Task is already assigned to this user.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.TaskAlreadyAssigned
+                );
+            }
+
+            task.AssignedToId = newUser.Id;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} reassigned successfully to user {NewAssignedToUserId} by manager {ManagerId}.", task.Id, newUser.Id, managerId);
+
+            return Result.Success(
+                message: "Task reassigned successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
         private List<object> GetStatusDictionary()
             => new List<object>
                 {

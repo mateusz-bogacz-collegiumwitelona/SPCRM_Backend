@@ -147,6 +147,7 @@
 
         // TASK
         public const string TaskNotFound = "TASK_001";
+        public const string TaskAlreadyAssigned = "TASK_002";
 
         // User
         public const string UserAlreadyExists = "USR_001";

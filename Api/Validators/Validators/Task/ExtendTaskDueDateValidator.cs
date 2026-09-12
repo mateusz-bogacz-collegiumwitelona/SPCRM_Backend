@@ -6,7 +6,7 @@ namespace Api.Validators.Validators.Task
 {
     public class ExtendTaskDueDateValidator : AbstractValidator<ExtendTaskDueDateRequest>
     {
-        public ExtendTaskDueDateValidator() 
+        public ExtendTaskDueDateValidator()
         {
             RuleFor(x => x.NewDueDate).ApplyTaskDueAtRules();
         }
