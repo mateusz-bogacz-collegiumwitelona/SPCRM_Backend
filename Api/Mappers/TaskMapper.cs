@@ -55,7 +55,8 @@ namespace Api.Mappers
                 TaskId = taskId,
                 UserId = userId,
                 Title = request.Title != null ? NormalizeName(request.Title) : null,
-                Description = request.Description != null ? Trim(request.Description) : null
+                Description = request.Description != null ? Trim(request.Description) : null,
+                Priority = ParseTaskPriority(request.Priority)
             };
 
         public ExtendTaskDueDateCommand MapExtendDueDate(ExtendTaskDueDateRequest request, Guid taskId, Guid userId)
@@ -77,7 +78,7 @@ namespace Api.Mappers
         private TaskStatusEnum? ParseTaskStatus(string? status)
             => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed) ? parsed : null;
 
-        private TaskStatusEnum ParseTaskStatusNotNull(string  status)
+        private TaskStatusEnum ParseTaskStatusNotNull(string status)
             => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed) ? parsed : (TaskStatusEnum)(-1);
 
         private TaskPriorityEnum? ParseTaskPriority(string? priority)

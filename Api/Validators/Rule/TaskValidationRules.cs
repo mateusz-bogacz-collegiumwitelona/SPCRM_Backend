@@ -21,7 +21,7 @@ namespace Api.Validators.Rule
                 .NotEmpty().WithErrorCode(ErrorCodes.InvalidDate)
                 .GreaterThan(DateTime.UtcNow.AddMinutes(-5)).WithErrorCode(ErrorCodes.InvalidDate);
 
-        public static IRuleBuilderOptions<T, string> ApplyTaskPriorityRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+        public static IRuleBuilderOptions<T, string?> ApplyTaskPriorityRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
                 .IsEnumName(typeof(TaskPriorityEnum), caseSensitive: false)

@@ -3039,6 +3039,51 @@ namespace Tests.Services
             await Assert.That(taskInDb.Description).IsEqualTo("Stary opis");
         }
 
+        [Test]
+        public async Task EditTaskAsync_WhenOwnerUpdatesOnlyPriority_LeavesTitleAndDescriptionUntouched()
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Tytuł zadania",
+                Description = "Opis zadania",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Low,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditTaskCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Title = null,
+                Description = null,
+                Priority = TaskPriorityEnum.High
+            };
+
+            // Act
+            var result = await _taskServicesMock.EditTaskAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var updatedTask = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(updatedTask.Priority).IsEqualTo(TaskPriorityEnum.High);
+            await Assert.That(updatedTask.Title).IsEqualTo("Tytuł zadania");
+            await Assert.That(updatedTask.Description).IsEqualTo("Opis zadania");
+        }
+
         // ─── ExtendTaskDueDateAsync ──────────────────────────────────────────────────
 
         [Test]

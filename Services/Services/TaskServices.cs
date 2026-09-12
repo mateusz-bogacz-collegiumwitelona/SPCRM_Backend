@@ -499,6 +499,11 @@ namespace Services.Services
                 task.Description = command.Description.Trim();
             }
 
+            if (command.Priority.HasValue)
+            {
+                task.Priority = command.Priority.Value;
+            }
+
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Task {TaskId} updated successfully by user {UserId}.", task.Id, command.UserId);
