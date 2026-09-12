@@ -56,10 +56,10 @@ namespace Worker.Workers
                 : $"Faktura_{safeNumber}.pdf";
 
             await _smtpService.SendEmailWithAttachmentAsync(
-                recipientEmail, 
-                subject, 
-                htmlBody, 
-                pdfBytes, 
+                recipientEmail,
+                subject,
+                htmlBody,
+                pdfBytes,
                 filename);
 
             _logger.LogInformation("Invoice {InvoiceNumber} ({Language}) sent to {Email}.", invoice.InvoiceNumber, lang, recipientEmail);

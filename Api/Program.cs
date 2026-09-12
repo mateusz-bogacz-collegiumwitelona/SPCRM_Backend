@@ -60,7 +60,7 @@ try
     builder.Services.AddEmailModule(builder.Configuration);
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
-    builder.Services.AddWorkerServices(builder.Configuration); 
+    builder.Services.AddWorkerServices(builder.Configuration);
 
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {

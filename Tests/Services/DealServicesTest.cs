@@ -16,6 +16,7 @@ using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -32,6 +33,7 @@ namespace Tests.Services
         private string _currentSchema = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
         protected IDealStateMachineFactory _stateMock = null!;
+        protected FakeEmailSender _emailSenderMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -102,11 +104,14 @@ namespace Tests.Services
 
             _stateMock = new DealStateMachineFactory();
 
+            _emailSenderMock = new FakeEmailSender();
+
             _dealServicesMock = new DealServices(
                 _contextMock,
                 _loggerMock,
                 _entityAuthMock,
-                _stateMock);
+                _stateMock,
+                _emailSenderMock);
         }
 
         [After(Test)]
@@ -2975,6 +2980,340 @@ namespace Tests.Services
             var updatedItem = dbDeal.DealProducts.First(dp => dp.Id == dealProductId);
             await Assert.That(updatedItem.Quantity).IsEqualTo(2);
             await Assert.That(updatedItem.UnitPrice).IsEqualTo(25000);
+        }
+
+        // ─── ChangeDealStatusAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeDealStatusAsync_WhenDealDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = Guid.NewGuid(),
+                UserId = randomUserId,
+                TargetStatus = DealsStatusEnum.InProgress
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotFound);
+            await Assert.That(result.Message).IsEqualTo("Deal not found.");
+        }
+
+        [Test]
+        public async Task ChangeDealStatusAsync_WhenUserIsNotOwner_Returns403Forbidden()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/12/0001",
+                Value = 100000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = deal.Id,
+                UserId = unauthorizedUserId,
+                TargetStatus = DealsStatusEnum.InProgress
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotOwned);
+            await Assert.That(result.Message).IsEqualTo("You are not the owner of this deal.");
+        }
+
+        [Test]
+        [Arguments(DealsStatusEnum.Complete)]
+        [Arguments(DealsStatusEnum.Cancelled)]
+        public async Task ChangeDealStatusAsync_WhenTransitionIsInvalid_ReturnsBadRequest(DealsStatusEnum finalStatus)
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/12/0002",
+                Value = 100000,
+                Status = finalStatus,
+                CloseDate = DateTime.UtcNow,
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = deal.Id,
+                UserId = owner.Id,
+                TargetStatus = DealsStatusEnum.InProgress
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task ChangeDealStatusAsync_WhenStatusChangesToInProgress_UpdatesStatusWithoutCreatingInvoice()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/12/0003",
+                Value = 150000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = deal.Id,
+                UserId = owner.Id,
+                TargetStatus = DealsStatusEnum.InProgress
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Status).IsEqualTo(DealsStatusEnum.InProgress.ToString());
+            await Assert.That(result.Data.SentToEmail).IsNull();
+
+            var updatedDeal = await _contextMock.Deals.AsNoTracking().FirstOrDefaultAsync(d => d.Id == deal.Id);
+            await Assert.That(updatedDeal).IsNotNull();
+            await Assert.That(updatedDeal!.Status).IsEqualTo(DealsStatusEnum.InProgress);
+
+            var invoicesCount = await _contextMock.Invoices.CountAsync(i => i.DealId == deal.Id);
+            await Assert.That(invoicesCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task ChangeDealStatusAsync_WhenStatusChangesToComplete_CreatesInvoiceAndResolvesPrimaryEmail()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            _contextMock.Users.Attach(owner);
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = company.Id,
+                FirstName = "Anna",
+                LastName = "Kowalska",
+                IsPrimary = true,
+                OwnerId = owner.Id,
+                Owner = owner,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ContactDetailTypeEnum.EMAIL,
+                        Value = "primary_contact@test.pl",
+                        IsPrimary = true
+                    }
+                },
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/12/0004",
+                Value = 5000000, // 500.00 PLN
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = deal.Id,
+                UserId = owner.Id,
+                TargetStatus = DealsStatusEnum.Complete,
+                Language = "pl"
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Status).IsEqualTo(DealsStatusEnum.Complete.ToString());
+            await Assert.That(result.Data.SentToEmail).IsEqualTo("primary_contact@test.pl");
+
+            var updatedDeal = await _contextMock.Deals.AsNoTracking().FirstOrDefaultAsync(d => d.Id == deal.Id);
+            await Assert.That(updatedDeal).IsNotNull();
+            await Assert.That(updatedDeal!.Status).IsEqualTo(DealsStatusEnum.Complete);
+
+            var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
+            await Assert.That(createdInvoice).IsNotNull();
+            await Assert.That(createdInvoice!.TotalAmount).IsEqualTo(5000000L);
+            await Assert.That(createdInvoice.InvoiceNumber.StartsWith("FV/")).IsTrue();
+        }
+
+        [Test]
+        public async Task ChangeDealStatusAsync_WhenCustomRecipientEmailProvided_OverridesResolvedEmail()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            _contextMock.Users.Attach(owner);
+
+            var contact = new Contact
+            {
+                CompanyId = company.Id,
+                FirstName = "Anna",
+                LastName = "Kowalska",
+                IsPrimary = true,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ContactDetailTypeEnum.EMAIL,
+                        Value = "default_contact@test.pl",
+                        IsPrimary = true
+                    }
+                },
+                Owner = owner,
+                OwnerId = owner.Id
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/12/0005",
+                Value = 2000000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var customEmail = "ksiegowosc_specjalna@klient.pl";
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = deal.Id,
+                UserId = owner.Id,
+                TargetStatus = DealsStatusEnum.Complete,
+                CustomRecipientEmail = customEmail
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.SentToEmail).IsEqualTo(customEmail);
+
+            var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
+            await Assert.That(createdInvoice).IsNotNull();
+        }
+
+        [Test]
+        public async Task ChangeDealStatusAsync_WhenCompanyHasNoContacts_CreatesInvoiceAndReturnsNullEmail()
+        {
+            // Arrange
+            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/12/0006",
+                Value = 1000000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = deal.Id,
+                UserId = owner.Id,
+                TargetStatus = DealsStatusEnum.Complete,
+                CustomRecipientEmail = null
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Status).IsEqualTo(DealsStatusEnum.Complete.ToString());
+            await Assert.That(result.Data.SentToEmail).IsNull();
+
+            var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
+            await Assert.That(createdInvoice).IsNotNull();
         }
     }
 }

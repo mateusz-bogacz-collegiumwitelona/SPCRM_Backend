@@ -219,6 +219,20 @@ namespace Api.Controllers
             var result = await note.AddNoteAsync(mapper.MapAddToDeal(request, CurrentUserId, dealId));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Change deal status")]
+        [EndpointDescription("Changes the status of a specific deal.")]
+        [HttpPut("{dealId}/status")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> ChangeDealStatusAsync(
+            [FromServices] IDealServices deal,
+            [FromServices] DealMapper mapper,
+            [FromRoute] Guid dealId,
+            [FromBody] ChangeDealStatusRequest request)
+        {
+            var result = await deal.ChangeDealStatusAsync(mapper.MapChangeStatus(request, dealId, CurrentUserId));
+            return HandleResult(result);
+        }
     }
 }
 

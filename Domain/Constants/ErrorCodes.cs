@@ -141,9 +141,9 @@
 
         // DEAL
         public const string DealNotFound = "DEAL_001";
-
         public const string DealQuantityInvalid = "DEAL_002";
         public const string DealProductUnitPriceInvalid = "DEAL_003";
+        public const string DealNotOwned = "DEAL_004";
 
         // TASK
         public const string TaskNotFound = "TASK_001";

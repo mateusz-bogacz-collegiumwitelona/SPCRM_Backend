@@ -12,5 +12,6 @@ namespace Services.Interfaces
         Task SendEmailChangeConfirmationLinkAsync(EmailChangeInitiatedDomain domain);
         Task SendEmailChangeSecurityAlertAsync(EmailChangeAlertDomain domain);
         Task SendPasswordResetEmailAsync(ResetPasswordEmailDomain domain);
+        Task SendInvoiceEmailAsync(InvoiceEmailDomain domain);
     }
 }

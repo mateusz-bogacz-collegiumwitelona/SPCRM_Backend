@@ -5,6 +5,8 @@ namespace Api.Validators.Rule
 {
     public static class GlobalValidationRules
     {
+        private static readonly string[] _allowedLanguages = { "pl", "en" };
+
         public static IRuleBuilderOptions<T, Guid> ApplyValidGuidRule<T>(
             this IRuleBuilder<T, Guid> ruleBuilder,
             string errorCode = ErrorCodes.ValidationError)
@@ -35,5 +37,10 @@ namespace Api.Validators.Rule
                     .GreaterThan(0)
                     .LessThanOrEqualTo(100)
                     .WithErrorCode(ErrorCodes.PageSizeInvalid);
+
+        public static IRuleBuilderOptions<T, string?> ApplyLanguageRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
+            => ruleBuilder
+                .Must(lang => string.IsNullOrWhiteSpace(lang) || _allowedLanguages.Contains(lang.ToLowerInvariant()))
+                .WithErrorCode(ErrorCodes.InvalidOperation);
     }
 }

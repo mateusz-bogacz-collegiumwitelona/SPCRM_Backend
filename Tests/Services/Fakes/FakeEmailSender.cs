@@ -15,11 +15,14 @@ namespace Tests.Services.Fakes
 
         public List<EmailChangeInitiatedDomain> SentEmailChangeConfirmationLinks { get; } = new();
         public List<EmailChangeAlertDomain> SentEmailChangeSecurityAlerts { get; } = new();
+        public List<InvoiceEmailDomain> SentInvoiceEmails { get; } = new();
 
         public ReportDomain? SentReport => SentReportEmails.LastOrDefault();
         public MailingOfferDomain? LastSentProductMailing => SentProductMailingEmails.LastOrDefault();
         public EmailChangeInitiatedDomain? LastSentConfirmationLink => SentEmailChangeConfirmationLinks.LastOrDefault();
         public EmailChangeAlertDomain? LastSentSecurityAlert => SentEmailChangeSecurityAlerts.LastOrDefault();
+
+        public InvoiceEmailDomain? LasInvoiceEmailDomain => SentInvoiceEmails.LastOrDefault();
 
         public int CallCount => SentCreateUserEmails.Count +
                                 SentReportEmails.Count +
@@ -76,6 +79,12 @@ namespace Tests.Services.Fakes
         public Task SendPasswordResetEmailAsync(ResetPasswordEmailDomain domain)
         {
             SentResetPasswordEmails.Add(domain);
+            return Task.CompletedTask;
+        }
+
+        public Task SendInvoiceEmailAsync(InvoiceEmailDomain domain)
+        {
+            SentInvoiceEmails.Add(domain);
             return Task.CompletedTask;
         }
     }

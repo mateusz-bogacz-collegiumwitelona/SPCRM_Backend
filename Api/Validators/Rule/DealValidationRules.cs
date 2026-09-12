@@ -1,4 +1,5 @@
 ﻿using Domain.Constants;
+using Domain.Enum;
 using FluentValidation;
 
 namespace Api.Validators.Rule
@@ -23,5 +24,11 @@ namespace Api.Validators.Rule
             => ruleBuilder
                 .GreaterThanOrEqualTo(0)
                 .WithErrorCode(ErrorCodes.DealProductUnitPriceInvalid);
+
+        public static IRuleBuilderOptions<T, string> ApplyDealStatusRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+            => ruleBuilder
+                .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
+                .IsEnumName(typeof(DealsStatusEnum), caseSensitive: false)
+                .WithErrorCode(ErrorCodes.InvalidOperation);
     }
 }

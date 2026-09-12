@@ -1,6 +1,7 @@
 ﻿using Api.Request.Deal;
 using Api.Request.List;
 using Api.Request.Sale;
+using Domain.Enum;
 using Riok.Mapperly.Abstractions;
 using Services.Command.Deal;
 
@@ -30,6 +31,16 @@ namespace Api.Mappers
                 OwnerId = filter.OwnerId
             };
 
+        public ChangeDealStatusCommand MapChangeStatus(ChangeDealStatusRequest request, Guid dealId, Guid userId)
+            => new ChangeDealStatusCommand
+            {
+                DealId = dealId,
+                UserId = userId,
+                TargetStatus = PareseDealStatus(request.TargetStatus),
+                Language = request.Language,
+                CustomRecipientEmail = request.CustomRecipientEmail
+            };
+
         public partial AddDealCommand MapAdd(AddDealRequest request);
 
         public partial AddDealProductCommand MapAdd(AddDealProductRequest request);
@@ -37,5 +48,8 @@ namespace Api.Mappers
         public partial ExtendDealCloseDateCommand MapExtendCloseDate(ExtendDealCloseDateRequest request);
 
         public partial EditDealProductCommand MapEditProduct(EditDealProductRequest request);
+
+        public DealsStatusEnum PareseDealStatus(string status)
+            => Enum.TryParse<DealsStatusEnum>(status, true, out var result) ? result : throw new ArgumentException($"Invalid status value: {status}");
     }
 }
