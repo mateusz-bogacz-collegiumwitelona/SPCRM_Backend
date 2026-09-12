@@ -3555,5 +3555,208 @@ namespace Tests.Services
             await Assert.That(taskInDb).IsNotNull();
             await Assert.That(taskInDb!.AssignedToId).IsEqualTo(manager.Id);
         }
+
+        // ─── ChangeTaskStatusAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeTaskStatusAsync_WhenTaskNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var randomTaskId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            var command = new ChangeTaskStatusCommand
+            {
+                TaskId = randomTaskId,
+                UserId = randomUserId,
+                Status = TaskStatusEnum.InProgress
+            };
+
+            // Act
+            var result = await _taskServicesMock.ChangeTaskStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.TaskNotFound);
+        }
+
+        [Test]
+        public async Task ChangeTaskStatusAsync_WhenUserIsNotAssignee_Returns403Forbidden()
+        {
+            // Arrange
+            var (_, taskOwner, _) = await SeedCompanyAndUserAsync();
+            var otherUserId = Guid.NewGuid();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie wykonawcy",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Medium,
+                Status = TaskStatusEnum.ToDo,
+                CreatedById = taskOwner.Id,
+                AssignedToId = taskOwner.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeTaskStatusCommand
+            {
+                TaskId = task.Id,
+                UserId = otherUserId,
+                Status = TaskStatusEnum.InProgress
+            };
+
+            // Act
+            var result = await _taskServicesMock.ChangeTaskStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotOwnThisTask);
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.ToDo, TaskStatusEnum.InProgress)]
+        [Arguments(TaskStatusEnum.ToDo, TaskStatusEnum.Complete)]
+        [Arguments(TaskStatusEnum.InProgress, TaskStatusEnum.Break)]
+        [Arguments(TaskStatusEnum.InProgress, TaskStatusEnum.Complete)]
+        [Arguments(TaskStatusEnum.Break, TaskStatusEnum.InProgress)]
+        [Arguments(TaskStatusEnum.Break, TaskStatusEnum.Complete)]
+        public async Task ChangeTaskStatusAsync_WhenTransitionIsValid_UpdatesStatusSuccessfully(
+            TaskStatusEnum initialStatus,
+            TaskStatusEnum targetStatus)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie do zmiany statusu",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.Low,
+                Status = initialStatus,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeTaskStatusCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Status = targetStatus
+            };
+
+            // Act
+            var result = await _taskServicesMock.ChangeTaskStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb.Status).IsEqualTo(targetStatus);
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.ToDo, TaskStatusEnum.Break)]
+        [Arguments(TaskStatusEnum.Break, TaskStatusEnum.ToDo)]
+        public async Task ChangeTaskStatusAsync_WhenTransitionIsInvalid_ReturnsBadRequest(
+            TaskStatusEnum initialStatus,
+            TaskStatusEnum invalidTargetStatus)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie z błędnym przeskokiem",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Priority = TaskPriorityEnum.High,
+                Status = initialStatus,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeTaskStatusCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Status = invalidTargetStatus
+            };
+
+            // Act
+            var result = await _taskServicesMock.ChangeTaskStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb.Status).IsEqualTo(initialStatus);
+        }
+
+        [Test]
+        [Arguments(TaskStatusEnum.Complete)]
+        public async Task ChangeTaskStatusAsync_WhenTaskIsAlreadyCompleted_ReturnsBadRequestFromCanModify(TaskStatusEnum status)
+        {
+            // Arrange
+            var (_, user, _) = await SeedCompanyAndUserAsync();
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Ukończone zadanie",
+                Description = "Opis",
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Priority = TaskPriorityEnum.Medium,
+                Status = status,
+                CreatedById = user.Id,
+                AssignedToId = user.Id,
+                IsDeleted = false
+            };
+
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeTaskStatusCommand
+            {
+                TaskId = task.Id,
+                UserId = user.Id,
+                Status = TaskStatusEnum.InProgress
+            };
+
+            // Act
+            var result = await _taskServicesMock.ChangeTaskStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
+            await Assert.That(taskInDb.Status).IsEqualTo(TaskStatusEnum.Complete);
+        }
     }
 }

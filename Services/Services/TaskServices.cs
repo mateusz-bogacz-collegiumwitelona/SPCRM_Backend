@@ -621,6 +621,56 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result> ChangeTaskStatusAsync(ChangeTaskStatusCommand command)
+        {
+            var task = await _context.Tasks.FindAsync(command.TaskId);
+
+            if (task == null)
+            {
+                _logger.LogInformation("Task with ID {TaskId} not found.", command.TaskId);
+                return Result.Failure(
+                    message: "Task not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.TaskNotFound
+                );
+            }
+
+            if (task.AssignedToId != command.UserId)
+            {
+                _logger.LogInformation("User {UserId} is not the assignee of task {TaskId}.", command.UserId, command.TaskId);
+                return Result.Failure(
+                    message: "User is not the owner of this task.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    errorCode: ErrorCodes.UserNotOwnThisTask
+                );
+            }
+
+            var stateMachine = _state.Create(task);
+
+            var canModify = stateMachine.CanModify();
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Task {TaskId} status cannot be modified due to its current state.", command.TaskId);
+                return canModify;
+            }
+
+            var transitionResult = stateMachine.TransitionTo(command.Status);
+            if (!transitionResult.IsSuccess)
+            {
+                _logger.LogWarning("Invalid status transition for task {TaskId} to {TargetStatus}.", command.TaskId, command.Status);
+                return transitionResult;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} status changed successfully to {NewStatus} by user {UserId}.", task.Id, command.Status, command.UserId);
+
+            return Result.Success(
+                message: "Task status changed successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
         private List<object> GetStatusDictionary()
             => new List<object>
                 {

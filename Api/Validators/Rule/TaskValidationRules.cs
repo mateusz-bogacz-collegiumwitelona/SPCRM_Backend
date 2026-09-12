@@ -26,6 +26,12 @@ namespace Api.Validators.Rule
                 .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
                 .IsEnumName(typeof(TaskPriorityEnum), caseSensitive: false)
                 .WithErrorCode(ErrorCodes.InvalidOperation);
+
+        public static IRuleBuilderOptions<T, string> ApplyTaskStatusRules<T>(this IRuleBuilder<T, string> ruleBuilder)
+            => ruleBuilder
+                .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
+                .IsEnumName(typeof(TaskStatusEnum), caseSensitive: false)
+                .WithErrorCode(ErrorCodes.InvalidOperation);
     }
 }
 

@@ -66,8 +66,19 @@ namespace Api.Mappers
                 NewDueDate = request.NewDueDate
             };
 
+        public ChangeTaskStatusCommand MapChangeStatus(ChangeTaskStatusRequest request, Guid userId)
+            => new ChangeTaskStatusCommand
+            {
+                TaskId = request.TaskId,
+                UserId = userId,
+                Status = ParseTaskStatusNotNull(request.Status)
+            };
+
         private TaskStatusEnum? ParseTaskStatus(string? status)
             => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed) ? parsed : null;
+
+        private TaskStatusEnum ParseTaskStatusNotNull(string  status)
+            => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed) ? parsed : (TaskStatusEnum)(-1);
 
         private TaskPriorityEnum? ParseTaskPriority(string? priority)
             => Enum.TryParse<TaskPriorityEnum>(priority, true, out var parsed) ? parsed : null;

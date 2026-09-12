@@ -154,5 +154,20 @@ namespace Api.Controllers
             var result = await task.ChangeAssignedToUserAsync(taskId, assigneeId, CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Change task status")]
+        [EndpointDescription("Change the status of a specific task.")]
+        [HttpPut("change-status")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> ChangeTaskStatusAsync(
+            [FromServices] ITaskServices task,
+            [FromServices] TaskMapper mapper,
+            [FromBody] ChangeTaskStatusRequest request
+            )
+        {
+            var result = await task.ChangeTaskStatusAsync(mapper.MapChangeStatus(request, CurrentUserId));
+            return HandleResult(result);
+        }
+
     }
 }
