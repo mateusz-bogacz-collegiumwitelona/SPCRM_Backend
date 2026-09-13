@@ -1935,5 +1935,222 @@ namespace Tests.Services
             await Assert.That(updatedContact).IsNotNull();
             await Assert.That(updatedContact!.OwnerId).IsEqualTo(newOwnerId);
         }
+
+        // ─── GetContactToDealAsync ───────────────────────────────────────────
+
+        [Test]
+        public async Task GetContactToDealAsync_FiltersOnlyContactsWithEmailAndMapsPropertiesCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Owner_{uniqueSuffix}",
+                NormalizedUserName = $"OWNER_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"OWNER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"FirmaDeal_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var contactWithEmail = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marek",
+                LastName = "Zieliński",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new ContactDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ContactDetailTypeEnum.EMAIL,
+                        Value = "marek@test.pl",
+                        IsPrimary = true
+                    }
+                }
+            };
+
+            var contactWithPhoneOnly = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Piotr",
+                LastName = "BezEmaila",
+                IsPrimary = false,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new ContactDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ContactDetailTypeEnum.PHONE,
+                        Value = "999888777",
+                        IsPrimary = true
+                    }
+                }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.AddRange(contactWithEmail, contactWithPhoneOnly);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _contactServicesMock.GetContactToDealAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+
+            var mappedItem = items.First();
+            await Assert.That(mappedItem.ContactId).IsEqualTo(contactWithEmail.Id);
+            await Assert.That(mappedItem.ContactFirstName).IsEqualTo("Marek");
+            await Assert.That(mappedItem.ContactLastName).IsEqualTo("Zieliński");
+            await Assert.That(mappedItem.IsPrimary).IsTrue();
+            await Assert.That(mappedItem.CompanyId).IsEqualTo(company.Id);
+            await Assert.That(mappedItem.CompanyName).IsEqualTo(company.Name);
+            await Assert.That(mappedItem.Nip).IsEqualTo(company.NIP);
+        }
+
+        [Test]
+        public async Task GetContactToDealAsync_WhenSearchTermProvided_FiltersResultsCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var userId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = userId,
+                UserName = $"Usr_{uniqueSuffix}",
+                NormalizedUserName = $"USR_{uniqueSuffix}",
+                Email = $"u_{uniqueSuffix}@t.pl",
+                NormalizedEmail = $"U_{uniqueSuffix}@T.PL",
+                FirstName = "Adam",
+                LastName = "Nowak"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"TechCompany_{uniqueSuffix}",
+                NIP = "555444333",
+                OwnerId = userId,
+                Owner = owner
+            };
+
+            var targetContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "UnikalneImię",
+                LastName = "Kowalski",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new ContactDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ContactDetailTypeEnum.EMAIL,
+                        Value = "unikalny@test.pl"
+                    }
+                }
+            };
+
+            var otherContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Tomasz",
+                LastName = "Inny",
+                IsPrimary = false,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = owner,
+                ContactDetails = new List<ContactDetail>
+                {
+                    new ContactDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ContactDetailTypeEnum.EMAIL,
+                        Value = "inny@test.pl"
+                    }
+                }
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.AddRange(targetContact, otherContact);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "UnikalneImię"
+            };
+
+            // Act
+            var result = await _contactServicesMock.GetContactToDealAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var items = result.Data!.Items;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().ContactId).IsEqualTo(targetContact.Id);
+        }
+
+        [Test]
+        public async Task GetContactToDealAsync_WhenNoContactsMatch_ReturnsEmptyPagedList()
+        {
+            // Arrange
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = "NieistniejącyKontakt_99999"
+            };
+
+            // Act
+            var result = await _contactServicesMock.GetContactToDealAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+        }
     }
 }

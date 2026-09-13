@@ -22,5 +22,6 @@ namespace Services.Interfaces
         Task<Result> SetPrimaryContactAsync(Guid contactId, Guid currentUserId);
         Task<Result> DeleteContactAsync(Guid contactId);
         Task<Result> ChangeContactOwnerAsync(ChangeContactOwnerCommand command);
+        Task<Result<PagedResult<ContactDealResponse>>> GetContactToDealAsync(SimpleListCommand command);
     }
 }

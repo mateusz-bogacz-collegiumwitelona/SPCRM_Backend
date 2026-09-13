@@ -620,6 +620,23 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result<PagedResult<ContactDealResponse>>> GetContactToDealAsync(SimpleListCommand command)
+            => await _context.Contacts
+                    .Where(c => c.ContactDetails.Any(cd => cd.Type == ContactDetailTypeEnum.EMAIL))
+                    .AsNoTracking()
+                    .ApplySearch(command.SearchTerm ?? string.Empty)
+                    .Select(c => new ContactDealResponse
+                    {
+                        ContactId = c.Id,
+                        ContactFirstName = c.FirstName,
+                        ContactLastName = c.LastName,
+                        IsPrimary = c.IsPrimary,
+                        CompanyId = c.CompanyId,
+                        CompanyName = c.Company.Name,
+                        Nip = c.Company.NIP
+                    })
+            .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-contacts");
+
         private ContactDetailTypeEnum ParseWithString(string? name)
             => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)
                 ? result

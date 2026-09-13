@@ -183,5 +183,19 @@ namespace Api.Controllers
             var result = await user.GetAvailableOwnersAsync();
             return HandleResult(result);
         }
+
+        [HttpGet("to-deals")]
+        [EndpointSummary("Get available contacts to use in create deal")]
+        [EndpointDescription("Get available contacts to use in create deal")]
+        [Authorize(Roles = "User,Admin")]
+        public async Task<IActionResult> GetContactToDealAsync(
+            [FromServices] IContactServices contact,
+            [FromServices] ApiMapper mapper,
+            [FromQuery] SimpleListRequest request
+            )
+        {
+            var result = await contact.GetContactToDealAsync(mapper.MapSimpleList(request));
+            return HandleResult(result);
+        }
     }
 }
