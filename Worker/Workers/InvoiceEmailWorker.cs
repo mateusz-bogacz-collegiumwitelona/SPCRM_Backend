@@ -11,13 +11,13 @@ namespace Worker.Workers
         private readonly AppDbContext _context;
         private readonly IInvoicePdfGenerator _pdfGenerator;
         private readonly ISmtpEmailService _smtpService;
-        private readonly ILogger _logger;
+        private readonly ILogger<InvoiceEmailWorker> _logger;
 
         public InvoiceEmailWorker(
             AppDbContext context,
             IInvoicePdfGenerator pdfGenerator,
             ISmtpEmailService smtpService,
-            ILogger logger)
+            ILogger<InvoiceEmailWorker> logger)
         {
             _context = context;
             _pdfGenerator = pdfGenerator;
