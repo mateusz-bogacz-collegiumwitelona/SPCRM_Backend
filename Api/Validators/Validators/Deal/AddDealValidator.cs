@@ -19,6 +19,9 @@ namespace Api.Validators.Validators.Deal
             RuleFor(x => x.CompanyId)
                 .ApplyValidGuidRule();
 
+            RuleFor(x => x.ContactId)
+                .ApplyValidGuidRule();
+
             RuleFor(x => x.Products)
                 .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation);
 

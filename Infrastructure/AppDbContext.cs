@@ -110,6 +110,12 @@ namespace Infrastructure
                     .HasFilter("\"PendingEmail\" IS NOT NULL");
             });
 
+            builder.Entity<Deal>()
+                .HasOne(d => d.Contact)
+                .WithMany(c => c.Deals)
+                .HasForeignKey(d => d.ContactId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             foreach (var entityType in builder.Model.GetEntityTypes())
             {
                 if (entityType.BaseType != null) continue;

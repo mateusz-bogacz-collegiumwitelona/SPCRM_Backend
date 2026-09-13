@@ -638,11 +638,23 @@ namespace Tests.Services
             var oldDealDate = DateTime.UtcNow.AddDays(-10);
             var newDealDate = DateTime.UtcNow.AddDays(-1);
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "Contact",
+                CompanyId = company.Id,
+                IsPrimary = true,
+                Owner = user,
+            };
+
             var oldDeal = new Deal
             {
                 Id = Guid.NewGuid(),
                 CompanyId = company.Id,
                 Company = company,
+                ContactId = contact.Id,
+                Contact = contact,
                 CreatedAt = oldDealDate,
                 Name = "Old",
                 OwnerId = userId,
@@ -650,6 +662,7 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 Currency = currency
             };
+
 
             var newDeal = new Deal
             {
@@ -661,12 +674,14 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                Contact = contact
             };
 
             _contextMock.Users.Add(user);
             _contextMock.Companies.Add(company);
             _contextMock.CompanyAdresses.Add(address);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Currencies.Add(currency);
             _contextMock.Deals.AddRange(oldDeal, newDeal);
 
@@ -2616,6 +2631,16 @@ namespace Tests.Services
                 Owner = owner
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                IsPrimary = true,
+                Owner = owner
+            };
+
             var currency = new Currency
             {
                 Id = Guid.NewGuid(),
@@ -2629,12 +2654,14 @@ namespace Tests.Services
                 Name = $"Deal_{uniqueSuffix}",
                 Company = company,
                 Owner = owner,
-                Currency = currency
+                Currency = currency,
+                Contact = contact,
             };
 
             _contextMock.Users.Add(owner);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
 

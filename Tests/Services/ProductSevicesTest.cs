@@ -1545,6 +1545,18 @@ namespace Tests.Services
             };
             _contextMock.Companies.Add(company);
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+            _contextMock.Contacts.Add(contact);
+
             var product = new Product
             {
                 Id = Guid.NewGuid(),
@@ -1570,7 +1582,8 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 CompanyId = company.Id,
                 OwnerId = user.Id,
-                CloseDate = DateTime.UtcNow.AddDays(14)
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                Contact = contact,
             };
             _contextMock.Deals.Add(activeDeal);
 

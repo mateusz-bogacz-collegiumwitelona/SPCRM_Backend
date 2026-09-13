@@ -19,6 +19,9 @@ namespace Domain.Models
         public Guid CompanyId { get; set; }
         public Company Company { get; set; } = null!;
 
+        public Guid ContactId { get; set; }
+        public Contact Contact { get; set; } = null!;
+
         public ICollection<DealProduct> DealProducts { get; set; } = new List<DealProduct>();
         public ICollection<Tasks> Tasks { get; set; } = new List<Tasks>();
         public ICollection<DealNote> Notes { get; set; } = new List<DealNote>();

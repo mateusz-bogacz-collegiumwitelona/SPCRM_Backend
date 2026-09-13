@@ -219,7 +219,8 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = author,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                Contact = contact
             };
 
             var dealNote = new DealNote
@@ -632,6 +633,18 @@ namespace Tests.Services
                 Owner = author
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = author,
+                IsPrimary = true,
+            };
+
             var targetDeal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -642,7 +655,8 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = author,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                Contact = contact,
             };
 
             var otherDeal = new Deal
@@ -655,19 +669,8 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = author,
                 CurrencyId = currency.Id,
-                Currency = currency
-            };
-
-            var contact = new Contact
-            {
-                Id = Guid.NewGuid(),
-                FirstName = "Jan",
-                LastName = "Kowalski",
-                CompanyId = company.Id,
-                Company = company,
-                OwnerId = userId,
-                Owner = author,
-                IsPrimary = true,
+                Currency = currency,
+                Contact = contact,
             };
 
             var validNote = new DealNote
@@ -779,6 +782,16 @@ namespace Tests.Services
                 Owner = author
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                IsPrimary = true,
+                Owner = author
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -789,7 +802,8 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = author,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                Contact = contact
             };
 
             var now = DateTime.UtcNow;

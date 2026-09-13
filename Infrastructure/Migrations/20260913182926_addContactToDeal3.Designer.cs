@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913182926_addContactToDeal3")]
+    partial class addContactToDeal3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -362,6 +365,9 @@ namespace Infrastructure.Migrations
                     b.Property<Guid>("ContactId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ContactId1")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -393,6 +399,8 @@ namespace Infrastructure.Migrations
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("ContactId1");
 
                     b.HasIndex("CurrencyId");
 
@@ -1061,10 +1069,14 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("Domain.Models.Contact", "Contact")
-                        .WithMany("Deals")
+                        .WithMany()
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .IsRequired();
+
+                    b.HasOne("Domain.Models.Contact", null)
+                        .WithMany("Deals")
+                        .HasForeignKey("ContactId1");
 
                     b.HasOne("Domain.Models.Currency", "Currency")
                         .WithMany("Deals")

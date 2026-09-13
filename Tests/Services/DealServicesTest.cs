@@ -127,7 +127,7 @@ namespace Tests.Services
         }
 
 
-        private async Task<(Company Company, ApplicationUser User, Currency Currency)> SeedCompanyAndUserAsync()
+        private async Task<(Company Company, ApplicationUser User, Currency Currency, Contact contact)> SeedCompanyAndUserAsync()
         {
             var unique = Guid.NewGuid().ToString("N")[..8];
             var userId = Guid.NewGuid();
@@ -160,13 +160,34 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                IsPrimary = true,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = userId,
+                Owner = user
+            };
+
+            var contactDetail = new ContactDetail
+            {
+                Value = "primary_contact@test.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = contact.Id
+            };
+
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.ContactDetails.Add(contactDetail);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            return (company, user, currency);
+            return (company, user, currency, contact);
         }
 
         // ─── GetDealsAsync ─────────────────────────────────────────────────
@@ -218,6 +239,17 @@ namespace Tests.Services
                 Owner = targetUser
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = targetUser,
+                OwnerId = targetUserId,
+                IsPrimary = true
+            };
+
             var targetDeal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -230,7 +262,8 @@ namespace Tests.Services
                 OwnerId = targetUserId,
                 Owner = targetUser,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = contact.Id
             };
 
             var otherDeal = new Deal
@@ -245,11 +278,13 @@ namespace Tests.Services
                 OwnerId = otherUserId,
                 Owner = otherUser,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = contact.Id
             };
 
             _contextMock.Users.AddRange(targetUser, otherUser);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Currencies.Add(currency);
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             await _contextMock.SaveChangesAsync();
@@ -366,6 +401,17 @@ namespace Tests.Services
                 Owner = salesman
             };
 
+            var targetContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = targetCompany.Id,
+                Owner = salesman,
+                OwnerId = salesmanId,
+                IsPrimary = true
+            };
+
             var otherCompany = new Company
             {
                 Id = Guid.NewGuid(),
@@ -373,6 +419,17 @@ namespace Tests.Services
                 NIP = "222",
                 OwnerId = salesmanId,
                 Owner = salesman
+            };
+
+            var otherContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = otherCompany.Id,
+                Owner = salesman,
+                OwnerId = salesmanId,
+                IsPrimary = true
             };
 
             var targetDeal = new Deal
@@ -387,7 +444,8 @@ namespace Tests.Services
                 OwnerId = salesmanId,
                 Owner = salesman,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = targetContact.Id,
             };
 
             var otherDeal = new Deal
@@ -402,12 +460,14 @@ namespace Tests.Services
                 OwnerId = salesmanId,
                 Owner = salesman,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = otherContact.Id,
             };
 
             _contextMock.Users.Add(salesman);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.AddRange(targetCompany, otherCompany);
+            _contextMock.Contacts.AddRange(targetContact, otherContact);
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             await _contextMock.SaveChangesAsync();
 
@@ -475,6 +535,17 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
             var deals = new List<Deal>
             {
                 new Deal
@@ -488,7 +559,8 @@ namespace Tests.Services
                     Owner = user,
                     CurrencyId = currency.Id,
                     Currency = currency,
-                    CloseDate = DateTime.UtcNow
+                    CloseDate = DateTime.UtcNow,
+                    ContactId = contact.Id,
                 },
 
                 new Deal
@@ -502,7 +574,8 @@ namespace Tests.Services
                     Owner = user,
                     CurrencyId = currency.Id,
                     Currency = currency,
-                    CloseDate = DateTime.UtcNow
+                    CloseDate = DateTime.UtcNow,
+                    ContactId = contact.Id,
                 },
 
                 new Deal
@@ -516,13 +589,15 @@ namespace Tests.Services
                     Owner = user,
                     CurrencyId = currency.Id,
                     Currency = currency,
-                    CloseDate = DateTime.UtcNow
+                    CloseDate = DateTime.UtcNow,
+                    ContactId = contact.Id,
                 }
             };
 
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.AddRange(deals);
             await _contextMock.SaveChangesAsync();
 
@@ -612,6 +687,17 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -624,12 +710,14 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = contact.Id
             };
 
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
 
@@ -684,6 +772,17 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -696,7 +795,8 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = contact.Id,
             };
 
             var invoice1 = new Invoice
@@ -730,6 +830,7 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
 
@@ -785,6 +886,17 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -794,12 +906,14 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow,
                 CompanyId = company.Id,
                 OwnerId = userId,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
@@ -850,6 +964,18 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -859,12 +985,14 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow,
                 CompanyId = company.Id,
                 OwnerId = userId,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
@@ -915,6 +1043,17 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
             var corruptedDeal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -927,12 +1066,14 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = contact.Id,
             };
 
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(corruptedDeal);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
@@ -977,6 +1118,17 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -989,7 +1141,8 @@ namespace Tests.Services
                 OwnerId = userId,
                 Owner = user,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = contact.Id,
             };
 
             var corruptedInvoice = new Invoice
@@ -1012,6 +1165,7 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
@@ -1057,6 +1211,17 @@ namespace Tests.Services
                 Owner = ownerUser
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = ownerUser,
+                OwnerId = ownerUser.Id,
+                IsPrimary = true
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -1069,12 +1234,14 @@ namespace Tests.Services
                 OwnerId = ownerId,
                 Owner = ownerUser,
                 CurrencyId = currency.Id,
-                Currency = currency
+                Currency = currency,
+                ContactId = contact.Id,
             };
 
             _contextMock.Users.Add(ownerUser);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
 
@@ -1120,6 +1287,17 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -1131,7 +1309,8 @@ namespace Tests.Services
                 Owner = user,
                 CurrencyId = currency.Id,
                 Currency = currency,
-                CloseDate = DateTime.UtcNow
+                CloseDate = DateTime.UtcNow,
+                ContactId = contact.Id,
             };
 
             var unit = new UnitOfMeasure
@@ -1179,6 +1358,7 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.Products.Add(product);
@@ -1247,6 +1427,18 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
+
             var targetDeal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -1258,7 +1450,8 @@ namespace Tests.Services
                 Owner = user,
                 CurrencyId = currency.Id,
                 Currency = currency,
-                CloseDate = DateTime.UtcNow
+                CloseDate = DateTime.UtcNow,
+                ContactId = contact.Id
             };
 
             var otherDeal = new Deal
@@ -1272,7 +1465,8 @@ namespace Tests.Services
                 Owner = user,
                 CurrencyId = currency.Id,
                 Currency = currency,
-                CloseDate = DateTime.UtcNow
+                CloseDate = DateTime.UtcNow,
+                ContactId = contact.Id
             };
 
             var unit = new UnitOfMeasure
@@ -1325,6 +1519,7 @@ namespace Tests.Services
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.AddRange(targetDeal, otherDeal);
             _contextMock.UnitsOfMeasure.Add(unit);
             _contextMock.Products.Add(product);
@@ -1385,6 +1580,18 @@ namespace Tests.Services
                 Owner = user
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = user,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+
+
             var dealWithoutProducts = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -1396,12 +1603,14 @@ namespace Tests.Services
                 Owner = user,
                 CurrencyId = currency.Id,
                 Currency = currency,
-                CloseDate = DateTime.UtcNow
+                CloseDate = DateTime.UtcNow,
+                ContactId = contact.Id
             };
 
             _contextMock.Users.Add(user);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(dealWithoutProducts);
             await _contextMock.SaveChangesAsync();
 
@@ -1453,6 +1662,17 @@ namespace Tests.Services
                 Owner = ownerUser
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Test",
+                LastName = "User",
+                CompanyId = company.Id,
+                Owner = ownerUser,
+                OwnerId = ownerUser.Id,
+                IsPrimary = true
+            };
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
@@ -1464,12 +1684,14 @@ namespace Tests.Services
                 Owner = ownerUser,
                 CurrencyId = currency.Id,
                 Currency = currency,
-                CloseDate = DateTime.UtcNow
+                CloseDate = DateTime.UtcNow,
+                ContactId = contact.Id
             };
 
             _contextMock.Users.Add(ownerUser);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
 
@@ -1492,6 +1714,7 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = Guid.NewGuid(),
                 CurrencyId = Guid.NewGuid(),
+                ContactId = Guid.NewGuid(),
                 Products = new List<AddDealProductCommand>()
             };
 
@@ -1504,7 +1727,7 @@ namespace Tests.Services
         public async Task AddDealAsync_ReturnsNotFound_WhenCompanyDoesNotExist()
         {
             // Arrange
-            var (company, user, currency) = await SeedCompanyAndUserAsync();
+            var (company, user, currency, contact) = await SeedCompanyAndUserAsync();
             var nonExistentCompanyId = Guid.NewGuid();
 
             var command = new AddDealCommand
@@ -1512,6 +1735,7 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = nonExistentCompanyId,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 Products = new List<AddDealProductCommand>
                 {
                     new() { ProductId = Guid.NewGuid(), Quantity = 1, UnitPrice = 1000 }
@@ -1531,7 +1755,7 @@ namespace Tests.Services
         public async Task AddDealAsync_ReturnsNotFound_WhenCurrencyDoesNotExist()
         {
             // Arrange
-            var (company, user, _) = await SeedCompanyAndUserAsync();
+            var (company, user, _, contact) = await SeedCompanyAndUserAsync();
             var nonExistentCurrencyId = Guid.NewGuid();
 
             var command = new AddDealCommand
@@ -1539,6 +1763,7 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 CurrencyId = nonExistentCurrencyId,
+                ContactId = contact.Id,
                 Products = new List<AddDealProductCommand>
                 {
                     new() { ProductId = Guid.NewGuid(), Quantity = 1, UnitPrice = 1000 }
@@ -1558,13 +1783,14 @@ namespace Tests.Services
         public async Task AddDealAsync_ReturnsBadRequest_WhenProductsListIsEmpty()
         {
             // Arrange
-            var (company, user, currency) = await SeedCompanyAndUserAsync();
+            var (company, user, currency, contact) = await SeedCompanyAndUserAsync();
 
             var command = new AddDealCommand
             {
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 Products = new List<AddDealProductCommand>()
             };
 
@@ -1584,13 +1810,14 @@ namespace Tests.Services
         public async Task AddDealAsync_ReturnsBadRequest_WhenProductsContainInvalidQuantityOrPrice(int quantity, long unitPrice)
         {
             // Arrange
-            var (company, user, currency) = await SeedCompanyAndUserAsync();
+            var (company, user, currency, contact) = await SeedCompanyAndUserAsync();
 
             var command = new AddDealCommand
             {
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 Products = new List<AddDealProductCommand>
                 {
                     new() { ProductId = Guid.NewGuid(), Quantity = quantity, UnitPrice = unitPrice }
@@ -1610,7 +1837,7 @@ namespace Tests.Services
         public async Task AddDealAsync_ReturnsNotFound_WhenSpecifiedProductDoesNotExistInDatabase()
         {
             // Arrange
-            var (company, user, currency) = await SeedCompanyAndUserAsync();
+            var (company, user, currency, contact) = await SeedCompanyAndUserAsync();
             var nonExistentProductId = Guid.NewGuid();
 
             var command = new AddDealCommand
@@ -1618,6 +1845,7 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 Products = new List<AddDealProductCommand>
                 {
                     new() { ProductId = nonExistentProductId, Quantity = 2, UnitPrice = 5000 }
@@ -1639,7 +1867,7 @@ namespace Tests.Services
         public async Task AddDealAsync_CreatesDealAndDealProducts_WhenDataIsValid()
         {
             // Arrange
-            var (company, user, currency) = await SeedCompanyAndUserAsync();
+            var (company, user, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -1682,6 +1910,7 @@ namespace Tests.Services
                 CloseDate = closeDate,
                 CompanyId = company.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 Products = new List<AddDealProductCommand>
                 {
                     new() { ProductId = productA.Id, Quantity = 2, UnitPrice = 18000 },
@@ -1739,7 +1968,7 @@ namespace Tests.Services
         public async Task DeleteDealAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var unauthorizedUserId = Guid.NewGuid();
 
             var deal = new Deal
@@ -1751,7 +1980,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(7),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -1769,7 +1999,7 @@ namespace Tests.Services
         public async Task DeleteDealAsync_WhenDealIsInValidStatus_TransitionsToCancelledAndSaves(DealsStatusEnum initialStatus)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -1780,7 +2010,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -1803,7 +2034,7 @@ namespace Tests.Services
         public async Task DeleteDealAsync_WhenDealIsAlreadyComplete_ReturnsBadRequestAndDoesNotChangeStatus()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -1814,7 +2045,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(-1),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -1838,7 +2070,7 @@ namespace Tests.Services
         public async Task DeleteDealAsync_WhenDealIsAlreadyCancelled_ReturnsBadRequest()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -1849,7 +2081,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow,
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -1892,7 +2125,7 @@ namespace Tests.Services
         public async Task ExtendDealCloseDateAsync_WhenUserIsNotOwnerNorAuthorized_ThrowsForbiddenException()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var unauthorizedUserId = Guid.NewGuid();
 
             var deal = new Deal
@@ -1904,7 +2137,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(7),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -1928,7 +2162,7 @@ namespace Tests.Services
         public async Task ExtendDealCloseDateAsync_WhenDealIsFinalized_ReturnsBadRequest(DealsStatusEnum finalizedStatus)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -1939,7 +2173,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(7),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -1966,7 +2201,7 @@ namespace Tests.Services
         public async Task ExtendDealCloseDateAsync_WhenNewDateIsEarlierOrEqualToCurrent_ReturnsBadRequest()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var currentCloseDate = DateTime.UtcNow.AddDays(10);
 
             var deal = new Deal
@@ -1978,7 +2213,8 @@ namespace Tests.Services
                 CloseDate = currentCloseDate,
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2007,7 +2243,7 @@ namespace Tests.Services
         public async Task ExtendDealCloseDateAsync_WhenDataIsValid_UpdatesCloseDateAndReturnsOk(DealsStatusEnum status)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var initialDate = DateTime.UtcNow.AddDays(5);
             var extendedDate = DateTime.UtcNow.AddDays(20);
 
@@ -2020,7 +2256,8 @@ namespace Tests.Services
                 CloseDate = initialDate,
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2075,7 +2312,7 @@ namespace Tests.Services
         public async Task AddDealProductAsync_WhenUserIsNotAuthorized_ThrowsForbiddenException()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var unauthorizedUserId = Guid.NewGuid();
 
             var deal = new Deal
@@ -2087,7 +2324,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2112,7 +2350,7 @@ namespace Tests.Services
         public async Task AddDealProductAsync_WhenDealIsFinalized_ReturnsBadRequest(DealsStatusEnum status)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -2123,7 +2361,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2150,7 +2389,7 @@ namespace Tests.Services
         public async Task AddDealProductAsync_WhenProductAlreadyExistsInDeal_ReturnsBadRequest()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S355", Density = 7850, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -2168,7 +2407,7 @@ namespace Tests.Services
                 StockQuantity = 20,
                 Category = ProductCategoryEnum.Pipe,
                 SteelGrade = steelGrade,
-                Unit = unit
+                Unit = unit,
             };
             _contextMock.Products.Add(product);
 
@@ -2182,6 +2421,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
                     new()
@@ -2219,7 +2459,7 @@ namespace Tests.Services
         public async Task AddDealProductAsync_WhenProductDoesNotExistInDatabase_ReturnsNotFound()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var nonExistentProductId = Guid.NewGuid();
 
             var deal = new Deal
@@ -2231,7 +2471,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2260,7 +2501,7 @@ namespace Tests.Services
         public async Task AddDealProductAsync_WhenValid_AddsProductAndRecalculatesDealValue(DealsStatusEnum status)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -2311,6 +2552,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
                     new()
@@ -2383,7 +2625,7 @@ namespace Tests.Services
         public async Task DeleteDealProductAsync_WhenUserIsNotAuthorized_ThrowsForbiddenException()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var unauthorizedUserId = Guid.NewGuid();
 
             var deal = new Deal
@@ -2395,7 +2637,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2413,7 +2656,7 @@ namespace Tests.Services
         public async Task DeleteDealProductAsync_WhenDealIsFinalized_ReturnsBadRequest(DealsStatusEnum status)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -2424,7 +2667,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2444,7 +2688,7 @@ namespace Tests.Services
         public async Task DeleteDealProductAsync_WhenDealProductDoesNotExistInDeal_Returns404NotFound()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -2476,6 +2720,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
                     new()
@@ -2507,7 +2752,7 @@ namespace Tests.Services
         public async Task DeleteDealProductAsync_WhenTryingToRemoveLastProduct_ReturnsBadRequest()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -2540,6 +2785,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
                     new()
@@ -2572,7 +2818,7 @@ namespace Tests.Services
         public async Task DeleteDealProductAsync_WhenValid_RemovesProductAndRecalculatesDealValue(DealsStatusEnum status)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -2631,6 +2877,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
                     new()
@@ -2704,7 +2951,7 @@ namespace Tests.Services
         public async Task EditDealProductAsync_WhenUserIsNotAuthorized_ThrowsForbiddenException()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var unauthorizedUserId = Guid.NewGuid();
 
             var deal = new Deal
@@ -2716,7 +2963,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2740,7 +2988,7 @@ namespace Tests.Services
         public async Task EditDealProductAsync_WhenDealIsFinalized_ReturnsBadRequest(DealsStatusEnum status)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -2751,7 +2999,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2777,7 +3026,7 @@ namespace Tests.Services
         public async Task EditDealProductAsync_WhenProductNotInDeal_Returns404NotFound()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -2788,7 +3037,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -2816,7 +3066,7 @@ namespace Tests.Services
         public async Task EditDealProductAsync_WhenOnlyQuantityModified_RecalculatesDealValueCorrectly(DealsStatusEnum status)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -2866,6 +3116,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
                     new() { Id = dealProductAId, ProductId = productA.Id, Quantity = 2, UnitPrice = 20000 },
@@ -2910,7 +3161,7 @@ namespace Tests.Services
         public async Task EditDealProductAsync_WhenBothQuantityAndPriceModified_RecalculatesDealValueCorrectly()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
             var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
@@ -2943,6 +3194,7 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
+                ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
                     new() { Id = dealProductId, ProductId = product.Id, Quantity = 4, UnitPrice = 15000 }
@@ -3010,7 +3262,7 @@ namespace Tests.Services
         public async Task ChangeDealStatusAsync_WhenUserIsNotOwner_Returns403Forbidden()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
             var unauthorizedUserId = Guid.NewGuid();
 
             var deal = new Deal
@@ -3022,7 +3274,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(7),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -3052,7 +3305,7 @@ namespace Tests.Services
         public async Task ChangeDealStatusAsync_WhenTransitionIsInvalid_ReturnsBadRequest(DealsStatusEnum finalStatus)
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -3063,7 +3316,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow,
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -3090,7 +3344,7 @@ namespace Tests.Services
         public async Task ChangeDealStatusAsync_WhenStatusChangesToInProgress_UpdatesStatusWithoutCreatingInvoice()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             var deal = new Deal
             {
@@ -3101,7 +3355,8 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(14),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
             _contextMock.Deals.Add(deal);
@@ -3137,30 +3392,9 @@ namespace Tests.Services
         public async Task ChangeDealStatusAsync_WhenStatusChangesToComplete_CreatesInvoiceAndResolvesPrimaryEmail()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             _contextMock.Users.Attach(owner);
-
-            var contact = new Contact
-            {
-                Id = Guid.NewGuid(),
-                CompanyId = company.Id,
-                FirstName = "Anna",
-                LastName = "Kowalska",
-                IsPrimary = true,
-                OwnerId = owner.Id,
-                Owner = owner,
-                ContactDetails = new List<ContactDetail>
-                {
-                    new()
-                    {
-                        Id = Guid.NewGuid(),
-                        Type = ContactDetailTypeEnum.EMAIL,
-                        Value = "primary_contact@test.pl",
-                        IsPrimary = true
-                    }
-                },
-            };
 
             var deal = new Deal
             {
@@ -3171,10 +3405,10 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(7),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
             };
 
-            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
@@ -3211,29 +3445,10 @@ namespace Tests.Services
         public async Task ChangeDealStatusAsync_WhenCustomRecipientEmailProvided_OverridesResolvedEmail()
         {
             // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
             _contextMock.Users.Attach(owner);
 
-            var contact = new Contact
-            {
-                CompanyId = company.Id,
-                FirstName = "Anna",
-                LastName = "Kowalska",
-                IsPrimary = true,
-                ContactDetails = new List<ContactDetail>
-                {
-                    new()
-                    {
-                        Id = Guid.NewGuid(),
-                        Type = ContactDetailTypeEnum.EMAIL,
-                        Value = "default_contact@test.pl",
-                        IsPrimary = true
-                    }
-                },
-                Owner = owner,
-                OwnerId = owner.Id
-            };
 
             var deal = new Deal
             {
@@ -3244,10 +3459,9 @@ namespace Tests.Services
                 CloseDate = DateTime.UtcNow.AddDays(7),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
-                CurrencyId = currency.Id
+                CurrencyId = currency.Id,
+                ContactId = contact.Id,
             };
-
-            _contextMock.Contacts.Add(contact);
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
@@ -3268,49 +3482,6 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.SentToEmail).IsEqualTo(customEmail);
-
-            var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
-            await Assert.That(createdInvoice).IsNotNull();
-        }
-
-        [Test]
-        public async Task ChangeDealStatusAsync_WhenCompanyHasNoContacts_CreatesInvoiceAndReturnsNullEmail()
-        {
-            // Arrange
-            var (company, owner, currency) = await SeedCompanyAndUserAsync();
-
-            var deal = new Deal
-            {
-                Id = Guid.NewGuid(),
-                Name = "D/2026/09/12/0006",
-                Value = 1000000,
-                Status = DealsStatusEnum.InProgress,
-                CloseDate = DateTime.UtcNow.AddDays(7),
-                CompanyId = company.Id,
-                OwnerId = owner.Id,
-                CurrencyId = currency.Id
-            };
-
-            _contextMock.Deals.Add(deal);
-            await _contextMock.SaveChangesAsync();
-            _contextMock.ChangeTracker.Clear();
-
-            var command = new ChangeDealStatusCommand
-            {
-                DealId = deal.Id,
-                UserId = owner.Id,
-                TargetStatus = DealsStatusEnum.Complete,
-                CustomRecipientEmail = null
-            };
-
-            // Act
-            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.Data).IsNotNull();
-            await Assert.That(result.Data!.Status).IsEqualTo(DealsStatusEnum.Complete.ToString());
-            await Assert.That(result.Data.SentToEmail).IsNull();
 
             var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
             await Assert.That(createdInvoice).IsNotNull();

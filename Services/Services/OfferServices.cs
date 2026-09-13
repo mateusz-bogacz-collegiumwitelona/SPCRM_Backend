@@ -371,6 +371,7 @@ namespace Services.Services
                         CurrencyId = offer.CurrencyId,
                         OwnerId = offer.CreatedByUserId,
                         CompanyId = offer.Contact.CompanyId,
+                        ContactId = offer.ContactId,
                         DealProducts = offer.Products.Select(op => new DealProduct
                         {
                             Id = Guid.NewGuid(),

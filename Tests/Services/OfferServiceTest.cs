@@ -1350,6 +1350,7 @@ namespace Tests.Services
 
             await Assert.That(createdDeal).IsNotNull();
             await Assert.That(createdDeal!.CompanyId).IsEqualTo(company.Id);
+            await Assert.That(createdDeal.ContactId).IsEqualTo(contact.Id);
             await Assert.That(createdDeal.OwnerId).IsEqualTo(contact.OwnerId);
             await Assert.That(createdDeal.Value).IsEqualTo(4 * 450000);
             await Assert.That(createdDeal.DealProducts.Count).IsEqualTo(1);
@@ -1357,6 +1358,7 @@ namespace Tests.Services
 
             var updatedOffer = await _contextMock.Offers.FindAsync(offer.Id);
             await Assert.That(updatedOffer!.Status).IsEqualTo(OfferStatusEnum.Accepted);
+
         }
 
         [Test]
@@ -1396,6 +1398,8 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+
         }
 
         [Test]

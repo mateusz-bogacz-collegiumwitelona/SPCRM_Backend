@@ -285,7 +285,7 @@ namespace Services.Services
             if (company == null)
             {
                 _logger.LogWarning("Company with ID {CompanyId} not found when attempting to add a deal.", command.CompanyId);
-                return Result<Guid>.Failure(
+                return Result.Failure(
                     message: "Company does not exist.",
                     errorCode: ErrorCodes.CompanyNotFound,
                     statusCode: StatusCodes.Status404NotFound
@@ -296,7 +296,7 @@ namespace Services.Services
             if (!currencyExists)
             {
                 _logger.LogWarning("Currency with ID {CurrencyId} not found when attempting to add a deal.", command.CurrencyId);
-                return Result<Guid>.Failure(
+                return Result.Failure(
                     message: "Currency does not exist.",
                     errorCode: ErrorCodes.CurrencyNotFound,
                     statusCode: StatusCodes.Status404NotFound
@@ -305,7 +305,7 @@ namespace Services.Services
 
             if (command.Products == null || !command.Products.Any())
             {
-                return Result<Guid>.Failure(
+                return Result.Failure(
                     message: "Deal must contain at least one product.",
                     errorCode: ErrorCodes.InvalidOperation,
                     statusCode: StatusCodes.Status400BadRequest
@@ -315,7 +315,7 @@ namespace Services.Services
             var hasInvalidItems = command.Products.Any(p => p.Quantity <= 0 || p.UnitPrice < 0 || p.ProductId == Guid.Empty);
             if (hasInvalidItems)
             {
-                return Result<Guid>.Failure(
+                return Result.Failure(
                     message: "All products must have positive quantity and non-negative unit price.",
                     errorCode: ErrorCodes.InvalidOperation,
                     statusCode: StatusCodes.Status400BadRequest
@@ -332,11 +332,33 @@ namespace Services.Services
             var missingProducts = requestedProductIds.Except(existingProductIds).ToList();
             if (missingProducts.Any())
             {
-                return Result<Guid>.Failure(
+                return Result.Failure(
                     message: "One or more products specified do not exist.",
                     errorCode: ErrorCodes.ProductNotFound,
                     statusCode: StatusCodes.Status404NotFound,
                     errors: missingProducts.Select(id => $"Product with ID {id} does not exist.").ToList()
+                );
+            }
+
+            var contact = await _context.Contacts.FirstOrDefaultAsync(c => c.Id == command.ContactId);
+
+            if (contact == null)
+            {
+                _logger.LogWarning("Contact with ID {ContactId} not found when attempting to add a deal.", command.ContactId);
+                return Result.Failure(
+                    message: "Contact not found.",
+                    errorCode: ErrorCodes.ContactNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (contact.CompanyId != company.Id)
+            {
+                _logger.LogWarning("Contact ID {ContactId} does not belong to Company ID {CompanyId}.", contact.Id, company.Id);
+                return Result.Failure(
+                    message: "Contact does not belong to the specified company.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
                 );
             }
 
@@ -362,6 +384,7 @@ namespace Services.Services
                     CloseDate = DateTime.SpecifyKind(command.CloseDate, DateTimeKind.Utc),
                     CurrencyId = command.CurrencyId,
                     CompanyId = command.CompanyId,
+                    ContactId = contact.Id,
                     OwnerId = userId,
                     DealProducts = command.Products.Select(p => new DealProduct
                     {

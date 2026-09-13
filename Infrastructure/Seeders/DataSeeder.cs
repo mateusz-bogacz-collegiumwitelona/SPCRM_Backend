@@ -566,6 +566,7 @@ namespace Infrastructure.Seeders
         {
             var users = await _userManager.Users.ToListAsync();
             var companies = await _context.Companies.ToListAsync();
+            var contacts = await _context.Contacts.ToListAsync();
             var currencies = await _context.Currencies.ToListAsync();
             var products = await _context.Products.ToListAsync();
             var random = new Random();
@@ -582,6 +583,10 @@ namespace Infrastructure.Seeders
             {
                 var owner = users[random.Next(users.Count)];
                 var company = companies[random.Next(companies.Count)];
+
+                var companyContacts = contacts.Where(c => c.CompanyId == company.Id).ToList();
+                var contact = companyContacts.Any() ? companyContacts[random.Next(companyContacts.Count)] : null;
+
                 var currency = currencies[random.Next(currencies.Count)];
                 var status = dealStatuses[random.Next(dealStatuses.Length)];
 
@@ -601,6 +606,8 @@ namespace Infrastructure.Seeders
                     CloseDate = DateTime.UtcNow.AddDays(random.Next(-30, 90)),
                     Currency = currency,
                     Company = company,
+                    Contact = contact!,
+                    ContactId = contact!.Id,
                     Owner = owner,
                     Notes = new List<DealNote>()
                 };
@@ -618,7 +625,7 @@ namespace Infrastructure.Seeders
                 }
 
                 deals.Add(deal);
-                Console.WriteLine($"Prepared deal {i}: {deal.Name}");
+                Console.WriteLine($"Prepared deal {i}: {deal.Name} for contact: {contact?.FirstName} {contact?.LastName}");
 
                 if (random.Next(100) < 30)
                 {
@@ -651,8 +658,6 @@ namespace Infrastructure.Seeders
                         Quantity = random.Next(1, 50),
                         UnitPrice = product.PricePerUnit
                     });
-
-                    Console.WriteLine("  - Added product to deal: " + product.Name);
                 }
 
                 for (int t = 1; t <= 2; t++)
@@ -664,6 +669,7 @@ namespace Infrastructure.Seeders
                         DueAt = DateTime.UtcNow.AddDays(random.Next(1, 14)),
                         AssignedTo = owner,
                         Deal = deal,
+                        Contact = contact,
                         Status = taskStatuses[random.Next(taskStatuses.Length)],
                         Priority = taskPriorities[random.Next(taskPriorities.Length)],
                         Notes = new List<TaskNote>(),
@@ -671,18 +677,7 @@ namespace Infrastructure.Seeders
                         CreatedById = owner.Id
                     };
 
-                    if (random.Next(100) < 25)
-                    {
-                        task.Notes.Add(new TaskNote
-                        {
-                            Title = "Komentarz do zadania",
-                            Content = "Czekam na maila zwrotnego od magazynu, żeby móc to ruszyć dalej.",
-                            Author = owner
-                        });
-                    }
-
                     tasks.Add(task);
-                    Console.WriteLine($"  - Added task {t} to deal: {deal.Name}");
                 }
             }
 

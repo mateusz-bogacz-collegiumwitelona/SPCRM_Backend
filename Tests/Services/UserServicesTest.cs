@@ -1424,7 +1424,8 @@ namespace Tests.Services
                 Status = DealsStatusEnum.InProgress,
                 CompanyId = company.Id,
                 CurrencyId = currency.Id,
-                OwnerId = userToDelete.Id
+                OwnerId = userToDelete.Id,
+                Contact = contact
             };
 
             var completedDeal = new Deal
@@ -1434,7 +1435,8 @@ namespace Tests.Services
                 Status = DealsStatusEnum.Complete,
                 CompanyId = company.Id,
                 CurrencyId = currency.Id,
-                OwnerId = userToDelete.Id
+                OwnerId = userToDelete.Id,
+                Contact = contact
             };
 
             var openTask = new Tasks
@@ -2893,6 +2895,28 @@ namespace Tests.Services
                 OwnerId = user.Id
             };
 
+            var contactCompany2 = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Klient",
+                OwnerId = user.Id,
+                CompanyId = userCompany2.Id,
+                IsPrimary = true,
+                Owner = user,
+            };
+
+            var contactCompany1 = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Klientka",
+                OwnerId = user.Id,
+                CompanyId = userCompany2.Id,
+                IsPrimary = true,
+                Owner = user,
+            };
+
             var otherCompany = new Company
             {
                 Id = Guid.NewGuid(),
@@ -2901,18 +2925,19 @@ namespace Tests.Services
                 OwnerId = otherUser.Id
             };
 
-            _contextMock.Companies.AddRange(userCompany1, userCompany2, otherCompany);
-
-            _contextMock.Contacts.Add(new Contact
+            var otherContact = new Contact
             {
                 Id = Guid.NewGuid(),
-                FirstName = "Jan",
+                FirstName = "Marek",
                 LastName = "Klient",
-                OwnerId = user.Id,
-                CompanyId = userCompany1.Id,
+                OwnerId = otherUser.Id,
+                CompanyId = otherCompany.Id,
                 IsPrimary = true,
-                Owner = user,
-            });
+                Owner = otherUser,
+            };
+
+            _contextMock.Companies.AddRange(userCompany1, userCompany2, otherCompany);
+            _contextMock.Contacts.AddRange(contactCompany1, contactCompany2, otherContact);
 
             _contextMock.Deals.AddRange(
                 new Deal
@@ -2922,7 +2947,8 @@ namespace Tests.Services
                     Status = DealsStatusEnum.ToDo,
                     CurrencyId = currency.Id,
                     CompanyId = userCompany1.Id,
-                    OwnerId = user.Id
+                    OwnerId = user.Id,
+                    Contact = contactCompany1
                 },
                 new Deal
                 {
@@ -2931,7 +2957,8 @@ namespace Tests.Services
                     Status = DealsStatusEnum.InProgress,
                     CurrencyId = currency.Id,
                     CompanyId = userCompany1.Id,
-                    OwnerId = user.Id
+                    OwnerId = user.Id,
+                    Contact = contactCompany1
                 },
                 new Deal
                 {
@@ -2940,7 +2967,8 @@ namespace Tests.Services
                     Status = DealsStatusEnum.Complete,
                     CurrencyId = currency.Id,
                     CompanyId = userCompany1.Id,
-                    OwnerId = user.Id
+                    OwnerId = user.Id,
+                    Contact = contactCompany1
                 },
                 new Deal
                 {
@@ -2949,7 +2977,8 @@ namespace Tests.Services
                     Status = DealsStatusEnum.ToDo,
                     CurrencyId = currency.Id,
                     CompanyId = otherCompany.Id,
-                    OwnerId = otherUser.Id
+                    OwnerId = otherUser.Id,
+                    Contact = otherContact
                 }
             );
 
@@ -3027,7 +3056,7 @@ namespace Tests.Services
             await Assert.That(data.LockoutEndDate.HasValue).IsTrue();
 
             await Assert.That(data.CompanyOwnerCount).IsEqualTo(2);
-            await Assert.That(data.ContactOwnerCount).IsEqualTo(1);
+            await Assert.That(data.ContactOwnerCount).IsEqualTo(2);
             await Assert.That(data.ActiveDealCount).IsEqualTo(2);
             await Assert.That(data.ActiveTaskCount).IsEqualTo(2);
         }

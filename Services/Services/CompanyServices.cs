@@ -771,6 +771,8 @@ namespace Services.Services
             );
         }
 
+
+
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)
         {
             return new CompanyAdress
