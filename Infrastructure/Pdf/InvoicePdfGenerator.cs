@@ -30,14 +30,14 @@ namespace Infrastructure.Pdf
 
                     page.Header().Row(row =>
                     {
-                        row.RelativeItem().Column(col =>
+                        row.RelativeItem(3).Column(col =>
                         {
                             col.Item().Text($"Faktura VAT nr {invoice.InvoiceNumber}").Bold().FontSize(18);
                             col.Item().Text($"Data wystawienia: {invoice.IssueDate:yyyy-MM-dd}");
                             col.Item().Text($"Termin płatności: {invoice.DueDate:yyyy-MM-dd}");
                         });
 
-                        row.RelativeItem().AlignRight().Column(col =>
+                        row.RelativeItem(2).AlignRight().Column(col =>
                         {
                             col.Item().Text("SPCRM Sp. z o.o.").Bold();
                             col.Item().Text("NIP: 1234567890");
@@ -52,6 +52,9 @@ namespace Infrastructure.Pdf
                         col.Item().Text($"NIP: {invoice.Company.NIP}");
 
                         col.Item().PaddingTop(15);
+
+                        decimal calculatedTotal = 0;
+
 
                         col.Item().Table(table =>
                         {
@@ -80,10 +83,13 @@ namespace Infrastructure.Pdf
                                 {
                                     var unitPrice = item.UnitPrice / 10000m;
                                     var lineTotal = (item.Quantity * item.UnitPrice) / 10000m;
+                                    calculatedTotal += lineTotal;
+
+                                    var unitSymbol = item.Product?.Unit?.Symbol ?? "";
 
                                     table.Cell().Text(index++.ToString());
                                     table.Cell().Text(item.Product?.Name ?? "Pozycja zamówienia");
-                                    table.Cell().AlignRight().Text(item.Quantity.ToString());
+                                    table.Cell().AlignRight().Text($"{item.Quantity.ToString()} {unitSymbol}");
                                     table.Cell().AlignRight().Text($"{unitPrice:F2} {invoice.Currency.Code}");
                                     table.Cell().AlignRight().Text($"{lineTotal:F2} {invoice.Currency.Code}");
                                 }
@@ -92,8 +98,8 @@ namespace Infrastructure.Pdf
 
                         col.Item().AlignRight().PaddingTop(15).Column(c =>
                         {
-                            var total = invoice.TotalAmount / 10000m;
-                            c.Item().Text($"Do zapłaty: {total:F2} {invoice.Currency.Code}").Bold().FontSize(14);
+                            var totalToPay = calculatedTotal > 0 ? calculatedTotal : (invoice.TotalAmount / 10000m);
+                            c.Item().Text($"Do zapłaty: {totalToPay:F2} {invoice.Currency.Code}").Bold().FontSize(14);
                         });
                     });
 
@@ -117,14 +123,14 @@ namespace Infrastructure.Pdf
 
                    page.Header().Row(row =>
                    {
-                       row.RelativeItem().Column(col =>
+                       row.RelativeItem(3).Column(col =>
                        {
                            col.Item().Text($"Invoice VAT no. {invoice.InvoiceNumber}").Bold().FontSize(18);
                            col.Item().Text($"Issue date: {invoice.IssueDate:yyyy-MM-dd}");
                            col.Item().Text($"Payment due date: {invoice.DueDate:yyyy-MM-dd}");
                        });
 
-                       row.RelativeItem().AlignRight().Column(col =>
+                       row.RelativeItem(2).AlignRight().Column(col =>
                        {
                            col.Item().Text("SPCRM Sp. z o.o.").Bold();
                            col.Item().Text("NIP: 1234567890");
@@ -139,6 +145,8 @@ namespace Infrastructure.Pdf
                        col.Item().Text($"NIP: {invoice.Company.NIP}");
 
                        col.Item().PaddingTop(15);
+
+                       decimal calculatedTotal = 0;
 
                        col.Item().Table(table =>
                        {
@@ -167,10 +175,12 @@ namespace Infrastructure.Pdf
                                {
                                    var unitPrice = item.UnitPrice / 10000m;
                                    var lineTotal = (item.Quantity * item.UnitPrice) / 10000m;
+                                   calculatedTotal += lineTotal;
+                                   var unitSymbol = item.Product?.Unit?.Symbol ?? "";
 
                                    table.Cell().Text(index++.ToString());
                                    table.Cell().Text(item.Product?.Name ?? "Order Line Item");
-                                   table.Cell().AlignRight().Text(item.Quantity.ToString());
+                                   table.Cell().AlignRight().Text($"{item.Quantity.ToString()} {unitSymbol}");
                                    table.Cell().AlignRight().Text($"{unitPrice:F2} {invoice.Currency.Code}");
                                    table.Cell().AlignRight().Text($"{lineTotal:F2} {invoice.Currency.Code}");
                                }
@@ -179,8 +189,8 @@ namespace Infrastructure.Pdf
 
                        col.Item().AlignRight().PaddingTop(15).Column(c =>
                        {
-                           var total = invoice.TotalAmount / 10000m;
-                           c.Item().Text($"Total to pay: {total:F2} {invoice.Currency.Code}").Bold().FontSize(14);
+                           var totalToPay = calculatedTotal > 0 ? calculatedTotal : (invoice.TotalAmount / 10000m);
+                           c.Item().Text($"Total to pay: {totalToPay:F2} {invoice.Currency.Code}").Bold().FontSize(14);
                        });
                    });
 

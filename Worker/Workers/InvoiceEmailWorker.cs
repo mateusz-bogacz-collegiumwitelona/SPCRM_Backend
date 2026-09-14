@@ -38,6 +38,7 @@ namespace Worker.Workers
                 .Include(i => i.Deal)
                     .ThenInclude(d => d!.DealProducts)
                         .ThenInclude(dp => dp.Product)
+                            .ThenInclude(p => p.Unit)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
             if (invoice == null)

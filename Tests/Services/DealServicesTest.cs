@@ -3396,17 +3396,49 @@ namespace Tests.Services
 
             _contextMock.Users.Attach(owner);
 
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt Faktura Test",
+                SteelGradeId = Guid.NewGuid(),
+                Unit = new UnitOfMeasure { 
+                    Symbol = "szt.",
+                    Name = "sztuka",
+                    BaseMultiplier = 1
+                },
+                CurrencyId = currency.Id,
+                PricePerUnit = 5000000,
+                StockQuantity = 10,
+                Category = ProductCategoryEnum.Sheet,
+                SteelGrade = new SteelGrade { 
+                    Id = Guid.NewGuid(), 
+                    Name = "1.4301", 
+                    Density = 7900
+                },
+            };
+
+            _contextMock.Products.Add(product);
+
             var deal = new Deal
             {
                 Id = Guid.NewGuid(),
                 Name = "D/2026/09/12/0004",
-                Value = 5000000, // 500.00 PLN
+                Value = 5000000,
                 Status = DealsStatusEnum.InProgress,
                 CloseDate = DateTime.UtcNow.AddDays(7),
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
-                ContactId = contact.Id
+                ContactId = contact.Id,
+                DealProducts = new List<DealProduct>
+                {
+                    new DealProduct
+                    {
+                        ProductId = product.Id,
+                        Quantity = 1,
+                        UnitPrice = 5000000
+                    }
+                }
             };
 
             _contextMock.Deals.Add(deal);

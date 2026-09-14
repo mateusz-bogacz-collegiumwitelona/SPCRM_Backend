@@ -570,7 +570,7 @@ namespace Services.Services
 
             _context.DealProducts.Add(dealProduct);
 
-            deal.Value += (long)dealProduct.Quantity * dealProduct.UnitPrice;
+            deal.Value = deal.DealProducts.Sum(dp => (long)dp.Quantity * dp.UnitPrice);
 
             await _context.SaveChangesAsync();
 
@@ -634,9 +634,10 @@ namespace Services.Services
                 );
             }
 
+            deal.DealProducts.Remove(dealProduct);
             _context.DealProducts.Remove(dealProduct);
 
-            deal.Value -= (long)dealProduct.Quantity * dealProduct.UnitPrice;
+            deal.Value = deal.DealProducts.Sum(dp => (long)dp.Quantity * dp.UnitPrice);
 
             await _context.SaveChangesAsync();
 
@@ -703,7 +704,7 @@ namespace Services.Services
                 dealProduct.UnitPrice = command.UnitPrice.Value;
             }
 
-            deal.Value += (long)dealProduct.Quantity * dealProduct.UnitPrice;
+            deal.Value = deal.DealProducts.Sum(dp => (long)dp.Quantity * dp.UnitPrice);
 
             await _context.SaveChangesAsync();
 
@@ -724,6 +725,7 @@ namespace Services.Services
                         .ThenInclude(ct => ct.ContactDetails)
                 .Include(d => d.DealProducts)
                     .ThenInclude(dp => dp.Product)
+                        .ThenInclude(p => p.Unit)
                 .FirstOrDefaultAsync(d => d.Id == command.DealId);
 
             if (deal == null)
@@ -821,13 +823,17 @@ namespace Services.Services
 
             var invoiceNumber = $"FV/{year:0000}/{month:00}/{currentMonthInvoicesCount + 1:0000}";
 
+            var actualTotal = deal.DealProducts.Sum(dp => (long)dp.Quantity * dp.UnitPrice);
+
+            deal.Value = actualTotal;
+
             var invoice = new Invoice
             {
                 Id = Guid.NewGuid(),
                 InvoiceNumber = invoiceNumber,
                 IssueDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(14),
-                TotalAmount = deal.Value,
+                TotalAmount = actualTotal,
                 DealId = deal.Id,
                 CompanyId = deal.CompanyId,
                 CurrencyId = deal.CurrencyId
