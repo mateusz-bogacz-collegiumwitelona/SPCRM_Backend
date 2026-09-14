@@ -3401,7 +3401,8 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 Name = "Produkt Faktura Test",
                 SteelGradeId = Guid.NewGuid(),
-                Unit = new UnitOfMeasure { 
+                Unit = new UnitOfMeasure
+                {
                     Symbol = "szt.",
                     Name = "sztuka",
                     BaseMultiplier = 1
@@ -3410,9 +3411,10 @@ namespace Tests.Services
                 PricePerUnit = 5000000,
                 StockQuantity = 10,
                 Category = ProductCategoryEnum.Sheet,
-                SteelGrade = new SteelGrade { 
-                    Id = Guid.NewGuid(), 
-                    Name = "1.4301", 
+                SteelGrade = new SteelGrade
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "1.4301",
                     Density = 7900
                 },
             };

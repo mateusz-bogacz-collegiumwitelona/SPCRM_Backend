@@ -221,6 +221,21 @@ namespace Api.Controllers
             var result = await deal.ChangeDealStatusAsync(mapper.MapChangeStatus(request, dealId, CurrentUserId));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Add deal task")]
+        [EndpointDescription("Add task to a specific deal.")]
+        [HttpPost("{dealId}/tasks")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> AddDealTaskAsync(
+            [FromServices] ITaskServices task,
+            [FromServices] TaskMapper mapper,
+            [FromRoute] Guid dealId,
+            [FromBody] AddDealTaskRequest request
+            )
+        {
+            var result = await task.AddTaskAsync(mapper.MapAddTaskToDeal(request, dealId), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
 

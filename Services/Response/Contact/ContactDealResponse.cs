@@ -8,6 +8,6 @@
         public required bool IsPrimary { get; init; }
         public required Guid CompanyId { get; init; }
         public required string CompanyName { get; init; }
-        public required string Nip { get; init; } 
+        public required string Nip { get; init; }
     }
 }
