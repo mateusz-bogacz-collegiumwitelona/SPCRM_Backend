@@ -23,7 +23,7 @@ namespace Api.Controllers
         [EndpointSummary("Get user deals")]
         [EndpointDescription("Show data of deals. Regular users only see their own deals, managers can see all or filter by OwnerId.")]
         [ProducesResponseType(typeof(Result<PagedResult<UserDealResponse>>), StatusCodes.Status200OK)]
-        [HttpGet("")]
+        [HttpGet]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetSalesAsync(
             [FromServices] IDealServices deal,

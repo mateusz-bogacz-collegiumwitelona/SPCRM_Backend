@@ -249,6 +249,7 @@ namespace Services.Services
                 .ApplySorting(command.SortBy, command.SortDescending)
                 .Select(dp => new DealProductResponse
                 {
+                    DealProductId = dp.Id,
                     ProductId = dp.ProductId,
                     Name = dp.Product.Name,
                     SteelGrade = dp.Product.SteelGrade.Name,

@@ -2,6 +2,7 @@
 {
     public record DealProductResponse
     {
+        public required Guid DealProductId { get; init; }
         public required Guid ProductId { get; init; }
         public required string Name { get; init; }
         public required string SteelGrade { get; init; }
