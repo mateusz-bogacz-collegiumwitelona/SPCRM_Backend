@@ -2,6 +2,7 @@
 using Domain.Constants;
 using Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Middlewares
 {
@@ -25,6 +26,7 @@ namespace Api.Middlewares
             var (statusCode, message, errorCode) = exception switch
             {
                 AppException appEx => (appEx.StatusCode, appEx.Message, appEx.ErrorCode),
+                DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "The data has been modified by another user. Please refresh and try again.", ErrorCodes.InvalidOperation), // <--- TUTAJ!
                 KeyNotFoundException => (StatusCodes.Status404NotFound, "Resource not found.", ErrorCodes.NotFound),
                 ArgumentException argEx => (StatusCodes.Status400BadRequest, argEx.Message, ErrorCodes.BadRequest),
                 InvalidOperationException invEx => (StatusCodes.Status500InternalServerError, invEx.Message, ErrorCodes.InternalError),

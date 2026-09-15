@@ -35,6 +35,8 @@ namespace Tests.Services
         protected IDealStateMachineFactory _stateMock = null!;
         protected FakeEmailSender _emailSenderMock = null!;
 
+        protected IInventoryService _inventoryMock = null!;
+
         [Before(Class)]
         [Obsolete]
         public static async Task SetupClassAsync()
@@ -106,12 +108,17 @@ namespace Tests.Services
 
             _emailSenderMock = new FakeEmailSender();
 
+            _inventoryMock = new InventoryService(
+                _contextMock,
+                new LoggerFactory().CreateLogger<InventoryService>());
+
             _dealServicesMock = new DealServices(
                 _contextMock,
                 _loggerMock,
                 _entityAuthMock,
                 _stateMock,
-                _emailSenderMock);
+                _emailSenderMock,
+                _inventoryMock);
         }
 
         [After(Test)]
@@ -1946,6 +1953,178 @@ namespace Tests.Services
             await Assert.That(productAEntry.UnitPrice).IsEqualTo(18000);
         }
 
+        [Test]
+        public async Task AddDealAsync_ReturnsBadRequest_WhenStockValidationFails()
+        {
+            // Arrange
+            var (company, user, currency, contact) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "SG_Brak", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Towar Deficytowy",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 5, // UWAGA: Na magazynie jest tylko 5 sztuk!
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = product.Id, Quantity = 10, UnitPrice = 18000 }
+                }
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task AddDealAsync_ReturnsNotFound_WhenContactDoesNotExist()
+        {
+            // Arrange
+            var (company, user, currency, _) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "SG_Contact1", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Normalny Towar",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var nonExistentContactId = Guid.NewGuid();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                ContactId = nonExistentContactId,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = product.Id, Quantity = 5, UnitPrice = 18000 }
+                }
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task AddDealAsync_ReturnsBadRequest_WhenContactBelongsToDifferentCompany()
+        {
+            // Arrange
+            var (company1, user, currency, _) = await SeedCompanyAndUserAsync();
+
+            var company2 = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Inna Firma",
+                NIP = "0000000000",
+                OwnerId = user.Id
+            };
+            var contact2 = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                CompanyId = company2.Id,
+                OwnerId = user.Id,
+                IsPrimary = true,
+            };
+            _contextMock.Companies.Add(company2);
+            _contextMock.Contacts.Add(contact2);
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "SG_Contact2", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Normalny Towar 2",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new AddDealCommand
+            {
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company1.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact2.Id,
+                Products = new List<AddDealProductCommand>
+                {
+                    new() { ProductId = product.Id, Quantity = 5, UnitPrice = 18000 }
+                }
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealAsync(command, user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Contact does not belong to the specified company.");
+        }
+
         // ─── DeleteDealAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -2602,6 +2781,69 @@ namespace Tests.Services
             await Assert.That(addedItem.UnitPrice).IsEqualTo(addedUnitPrice);
         }
 
+        [Test]
+        public async Task AddDealProductAsync_ReturnsBadRequest_WhenStockValidationFails()
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "SG_BrakDealProd", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Towar Deficytowy",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 20000,
+                StockQuantity = 5,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+
+            _contextMock.Products.Add(product);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0025",
+                Value = 0,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id,
+                DealProducts = new List<DealProduct>()
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new AddDealProductCommand
+            {
+                ProductId = product.Id,
+                Quantity = 10,
+                UnitPrice = 18000
+            };
+
+            // Act
+            var result = await _dealServicesMock.AddDealProductAsync(deal.Id, command, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+
+            await Assert.That(result.Message).Contains($"Insufficient stock ({product.Name}).  Available for booking: {product.StockQuantity}.");
+        }
+
         // ─── DeleteDealProductAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -3234,6 +3476,70 @@ namespace Tests.Services
             await Assert.That(updatedItem.UnitPrice).IsEqualTo(25000);
         }
 
+        [Test]
+        public async Task EditDealProductAsync_WhenStockValidationFails_ReturnsBadRequest()
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Blacha Ograniczona",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 10000,
+                StockQuantity = 10,
+                Category = ProductCategoryEnum.Sheet,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
+            var dealProductId = Guid.NewGuid();
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/11/0045",
+                Value = 20000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id,
+                DealProducts = new List<DealProduct>
+                {
+                    new() { Id = dealProductId, ProductId = product.Id, Quantity = 5, UnitPrice = 4000 }
+                }
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new EditDealProductCommand
+            {
+                DealProductId = dealProductId,
+                Quantity = 20,
+                UnitPrice = null
+            };
+
+            // Act
+            var result = await _dealServicesMock.EditDealProductAsync(deal.Id, owner.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
         // ─── ChangeDealStatusAsync ─────────────────────────────────────────────────
 
         [Test]
@@ -3520,5 +3826,78 @@ namespace Tests.Services
             var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
             await Assert.That(createdInvoice).IsNotNull();
         }
+
+        [Test]
+        public async Task ChangeDealStatusAsync_WhenCompletingAndStockDeductionFails_ReturnsFailure()
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+            _contextMock.Users.Attach(owner);
+
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235", Density = 7850, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Towar na wyczerpaniu",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 10000,
+                StockQuantity = 2,
+                Category = ProductCategoryEnum.Pipe,
+                SteelGrade = steelGrade,
+                Unit = unit
+            };
+            _contextMock.Products.Add(product);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/12/0006",
+                Value = 50000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id,
+                DealProducts = new List<DealProduct>
+                {
+                    new()
+                    {
+                        ProductId = product.Id,
+                        Quantity = 5,
+                        UnitPrice = 10000
+                    }
+                }
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new ChangeDealStatusCommand
+            {
+                DealId = deal.Id,
+                UserId = owner.Id,
+                TargetStatus = DealsStatusEnum.Complete
+            };
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealStatusAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InsufficientStock);
+
+            var dbDeal = await _contextMock.Deals.AsNoTracking().FirstOrDefaultAsync(d => d.Id == deal.Id);
+            await Assert.That(dbDeal!.Status).IsEqualTo(DealsStatusEnum.InProgress);
+        }
+
     }
 }

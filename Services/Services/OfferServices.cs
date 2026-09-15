@@ -25,17 +25,19 @@ namespace Services.Services
         private readonly ILogger<OfferServices> _logger;
         private readonly IEmailSender _emailSender;
         private readonly IOfferStateMachineFactory _state;
-
+        private readonly IInventoryService _inventory;
         public OfferServices(
             AppDbContext context,
             ILogger<OfferServices> logger,
             IEmailSender emailSender,
-            IOfferStateMachineFactory state)
+            IOfferStateMachineFactory state,
+            IInventoryService inventory)
         {
             _context = context;
             _logger = logger;
             _emailSender = emailSender;
             _state = state;
+            _inventory = inventory;
         }
 
         public async Task<Result<PagedResult<OfferListResponse>>> GetOfferListAsync(OfferListCommand command)
@@ -359,6 +361,24 @@ namespace Services.Services
 
                 if (command.NewStatus == OfferStatusEnum.Accepted)
                 {
+                    foreach (var op in offer.Products)
+                    {
+                        var stockValidation = await _inventory.ValidateStockAvailabilityAsync(op.ProductId, op.Quantity);
+
+                        if (!stockValidation.IsSuccess)
+                        {
+                            await transaction.RollbackAsync();
+
+                            _logger.LogWarning("Cannot accept offer {OfferId} due to insufficient stock for Product {ProductId}.", offer.Id, op.ProductId);
+
+                            return Result<Guid?>.Failure(
+                                message: $"The offer cannot be accepted. {stockValidation.Message}",
+                                errorCode: ErrorCodes.InvalidOperation,
+                                statusCode: StatusCodes.Status400BadRequest
+                            );
+                        }
+                    }
+
                     var totalValue = offer.Products.Sum(p => (long)p.Quantity * p.QuotedPrice);
 
                     var deal = new Deal

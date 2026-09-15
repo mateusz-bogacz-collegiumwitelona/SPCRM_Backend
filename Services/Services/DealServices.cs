@@ -27,13 +27,15 @@ namespace Services.Services
         private readonly IEntityAuthorizationService _entityAuth;
         private readonly IDealStateMachineFactory _state;
         private readonly IEmailSender _emailSender;
+        private readonly IInventoryService _inventory;
 
         public DealServices(
             AppDbContext context,
             ILogger<DealServices> logger,
             IEntityAuthorizationService entityAuth,
             IDealStateMachineFactory state,
-            IEmailSender emailSender
+            IEmailSender emailSender,
+            IInventoryService inventory
             )
         {
             _context = context;
@@ -41,6 +43,7 @@ namespace Services.Services
             _entityAuth = entityAuth;
             _state = state;
             _emailSender = emailSender;
+            _inventory = inventory;
         }
 
         public async Task<Result<PagedResult<UserDealResponse>>> GetDealsAsync(DealListCommand command, Guid? forcedOwnerId = null)
@@ -341,6 +344,15 @@ namespace Services.Services
                 );
             }
 
+            foreach (var product in command.Products)
+            {
+                var stockValidation = await _inventory.ValidateStockAvailabilityAsync(product.ProductId, product.Quantity);
+                if (!stockValidation.IsSuccess)
+                {
+                    return stockValidation;
+                }
+            }
+
             var contact = await _context.Contacts.FirstOrDefaultAsync(c => c.Id == command.ContactId);
 
             if (contact == null)
@@ -560,6 +572,12 @@ namespace Services.Services
                 );
             }
 
+            var stockValidation = await _inventory.ValidateStockAvailabilityAsync(command.ProductId, command.Quantity);
+            if (!stockValidation.IsSuccess)
+            {
+                return stockValidation;
+            }
+
             var dealProduct = new DealProduct
             {
                 DealId = dealId,
@@ -691,11 +709,34 @@ namespace Services.Services
                 );
             }
 
+            foreach (var product in deal.DealProducts)
+            {
+                if (product.Id != command.DealProductId && product.ProductId == dealProduct.ProductId)
+                {
+                    _logger.LogInformation("Duplicate product with ID {ProductId} found in Deal {DealId} when attempting to edit.", dealProduct.ProductId, dealId);
+                    return Result.Failure(
+                        message: "Another product with the same ProductId already exists in the deal.",
+                        errorCode: ErrorCodes.InvalidOperation,
+                        statusCode: StatusCodes.Status400BadRequest
+                    );
+                }
+            }
+
             var oldValue = deal.Value - (long)dealProduct.Quantity * dealProduct.UnitPrice;
             deal.Value = oldValue;
 
             if (command.Quantity.HasValue)
             {
+                var stockValidation = await _inventory.ValidateStockAvailabilityAsync(
+                        dealProduct.ProductId,
+                        command.Quantity.Value,
+                        dealProduct.Quantity
+                    );
+
+                if (!stockValidation.IsSuccess)
+                {
+                    return stockValidation;
+                }
                 dealProduct.Quantity = command.Quantity.Value;
             }
 
@@ -768,6 +809,18 @@ namespace Services.Services
             {
                 if (command.TargetStatus == DealsStatusEnum.Complete)
                 {
+                    var inventory = await _inventory.DeductStockForDealAsync(deal.DealProducts);
+
+                    if (!inventory.IsSuccess)
+                    {
+                        _logger.LogWarning("Failed to deduct stock for Deal {DealId} when changing status to {TargetStatus}.", command.DealId, command.TargetStatus);
+                        return Result<ChangeDealStatusResponse>.Failure(
+                            message: inventory.Message ?? "Failed to deduct stock for deal.",
+                            errorCode: inventory.ErrorCode ?? ErrorCodes.InventoryDeductionFailed,
+                            statusCode: inventory.StatusCode
+                        );
+                    }
+
                     createdInvoice = await CreateInvoiceForDealAsync(deal);
                 }
 

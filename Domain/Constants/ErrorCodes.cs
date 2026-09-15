@@ -85,6 +85,10 @@
         public const string InvalidProductStockQuantity = "PROD_009";
         public const string DiameterIsRequiredForPipeAndWire = "PROD_010";
 
+        // Inventory
+        public const string InsufficientStock = "INV_001";
+        public const string InventoryDeductionFailed = "INV_002";
+
         // Note
         public const string NoteNotFound = "NOTE_001";
         public const string NoteTitleIsNotValid = "NOTE_003";

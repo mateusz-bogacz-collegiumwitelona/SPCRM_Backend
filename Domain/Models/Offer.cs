@@ -6,10 +6,11 @@ namespace Domain.Models
     public class Offer : BaseEntity
     {
         public string Name { get; set; } = null!;
+
         public Guid ContactId { get; set; }
         public Contact Contact { get; set; } = null!;
 
-        public Guid CreatedByUserId { get; set; }
+        public required Guid CreatedByUserId { get; set; }
 
         public Guid CurrencyId { get; set; }
         public Currency Currency { get; set; } = null!;

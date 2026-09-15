@@ -11,7 +11,6 @@ namespace Domain.Models
         public DateTime DueDate { get; set; }
         public DateTime? PaymentDate { get; set; }
 
-
         public Guid CurrencyId { get; set; }
         public Currency Currency { get; set; } = null!;
 

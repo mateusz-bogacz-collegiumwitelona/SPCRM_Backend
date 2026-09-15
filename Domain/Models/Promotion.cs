@@ -12,6 +12,7 @@ namespace Domain.Models
         public decimal? DiscountPercentage { get; set; }
 
         public long? PromotionalPrice { get; set; }
+
         public Guid? CurrencyId { get; set; }
         public Currency? Currency { get; set; }
 

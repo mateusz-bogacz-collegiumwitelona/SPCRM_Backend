@@ -116,6 +116,10 @@ namespace Infrastructure
                 .HasForeignKey(d => d.ContactId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            builder.Entity<Product>()
+                .Property(p => p.Version)
+                .IsRowVersion();
+
             foreach (var entityType in builder.Model.GetEntityTypes())
             {
                 if (entityType.BaseType != null) continue;

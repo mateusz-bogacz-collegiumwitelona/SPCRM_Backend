@@ -13,7 +13,7 @@ namespace Domain.Models
         public Company Company { get; set; } = null!;
 
         public Guid OwnerId { get; set; }
-        public required ApplicationUser Owner { get; set; }
+        public ApplicationUser Owner { get; set; } = null!;
 
         public ICollection<ContactDetail> ContactDetails { get; set; } = new List<ContactDetail>();
         public ICollection<ContactNote> Notes { get; set; } = new List<ContactNote>();
