@@ -30,6 +30,7 @@ namespace Infrastructure
         public DbSet<OfferProducts> OfferProducts { get; set; }
         public DbSet<SteelGrade> SteelGrades { get; set; }
         public DbSet<InvoiceProducts> InvoiceProducts { get; set; }
+        public DbSet<InvoicePayment> InvoicePayments { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -141,6 +142,19 @@ namespace Infrastructure
             builder.Entity<Product>()
                 .Property(p => p.Version)
                 .IsRowVersion();
+
+            builder.Entity<InvoicePayment>()
+                .HasOne(p => p.Invoice)
+                .WithMany(i => i.Payments)
+                .HasForeignKey(p => p.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InvoicePayment>()
+                .HasOne(p => p.CreatedBy)
+                .WithMany()
+                .HasForeignKey(p => p.CreatedById)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
 
             foreach (var entityType in builder.Model.GetEntityTypes())
             {

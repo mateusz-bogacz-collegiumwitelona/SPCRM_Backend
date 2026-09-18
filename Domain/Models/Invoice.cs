@@ -25,5 +25,6 @@ namespace Domain.Models
         public bool IsOverDue => RemainingAmount > 0 && DueDate < DateTime.UtcNow;
 
         public ICollection<InvoiceProducts> InvoiceProducts { get; set; } = new List<InvoiceProducts>();
+        public ICollection<InvoicePayment> Payments { get; set; } = new List<InvoicePayment>();
     }
 }

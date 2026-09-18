@@ -668,23 +668,102 @@ namespace Infrastructure.Seeders
 
                 if (deal.Status == DealsStatusEnum.Complete)
                 {
-                    bool isPaid = random.Next(100) < 60;
+                    int paymentScenario = random.Next(4);
+
+                    long paidAmount = 0;
+                    DateTime? fullPaymentDate = null;
+                    var payments = new List<InvoicePayment>();
+
+                    var invoiceId = Guid.NewGuid();
+                    var issueDate = deal.CloseDate;
+                    var dueDate = deal.CloseDate.AddDays(14);
+
+                    switch (paymentScenario)
+                    {
+                        case 0:
+                            paidAmount = 0;
+                            fullPaymentDate = null;
+                            break;
+
+                        case 1:
+                            paidAmount = (long)(deal.Value * (random.Next(30, 71) / 100.0));
+                            payments.Add(new InvoicePayment
+                            {
+                                Id = Guid.NewGuid(),
+                                InvoiceId = invoiceId,
+                                Amount = paidAmount,
+                                PaymentDate = issueDate.AddDays(random.Next(1, 10)),
+                                ReferenceNumber = $"PRZ/{today:yyyy/MM}/{random.Next(1000, 9999)}",
+                                Note = "Wpłata częściowa / zaliczka",
+                                CreatedById = owner.Id
+                            });
+                            break;
+
+                        case 2:
+                            paidAmount = deal.Value;
+                            fullPaymentDate = issueDate.AddDays(random.Next(1, 12));
+                            payments.Add(new InvoicePayment
+                            {
+                                Id = Guid.NewGuid(),
+                                InvoiceId = invoiceId,
+                                Amount = paidAmount,
+                                PaymentDate = fullPaymentDate.Value,
+                                ReferenceNumber = $"PRZ/{today:yyyy/MM}/{random.Next(1000, 9999)}",
+                                Note = "Płatność całkowita przelewem",
+                                CreatedById = owner.Id
+                            });
+                            break;
+
+                        case 3:
+                            long firstTranche = (long)(deal.Value * 0.4);
+                            long secondTranche = deal.Value - firstTranche;
+
+                            var firstPaymentDate = issueDate.AddDays(random.Next(1, 5));
+                            var secondPaymentDate = issueDate.AddDays(random.Next(6, 13));
+
+                            paidAmount = deal.Value;
+                            fullPaymentDate = secondPaymentDate;
+
+                            payments.Add(new InvoicePayment
+                            {
+                                Id = Guid.NewGuid(),
+                                InvoiceId = invoiceId,
+                                Amount = firstTranche,
+                                PaymentDate = firstPaymentDate,
+                                ReferenceNumber = $"PRZ/{today:yyyy/MM}/{random.Next(1000, 9999)}/1",
+                                Note = "Zaliczka 40%",
+                                CreatedById = owner.Id
+                            });
+
+                            payments.Add(new InvoicePayment
+                            {
+                                Id = Guid.NewGuid(),
+                                InvoiceId = invoiceId,
+                                Amount = secondTranche,
+                                PaymentDate = secondPaymentDate,
+                                ReferenceNumber = $"PRZ/{today:yyyy/MM}/{random.Next(1000, 9999)}/2",
+                                Note = "Płatność końcowa 60%",
+                                CreatedById = owner.Id
+                            });
+                            break;
+                    }
 
                     var invoice = new Invoice
                     {
-                        Id = Guid.NewGuid(),
+                        Id = invoiceId,
                         InvoiceNumber = $"FV/{DateTime.UtcNow.Year}/{DateTime.UtcNow.Month:D2}/{i:D4}",
                         TotalAmount = deal.Value,
-                        PaidAmount = isPaid ? deal.Value : 0,
-                        IssueDate = deal.CloseDate,
-                        DueDate = deal.CloseDate.AddDays(14),
-                        PaymentDate = isPaid ? deal.CloseDate.AddDays(random.Next(1, 10)) : null,
+                        PaidAmount = paidAmount,
+                        IssueDate = issueDate,
+                        DueDate = dueDate,
+                        PaymentDate = fullPaymentDate,
                         CurrencyId = deal.Currency.Id,
                         Currency = deal.Currency,
                         CompanyId = deal.Company.Id,
                         Company = deal.Company,
                         DealId = deal.Id,
                         Deal = deal,
+                        Payments = payments,
                         InvoiceProducts = currentDealProducts.Select(dp => new InvoiceProducts
                         {
                             Id = Guid.NewGuid(),
