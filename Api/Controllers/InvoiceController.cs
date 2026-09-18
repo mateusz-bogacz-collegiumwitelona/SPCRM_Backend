@@ -101,5 +101,19 @@ namespace Api.Controllers
             var result = await invoice.AddInvoicePaymentAsync(invoiceId, CurrentUserId, mapper.MapAddPayment(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Diownload invoice")]
+        [EndpointDescription("Dowloand invoice in pl or en")]
+        [HttpGet("{invoiceId:guid}/pdf")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> DownloadInvoicePdf(
+            [FromServices] IInvoiceService invoice,
+            [FromRoute] Guid invoiceId,
+            [FromQuery] string language = "pl"
+            )
+        {
+            var result = await invoice.DownloadInvoicePdfAsync(invoiceId, language);
+            return HandleResult(result);
+        }
     }
 }

@@ -3,6 +3,7 @@ using Domain.Constants;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
+using Infrastructure.Pdf.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -23,15 +24,18 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<InvoiceService> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
+        private readonly IInvoicePdfGenerator _pdf;
 
         public InvoiceService(
             AppDbContext context,
             ILogger<InvoiceService> logger,
-            IEntityAuthorizationService entityAuth)
+            IEntityAuthorizationService entityAuth,
+            IInvoicePdfGenerator pdf)
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
+            _pdf = pdf;
         }
 
         public async Task<Result<List<CompanyDebtSummaryResponse>>> GetCompanyDebtSummaryAsync(Guid companyId)
@@ -363,6 +367,49 @@ namespace Services.Services
                 message: "Payment registered successfully.",
                 statusCode: StatusCodes.Status201Created
                 );
+        }
+
+        public async Task<Result<InvoicePdfFileResponse>> DownloadInvoicePdfAsync(Guid invoiceId, string language = "pl")
+        {
+            var invoice = await _context.Invoices
+                .AsNoTracking()
+                .Include(i => i.Currency)
+                .Include(i => i.Company)
+                .Include(i => i.InvoiceProducts)
+                .FirstOrDefaultAsync(i => i.Id == invoiceId);
+
+            if (invoice == null)
+            {
+                _logger.LogWarning("Invoice with id {InvoiceId} not found.", invoiceId);
+                return Result<InvoicePdfFileResponse>.Failure(
+                    message: "Invoice not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.InvoiceNotFound
+                );
+            }
+
+            var lang = language.ToLower() == "en" ? "en" : "pl";
+            var pdfBytes = _pdf.GenerateInvoicePdf(invoice, lang);
+
+            var safeInvoiceNumber = invoice.InvoiceNumber.Replace("/", "_").Replace("\\", "_");
+            var fileName = lang == "en"
+                ? $"Invoice_{safeInvoiceNumber}.pdf"
+                : $"Faktura_{safeInvoiceNumber}.pdf";
+
+            var response = new InvoicePdfFileResponse
+            {
+                FileContents = pdfBytes,
+                ContentType = "application/pdf",
+                FileName = fileName
+            };
+
+            _logger.LogInformation("Generate pdf for invoice with id {invoiceId}", invoiceId);
+
+            return Result<InvoicePdfFileResponse>.Success(
+                message: "Invoice PDF generated successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: response
+            );
         }
     }
 }

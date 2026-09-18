@@ -4,6 +4,8 @@ using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
+using Infrastructure.Pdf;
+using Infrastructure.Pdf.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -28,13 +30,15 @@ namespace Tests.Services
         protected InvoiceService _invoiceServicesMock = null!;
         protected ILogger<InvoiceService> _loggerMock = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
-
+        protected IInvoicePdfGenerator _pdfMock = null!;
         private string _currentSchema = null!;
 
         [Before(Class)]
         [Obsolete]
         public static async Task SetupClassAsync()
         {
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
             _dbContainer = new PostgreSqlBuilder()
                 .WithImage("postgis/postgis:18-3.6")
                 .WithDatabase("testdb")
@@ -98,7 +102,9 @@ namespace Tests.Services
 
             _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _invoiceServicesMock = new InvoiceService(_contextMock, _loggerMock, _entityAuthMock);
+            _pdfMock = new InvoicePdfGenerator();
+
+            _invoiceServicesMock = new InvoiceService(_contextMock, _loggerMock, _entityAuthMock, _pdfMock);
         }
 
         [After(Test)]
@@ -1792,7 +1798,7 @@ namespace Tests.Services
             await Assert.That(updatedInvoice.IsOverDue).IsFalse();
             await Assert.That(updatedInvoice.PaymentDate).IsNotNull();
 
-            var timeDiff = (updatedInvoice.PaymentDate!.Value - paymentDate).Duration(); //[cite: 14]
+            var timeDiff = (updatedInvoice.PaymentDate!.Value - paymentDate).Duration();
             await Assert.That(timeDiff < TimeSpan.FromSeconds(1)).IsTrue();
         }
 
@@ -1856,5 +1862,105 @@ namespace Tests.Services
             await Assert.That(payment.CreatedById).IsEqualTo(managerId);
         }
 
+        // ─── DownloadInvoicePdfAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task DownloadInvoicePdfAsync_WhenInvoiceExists_GeneratesPdfAndSetsPolishFilenameByDefault()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 10000000,
+                paidAmount: 5000000,
+                invoiceNumber: "FV/2026/09/0001");
+
+            var realProduct = await SeedProductAsync(currency);
+
+            var invoiceProduct = new InvoiceProducts
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                ProductId = realProduct.Id,
+                ProductName = "Dwuteownik Stalowy",
+                SteelGrade = "S355",
+                UnitSymbol = "mb",
+                Quantity = 10,
+                UnitPrice = 1000000
+            };
+
+            _contextMock.InvoiceProducts.Add(invoiceProduct);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _invoiceServicesMock.DownloadInvoicePdfAsync(invoice.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.ContentType).IsEqualTo("application/pdf");
+            await Assert.That(data.FileName).IsEqualTo("Faktura_FV_2026_09_0001.pdf");
+            await Assert.That(data.FileContents).IsNotNull();
+            await Assert.That(data.FileContents.Length).IsGreaterThan(0);
+        }
+
+        [Test]
+        public async Task DownloadInvoicePdfAsync_WhenEnglishLanguageRequested_SetsEnglishFilenameAndGeneratesPdf()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 5000000,
+                invoiceNumber: "INV/EXPORT/99");
+
+            // Act
+            var result = await _invoiceServicesMock.DownloadInvoicePdfAsync(invoice.Id, language: "en");
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.ContentType).IsEqualTo("application/pdf");
+            await Assert.That(data.FileName).IsEqualTo("Invoice_INV_EXPORT_99.pdf");
+            await Assert.That(data.FileContents.Length).IsGreaterThan(0);
+        }
+
+        [Test]
+        public async Task DownloadInvoicePdfAsync_WhenInvoiceNumberContainsBackslashes_SanitizesFileNameCorrectly()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 2000000,
+                paidAmount: 0,
+                invoiceNumber: @"FV\2026\TEST/01");
+
+            // Act
+            var result = await _invoiceServicesMock.DownloadInvoicePdfAsync(invoice.Id, language: "pl");
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.FileName).IsEqualTo("Faktura_FV_2026_TEST_01.pdf");
+        }
+
+        [Test]
+        public async Task DownloadInvoicePdfAsync_WhenInvoiceDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentInvoiceId = Guid.NewGuid();
+
+            // Act
+            var result = await _invoiceServicesMock.DownloadInvoicePdfAsync(nonExistentInvoiceId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvoiceNotFound);
+            await Assert.That(result.Message).IsEqualTo("Invoice not found.");
+            await Assert.That(result.Data).IsNull();
+        }
     }
 }
