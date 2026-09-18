@@ -8,5 +8,6 @@ namespace Api.Mappers
     public partial class InvoiceMapper
     {
         public partial InvoiceListCommand MapList(InvoiceListRequest request);
+        public partial AddInvoicePaymentCommand MapAddPayment(AddInvoicePaymentRequest request);
     }
 }

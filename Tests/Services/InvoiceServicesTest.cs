@@ -5,12 +5,14 @@ using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Company;
 using Services.Command.Invoice;
 using Services.Command.List;
+using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -25,6 +27,7 @@ namespace Tests.Services
 
         protected InvoiceService _invoiceServicesMock = null!;
         protected ILogger<InvoiceService> _loggerMock = null!;
+        protected IEntityAuthorizationService _entityAuthMock = null!;
 
         private string _currentSchema = null!;
 
@@ -92,7 +95,10 @@ namespace Tests.Services
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<InvoiceService>();
-            _invoiceServicesMock = new InvoiceService(_contextMock, _loggerMock);
+
+            _entityAuthMock = new EntityAuthorizationService(_contextMock);
+
+            _invoiceServicesMock = new InvoiceService(_contextMock, _loggerMock, _entityAuthMock);
         }
 
         [After(Test)]
@@ -1239,7 +1245,7 @@ namespace Tests.Services
         }
 
         // ─── GetInvoicePaymentSummaryAsync ─────────────────────────────────────────────────
-        
+
         [Test]
         public async Task GetInvoicePaymentSummaryAsync_WhenInvoiceExistsWithPayments_MapsAllFieldsCorrectly()
         {
@@ -1346,7 +1352,7 @@ namespace Tests.Services
             await Assert.That(data.RemainingAmount).IsEqualTo(0L);
             await Assert.That(data.IsOverDue).IsFalse();
 
-            var diff = (data.PaymentDate!.Value - paymentDate).Duration(); 
+            var diff = (data.PaymentDate!.Value - paymentDate).Duration();
             await Assert.That(diff < TimeSpan.FromSeconds(1)).IsTrue();
         }
 
@@ -1612,5 +1618,243 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).IsEmpty();
             await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
+
+        // ─── AddInvoicePaymentAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task AddInvoicePaymentAsync_WhenInvoiceNotFound_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentInvoiceId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+
+            var command = new AddInvoicePaymentCommand
+            {
+                Amount = 500000,
+                PaymentDate = DateTime.UtcNow,
+                ReferenceNumber = "TRANS/001"
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.AddInvoicePaymentAsync(nonExistentInvoiceId, randomUserId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvoiceNotFound);
+            await Assert.That(result.Message).IsEqualTo("Invoice not found.");
+        }
+
+        [Test]
+        public async Task AddInvoicePaymentAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 10000000,
+                paidAmount: 2000000);
+
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var command = new AddInvoicePaymentCommand
+            {
+                Amount = 1000000,
+                PaymentDate = DateTime.UtcNow,
+                ReferenceNumber = "TRANS/UNAUTH"
+            };
+
+            // Act & Assert
+            await Assert.That(async () =>
+                await _invoiceServicesMock.AddInvoicePaymentAsync(invoice.Id, unauthorizedUserId, command))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task AddInvoicePaymentAsync_WhenInvoiceAlreadyFullyPaid_Returns400BadRequest()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 5000000);
+
+            var command = new AddInvoicePaymentCommand
+            {
+                Amount = 100000,
+                PaymentDate = DateTime.UtcNow
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.AddInvoicePaymentAsync(invoice.Id, owner.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Invoice is already fully paid.");
+        }
+
+        [Test]
+        public async Task AddInvoicePaymentAsync_WhenAmountExceedsRemainingBalance_Returns400BadRequest()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 2000000);
+
+            var command = new AddInvoicePaymentCommand
+            {
+                Amount = 3500000,
+                PaymentDate = DateTime.UtcNow
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.AddInvoicePaymentAsync(invoice.Id, owner.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Payment amount exceeds the remaining balance (3000000).");
+        }
+
+        [Test]
+        public async Task AddInvoicePaymentAsync_WhenPartialPaymentByOwner_AddsPaymentAndUpdatesPaidAmountWithoutFullPaymentDate()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 10000000,
+                paidAmount: 2000000);
+
+            var paymentDate = DateTime.UtcNow.AddHours(-2);
+            var command = new AddInvoicePaymentCommand
+            {
+                Amount = 3000000,
+                PaymentDate = paymentDate,
+                ReferenceNumber = "  TRANS/PARTIAL/01  ",
+                Note = "  Wpłata zaliczki  "
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.AddInvoicePaymentAsync(invoice.Id, owner.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+            await Assert.That(result.Message).IsEqualTo("Payment registered successfully.");
+
+            var updatedInvoice = await _contextMock.Invoices
+                .Include(i => i.Payments)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.Id == invoice.Id);
+
+            await Assert.That(updatedInvoice).IsNotNull();
+            await Assert.That(updatedInvoice!.PaidAmount).IsEqualTo(5000000L);
+            await Assert.That(updatedInvoice.RemainingAmount).IsEqualTo(5000000L);
+            await Assert.That(updatedInvoice.PaymentDate).IsNull();
+
+            var savedPayment = updatedInvoice.Payments.FirstOrDefault();
+            await Assert.That(savedPayment).IsNotNull();
+            await Assert.That(savedPayment!.Amount).IsEqualTo(3000000L);
+            await Assert.That(savedPayment.ReferenceNumber).IsEqualTo("TRANS/PARTIAL/01");
+            await Assert.That(savedPayment.Note).IsEqualTo("Wpłata zaliczki");
+            await Assert.That(savedPayment.CreatedById).IsEqualTo(owner.Id);
+        }
+
+        [Test]
+        public async Task AddInvoicePaymentAsync_WhenFinalPayment_CompletesInvoiceAndSetsPaymentDate()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 6000000,
+                paidAmount: 4000000);
+
+            var paymentDate = DateTime.UtcNow;
+            var command = new AddInvoicePaymentCommand
+            {
+                Amount = 2000000,
+                PaymentDate = paymentDate,
+                ReferenceNumber = "TRANS/FINAL"
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.AddInvoicePaymentAsync(invoice.Id, owner.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var updatedInvoice = await _contextMock.Invoices
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.Id == invoice.Id);
+
+            await Assert.That(updatedInvoice).IsNotNull();
+            await Assert.That(updatedInvoice!.PaidAmount).IsEqualTo(6000000L);
+            await Assert.That(updatedInvoice.RemainingAmount).IsEqualTo(0L);
+            await Assert.That(updatedInvoice.IsOverDue).IsFalse();
+            await Assert.That(updatedInvoice.PaymentDate).IsNotNull();
+
+            var timeDiff = (updatedInvoice.PaymentDate!.Value - paymentDate).Duration(); //[cite: 14]
+            await Assert.That(timeDiff < TimeSpan.FromSeconds(1)).IsTrue();
+        }
+
+        [Test]
+        public async Task AddInvoicePaymentAsync_WhenUserIsManager_AllowsPaymentRegistrationEvenIfNotOwner()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 0);
+
+            var managerId = Guid.NewGuid();
+            var managerUser = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = "ManagerUser",
+                Email = "manager@test.pl",
+                FirstName = "Adam",
+                LastName = "Kierownik"
+            };
+
+            var managerRole = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = "MANAGER"
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = managerRole.Id
+            };
+
+            _contextMock.Users.Add(managerUser);
+            _contextMock.Roles.Add(managerRole);
+            _contextMock.UserRoles.Add(userRole);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new AddInvoicePaymentCommand
+            {
+                Amount = 1500000,
+                PaymentDate = DateTime.UtcNow,
+                ReferenceNumber = "MGR/TRANS/01"
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.AddInvoicePaymentAsync(invoice.Id, managerId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
+
+            var payment = await _contextMock.InvoicePayments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.InvoiceId == invoice.Id);
+
+            await Assert.That(payment).IsNotNull();
+            await Assert.That(payment!.Amount).IsEqualTo(1500000L);
+            await Assert.That(payment.CreatedById).IsEqualTo(managerId);
+        }
+
     }
 }

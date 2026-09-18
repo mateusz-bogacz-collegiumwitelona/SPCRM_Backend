@@ -169,6 +169,10 @@
 
         // Invoice
         public const string InvoiceNotFound = "INV_001";
-
+        public const string InvoicePaymentNull = "INV_002";
+        public const string InvoicePaymentInvalid = "INV_003";
+        public const string PaymentDateRequired = "INV_004";
+        public const string PaymentReferenceNumberInvalid = "INV_005";
+        public const string PaymentNoteInvalid = "INV_006";
     }
 }

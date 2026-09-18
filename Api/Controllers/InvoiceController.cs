@@ -47,6 +47,7 @@ namespace Api.Controllers
         [EndpointSummary("Get invoice products")]
         [EndpointDescription("Get invoice products by invoice id. This list has paggination and search")]
         [HttpGet("{invoiceId}/products")]
+        [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetInvoiceProductAsync(
             [FromServices] IInvoiceService invoice,
             [FromServices] ApiMapper mapper,
@@ -61,12 +62,43 @@ namespace Api.Controllers
         [EndpointSummary("Get invoice payment summary")]
         [EndpointDescription("Get invoice payment summary by invoice id")]
         [HttpGet("{invoiceId}/payment/summary")]
+        [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetInvoicePaymentSummaryAsync(
             [FromServices] IInvoiceService invoice,
             [FromRoute] Guid invoiceId
             )
         {
             var result = await invoice.GetInvoicePaymentSummaryAsync(invoiceId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get invoice payments list")]
+        [EndpointDescription("Get invoice payment list witch search")]
+        [HttpGet("{invoiceId}/payment")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetInvoicePaymentsAsync(
+            [FromServices] IInvoiceService invoice,
+            [FromServices] ApiMapper mapper,
+            [FromRoute] Guid invoiceId,
+            [FromQuery] SimpleListRequest request
+            )
+        {
+            var result = await invoice.GetInvoicePaymentsAsync(invoiceId, mapper.MapSimpleList(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Add invoice payment")]
+        [EndpointDescription("Add invoice payment")]
+        [HttpPost("{invoiceId}/payment")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> AddInvoicePaymentAsync(
+            [FromServices] IInvoiceService invoice,
+            [FromServices] InvoiceMapper mapper,
+            [FromRoute] Guid invoiceId,
+            [FromBody] AddInvoicePaymentRequest request
+            )
+        {
+            var result = await invoice.AddInvoicePaymentAsync(invoiceId, CurrentUserId, mapper.MapAddPayment(request));
             return HandleResult(result);
         }
     }

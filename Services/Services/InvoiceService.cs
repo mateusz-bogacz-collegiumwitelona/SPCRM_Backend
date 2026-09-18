@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Domain.Constants;
 using Domain.Exceptions.Exception;
+using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -21,11 +22,16 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<InvoiceService> _logger;
+        private readonly IEntityAuthorizationService _entityAuth;
 
-        public InvoiceService(AppDbContext context, ILogger<InvoiceService> logger)
+        public InvoiceService(
+            AppDbContext context,
+            ILogger<InvoiceService> logger,
+            IEntityAuthorizationService entityAuth)
         {
             _context = context;
             _logger = logger;
+            _entityAuth = entityAuth;
         }
 
         public async Task<Result<List<CompanyDebtSummaryResponse>>> GetCompanyDebtSummaryAsync(Guid companyId)
@@ -283,5 +289,80 @@ namespace Services.Services
                 })
                 .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_payment_list");
 
+        public async Task<Result> AddInvoicePaymentAsync(Guid invoiceId, Guid userId, AddInvoicePaymentCommand command)
+        {
+            var invoice = await _context.Invoices
+                .Include(i => i.Deal)
+                .FirstOrDefaultAsync(i => i.Id == invoiceId);
+
+            if (invoice == null)
+            {
+                _logger.LogInformation("Invoice with id {InvoiceId} not found.", invoiceId);
+                return Result.Failure(
+                    message: "Invoice not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.InvoiceNotFound
+                );
+            }
+
+            var isAuthorized = await _entityAuth.CanModifyAsync(userId, invoice.Deal.OwnerId);
+            if (!isAuthorized)
+            {
+                _logger.LogWarning("User {UserId} unauthorized to add payment for invoice {InvoiceId}.", userId, invoiceId);
+                throw new ForbiddenException("You are not authorized to add payments to this invoice.");
+            }
+
+            if (invoice.RemainingAmount <= 0)
+            {
+                _logger.LogWarning("Invoice with id {InvoiceId}  is already fully paid.", invoiceId);
+                return Result.Failure(
+                    message: "Invoice is already fully paid.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            if (command.Amount > invoice.RemainingAmount)
+            {
+                _logger.LogWarning(
+                    "Payment amount for invoice {InvoiceId} exceeds the remaining balance ({RemainingAmount}).",
+                    invoiceId, invoice.RemainingAmount);
+
+                return Result.Failure(
+                    message: $"Payment amount exceeds the remaining balance ({invoice.RemainingAmount}).",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var payment = new InvoicePayment
+            {
+                InvoiceId = invoice.Id,
+                Amount = command.Amount,
+                PaymentDate = command.PaymentDate.ToUniversalTime(),
+                ReferenceNumber = command.ReferenceNumber?.Trim(),
+                Note = command.Note?.Trim(),
+                CreatedById = userId
+            };
+
+            invoice.PaidAmount += command.Amount;
+
+            if (invoice.PaidAmount >= invoice.TotalAmount)
+            {
+                invoice.PaymentDate = command.PaymentDate.ToUniversalTime();
+            }
+
+            _context.InvoicePayments.Add(payment);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Payment {PaymentId} of amount {Amount} added to invoice {InvoiceId} by user {UserId}.",
+                payment.Id, payment.Amount, invoice.Id, userId);
+
+            return Result.Success(
+                message: "Payment registered successfully.",
+                statusCode: StatusCodes.Status201Created
+                );
+        }
     }
 }
