@@ -227,5 +227,43 @@ namespace Services.Services
                       })
                      .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_product_list");
 
+        public async Task<Result<InvoicePaymentSummaryResponse>> GetInvoicePaymentSummaryAsync(Guid invoiceId)
+        {
+            var summary = await _context.Invoices
+                .AsNoTracking()
+                .Where(i => i.Id == invoiceId)
+                .Select(i => new InvoicePaymentSummaryResponse
+                {
+                    InvoiceId = i.Id,
+                    InvoiceNumber = i.InvoiceNumber,
+                    TotalAmount = i.TotalAmount,
+                    PaidAmount = i.PaidAmount,
+                    RemainingAmount = i.TotalAmount - i.PaidAmount,
+                    CurrencyCode = i.Currency.Code,
+                    DecimalPlaces = i.Currency.DecimalPlaces,
+                    DueDate = i.DueDate,
+                    PaymentDate = i.PaymentDate,
+                    IsOverDue = (i.TotalAmount - i.PaidAmount) > 0 && i.DueDate < DateTime.UtcNow,
+                    PaymentsCount = i.Payments.Count
+                })
+                .FirstOrDefaultAsync();
+
+            if (summary == null)
+            {
+                _logger.LogInformation("Invoice with id {InvoiceId} not found.", invoiceId);
+                return Result<InvoicePaymentSummaryResponse>.Failure(
+                    message: "Invoice not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.InvoiceNotFound
+                );
+            }
+
+            return Result<InvoicePaymentSummaryResponse>.Success(
+                message: "Invoice payment summary retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: summary
+            );
+        }
+
     }
 }

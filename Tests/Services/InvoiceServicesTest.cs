@@ -1237,5 +1237,133 @@ namespace Tests.Services
             await Assert.That(items.First().InvoiceProductId).IsEqualTo(matchedProduct.Id);
             await Assert.That(items.First().ProductName).IsEqualTo("Płaskownik Żelazny");
         }
+
+        // ─── GetInvoicePaymentSummaryAsync ─────────────────────────────────────────────────
+        
+        [Test]
+        public async Task GetInvoicePaymentSummaryAsync_WhenInvoiceExistsWithPayments_MapsAllFieldsCorrectly()
+        {
+            // Arrange
+            var dueDate = DateTime.UtcNow.AddDays(7);
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 10000000,
+                paidAmount: 4000000,
+                dueDate: dueDate);
+
+            var payments = new List<InvoicePayment>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    InvoiceId = invoice.Id,
+                    Amount = 1500000,
+                    PaymentDate = DateTime.UtcNow.AddDays(-2),
+                    ReferenceNumber = "TRANS/001",
+                    CreatedById = owner.Id
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    InvoiceId = invoice.Id,
+                    Amount = 2500000,
+                    PaymentDate = DateTime.UtcNow.AddDays(-1),
+                    ReferenceNumber = "TRANS/002",
+                    CreatedById = owner.Id
+                }
+            };
+
+            _contextMock.InvoicePayments.AddRange(payments);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentSummaryAsync(invoice.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.InvoiceId).IsEqualTo(invoice.Id);
+            await Assert.That(data.InvoiceNumber).IsEqualTo(invoice.InvoiceNumber);
+            await Assert.That(data.TotalAmount).IsEqualTo(10000000L);
+            await Assert.That(data.PaidAmount).IsEqualTo(4000000L);
+            await Assert.That(data.RemainingAmount).IsEqualTo(6000000L);
+            await Assert.That(data.CurrencyCode).IsEqualTo("PLN");
+            await Assert.That(data.DecimalPlaces).IsEqualTo(2);
+            await Assert.That(data.PaymentsCount).IsEqualTo(2);
+            await Assert.That(data.IsOverDue).IsFalse();
+            await Assert.That(data.PaymentDate).IsNull();
+        }
+
+        [Test]
+        public async Task GetInvoicePaymentSummaryAsync_WhenInvoiceIsOverdue_CalculatesIsOverDueAsTrue()
+        {
+            // Arrange
+            var overdueDate = DateTime.UtcNow.AddDays(-5);
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 2000000,
+                dueDate: overdueDate);
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentSummaryAsync(invoice.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.RemainingAmount).IsEqualTo(3000000L);
+            await Assert.That(data.IsOverDue).IsTrue();
+            await Assert.That(data.PaymentsCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetInvoicePaymentSummaryAsync_WhenInvoiceFullyPaid_SetsIsOverDueFalseAndContainsPaymentDate()
+        {
+            // Arrange
+            var paymentDate = DateTime.UtcNow.AddDays(-1);
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 5000000,
+                dueDate: DateTime.UtcNow.AddDays(-5));
+
+            var dbInvoice = await _contextMock.Invoices.FindAsync(invoice.Id);
+            dbInvoice!.PaymentDate = paymentDate;
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentSummaryAsync(invoice.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.RemainingAmount).IsEqualTo(0L);
+            await Assert.That(data.IsOverDue).IsFalse();
+
+            var diff = (data.PaymentDate!.Value - paymentDate).Duration(); 
+            await Assert.That(diff < TimeSpan.FromSeconds(1)).IsTrue();
+        }
+
+        [Test]
+        public async Task GetInvoicePaymentSummaryAsync_WhenInvoiceDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentInvoiceId = Guid.NewGuid();
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentSummaryAsync(nonExistentInvoiceId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvoiceNotFound);
+            await Assert.That(result.Message).IsEqualTo("Invoice not found.");
+        }
     }
 }

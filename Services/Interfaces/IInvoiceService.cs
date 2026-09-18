@@ -14,5 +14,6 @@ namespace Services.Interfaces
         Task<Result<PagedResult<InvoiceResponse>>> GetInvoiceListAsync(InvoiceListCommand command);
         Task<Result<InvoiceDetailResponse>> GetInvoiceDetailAsync(Guid invoiceId);
         Task<Result<PagedResult<InvoiceProductsListResponse>>> GetInvoiceProductAsync(Guid invoiceId, SimpleListCommand command);
+        Task<Result<InvoicePaymentSummaryResponse>> GetInvoicePaymentSummaryAsync(Guid invoiceId);
     }
 }

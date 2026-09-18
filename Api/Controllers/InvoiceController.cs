@@ -57,5 +57,17 @@ namespace Api.Controllers
             var result = await invoice.GetInvoiceProductAsync(invoiceId, mapper.MapSimpleList(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get invoice payment summary")]
+        [EndpointDescription("Get invoice payment summary by invoice id")]
+        [HttpGet("{invoiceId}/payment/summary")]
+        public async Task<IActionResult> GetInvoicePaymentSummaryAsync(
+            [FromServices] IInvoiceService invoice,
+            [FromRoute] Guid invoiceId
+            )
+        {
+            var result = await invoice.GetInvoicePaymentSummaryAsync(invoiceId);
+            return HandleResult(result);
+        }
     }
 }
