@@ -17,11 +17,13 @@ namespace Domain.Models
         public Guid CompanyId { get; set; }
         public Company Company { get; set; } = null!;
 
-        public Guid? DealId { get; set; }
-        public Deal? Deal { get; set; }
+        public Guid DealId { get; set; }
+        public Deal Deal { get; set; } = null!;
 
         public long RemainingAmount => TotalAmount - PaidAmount;
 
         public bool IsOverDue => RemainingAmount > 0 && DueDate < DateTime.UtcNow;
+
+        public ICollection<InvoiceProducts> InvoiceProducts { get; set; } = new List<InvoiceProducts>();
     }
 }

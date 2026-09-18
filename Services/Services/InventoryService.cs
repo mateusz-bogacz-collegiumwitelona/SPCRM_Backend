@@ -23,7 +23,7 @@ namespace Services.Services
 
         public async Task<Result> DeductStockForDealAsync(IEnumerable<DealProduct> dealProducts)
         {
-            var productsIds = dealProducts.Select(dp => dp.ProductId).ToList();
+            var productsIds = dealProducts.Select(dp => dp.ProductId).Distinct().ToList();
 
             var proudcts = await _context.Products
                 .Where(p => productsIds.Contains(p.Id))
@@ -33,7 +33,7 @@ namespace Services.Services
             {
                 if (!proudcts.TryGetValue(dealProduct.ProductId, out var product))
                 {
-                    _logger.LogError($"Product with ID {dealProduct.ProductId} not found.");
+                    _logger.LogError("Product with ID {ProductId} not found.", dealProduct.ProductId);
                     return Result.Failure(
                         message: $"Product with ID {dealProduct.ProductId} not found.",
                         statusCode: StatusCodes.Status404NotFound,
@@ -59,6 +59,15 @@ namespace Services.Services
 
         public async Task<Result> ValidateStockAvailabilityAsync(Guid productId, int requestedQuantity, int currentQuantityInDeal = 0)
         {
+            if (requestedQuantity <= 0)
+            {
+                _logger.LogWarning("Requested quantity must be greater than zero for product ID {ProductId}.", productId);
+                return Result.Failure(
+                    message: "Requested quantity must be greater than zero.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation);
+            }
+
             var product = await _context.Products
                 .AsNoTracking()
                 .Where(p => p.Id == productId)

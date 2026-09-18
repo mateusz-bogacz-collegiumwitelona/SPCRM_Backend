@@ -159,6 +159,7 @@ namespace Services.Services
                     TotalAmount = i.TotalAmount,
                     PaidAmount = i.PaidAmount,
                     IssueDate = i.IssueDate,
+                    PaymentDate = i.PaymentDate,
                     CurrencyCode = i.Currency.Code,
                     DecimalPlaces = i.Currency.DecimalPlaces,
                     CompanyName = i.Company.Name,
@@ -206,5 +207,7 @@ namespace Services.Services
                 data: invoice
             );
         }
+
+        
     }
 }

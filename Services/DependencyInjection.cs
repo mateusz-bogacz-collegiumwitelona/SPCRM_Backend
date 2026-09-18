@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Services.Factory;
 using Services.Factory.Interfaces;
+using Services.Handlers;
 using Services.Interfaces;
 using Services.Services;
 
@@ -35,6 +36,9 @@ namespace Services
             services.AddScoped<IOfferStateMachineFactory, OfferStateMachineFactory>();
             services.AddScoped<IDealStateMachineFactory, DealStateMachineFactory>();
             services.AddScoped<ITaskStateMachineFactory, TaskStateMachineFactory>();
+
+            // Handlers
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DealCompletedEventHandler).Assembly));
 
             return services;
         }

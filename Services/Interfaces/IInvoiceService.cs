@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Models;
 using Services.Command.Company;
 using Services.Command.Invoice;
 using Services.Response.Company;

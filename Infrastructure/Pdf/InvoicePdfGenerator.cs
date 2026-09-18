@@ -77,19 +77,23 @@ namespace Infrastructure.Pdf
                             });
 
                             int index = 1;
-                            if (invoice.Deal?.DealProducts != null)
+                            if (invoice.InvoiceProducts != null && invoice.InvoiceProducts.Any())
                             {
-                                foreach (var item in invoice.Deal.DealProducts)
+                                foreach (var item in invoice.InvoiceProducts)
                                 {
                                     var unitPrice = item.UnitPrice / 10000m;
                                     var lineTotal = (item.Quantity * item.UnitPrice) / 10000m;
                                     calculatedTotal += lineTotal;
 
-                                    var unitSymbol = item.Product?.Unit?.Symbol ?? "";
+                                    var steelGradeText = !string.IsNullOrWhiteSpace(item.SteelGrade)
+                                        ? $" ({item.SteelGrade})"
+                                        : string.Empty;
+
+                                    var fullProductName = $"{item.ProductName}{steelGradeText}";
 
                                     table.Cell().Text(index++.ToString());
-                                    table.Cell().Text(item.Product?.Name ?? "Pozycja zamówienia");
-                                    table.Cell().AlignRight().Text($"{item.Quantity.ToString()} {unitSymbol}");
+                                    table.Cell().Text(fullProductName);
+                                    table.Cell().AlignRight().Text($"{item.Quantity} {item.UnitSymbol}");
                                     table.Cell().AlignRight().Text($"{unitPrice:F2} {invoice.Currency.Code}");
                                     table.Cell().AlignRight().Text($"{lineTotal:F2} {invoice.Currency.Code}");
                                 }
@@ -169,18 +173,23 @@ namespace Infrastructure.Pdf
                            });
 
                            int index = 1;
-                           if (invoice.Deal?.DealProducts != null)
+                           if (invoice.InvoiceProducts != null && invoice.InvoiceProducts.Any())
                            {
-                               foreach (var item in invoice.Deal.DealProducts)
+                               foreach (var item in invoice.InvoiceProducts)
                                {
                                    var unitPrice = item.UnitPrice / 10000m;
                                    var lineTotal = (item.Quantity * item.UnitPrice) / 10000m;
                                    calculatedTotal += lineTotal;
-                                   var unitSymbol = item.Product?.Unit?.Symbol ?? "";
+
+                                   var steelGradeText = !string.IsNullOrWhiteSpace(item.SteelGrade)
+                                       ? $" ({item.SteelGrade})"
+                                       : string.Empty;
+
+                                   var fullProductName = $"{item.ProductName}{steelGradeText}";
 
                                    table.Cell().Text(index++.ToString());
-                                   table.Cell().Text(item.Product?.Name ?? "Order Line Item");
-                                   table.Cell().AlignRight().Text($"{item.Quantity.ToString()} {unitSymbol}");
+                                   table.Cell().Text(fullProductName);
+                                   table.Cell().AlignRight().Text($"{item.Quantity} {item.UnitSymbol}");
                                    table.Cell().AlignRight().Text($"{unitPrice:F2} {invoice.Currency.Code}");
                                    table.Cell().AlignRight().Text($"{lineTotal:F2} {invoice.Currency.Code}");
                                }

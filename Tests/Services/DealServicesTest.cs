@@ -1,9 +1,11 @@
 ﻿using Domain.Constants;
 using Domain.Enum;
+using Domain.Events;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -33,9 +35,8 @@ namespace Tests.Services
         private string _currentSchema = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
         protected IDealStateMachineFactory _stateMock = null!;
-        protected FakeEmailSender _emailSenderMock = null!;
-
         protected IInventoryService _inventoryMock = null!;
+        protected FakePublisher _publisherMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -106,19 +107,19 @@ namespace Tests.Services
 
             _stateMock = new DealStateMachineFactory();
 
-            _emailSenderMock = new FakeEmailSender();
-
             _inventoryMock = new InventoryService(
                 _contextMock,
                 new LoggerFactory().CreateLogger<InventoryService>());
+
+            _publisherMock = new FakePublisher();
 
             _dealServicesMock = new DealServices(
                 _contextMock,
                 _loggerMock,
                 _entityAuthMock,
                 _stateMock,
-                _emailSenderMock,
-                _inventoryMock);
+                _inventoryMock,
+                _publisherMock);
         }
 
         [After(Test)]
@@ -3695,34 +3696,26 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task ChangeDealStatusAsync_WhenStatusChangesToComplete_CreatesInvoiceAndResolvesPrimaryEmail()
+        public async Task ChangeDealStatusAsync_WhenStatusChangesToComplete_PublishesDealCompletedEventAndResolvesPrimaryEmail()
         {
             // Arrange
             var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
 
-            _contextMock.Users.Attach(owner);
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Symbol = "szt.", Name = "sztuka", BaseMultiplier = 1, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            _contextMock.UnitsOfMeasure.Add(unit);
 
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = "Produkt Faktura Test",
-                SteelGradeId = Guid.NewGuid(),
-                Unit = new UnitOfMeasure
-                {
-                    Symbol = "szt.",
-                    Name = "sztuka",
-                    BaseMultiplier = 1
-                },
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
                 CurrencyId = currency.Id,
                 PricePerUnit = 5000000,
                 StockQuantity = 10,
-                Category = ProductCategoryEnum.Sheet,
-                SteelGrade = new SteelGrade
-                {
-                    Id = Guid.NewGuid(),
-                    Name = "1.4301",
-                    Density = 7900
-                },
+                Category = ProductCategoryEnum.Sheet
             };
 
             _contextMock.Products.Add(product);
@@ -3740,8 +3733,9 @@ namespace Tests.Services
                 ContactId = contact.Id,
                 DealProducts = new List<DealProduct>
                 {
-                    new DealProduct
+                    new()
                     {
+                        Id = Guid.NewGuid(),
                         ProductId = product.Id,
                         Quantity = 1,
                         UnitPrice = 5000000
@@ -3775,10 +3769,13 @@ namespace Tests.Services
             await Assert.That(updatedDeal).IsNotNull();
             await Assert.That(updatedDeal!.Status).IsEqualTo(DealsStatusEnum.Complete);
 
-            var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
-            await Assert.That(createdInvoice).IsNotNull();
-            await Assert.That(createdInvoice!.TotalAmount).IsEqualTo(5000000L);
-            await Assert.That(createdInvoice.InvoiceNumber.StartsWith("FV/")).IsTrue();
+            await Assert.That(_publisherMock.PublishedEvents).Count().IsEqualTo(1);
+            var publishedEvent = _publisherMock.PublishedEvents.OfType<DealCompletedEvent>().FirstOrDefault();
+
+            await Assert.That(publishedEvent).IsNotNull();
+            await Assert.That(publishedEvent!.DealId).IsEqualTo(deal.Id);
+            await Assert.That(publishedEvent.RecipientEmail).IsEqualTo("primary_contact@test.pl");
+            await Assert.That(publishedEvent.Language).IsEqualTo("pl");
         }
 
         [Test]
@@ -3786,9 +3783,6 @@ namespace Tests.Services
         {
             // Arrange
             var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
-
-            _contextMock.Users.Attach(owner);
-
 
             var deal = new Deal
             {
@@ -3800,8 +3794,9 @@ namespace Tests.Services
                 CompanyId = company.Id,
                 OwnerId = owner.Id,
                 CurrencyId = currency.Id,
-                ContactId = contact.Id,
+                ContactId = contact.Id
             };
+
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
@@ -3812,7 +3807,8 @@ namespace Tests.Services
                 DealId = deal.Id,
                 UserId = owner.Id,
                 TargetStatus = DealsStatusEnum.Complete,
-                CustomRecipientEmail = customEmail
+                CustomRecipientEmail = customEmail,
+                Language = "en"
             };
 
             // Act
@@ -3823,8 +3819,13 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.SentToEmail).IsEqualTo(customEmail);
 
-            var createdInvoice = await _contextMock.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.DealId == deal.Id);
-            await Assert.That(createdInvoice).IsNotNull();
+            await Assert.That(_publisherMock.PublishedEvents).Count().IsEqualTo(1);
+            var publishedEvent = _publisherMock.PublishedEvents.OfType<DealCompletedEvent>().FirstOrDefault();
+
+            await Assert.That(publishedEvent).IsNotNull();
+            await Assert.That(publishedEvent!.DealId).IsEqualTo(deal.Id);
+            await Assert.That(publishedEvent.RecipientEmail).IsEqualTo(customEmail);
+            await Assert.That(publishedEvent.Language).IsEqualTo("en");
         }
 
         [Test]

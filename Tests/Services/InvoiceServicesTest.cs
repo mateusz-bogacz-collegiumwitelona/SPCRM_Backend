@@ -106,26 +106,24 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        private async Task<(Company Company, Currency Currency, ApplicationUser Owner)> SeedBasicInvoiceDependenciesAsync(string suffix)
+        private async Task<(Company Company, ApplicationUser Owner, Currency Currency, Deal Deal, Invoice Invoice)> SeedInvoiceGraphAsync(
+             long totalAmount = 100000,
+             long paidAmount = 0,
+             DateTime? dueDate = null,
+             string? invoiceNumber = null)
         {
+            var uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
+            var ownerId = Guid.NewGuid(); 
+
             var owner = new ApplicationUser
             {
-                Id = Guid.NewGuid(),
-                UserName = $"U_{suffix}",
-                NormalizedUserName = $"U_{suffix}".ToUpper(),
-                Email = $"e_{suffix}@t.pl",
-                NormalizedEmail = $"E_{suffix}@T.PL",
-                FirstName = $"Imie_{suffix}",
-                LastName = $"Nazwisko_{suffix}"
-            };
-
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Stalex_{suffix}",
-                NIP = "1234567890",
-                OwnerId = owner.Id,
-                Owner = owner
+                Id = ownerId,
+                UserName = $"User_{uniqueSuffix}",
+                NormalizedUserName = $"USER_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
+                FirstName = "Jan",
+                LastName = "Kowalski"
             };
 
             var currency = new Currency
@@ -136,12 +134,60 @@ namespace Tests.Services
                 DecimalPlaces = 2
             };
 
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(company);
-            _contextMock.Currencies.Add(currency);
-            await _contextMock.SaveChangesAsync();
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = owner.Id
+            };
 
-            return (company, currency, owner);
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = true
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = $"D/{uniqueSuffix}",
+                Value = totalAmount,
+                Status = DealsStatusEnum.Complete,
+                CloseDate = DateTime.UtcNow,
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                ContactId = contact.Id
+            };
+
+            var invoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = invoiceNumber ?? $"FV/{uniqueSuffix}",
+                TotalAmount = totalAmount,
+                PaidAmount = paidAmount,
+                IssueDate = DateTime.UtcNow,
+                DueDate = dueDate ?? DateTime.UtcNow.AddDays(14),
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                DealId = deal.Id
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Invoices.Add(invoice);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            return (company, owner, currency, deal, invoice);
         }
 
         // ─── GetCompanyDebtSummaryAsync ─────────────────────────────────────────────────
@@ -149,36 +195,11 @@ namespace Tests.Services
         [Test]
         public async Task GetCompanyDebtSummaryAsync_GroupsByCurrencyAndCalculatesCorrectAmount()
         {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var ownerId = Guid.NewGuid();
+            // Arrange 
+            var (company, _, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 50000);
 
-            var owner = new ApplicationUser
-            {
-                Id = ownerId,
-                UserName = $"U_{uniqueSuffix}",
-                NormalizedUserName = $"U_{uniqueSuffix}",
-                Email = $"e_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
-                FirstName = $"F_{uniqueSuffix}",
-                LastName = $"L_{uniqueSuffix}",
-            };
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Company_{uniqueSuffix}",
-                NIP = "111",
-                OwnerId = ownerId,
-                Owner = owner
-            };
-
-            var currencyPln = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "PLN",
-                Code = "PLN",
-                DecimalPlaces = 2
-            };
             var currencyEur = new Currency
             {
                 Id = Guid.NewGuid(),
@@ -192,12 +213,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "F/1",
                 CompanyId = company.Id,
-                Company = company,
-                CurrencyId = currencyPln.Id,
-                Currency = currencyPln,
+                CurrencyId = currency.Id,
                 TotalAmount = 10000000,
                 PaidAmount = 5000000,
-                DueDate = DateTime.UtcNow.AddDays(-5)
+                DueDate = DateTime.UtcNow.AddDays(-5),
+                DealId = deal.Id
             };
 
             var invoice2 = new Invoice
@@ -205,12 +225,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "F/2",
                 CompanyId = company.Id,
-                Company = company,
-                CurrencyId = currencyPln.Id,
-                Currency = currencyPln,
+                CurrencyId = currency.Id,
                 TotalAmount = 2000000,
                 PaidAmount = 2000000,
-                DueDate = DateTime.UtcNow.AddDays(-5)
+                DueDate = DateTime.UtcNow.AddDays(-5),
+                DealId = deal.Id
             };
 
             var invoice3 = new Invoice
@@ -218,12 +237,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "F/3",
                 CompanyId = company.Id,
-                Company = company,
-                CurrencyId = currencyPln.Id,
-                Currency = currencyPln,
+                CurrencyId = currency.Id,
                 TotalAmount = 3000000,
                 PaidAmount = 0,
-                DueDate = DateTime.UtcNow.AddDays(-5)
+                DueDate = DateTime.UtcNow.AddDays(-5),
+                DealId = deal.Id
             };
 
             var invoice4 = new Invoice
@@ -231,17 +249,14 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "F/4",
                 CompanyId = company.Id,
-                Company = company,
                 CurrencyId = currencyEur.Id,
-                Currency = currencyEur,
                 TotalAmount = 2000000,
                 PaidAmount = 995000,
-                DueDate = DateTime.UtcNow.AddDays(-5)
+                DueDate = DateTime.UtcNow.AddDays(-5),
+                DealId = deal.Id
             };
 
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(company);
-            _contextMock.Currencies.AddRange(currencyPln, currencyEur);
+            _contextMock.Currencies.Add(currencyEur);
             _contextMock.Invoices.AddRange(invoice1, invoice2, invoice3, invoice4);
             await _contextMock.SaveChangesAsync();
 
@@ -254,63 +269,32 @@ namespace Tests.Services
             await Assert.That(result.Data!).Count().IsEqualTo(2);
 
             var plnSummary = result.Data!.First(s => s.CurrencyCode == "PLN");
-            await Assert.That(plnSummary.TotalAmount).IsEqualTo(8000000m);
+            await Assert.That(plnSummary.TotalAmount).IsEqualTo(8000000L);
             await Assert.That(plnSummary.DecimalPlace).IsEqualTo(2);
 
             var eurSummary = result.Data!.First(s => s.CurrencyCode == "EUR");
-            await Assert.That(eurSummary.TotalAmount).IsEqualTo(1005000m);
+            await Assert.That(eurSummary.TotalAmount).IsEqualTo(1005000L);
         }
 
         [Test]
         public async Task GetCompanyDebtSummaryAsync_WhenNoDebts_ReturnsEmptyList()
         {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var owner = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"U_{uniqueSuffix}",
-                NormalizedUserName = $"U_{uniqueSuffix}",
-                Email = $"e_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
-                FirstName = $"F_{uniqueSuffix}",
-                LastName = $"L_{uniqueSuffix}",
-            };
-
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Company_{uniqueSuffix}",
-                NIP = "111",
-                OwnerId = owner.Id,
-                Owner = owner
-            };
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "PLN",
-                Code = "PLN",
-                DecimalPlaces = 2
-            };
+            var (company, owner, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 50000);
 
             var invoice1 = new Invoice
             {
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "F/1",
                 CompanyId = company.Id,
-                Company = company,
                 CurrencyId = currency.Id,
-                Currency = currency,
                 TotalAmount = 50000,
                 PaidAmount = 50000,
-                DueDate = DateTime.UtcNow.AddDays(-5)
+                DueDate = DateTime.UtcNow.AddDays(-5),
+                DealId = deal.Id
             };
 
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(company);
-            _contextMock.Currencies.Add(currency);
             _contextMock.Invoices.Add(invoice1);
             await _contextMock.SaveChangesAsync();
 
@@ -345,58 +329,40 @@ namespace Tests.Services
         [Arguments(0, 500, -1, "PLN")]
         [Arguments(0, 500, 2, "")]
         public async Task GetCompanyDebtSummaryAsync_WhenInvoiceDataIsCorrupted_ThrowsDataCorruptionException(
-            long paidAmount,
-            long totalAmount,
-            int currencyDecimalPlaces,
-            string currencyCode)
+      long paidAmount,
+      long totalAmount,
+      int currencyDecimalPlaces,
+      string currencyCode)
         {
-            // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var ownerId = Guid.NewGuid();
+            // Arrange 
+            var (company, _, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 50000);
 
-            var owner = new ApplicationUser
+            if (currencyDecimalPlaces < 0 || string.IsNullOrWhiteSpace(currencyCode))
             {
-                Id = ownerId,
-                UserName = $"User_{uniqueSuffix}",
-                NormalizedUserName = $"USER_{uniqueSuffix}",
-                Email = $"user_{uniqueSuffix}@test.pl",
-                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
-                FirstName = "Jan",
-                LastName = "Kowalski"
-            };
+                var dbCurrency = await _contextMock.Currencies.FindAsync(currency.Id);
+                if (dbCurrency != null)
+                {
+                    dbCurrency.DecimalPlaces = currencyDecimalPlaces;
+                    dbCurrency.Code = currencyCode;
+                    await _contextMock.SaveChangesAsync();
+                    _contextMock.ChangeTracker.Clear();
+                }
+            }
 
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"CorruptedCompany_{uniqueSuffix}",
-                NIP = "1234567890",
-                OwnerId = ownerId,
-                Owner = owner
-            };
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Test Currency",
-                Code = currencyCode,
-                DecimalPlaces = currencyDecimalPlaces
-            };
-
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(company);
-            _contextMock.Currencies.Add(currency);
+            var uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
 
             var corruptedInvoice = new Invoice
             {
                 Id = Guid.NewGuid(),
                 InvoiceNumber = $"INV/ERR/{uniqueSuffix}",
                 CompanyId = company.Id,
-                Company = company,
                 CurrencyId = currency.Id,
-                Currency = currency,
                 TotalAmount = totalAmount,
                 PaidAmount = paidAmount,
-                DueDate = DateTime.UtcNow.AddDays(5)
+                DueDate = DateTime.UtcNow.AddDays(5),
+                DealId = deal.Id
             };
 
             _contextMock.Invoices.Add(corruptedInvoice);
@@ -414,35 +380,9 @@ namespace Tests.Services
         public async Task GetCompanyDebtsAsync_MapsDataAndCalculatesDaysOverdueCorrectly()
         {
             // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-
-            var owner = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"U_{uniqueSuffix}",
-                NormalizedUserName = $"U_{uniqueSuffix}",
-                Email = $"e_{uniqueSuffix}@t.pl",
-                NormalizedEmail = $"E_{uniqueSuffix}@T.PL",
-                FirstName = $"F_{uniqueSuffix}",
-                LastName = $"L_{uniqueSuffix}",
-            };
-
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Company_{uniqueSuffix}",
-                NIP = "111",
-                OwnerId = owner.Id,
-                Owner = owner
-            };
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "PLN",
-                Code = "PLN",
-                DecimalPlaces = 2
-            };
+            var (company, owner, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 50000);
 
             var now = DateTime.UtcNow;
 
@@ -451,12 +391,11 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "INV/OVER",
                 CompanyId = company.Id,
-                Company = company,
                 CurrencyId = currency.Id,
-                Currency = currency,
+                DealId = deal.Id,
                 TotalAmount = 2000000,
                 PaidAmount = 0,
-                DueDate = now.AddDays(-10)
+                DueDate = now.AddDays(-10),
             };
 
             var futureInvoice = new Invoice
@@ -464,9 +403,8 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "INV/FUTURE",
                 CompanyId = company.Id,
-                Company = company,
                 CurrencyId = currency.Id,
-                Currency = currency,
+                DealId = deal.Id,
                 TotalAmount = 3000000,
                 PaidAmount = 1000000,
                 DueDate = now.AddDays(5)
@@ -477,17 +415,13 @@ namespace Tests.Services
                 Id = Guid.NewGuid(),
                 InvoiceNumber = "INV/PAID",
                 CompanyId = company.Id,
-                Company = company,
                 CurrencyId = currency.Id,
-                Currency = currency,
+                DealId = deal.Id,
                 TotalAmount = 5000000,
                 PaidAmount = 5000000,
                 DueDate = now.AddDays(-20)
             };
 
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(company);
-            _contextMock.Currencies.Add(currency);
             _contextMock.Invoices.AddRange(overdueInvoice, futureInvoice, paidInvoice);
             await _contextMock.SaveChangesAsync();
 
@@ -546,55 +480,27 @@ namespace Tests.Services
         public async Task GetCompanyDebtsAsync_WhenCompanyContainsCorruptedInvoices_ThrowsDataCorruptionException()
         {
             // Arrange
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var ownerId = Guid.NewGuid();
+            var uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
 
-            var owner = new ApplicationUser
-            {
-                Id = ownerId,
-                UserName = $"User_{uniqueSuffix}",
-                NormalizedUserName = $"USER_{uniqueSuffix}",
-                Email = $"user_{uniqueSuffix}@test.pl",
-                NormalizedEmail = $"USER_{uniqueSuffix}@TEST.PL",
-                FirstName = "Adam",
-                LastName = "Nowak"
-            };
-
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"CorruptedCompany_{uniqueSuffix}",
-                NIP = "9876543210",
-                OwnerId = ownerId,
-                Owner = owner
-            };
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "EUR",
-                Code = "EUR",
-                DecimalPlaces = 2
-            };
+            var (company, _, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 50000);
 
             var invalidInvoice = new Invoice
             {
                 Id = Guid.NewGuid(),
                 InvoiceNumber = $"INV/BAD/{uniqueSuffix}",
                 CompanyId = company.Id,
-                Company = company,
                 CurrencyId = currency.Id,
-                Currency = currency,
+                DealId = deal.Id,
                 TotalAmount = 20000,
                 PaidAmount = -500,
                 DueDate = DateTime.UtcNow.AddDays(2)
             };
 
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(company);
-            _contextMock.Currencies.Add(currency);
             _contextMock.Invoices.Add(invalidInvoice);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new CompanyCommand
             {
@@ -608,37 +514,28 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
+
         // ─── GetInvoiceListAsync ───────────────────────────────────────────────────
 
         [Test]
         public async Task GetInvoiceListAsync_MapsAllFieldsAndCalculatesAmountsCorrectly()
         {
-            // Arrange
-            var suffix = Guid.NewGuid().ToString("N")[..8];
-            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
-
             var issueDate = DateTime.UtcNow.AddDays(-10);
             var dueDate = DateTime.UtcNow.AddDays(4);
 
-            var invoice = new Invoice
-            {
-                Id = Guid.NewGuid(),
-                InvoiceNumber = $"FV/TEST/{suffix}",
-                CompanyId = company.Id,
-                Company = company,
-                CurrencyId = currency.Id,
-                Currency = currency,
-                TotalAmount = 5000000,
-                PaidAmount = 2000000,
-                IssueDate = issueDate,
-                DueDate = dueDate
-            };
+            var (company, _, _, _, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 2000000,
+                dueDate: dueDate);
 
-            _contextMock.Invoices.Add(invoice);
+            invoice.IssueDate = issueDate;
+            _contextMock.Invoices.Update(invoice);
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
             var command = new InvoiceListCommand
             {
+                CompanyNip = company.NIP,
                 PageNumber = 1,
                 PageSize = 10
             };
@@ -652,6 +549,7 @@ namespace Tests.Services
 
             var items = result.Data!.Items;
             await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(1);
 
             var item = items.First();
             await Assert.That(item.Id).IsEqualTo(invoice.Id);
@@ -671,7 +569,10 @@ namespace Tests.Services
         {
             // Arrange
             var suffix = Guid.NewGuid().ToString("N")[..8];
-            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+
+            var (company, owner, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 20000);
 
             for (int i = 1; i <= 5; i++)
             {
@@ -684,7 +585,8 @@ namespace Tests.Services
                     TotalAmount = 1000000 * i,
                     PaidAmount = 0,
                     IssueDate = DateTime.UtcNow.AddDays(-i),
-                    DueDate = DateTime.UtcNow.AddDays(10)
+                    DueDate = DateTime.UtcNow.AddDays(10),
+                    DealId = deal.Id
                 });
             }
             await _contextMock.SaveChangesAsync();
@@ -702,7 +604,7 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items).Count().IsEqualTo(2);
-            await Assert.That(result.Data.TotalCount).IsEqualTo(5);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(6);
             await Assert.That(result.Data.PageNumber).IsEqualTo(2);
         }
 
@@ -711,7 +613,9 @@ namespace Tests.Services
         {
             // Arrange
             var suffix = Guid.NewGuid().ToString("N")[..8];
-            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+            var (company, owner, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 1000000,
+                paidAmount: 20000);
 
             var invLow = new Invoice
             {
@@ -721,7 +625,8 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 TotalAmount = 1000000,
                 IssueDate = DateTime.UtcNow,
-                DueDate = DateTime.UtcNow.AddDays(7)
+                DueDate = DateTime.UtcNow.AddDays(7),
+                DealId = deal.Id
             };
 
             var invHigh = new Invoice
@@ -732,7 +637,8 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 TotalAmount = 9000000,
                 IssueDate = DateTime.UtcNow,
-                DueDate = DateTime.UtcNow.AddDays(7)
+                DueDate = DateTime.UtcNow.AddDays(7),
+                DealId = deal.Id
             };
 
             _contextMock.Invoices.AddRange(invLow, invHigh);
@@ -765,7 +671,9 @@ namespace Tests.Services
         {
             // Arrange
             var suffix = Guid.NewGuid().ToString("N")[..8];
-            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+            var (company, owner, currency, deal, _) = await SeedInvoiceGraphAsync(
+                    totalAmount: 50000,
+                    paidAmount: 20000);
 
             var now = DateTime.UtcNow;
 
@@ -777,7 +685,8 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 TotalAmount = 5000000,
                 IssueDate = now.AddDays(-5),
-                DueDate = now.AddDays(10)
+                DueDate = now.AddDays(10),
+                DealId = deal.Id
             };
 
             var nonMatchingAmount = new Invoice
@@ -788,7 +697,8 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 TotalAmount = 1000000,
                 IssueDate = now.AddDays(-5),
-                DueDate = now.AddDays(10)
+                DueDate = now.AddDays(10),
+                DealId = deal.Id
             };
 
             var nonMatchingDate = new Invoice
@@ -799,7 +709,8 @@ namespace Tests.Services
                 CurrencyId = currency.Id,
                 TotalAmount = 5000000,
                 IssueDate = now.AddDays(-30),
-                DueDate = now.AddDays(10)
+                DueDate = now.AddDays(10),
+                DealId = deal.Id
             };
 
             _contextMock.Invoices.AddRange(matchingInvoice, nonMatchingAmount, nonMatchingDate);
@@ -828,8 +739,9 @@ namespace Tests.Services
         {
             // Arrange
             var suffix = Guid.NewGuid().ToString("N")[..8];
-            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
-
+            var (company, owner, currency, deal, _) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 20000);
             var now = DateTime.UtcNow;
 
             var overdueInvoice = new Invoice
@@ -841,7 +753,8 @@ namespace Tests.Services
                 TotalAmount = 3000000,
                 PaidAmount = 1000000,
                 IssueDate = now.AddDays(-20),
-                DueDate = now.AddDays(-5) 
+                DueDate = now.AddDays(-5),
+                DealId = deal.Id
             };
 
             var futureInvoice = new Invoice
@@ -853,7 +766,8 @@ namespace Tests.Services
                 TotalAmount = 3000000,
                 PaidAmount = 1000000,
                 IssueDate = now.AddDays(-5),
-                DueDate = now.AddDays(10) 
+                DueDate = now.AddDays(10),
+                DealId = deal.Id
             };
 
             var fullyPaidOverdueDate = new Invoice
@@ -865,7 +779,8 @@ namespace Tests.Services
                 TotalAmount = 3000000,
                 PaidAmount = 3000000,
                 IssueDate = now.AddDays(-20),
-                DueDate = now.AddDays(-5) 
+                DueDate = now.AddDays(-5),
+                DealId = deal.Id
             };
 
             _contextMock.Invoices.AddRange(overdueInvoice, futureInvoice, fullyPaidOverdueDate);
@@ -891,53 +806,16 @@ namespace Tests.Services
         public async Task GetInvoiceListAsync_SearchesByCompanyNameAndNipUsingUnaccent()
         {
             // Arrange
-            var suffix = Guid.NewGuid().ToString("N")[..8];
-            var owner = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"U_{suffix}",
-                Email = $"u_{suffix}@test.pl",
-                FirstName = "Piotr",
-                LastName = "Kowalski"
-            };
+            var (company, _, _, _, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 20000);
 
-            var accentedCompany = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Żelazo i Stal {suffix}",
-                NIP = "9998887766",
-                OwnerId = owner.Id,
-                Owner = owner
-            };
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "PLN",
-                Code = "PLN",
-                DecimalPlaces = 2
-            };
-
-            var invoice = new Invoice
-            {
-                Id = Guid.NewGuid(),
-                InvoiceNumber = $"FV/SEARCH/{suffix}",
-                CompanyId = accentedCompany.Id,
-                Company = accentedCompany,
-                CurrencyId = currency.Id,
-                Currency = currency,
-                TotalAmount = 1000000,
-                IssueDate = DateTime.UtcNow,
-                DueDate = DateTime.UtcNow.AddDays(7)
-            };
-
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(accentedCompany);
-            _contextMock.Currencies.Add(currency);
-            _contextMock.Invoices.Add(invoice);
+            var dbCompany = await _contextMock.Companies.FindAsync(company.Id);
+            dbCompany!.Name = "Hurtownia Żelazo Stal";
             await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
 
-            // Act
+            // Act 
             var result = await _invoiceServicesMock.GetInvoiceListAsync(new InvoiceListCommand
             {
                 SearchTerm = "zelazo",
@@ -946,8 +824,13 @@ namespace Tests.Services
             });
 
             // Assert
-            await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
-            await Assert.That(result.Data.Items.First().InvoiceNumber).IsEqualTo(invoice.InvoiceNumber);
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().InvoiceNumber).IsEqualTo(invoice.InvoiceNumber);
+            await Assert.That(items.First().CompanyName).IsEqualTo("Hurtownia Żelazo Stal");
         }
 
         // ─── GetInvoiceDetailAsync ─────────────────────────────────────────────────
@@ -1060,77 +943,6 @@ namespace Tests.Services
             await Assert.That(data.DealId).IsEqualTo(deal.Id);
             await Assert.That(data.DealName).IsEqualTo(deal.Name);
             await Assert.That(data.PaymentDate).IsNotNull();
-        }
-
-        [Test]
-        public async Task GetInvoiceDetailAsync_WhenInvoiceExistsWithoutDeal_ReturnsNullDealProperties()
-        {
-            // Arrange
-            var suffix = Guid.NewGuid().ToString("N")[..8];
-            var owner = new ApplicationUser
-            {
-                Id = Guid.NewGuid(),
-                UserName = $"U_NoDeal_{suffix}",
-                NormalizedUserName = $"U_NODEAL_{suffix}",
-                Email = $"nodeal_{suffix}@test.pl",
-                NormalizedEmail = $"NODEAL_{suffix}@TEST.PL",
-                FirstName = "Tomasz",
-                LastName = "Wiśniewski"
-            };
-
-            var company = new Company
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Firma Bez Deala {suffix}",
-                NIP = "1112223344",
-                OwnerId = owner.Id,
-                Owner = owner
-            };
-
-            var currency = new Currency
-            {
-                Id = Guid.NewGuid(),
-                Name = "Euro",
-                Code = "EUR",
-                DecimalPlaces = 2
-            };
-
-            var invoice = new Invoice
-            {
-                Id = Guid.NewGuid(),
-                InvoiceNumber = $"FV/STANDALONE/{suffix}",
-                CompanyId = company.Id,
-                Company = company,
-                CurrencyId = currency.Id,
-                Currency = currency,
-                DealId = null,
-                Deal = null,
-                TotalAmount = 5000000,
-                PaidAmount = 0,
-                IssueDate = DateTime.UtcNow,
-                DueDate = DateTime.UtcNow.AddDays(14),
-                PaymentDate = null
-            };
-
-            _contextMock.Users.Add(owner);
-            _contextMock.Companies.Add(company);
-            _contextMock.Currencies.Add(currency);
-            _contextMock.Invoices.Add(invoice);
-            await _contextMock.SaveChangesAsync();
-
-            // Act
-            var result = await _invoiceServicesMock.GetInvoiceDetailAsync(invoice.Id);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.Data).IsNotNull();
-
-            var data = result.Data!;
-            await Assert.That(data.InvoiceId).IsEqualTo(invoice.Id);
-            await Assert.That(data.DealId).IsNull();
-            await Assert.That(data.DealName).IsNull();
-            await Assert.That(data.PaymentDate).IsNull();
-            await Assert.That(data.CompanyName).IsEqualTo(company.Name);
         }
 
         [Test]

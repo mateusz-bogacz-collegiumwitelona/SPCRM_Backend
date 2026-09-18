@@ -29,7 +29,7 @@ namespace Infrastructure
         public DbSet<Offer> Offers { get; set; }
         public DbSet<OfferProducts> OfferProducts { get; set; }
         public DbSet<SteelGrade> SteelGrades { get; set; }
-
+        public DbSet<InvoiceProducts> InvoiceProducts { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -102,6 +102,28 @@ namespace Infrastructure
             builder.Entity<ContactDetail>()
                 .Property(d => d.UpdateAt)
                 .IsConcurrencyToken(false);
+
+            builder.Entity<Invoice>()
+                .HasOne(i => i.Deal)
+                .WithMany(d => d.Invoices)
+                .HasForeignKey(i => i.DealId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Invoice>()
+                .HasIndex(i => i.InvoiceNumber)
+                .IsUnique();
+
+            builder.Entity<InvoiceProducts>()
+                .HasOne(ip => ip.Invoice)
+                .WithMany(i => i.InvoiceProducts)
+                .HasForeignKey(ip => ip.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InvoiceProducts>()
+                .HasOne(ip => ip.Product)
+                .WithMany()
+                .HasForeignKey(ip => ip.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<ApplicationUser>(b =>
             {

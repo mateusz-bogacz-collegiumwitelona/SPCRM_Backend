@@ -2575,6 +2575,35 @@ namespace Tests.Services
                 Code = "PLN"
             };
 
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner,
+                IsPrimary = true
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = $"D/{uniqueSuffix}",
+                Value = 50000,
+                Status = DealsStatusEnum.Complete,
+                CloseDate = DateTime.UtcNow,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner,
+                ContactId = contact.Id,
+                Contact = contact
+            };
+
             var invoice = new Invoice
             {
                 Id = Guid.NewGuid(),
@@ -2583,13 +2612,19 @@ namespace Tests.Services
                 PaidAmount = 50000,
                 IssueDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(14),
+                CurrencyId = currency.Id,
                 Currency = currency,
-                Company = company
+                CompanyId = company.Id,
+                Company = company,
+                DealId = deal.Id,
+                Deal = deal
             };
 
             _contextMock.Users.Add(owner);
             _contextMock.Currencies.Add(currency);
             _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.Add(deal);
             _contextMock.Invoices.Add(invoice);
             await _contextMock.SaveChangesAsync();
 

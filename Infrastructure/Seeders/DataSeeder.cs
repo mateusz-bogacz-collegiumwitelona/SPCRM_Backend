@@ -647,17 +647,57 @@ namespace Infrastructure.Seeders
                     await _context.Invoices.AddAsync(invoice);
                 }
 
+                var currentDealProducts = new List<DealProduct>();
                 int itemsCount = random.Next(1, 5);
+
                 for (int j = 0; j < itemsCount; j++)
                 {
                     var product = products[random.Next(products.Count)];
-                    dealProducts.Add(new DealProduct
+                    var dp = new DealProduct
                     {
                         Deal = deal,
                         Product = product,
                         Quantity = random.Next(1, 50),
                         UnitPrice = product.PricePerUnit
-                    });
+                    };
+                    currentDealProducts.Add(dp);
+                    dealProducts.Add(dp);
+                }
+
+                deal.Value = currentDealProducts.Sum(dp => (long)dp.Quantity * dp.UnitPrice);
+
+                if (deal.Status == DealsStatusEnum.Complete)
+                {
+                    bool isPaid = random.Next(100) < 60;
+
+                    var invoice = new Invoice
+                    {
+                        Id = Guid.NewGuid(),
+                        InvoiceNumber = $"FV/{DateTime.UtcNow.Year}/{DateTime.UtcNow.Month:D2}/{i:D4}",
+                        TotalAmount = deal.Value,
+                        PaidAmount = isPaid ? deal.Value : 0,
+                        IssueDate = deal.CloseDate,
+                        DueDate = deal.CloseDate.AddDays(14),
+                        PaymentDate = isPaid ? deal.CloseDate.AddDays(random.Next(1, 10)) : null,
+                        CurrencyId = deal.Currency.Id,
+                        Currency = deal.Currency,
+                        CompanyId = deal.Company.Id,
+                        Company = deal.Company,
+                        DealId = deal.Id,
+                        Deal = deal,
+                        InvoiceProducts = currentDealProducts.Select(dp => new InvoiceProducts
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductId = dp.Product.Id,
+                            ProductName = dp.Product.Name,
+                            SteelGrade = dp.Product.SteelGrade?.Name,
+                            UnitSymbol = dp.Product.Unit.Symbol,
+                            Quantity = dp.Quantity,
+                            UnitPrice = dp.UnitPrice
+                        }).ToList()
+                    };
+
+                    await _context.Invoices.AddAsync(invoice);
                 }
 
                 for (int t = 1; t <= 2; t++)

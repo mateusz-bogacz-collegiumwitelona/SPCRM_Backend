@@ -33,13 +33,10 @@ namespace Worker.Workers
             string language)
         {
             var invoice = await _context.Invoices
-                .Include(i => i.Currency)
-                .Include(i => i.Company)
-                .Include(i => i.Deal)
-                    .ThenInclude(d => d!.DealProducts)
-                        .ThenInclude(dp => dp.Product)
-                            .ThenInclude(p => p.Unit)
-                .FirstOrDefaultAsync(i => i.Id == invoiceId);
+                    .Include(i => i.Currency)
+                    .Include(i => i.Company)
+                    .Include(i => i.InvoiceProducts)
+                    .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
             if (invoice == null)
             {

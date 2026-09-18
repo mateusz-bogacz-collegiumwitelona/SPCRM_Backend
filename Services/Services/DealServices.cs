@@ -1,10 +1,11 @@
 ﻿using Domain.Common;
-using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
+using Domain.Events;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -26,24 +27,24 @@ namespace Services.Services
         private readonly ILogger<DealServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
         private readonly IDealStateMachineFactory _state;
-        private readonly IEmailSender _emailSender;
         private readonly IInventoryService _inventory;
+        private readonly IPublisher _publisher;
 
         public DealServices(
             AppDbContext context,
             ILogger<DealServices> logger,
             IEntityAuthorizationService entityAuth,
             IDealStateMachineFactory state,
-            IEmailSender emailSender,
-            IInventoryService inventory
+            IInventoryService inventory,
+            IPublisher publisher    
             )
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
             _state = state;
-            _emailSender = emailSender;
             _inventory = inventory;
+            _publisher = publisher;
         }
 
         public async Task<Result<PagedResult<UserDealResponse>>> GetDealsAsync(DealListCommand command, Guid? forcedOwnerId = null)
@@ -761,6 +762,8 @@ namespace Services.Services
         {
             var deal = await _context.Deals
                 .Include(d => d.Currency)
+                .Include(d => d.Contact)
+                    .ThenInclude(ct => ct.ContactDetails)
                 .Include(d => d.Company)
                     .ThenInclude(c => c.Contacts)
                         .ThenInclude(ct => ct.ContactDetails)
@@ -802,8 +805,6 @@ namespace Services.Services
                 );
             }
 
-            Invoice? createdInvoice = null;
-
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -820,18 +821,9 @@ namespace Services.Services
                             statusCode: inventory.StatusCode
                         );
                     }
-
-                    createdInvoice = await CreateInvoiceForDealAsync(deal);
                 }
 
                 var affectedRows = await _context.SaveChangesAsync();
-
-                if (affectedRows <= 0)
-                {
-                    _logger.LogError("Failed to save changes to Deal {DealId} when changing status to {TargetStatus}.", command.DealId, command.TargetStatus);
-                    throw new DataCorruptionException($"Failed to save changes for Deal '{command.DealId}' when changing status to {command.TargetStatus}.");
-                }
-
                 await transaction.CommitAsync();
             }
             catch (Exception ex)
@@ -843,85 +835,21 @@ namespace Services.Services
 
             string? recipientEmail = null;
 
-            if (createdInvoice != null)
+            if (command.TargetStatus == DealsStatusEnum.Complete)
             {
                 recipientEmail = ResolveRecipientEmail(deal, command.CustomRecipientEmail);
-                await SendInvoiceEmailAsync(createdInvoice, deal,
-                    command.Language ?? "pl",
-                    recipientEmail);
-
-                _logger.LogInformation("Invoice {InvoiceId} created and queued for Deal {DealId}.", createdInvoice.Id, command.DealId);
+                await _publisher.Publish(new DealCompletedEvent(deal.Id, recipientEmail, command.Language));
             }
-
-            var response = new ChangeDealStatusResponse
-            {
-                Status = command.TargetStatus.ToString(),
-                SentToEmail = recipientEmail
-            };
 
             return Result<ChangeDealStatusResponse>.Success(
                 message: $"Deal status changed to {command.TargetStatus}.",
                 statusCode: StatusCodes.Status200OK,
-                data: response
-            );
-        }
-
-        private async Task<Invoice> CreateInvoiceForDealAsync(Deal deal)
-        {
-            var year = DateTime.UtcNow.Year;
-            var month = DateTime.UtcNow.Month;
-
-            var currentMonthInvoicesCount = await _context.Invoices
-                .CountAsync(i => i.IssueDate.Year == year && i.IssueDate.Month == month);
-
-            var invoiceNumber = $"FV/{year:0000}/{month:00}/{currentMonthInvoicesCount + 1:0000}";
-
-            var actualTotal = deal.DealProducts.Sum(dp => (long)dp.Quantity * dp.UnitPrice);
-
-            deal.Value = actualTotal;
-
-            var invoice = new Invoice
-            {
-                Id = Guid.NewGuid(),
-                InvoiceNumber = invoiceNumber,
-                IssueDate = DateTime.UtcNow,
-                DueDate = DateTime.UtcNow.AddDays(14),
-                TotalAmount = actualTotal,
-                DealId = deal.Id,
-                CompanyId = deal.CompanyId,
-                CurrencyId = deal.CurrencyId
-            };
-
-            await _context.Invoices.AddAsync(invoice);
-            return invoice;
-        }
-
-        private async Task SendInvoiceEmailAsync(Invoice invoice, Deal deal, string language, string? recipientEmail)
-        {
-            if (!string.IsNullOrWhiteSpace(recipientEmail))
-            {
-                var invoiceMailPayload = new InvoiceEmailDomain
+                data: new ChangeDealStatusResponse
                 {
-                    InvoiceId = invoice.Id,
-                    InvoiceNumber = invoice.InvoiceNumber,
-                    RecipientEmail = recipientEmail,
-                    RecipientName = deal.Company.Name,
-                    TotalGrossAmount = deal.Value / 10000m,
-                    CurrencyCode = deal.Currency.Code,
-                    DueDate = invoice.DueDate,
-                    Language = language
-                };
-
-                await _emailSender.SendInvoiceEmailAsync(invoiceMailPayload);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "Deal {DealId} transitioned to Complete and Invoice {InvoiceNumber} was created, but no contact email was found.",
-                    deal.Id,
-                    invoice.InvoiceNumber
-                );
-            }
+                    Status = command.TargetStatus.ToString(),
+                    SentToEmail = recipientEmail
+                }
+            );
         }
 
         private static string? ResolveRecipientEmail(Deal deal, string? customEmail)
@@ -931,21 +859,29 @@ namespace Services.Services
                 return customEmail;
             }
 
-            var primaryContactEmail = deal.Company.Contacts
-                .Where(c => c.IsPrimary)
-                .SelectMany(c => c.ContactDetails)
-                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)?
-                .Value;
+            var dealContactEmail = deal.Contact?.ContactDetails?
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)?.Value
+                ?? deal.Contact?.ContactDetails?
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?.Value;
 
-            if (!string.IsNullOrWhiteSpace(primaryContactEmail))
+            if (!string.IsNullOrWhiteSpace(dealContactEmail))
             {
-                return primaryContactEmail;
+                return dealContactEmail;
             }
 
-            return deal.Company.Contacts
+            var primaryCompanyEmail = deal.Company?.Contacts?
+                .Where(c => c.IsPrimary)
                 .SelectMany(c => c.ContactDetails)
-                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?
-                .Value;
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)?.Value;
+
+            if (!string.IsNullOrWhiteSpace(primaryCompanyEmail))
+            {
+                return primaryCompanyEmail;
+            }
+
+            return deal.Company?.Contacts?
+                .SelectMany(c => c.ContactDetails)
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?.Value;
         }
     }
 }
