@@ -1,4 +1,5 @@
 ﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
@@ -947,6 +948,205 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
             await Assert.That(result.Data.Items.First().InvoiceNumber).IsEqualTo(invoice.InvoiceNumber);
+        }
+
+        // ─── GetInvoiceDetailAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetInvoiceDetailAsync_WhenInvoiceExistsWithDeal_ReturnsFullDetails()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var owner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U_{suffix}",
+                NormalizedUserName = $"U_{suffix}".ToUpper(),
+                Email = $"u_{suffix}@test.pl",
+                NormalizedEmail = $"U_{suffix}@TEST.PL",
+                FirstName = "Piotr",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Hurtownia Stali {suffix}",
+                NIP = "5554443322",
+                OwnerId = owner.Id,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marek",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = owner.Id,
+                Owner = owner,
+                IsPrimary = true
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = $"D/2026/09/18/{suffix}",
+                Value = 10000000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow.AddDays(7),
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = owner.Id,
+                Owner = owner,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                ContactId = contact.Id,
+                Contact = contact
+            };
+
+            var issueDate = DateTime.UtcNow.AddDays(-2);
+            var dueDate = DateTime.UtcNow.AddDays(12);
+            var paymentDate = DateTime.UtcNow.AddDays(-1);
+
+            var invoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/DETAIL/{suffix}",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                DealId = deal.Id,
+                Deal = deal,
+                TotalAmount = 10000000,
+                PaidAmount = 10000000,
+                IssueDate = issueDate,
+                DueDate = dueDate,
+                PaymentDate = paymentDate
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Invoices.Add(invoice);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceDetailAsync(invoice.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.InvoiceId).IsEqualTo(invoice.Id);
+            await Assert.That(data.InvoiceNumber).IsEqualTo($"FV/DETAIL/{suffix}");
+            await Assert.That(data.CompanyId).IsEqualTo(company.Id);
+            await Assert.That(data.CompanyName).IsEqualTo(company.Name);
+            await Assert.That(data.CompanyNip).IsEqualTo(company.NIP);
+            await Assert.That(data.DealId).IsEqualTo(deal.Id);
+            await Assert.That(data.DealName).IsEqualTo(deal.Name);
+            await Assert.That(data.PaymentDate).IsNotNull();
+        }
+
+        [Test]
+        public async Task GetInvoiceDetailAsync_WhenInvoiceExistsWithoutDeal_ReturnsNullDealProperties()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var owner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U_NoDeal_{suffix}",
+                NormalizedUserName = $"U_NODEAL_{suffix}",
+                Email = $"nodeal_{suffix}@test.pl",
+                NormalizedEmail = $"NODEAL_{suffix}@TEST.PL",
+                FirstName = "Tomasz",
+                LastName = "Wiśniewski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma Bez Deala {suffix}",
+                NIP = "1112223344",
+                OwnerId = owner.Id,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Euro",
+                Code = "EUR",
+                DecimalPlaces = 2
+            };
+
+            var invoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/STANDALONE/{suffix}",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                DealId = null,
+                Deal = null,
+                TotalAmount = 5000000,
+                PaidAmount = 0,
+                IssueDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(14),
+                PaymentDate = null
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Invoices.Add(invoice);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceDetailAsync(invoice.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.InvoiceId).IsEqualTo(invoice.Id);
+            await Assert.That(data.DealId).IsNull();
+            await Assert.That(data.DealName).IsNull();
+            await Assert.That(data.PaymentDate).IsNull();
+            await Assert.That(data.CompanyName).IsEqualTo(company.Name);
+        }
+
+        [Test]
+        public async Task GetInvoiceDetailAsync_WhenInvoiceDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var nonExistentInvoiceId = Guid.NewGuid();
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceDetailAsync(nonExistentInvoiceId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvoiceNotFound);
+            await Assert.That(result.Message).IsEqualTo("Invoice not found.");
         }
     }
 }

@@ -168,5 +168,43 @@ namespace Services.Services
                     DueDate = i.DueDate,
                 })
             .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_list");
+
+        public async Task<Result<InvoiceDetailResponse>> GetInvoiceDetailAsync(Guid invoiceId)
+        {
+            var invoice = await _context.Invoices
+                .AsNoTracking()
+                .Where(i => i.Id == invoiceId)
+                .Select(i => new InvoiceDetailResponse
+                {
+                    InvoiceId = i.Id,
+                    InvoiceNumber = i.InvoiceNumber,
+                    IssueDate = i.IssueDate,
+                    DueDate = i.DueDate,
+                    PaymentDate = i.PaymentDate,
+                    CompanyId = i.CompanyId,
+                    CompanyName = i.Company.Name,
+                    CompanyNip = i.Company.NIP,
+                    DealId = i.DealId,
+                    DealName = i.Deal != null ? i.Deal.Name : null
+                })
+                .FirstOrDefaultAsync();
+
+            if (invoice == null)
+            {
+                _logger.LogInformation("Invoice with id {InvoiceId} not found.", invoiceId);
+                return Result<InvoiceDetailResponse>.Failure(
+                    message: "Invoice not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.InvoiceNotFound
+                );
+            }
+
+            _logger.LogInformation("Invoice details for id {InvoiceId} retrieved successfully.", invoiceId);
+            return Result<InvoiceDetailResponse>.Success(
+                message: "Invoice details retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: invoice
+            );
+        }
     }
 }

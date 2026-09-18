@@ -11,5 +11,6 @@ namespace Services.Interfaces
         Task<Result<List<CompanyDebtSummaryResponse>>> GetCompanyDebtSummaryAsync(Guid comapnyId);
         Task<Result<PagedResult<CompanyDebtDetailResponse>>> GetCompanyDebtsAsync(CompanyCommand command);
         Task<Result<PagedResult<InvoiceResponse>>> GetInvoiceListAsync(InvoiceListCommand command);
+        Task<Result<InvoiceDetailResponse>> GetInvoiceDetailAsync(Guid invoiceId);
     }
 }

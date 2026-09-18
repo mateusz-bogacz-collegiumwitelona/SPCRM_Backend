@@ -167,6 +167,8 @@
         public const string PasswordSetFailed = "USR_010";
         public const string AccountLocked = "USR_011";
 
+        // Invoice
+        public const string InvoiceNotFound = "INV_001";
 
     }
 }
