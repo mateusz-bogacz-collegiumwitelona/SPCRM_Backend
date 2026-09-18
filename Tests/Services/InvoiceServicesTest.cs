@@ -1365,5 +1365,252 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvoiceNotFound);
             await Assert.That(result.Message).IsEqualTo("Invoice not found.");
         }
+
+        // ─── GetInvoicePaymentsAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetInvoicePaymentsAsync_MapsAllFieldsCorrectly_IncludingUserAndNullUser()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 10000000,
+                paidAmount: 5000000);
+
+            var now = DateTime.UtcNow;
+
+            var paymentWithUser = new InvoicePayment
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                Amount = 3000000,
+                PaymentDate = now.AddDays(-1),
+                ReferenceNumber = "PRZ/2026/001",
+                Note = "Wpłata zaliczkowa",
+                CreatedById = owner.Id
+            };
+
+            var paymentWithoutUser = new InvoicePayment
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                Amount = 2000000,
+                PaymentDate = now.AddDays(-2),
+                ReferenceNumber = "PRZ/2026/002",
+                Note = "Automatyczny import wyciągu",
+                CreatedById = null
+            };
+
+            _contextMock.InvoicePayments.AddRange(paymentWithUser, paymentWithoutUser);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentsAsync(invoice.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(2);
+
+            var first = items.First(p => p.PaymentId == paymentWithUser.Id);
+            await Assert.That(first.Amount).IsEqualTo(3000000L);
+            await Assert.That(first.ReferenceNumber).IsEqualTo("PRZ/2026/001");
+            await Assert.That(first.Note).IsEqualTo("Wpłata zaliczkowa");
+            await Assert.That(first.CreatedByFirstName).IsEqualTo(owner.FirstName);
+            await Assert.That(first.CreatedByLastName).IsEqualTo(owner.LastName);
+
+            var second = items.First(p => p.PaymentId == paymentWithoutUser.Id);
+            await Assert.That(second.Amount).IsEqualTo(2000000L);
+            await Assert.That(second.ReferenceNumber).IsEqualTo("PRZ/2026/002");
+            await Assert.That(second.Note).IsEqualTo("Automatyczny import wyciągu");
+            await Assert.That(second.CreatedByFirstName).IsNull();
+            await Assert.That(second.CreatedByLastName).IsNull();
+        }
+
+        [Test]
+        public async Task GetInvoicePaymentsAsync_FiltersOnlyPaymentsForSpecifiedInvoice()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoiceTarget) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 2000000);
+
+            var invoiceOther = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = "FV/OTHER/PAY",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                DealId = deal.Id,
+                TotalAmount = 5000000,
+                PaidAmount = 1000000,
+                IssueDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(14)
+            };
+            _contextMock.Invoices.Add(invoiceOther);
+
+            var targetPayment = new InvoicePayment
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoiceTarget.Id,
+                Amount = 2000000,
+                PaymentDate = DateTime.UtcNow.AddDays(-1),
+                ReferenceNumber = "PAY/TARGET"
+            };
+
+            var otherPayment = new InvoicePayment
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoiceOther.Id,
+                Amount = 1000000,
+                PaymentDate = DateTime.UtcNow.AddDays(-1),
+                ReferenceNumber = "PAY/OTHER"
+            };
+
+            _contextMock.InvoicePayments.AddRange(targetPayment, otherPayment);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentsAsync(invoiceTarget.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().PaymentId).IsEqualTo(targetPayment.Id);
+            await Assert.That(items.First().ReferenceNumber).IsEqualTo("PAY/TARGET");
+        }
+
+        [Test]
+        public async Task GetInvoicePaymentsAsync_AppliesPaginationAndSortsDescendingByPaymentDate()
+        {
+            // Arrange
+            var (company, _, _, _, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 6000000,
+                paidAmount: 6000000);
+
+            var now = DateTime.UtcNow;
+
+            var payments = new List<InvoicePayment>
+            {
+                new() { Id = Guid.NewGuid(), InvoiceId = invoice.Id, Amount = 1000000, PaymentDate = now.AddDays(-5), ReferenceNumber = "PAY/OLD" },
+                new() { Id = Guid.NewGuid(), InvoiceId = invoice.Id, Amount = 2000000, PaymentDate = now.AddDays(-1), ReferenceNumber = "PAY/NEWEST" },
+                new() { Id = Guid.NewGuid(), InvoiceId = invoice.Id, Amount = 3000000, PaymentDate = now.AddDays(-3), ReferenceNumber = "PAY/MIDDLE" }
+            };
+
+            _contextMock.InvoicePayments.AddRange(payments);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 2
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentsAsync(invoice.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(2);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(3);
+            await Assert.That(result.Data.TotalPages).IsEqualTo(2);
+
+            await Assert.That(items[0].ReferenceNumber).IsEqualTo("PAY/NEWEST");
+            await Assert.That(items[1].ReferenceNumber).IsEqualTo("PAY/MIDDLE");
+        }
+
+        [Test]
+        public async Task GetInvoicePaymentsAsync_SearchesByNoteUsingUnaccentAndByExactNumericAmount()
+        {
+            // Arrange
+            var (company, owner, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 10000000,
+                paidAmount: 8000000);
+
+            var matchedByUnaccentNote = new InvoicePayment
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                Amount = 5000000,
+                PaymentDate = DateTime.UtcNow.AddDays(-2),
+                ReferenceNumber = "REF/1",
+                Note = "Żądana zaliczka częściowa"
+            };
+
+            var matchedByNumericAmount = new InvoicePayment
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                Amount = 3000000,
+                PaymentDate = DateTime.UtcNow.AddDays(-1),
+                ReferenceNumber = "REF/2",
+                Note = "Kompensata"
+            };
+
+            _contextMock.InvoicePayments.AddRange(matchedByUnaccentNote, matchedByNumericAmount);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act 
+            var resultText = await _invoiceServicesMock.GetInvoicePaymentsAsync(invoice.Id, new SimpleListCommand
+            {
+                SearchTerm = "zadana",
+                PageNumber = 1,
+                PageSize = 10
+            });
+
+            var resultNumber = await _invoiceServicesMock.GetInvoicePaymentsAsync(invoice.Id, new SimpleListCommand
+            {
+                SearchTerm = "3000000",
+                PageNumber = 1,
+                PageSize = 10
+            });
+
+            // Assert 1
+            await Assert.That(resultText.IsSuccess).IsTrue();
+            await Assert.That(resultText.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(resultText.Data.Items.First().PaymentId).IsEqualTo(matchedByUnaccentNote.Id);
+
+            // Assert 2
+            await Assert.That(resultNumber.IsSuccess).IsTrue();
+            await Assert.That(resultNumber.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(resultNumber.Data.Items.First().PaymentId).IsEqualTo(matchedByNumericAmount.Id);
+        }
+
+        [Test]
+        public async Task GetInvoicePaymentsAsync_WhenNoPaymentsMatchOrEmptyInvoice_ReturnsSuccessWithEmptyList()
+        {
+            // Arrange
+            var randomInvoiceId = Guid.NewGuid();
+            var command = new SimpleListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoicePaymentsAsync(randomInvoiceId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+        }
     }
 }

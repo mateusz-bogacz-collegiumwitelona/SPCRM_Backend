@@ -119,5 +119,31 @@ namespace Services.QueryExtension
 
             return query;
         }
+
+        internal static IQueryable<InvoicePayment> ApplyPaymentSearch(this IQueryable<InvoicePayment> query, string? searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return query;
+            }
+
+            var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var term in terms)
+            {
+                string wildcardTerm = $"%{term}%";
+                var isNumber = long.TryParse(term, out var numericVal);
+
+                query = query.Where(i =>
+                    (i.ReferenceNumber != null && EF.Functions.ILike(EF.Functions.Unaccent(i.ReferenceNumber), EF.Functions.Unaccent(wildcardTerm))) ||
+                    (i.Note != null && EF.Functions.ILike(EF.Functions.Unaccent(i.Note), EF.Functions.Unaccent(wildcardTerm))) ||
+                    (i.CreatedBy != null && EF.Functions.ILike(EF.Functions.Unaccent(i.CreatedBy.FirstName), EF.Functions.Unaccent(wildcardTerm))) ||
+                    (i.CreatedBy != null && EF.Functions.ILike(EF.Functions.Unaccent(i.CreatedBy.LastName), EF.Functions.Unaccent(wildcardTerm))) ||
+                    (isNumber && i.Amount == numericVal)
+                );
+            }
+
+            return query;
+        }
     }
 }

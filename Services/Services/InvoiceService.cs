@@ -265,5 +265,23 @@ namespace Services.Services
             );
         }
 
+        public async Task<Result<PagedResult<InvoicePaymentListResponse>>> GetInvoicePaymentsAsync(Guid invoiceId, SimpleListCommand command)
+            => await _context.InvoicePayments
+                .AsNoTracking()
+                .Where(p => p.InvoiceId == invoiceId)
+                .OrderByDescending(p => p.PaymentDate)
+                .ApplyPaymentSearch(command.SearchTerm)
+                .Select(p => new InvoicePaymentListResponse
+                {
+                    PaymentId = p.Id,
+                    Amount = p.Amount,
+                    PaymentDate = p.PaymentDate,
+                    ReferenceNumber = p.ReferenceNumber,
+                    Note = p.Note,
+                    CreatedByFirstName = p.CreatedBy != null ? p.CreatedBy.FirstName : null,
+                    CreatedByLastName = p.CreatedBy != null ? p.CreatedBy.LastName : null
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_payment_list");
+
     }
 }
