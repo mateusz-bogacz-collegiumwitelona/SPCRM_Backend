@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Company;
 using Services.Command.Invoice;
+using Services.Command.List;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -113,7 +114,7 @@ namespace Tests.Services
              string? invoiceNumber = null)
         {
             var uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
-            var ownerId = Guid.NewGuid(); 
+            var ownerId = Guid.NewGuid();
 
             var owner = new ApplicationUser
             {
@@ -188,6 +189,32 @@ namespace Tests.Services
             _contextMock.ChangeTracker.Clear();
 
             return (company, owner, currency, deal, invoice);
+        }
+
+        private async Task<Product> SeedProductAsync(Currency currency)
+        {
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt Bazowy",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 10000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Other
+            };
+
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            return product;
         }
 
         // ─── GetCompanyDebtSummaryAsync ─────────────────────────────────────────────────
@@ -329,10 +356,10 @@ namespace Tests.Services
         [Arguments(0, 500, -1, "PLN")]
         [Arguments(0, 500, 2, "")]
         public async Task GetCompanyDebtSummaryAsync_WhenInvoiceDataIsCorrupted_ThrowsDataCorruptionException(
-      long paidAmount,
-      long totalAmount,
-      int currencyDecimalPlaces,
-      string currencyCode)
+              long paidAmount,
+              long totalAmount,
+              int currencyDecimalPlaces,
+              string currencyCode)
         {
             // Arrange 
             var (company, _, currency, deal, _) = await SeedInvoiceGraphAsync(
@@ -959,6 +986,256 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvoiceNotFound);
             await Assert.That(result.Message).IsEqualTo("Invoice not found.");
+        }
+
+        // ─── GetInvoiceProductAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetInvoiceProductAsync_MapsAllFieldsCorrectly()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 100000,
+                paidAmount: 100000);
+
+            var realProduct = await SeedProductAsync(currency);
+
+            var invoiceProduct = new InvoiceProducts
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                ProductId = realProduct.Id,
+                ProductName = "Rura Nierdzewna 42.4x2",
+                SteelGrade = "1.4301",
+                UnitSymbol = "m",
+                Quantity = 5,
+                UnitPrice = 20000,
+            };
+
+            _contextMock.InvoiceProducts.Add(invoiceProduct);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceProductAsync(invoice.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+
+            var mapped = items.First();
+            await Assert.That(mapped.InvoiceProductId).IsEqualTo(invoiceProduct.Id);
+            await Assert.That(mapped.ProductName).IsEqualTo("Rura Nierdzewna 42.4x2");
+            await Assert.That(mapped.SteelGrade).IsEqualTo("1.4301");
+            await Assert.That(mapped.UnitSymbol).IsEqualTo("m");
+            await Assert.That(mapped.Quantity).IsEqualTo(5);
+            await Assert.That(mapped.UnitPrice).IsEqualTo(20000L);
+            await Assert.That(mapped.TotalPrice).IsEqualTo(100000L);
+        }
+
+        [Test]
+        public async Task GetInvoiceProductAsync_ReturnsOnlyProductsForSpecificInvoice()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoiceTarget) = await SeedInvoiceGraphAsync(
+                totalAmount: 50000,
+                paidAmount: 50000);
+
+            var realProduct = await SeedProductAsync(currency);
+
+            var invoiceOther = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = "FV/OTHER/001",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                DealId = deal.Id,
+                TotalAmount = 50000,
+                PaidAmount = 50000,
+                IssueDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(14)
+            };
+            _contextMock.Invoices.Add(invoiceOther);
+
+            var productTarget = new InvoiceProducts
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoiceTarget.Id,
+                ProductId = realProduct.Id,
+                ProductName = "Docelowy Produkt",
+                UnitSymbol = "szt.",
+                Quantity = 1,
+                UnitPrice = 50000
+            };
+
+            var productOther = new InvoiceProducts
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoiceOther.Id,
+                ProductId = realProduct.Id,
+                ProductName = "Inny Produkt",
+                UnitSymbol = "szt.",
+                Quantity = 2,
+                UnitPrice = 25000
+            };
+
+            _contextMock.InvoiceProducts.AddRange(productTarget, productOther);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceProductAsync(invoiceTarget.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().InvoiceProductId).IsEqualTo(productTarget.Id);
+            await Assert.That(items.First().ProductName).IsEqualTo("Docelowy Produkt");
+        }
+
+        [Test]
+        public async Task GetInvoiceProductAsync_WhenNoProductsFoundOrInvalidInvoiceId_ReturnsEmptyListWithSuccess()
+        {
+            // Arrange
+            var randomInvoiceId = Guid.NewGuid();
+            var command = new SimpleListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceProductAsync(randomInvoiceId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetInvoiceProductAsync_AppliesPaginationCorrectly()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 300000,
+                paidAmount: 300000);
+
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1, IsDeleted = false };
+            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900, IsDeleted = false };
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.SteelGrades.Add(steelGrade);
+
+            var realProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Produkt Bazowy",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                PricePerUnit = 100000,
+                StockQuantity = 50,
+                Category = ProductCategoryEnum.Other
+            };
+            _contextMock.Products.Add(realProduct);
+            await _contextMock.SaveChangesAsync();
+
+            var products = new List<InvoiceProducts>
+            {
+                new() { Id = Guid.NewGuid(), InvoiceId = invoice.Id, ProductId = realProduct.Id, ProductName = "Produkt 1", UnitSymbol = "szt.", Quantity = 1, UnitPrice = 100000 },
+                new() { Id = Guid.NewGuid(), InvoiceId = invoice.Id, ProductId = realProduct.Id, ProductName = "Produkt 2", UnitSymbol = "szt.", Quantity = 1, UnitPrice = 100000 },
+                new() { Id = Guid.NewGuid(), InvoiceId = invoice.Id, ProductId = realProduct.Id, ProductName = "Produkt 3", UnitSymbol = "szt.", Quantity = 1, UnitPrice = 100000 },
+            };
+
+            _contextMock.InvoiceProducts.AddRange(products);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 2
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceProductAsync(invoice.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(2);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(3);
+            await Assert.That(result.Data.TotalPages).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task GetInvoiceProductAsync_SearchesByProductNameAndSteelGradeUsingUnaccent()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 200000,
+                paidAmount: 200000);
+
+            var realProduct = await SeedProductAsync(currency);
+
+            var matchedProduct = new InvoiceProducts
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                ProductId = realProduct.Id,
+                ProductName = "Płaskownik Żelazny",
+                SteelGrade = "Żaroodporna",
+                UnitSymbol = "mb",
+                Quantity = 10,
+                UnitPrice = 10000
+            };
+
+            var otherProduct = new InvoiceProducts
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                ProductId = realProduct.Id,
+                ProductName = "Rura Miedziana",
+                SteelGrade = "Miedź",
+                UnitSymbol = "szt.",
+                Quantity = 2,
+                UnitPrice = 50000
+            };
+
+            _contextMock.InvoiceProducts.AddRange(matchedProduct, otherProduct);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                SearchTerm = "plaskownik",
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceProductAsync(invoice.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items.First().InvoiceProductId).IsEqualTo(matchedProduct.Id);
+            await Assert.That(items.First().ProductName).IsEqualTo("Płaskownik Żelazny");
         }
     }
 }

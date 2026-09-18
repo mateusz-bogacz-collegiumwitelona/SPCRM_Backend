@@ -1,6 +1,7 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Invoice;
+using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,6 +40,21 @@ namespace Api.Controllers
             )
         {
             var result = await invoice.GetInvoiceDetailAsync(invoiceId);
+            return HandleResult(result);
+        }
+
+
+        [EndpointSummary("Get invoice products")]
+        [EndpointDescription("Get invoice products by invoice id. This list has paggination and search")]
+        [HttpGet("{invoiceId}/products")]
+        public async Task<IActionResult> GetInvoiceProductAsync(
+            [FromServices] IInvoiceService invoice,
+            [FromServices] ApiMapper mapper,
+            [FromRoute] Guid invoiceId,
+            [FromQuery] SimpleListRequest request
+            )
+        {
+            var result = await invoice.GetInvoiceProductAsync(invoiceId, mapper.MapSimpleList(request));
             return HandleResult(result);
         }
     }

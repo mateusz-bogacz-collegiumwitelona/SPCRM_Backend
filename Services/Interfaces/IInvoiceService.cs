@@ -1,7 +1,7 @@
 ﻿using Domain.Common;
-using Domain.Models;
 using Services.Command.Company;
 using Services.Command.Invoice;
+using Services.Command.List;
 using Services.Response.Company;
 using Services.Response.Invoice;
 
@@ -13,5 +13,6 @@ namespace Services.Interfaces
         Task<Result<PagedResult<CompanyDebtDetailResponse>>> GetCompanyDebtsAsync(CompanyCommand command);
         Task<Result<PagedResult<InvoiceResponse>>> GetInvoiceListAsync(InvoiceListCommand command);
         Task<Result<InvoiceDetailResponse>> GetInvoiceDetailAsync(Guid invoiceId);
+        Task<Result<PagedResult<InvoiceProductsListResponse>>> GetInvoiceProductAsync(Guid invoiceId, SimpleListCommand command);
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Domain.Comunication;
-using Domain.Enum;
 using Domain.Events;
 using Domain.Models;
 using Infrastructure;

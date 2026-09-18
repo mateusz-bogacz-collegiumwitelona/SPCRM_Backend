@@ -33,10 +33,10 @@ namespace Services.QueryExtension
 
             if (issueDateTo.HasValue)
                 query = query.Where(i => i.IssueDate <= issueDateTo.Value.ToUniversalTime());
-            
+
             if (totalAmountFrom.HasValue)
                 query = query.Where(i => i.TotalAmount >= totalAmountFrom.Value);
-            
+
             if (totalAmountTo.HasValue)
                 query = query.Where(i => i.TotalAmount <= totalAmountTo.Value);
 
@@ -62,15 +62,15 @@ namespace Services.QueryExtension
                 "totalamount" => sortDescending
                     ? query.OrderByDescending(x => x.TotalAmount)
                     : query.OrderBy(x => x.TotalAmount),
-                
+
                 "issueDate" => sortDescending
                     ? query.OrderByDescending(x => x.IssueDate)
                     : query.OrderBy(x => x.IssueDate),
-              
+
                 "dueDate" => sortDescending
                     ? query.OrderByDescending(x => x.DueDate)
                     : query.OrderBy(x => x.DueDate),
-                
+
                 _ => query.OrderByDescending(x => x.IssueDate)
             };
 
@@ -92,6 +92,31 @@ namespace Services.QueryExtension
                     );
                 }
             }
+            return query;
+        }
+
+        internal static IQueryable<InvoiceProducts> ApplyProductSearch(this IQueryable<InvoiceProducts> query, string? searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return query;
+            }
+
+            var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var term in terms)
+            {
+                string wildcardTerm = $"%{term}%";
+                var isNumber = long.TryParse(term, out var numericVal);
+
+                query = query.Where(i =>
+                    EF.Functions.ILike(EF.Functions.Unaccent(i.ProductName), EF.Functions.Unaccent(wildcardTerm)) ||
+                    (i.SteelGrade != null && EF.Functions.ILike(EF.Functions.Unaccent(i.SteelGrade), EF.Functions.Unaccent(wildcardTerm))) ||
+                    EF.Functions.ILike(EF.Functions.Unaccent(i.UnitSymbol), EF.Functions.Unaccent(wildcardTerm)) ||
+                    (isNumber && (i.Quantity == numericVal || i.UnitPrice == numericVal || i.TotalPrice == numericVal))
+                );
+            }
+
             return query;
         }
     }

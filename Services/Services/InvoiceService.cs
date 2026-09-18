@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.Company;
 using Services.Command.Invoice;
+using Services.Command.List;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
@@ -208,6 +209,23 @@ namespace Services.Services
             );
         }
 
-        
+        public async Task<Result<PagedResult<InvoiceProductsListResponse>>> GetInvoiceProductAsync(Guid invoiceId, SimpleListCommand command)
+             => await _context.InvoiceProducts
+                      .AsNoTracking()
+                      .Where(ip => ip.InvoiceId == invoiceId)
+                      .ApplyProductSearch(command.SearchTerm)
+                      .OrderBy(ip => ip.ProductName)
+                      .Select(ip => new InvoiceProductsListResponse
+                      {
+                          InvoiceProductId = ip.Id,
+                          ProductName = ip.ProductName,
+                          SteelGrade = ip.SteelGrade,
+                          UnitSymbol = ip.UnitSymbol,
+                          Quantity = ip.Quantity,
+                          UnitPrice = ip.UnitPrice,
+                          TotalPrice = ip.TotalPrice
+                      })
+                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_product_list");
+
     }
 }

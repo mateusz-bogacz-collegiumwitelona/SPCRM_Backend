@@ -36,7 +36,7 @@ namespace Services.Services
             IEntityAuthorizationService entityAuth,
             IDealStateMachineFactory state,
             IInventoryService inventory,
-            IPublisher publisher    
+            IPublisher publisher
             )
         {
             _context = context;
