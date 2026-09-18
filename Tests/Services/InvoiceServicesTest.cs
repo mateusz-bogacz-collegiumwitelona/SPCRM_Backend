@@ -8,20 +8,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Company;
+using Services.Command.Invoice;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
 {
-    public class DebtServiceTest
+    public class InvoiceServicesTest
     {
         protected AppDbContext _contextMock = null!;
 
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
 
-        protected DebtService _debtServicesMock = null!;
-        protected ILogger<DebtService> _loggerMock = null!;
+        protected InvoiceService _invoiceServicesMock = null!;
+        protected ILogger<InvoiceService> _loggerMock = null!;
 
         private string _currentSchema = null!;
 
@@ -34,6 +35,11 @@ namespace Tests.Services
                 .WithDatabase("testdb")
                 .WithUsername("testuser")
                 .WithPassword("testpassword")
+                .WithCommand(
+                    "-c", "max_connections=300",
+                    "-c", "max_locks_per_transaction=1024",
+                    "-c", "shared_buffers=256MB"
+                )
                 .Build();
 
             await _dbContainer.StartAsync();
@@ -83,8 +89,8 @@ namespace Tests.Services
             var createScript = _contextMock.Database.GenerateCreateScript();
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
-            _loggerMock = new LoggerFactory().CreateLogger<DebtService>();
-            _debtServicesMock = new DebtService(_contextMock, _loggerMock);
+            _loggerMock = new LoggerFactory().CreateLogger<InvoiceService>();
+            _invoiceServicesMock = new InvoiceService(_contextMock, _loggerMock);
         }
 
         [After(Test)]
@@ -97,6 +103,44 @@ namespace Tests.Services
             using var cmd = conn.CreateCommand();
             cmd.CommandText = $"DROP SCHEMA IF EXISTS {_currentSchema} CASCADE;";
             await cmd.ExecuteNonQueryAsync();
+        }
+
+        private async Task<(Company Company, Currency Currency, ApplicationUser Owner)> SeedBasicInvoiceDependenciesAsync(string suffix)
+        {
+            var owner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U_{suffix}",
+                NormalizedUserName = $"U_{suffix}".ToUpper(),
+                Email = $"e_{suffix}@t.pl",
+                NormalizedEmail = $"E_{suffix}@T.PL",
+                FirstName = $"Imie_{suffix}",
+                LastName = $"Nazwisko_{suffix}"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Stalex_{suffix}",
+                NIP = "1234567890",
+                OwnerId = owner.Id,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Currencies.Add(currency);
+            await _contextMock.SaveChangesAsync();
+
+            return (company, currency, owner);
         }
 
         // ─── GetCompanyDebtSummaryAsync ─────────────────────────────────────────────────
@@ -201,7 +245,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _debtServicesMock.GetCompanyDebtSummaryAsync(company.Id);
+            var result = await _invoiceServicesMock.GetCompanyDebtSummaryAsync(company.Id);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -270,7 +314,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _debtServicesMock.GetCompanyDebtSummaryAsync(company.Id);
+            var result = await _invoiceServicesMock.GetCompanyDebtSummaryAsync(company.Id);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -285,7 +329,7 @@ namespace Tests.Services
             var nonExistentCompanyId = Guid.NewGuid();
 
             // Act
-            var result = await _debtServicesMock.GetCompanyDebtSummaryAsync(nonExistentCompanyId);
+            var result = await _invoiceServicesMock.GetCompanyDebtSummaryAsync(nonExistentCompanyId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
@@ -358,7 +402,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act & Assert
-            await Assert.That(async () => await _debtServicesMock.GetCompanyDebtSummaryAsync(company.Id))
+            await Assert.That(async () => await _invoiceServicesMock.GetCompanyDebtSummaryAsync(company.Id))
                 .Throws<DataCorruptionException>();
         }
 
@@ -454,7 +498,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _debtServicesMock.GetCompanyDebtsAsync(command);
+            var result = await _invoiceServicesMock.GetCompanyDebtsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -488,7 +532,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _debtServicesMock.GetCompanyDebtsAsync(command);
+            var result = await _invoiceServicesMock.GetCompanyDebtsAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
@@ -559,8 +603,350 @@ namespace Tests.Services
             };
 
             // Act & Assert
-            await Assert.That(async () => await _debtServicesMock.GetCompanyDebtsAsync(command))
+            await Assert.That(async () => await _invoiceServicesMock.GetCompanyDebtsAsync(command))
                 .Throws<DataCorruptionException>();
+        }
+
+        // ─── GetInvoiceListAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetInvoiceListAsync_MapsAllFieldsAndCalculatesAmountsCorrectly()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+
+            var issueDate = DateTime.UtcNow.AddDays(-10);
+            var dueDate = DateTime.UtcNow.AddDays(4);
+
+            var invoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/TEST/{suffix}",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                TotalAmount = 5000000,
+                PaidAmount = 2000000,
+                IssueDate = issueDate,
+                DueDate = dueDate
+            };
+
+            _contextMock.Invoices.Add(invoice);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new InvoiceListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+
+            var item = items.First();
+            await Assert.That(item.Id).IsEqualTo(invoice.Id);
+            await Assert.That(item.InvoiceNumber).IsEqualTo(invoice.InvoiceNumber);
+            await Assert.That(item.TotalAmount).IsEqualTo(5000000L);
+            await Assert.That(item.PaidAmount).IsEqualTo(2000000L);
+            await Assert.That(item.RemainingAmount).IsEqualTo(3000000L);
+            await Assert.That(item.CompanyName).IsEqualTo(company.Name);
+            await Assert.That(item.CompanyNip).IsEqualTo(company.NIP);
+            await Assert.That(item.CurrencyCode).IsEqualTo("PLN");
+            await Assert.That(item.DecimalPlaces).IsEqualTo(2);
+            await Assert.That(item.IsOverDue).IsFalse();
+        }
+
+        [Test]
+        public async Task GetInvoiceListAsync_AppliesPaginationCorrectly()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+
+            for (int i = 1; i <= 5; i++)
+            {
+                _contextMock.Invoices.Add(new Invoice
+                {
+                    Id = Guid.NewGuid(),
+                    InvoiceNumber = $"FV/PAG/{suffix}/{i}",
+                    CompanyId = company.Id,
+                    CurrencyId = currency.Id,
+                    TotalAmount = 1000000 * i,
+                    PaidAmount = 0,
+                    IssueDate = DateTime.UtcNow.AddDays(-i),
+                    DueDate = DateTime.UtcNow.AddDays(10)
+                });
+            }
+            await _contextMock.SaveChangesAsync();
+
+            var command = new InvoiceListCommand
+            {
+                PageNumber = 2,
+                PageSize = 2
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceListAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(2);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(5);
+            await Assert.That(result.Data.PageNumber).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task GetInvoiceListAsync_SortsByTotalAmountAscendingAndDescending()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+
+            var invLow = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/LOW/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 1000000,
+                IssueDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(7)
+            };
+
+            var invHigh = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/HIGH/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 9000000,
+                IssueDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(7)
+            };
+
+            _contextMock.Invoices.AddRange(invLow, invHigh);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var resultAsc = await _invoiceServicesMock.GetInvoiceListAsync(new InvoiceListCommand
+            {
+                SortBy = "totalamount",
+                SortDescending = false,
+                PageNumber = 1,
+                PageSize = 10
+            });
+
+            var resultDesc = await _invoiceServicesMock.GetInvoiceListAsync(new InvoiceListCommand
+            {
+                SortBy = "totalamount",
+                SortDescending = true,
+                PageNumber = 1,
+                PageSize = 10
+            });
+
+            // Assert
+            await Assert.That(resultAsc.Data!.Items.First().TotalAmount).IsEqualTo(1000000L);
+            await Assert.That(resultDesc.Data!.Items.First().TotalAmount).IsEqualTo(9000000L);
+        }
+
+        [Test]
+        public async Task GetInvoiceListAsync_FiltersByTotalAmountRangeAndIssueDates()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+
+            var now = DateTime.UtcNow;
+
+            var matchingInvoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/MATCH/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 5000000,
+                IssueDate = now.AddDays(-5),
+                DueDate = now.AddDays(10)
+            };
+
+            var nonMatchingAmount = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/OUT_AMOUNT/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 1000000,
+                IssueDate = now.AddDays(-5),
+                DueDate = now.AddDays(10)
+            };
+
+            var nonMatchingDate = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/OUT_DATE/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 5000000,
+                IssueDate = now.AddDays(-30),
+                DueDate = now.AddDays(10)
+            };
+
+            _contextMock.Invoices.AddRange(matchingInvoice, nonMatchingAmount, nonMatchingDate);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new InvoiceListCommand
+            {
+                TotalAmountFrom = 4000000,
+                TotalAmountTo = 6000000,
+                IssueDateFrom = now.AddDays(-10),
+                IssueDateTo = now,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceListAsync(command);
+
+            // Assert
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(result.Data.Items.First().InvoiceNumber).IsEqualTo(matchingInvoice.InvoiceNumber);
+        }
+
+        [Test]
+        public async Task GetInvoiceListAsync_FiltersByIsOverDueCorrectly()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var (company, currency, _) = await SeedBasicInvoiceDependenciesAsync(suffix);
+
+            var now = DateTime.UtcNow;
+
+            var overdueInvoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/OVER/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 3000000,
+                PaidAmount = 1000000,
+                IssueDate = now.AddDays(-20),
+                DueDate = now.AddDays(-5) 
+            };
+
+            var futureInvoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/FUTURE/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 3000000,
+                PaidAmount = 1000000,
+                IssueDate = now.AddDays(-5),
+                DueDate = now.AddDays(10) 
+            };
+
+            var fullyPaidOverdueDate = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/PAID/{suffix}",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                TotalAmount = 3000000,
+                PaidAmount = 3000000,
+                IssueDate = now.AddDays(-20),
+                DueDate = now.AddDays(-5) 
+            };
+
+            _contextMock.Invoices.AddRange(overdueInvoice, futureInvoice, fullyPaidOverdueDate);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new InvoiceListCommand
+            {
+                IsOverDue = true,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceListAsync(command);
+
+            // Assert
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(result.Data.Items.First().InvoiceNumber).IsEqualTo(overdueInvoice.InvoiceNumber);
+            await Assert.That(result.Data.Items.First().IsOverDue).IsTrue();
+        }
+
+        [Test]
+        public async Task GetInvoiceListAsync_SearchesByCompanyNameAndNipUsingUnaccent()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var owner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"U_{suffix}",
+                Email = $"u_{suffix}@test.pl",
+                FirstName = "Piotr",
+                LastName = "Kowalski"
+            };
+
+            var accentedCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Żelazo i Stal {suffix}",
+                NIP = "9998887766",
+                OwnerId = owner.Id,
+                Owner = owner
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var invoice = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/SEARCH/{suffix}",
+                CompanyId = accentedCompany.Id,
+                Company = accentedCompany,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                TotalAmount = 1000000,
+                IssueDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(7)
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(accentedCompany);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Invoices.Add(invoice);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _invoiceServicesMock.GetInvoiceListAsync(new InvoiceListCommand
+            {
+                SearchTerm = "zelazo",
+                PageNumber = 1,
+                PageSize = 10
+            });
+
+            // Assert
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(result.Data.Items.First().InvoiceNumber).IsEqualTo(invoice.InvoiceNumber);
         }
     }
 }

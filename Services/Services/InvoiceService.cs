@@ -6,19 +6,22 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.Company;
+using Services.Command.Invoice;
 using Services.Helpers;
 using Services.Interfaces;
+using Services.QueryExtension;
 using Services.Response.Company;
+using Services.Response.Invoice;
 
 
 namespace Services.Services
 {
-    public class DebtService : IDebtService
+    public class InvoiceService : IInvoiceService
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<DebtService> _logger;
+        private readonly ILogger<InvoiceService> _logger;
 
-        public DebtService(AppDbContext context, ILogger<DebtService> logger)
+        public InvoiceService(AppDbContext context, ILogger<InvoiceService> logger)
         {
             _context = context;
             _logger = logger;
@@ -134,5 +137,36 @@ namespace Services.Services
 
             return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_debt");
         }
+
+        public async Task<Result<PagedResult<InvoiceResponse>>> GetInvoiceListAsync(InvoiceListCommand command)
+            => await _context.Invoices
+                .AsNoTracking()
+                .ApplySearch(command.SearchTerm)
+                .ApplySorting(command.SortBy, command.SortDescending)
+                .ApplyFilter(
+                    command.CompanyName,
+                    command.CompanyNip,
+                    command.IssueDateFrom,
+                    command.IssueDateTo,
+                    command.TotalAmountFrom,
+                    command.TotalAmountTo,
+                    command.IsOverDue
+                )
+                .Select(i => new InvoiceResponse
+                {
+                    Id = i.Id,
+                    InvoiceNumber = i.InvoiceNumber,
+                    TotalAmount = i.TotalAmount,
+                    PaidAmount = i.PaidAmount,
+                    IssueDate = i.IssueDate,
+                    CurrencyCode = i.Currency.Code,
+                    DecimalPlaces = i.Currency.DecimalPlaces,
+                    CompanyName = i.Company.Name,
+                    CompanyNip = i.Company.NIP,
+                    RemainingAmount = i.RemainingAmount,
+                    IsOverDue = i.IsOverDue,
+                    DueDate = i.DueDate,
+                })
+            .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_list");
     }
 }

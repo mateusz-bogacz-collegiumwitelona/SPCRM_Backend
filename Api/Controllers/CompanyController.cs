@@ -100,7 +100,7 @@ namespace Api.Controllers
         [HttpGet("debts/summary")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyDebtSummaryAsync(
-            [FromServices] IDebtService debtServices,
+            [FromServices] IInvoiceService debtServices,
             [FromQuery] Guid companyId)
         {
             var result = await debtServices.GetCompanyDebtSummaryAsync(companyId);
@@ -113,7 +113,7 @@ namespace Api.Controllers
         [HttpGet("debts")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyDebts(
-            [FromServices] IDebtService debtServices,
+            [FromServices] IInvoiceService debtServices,
             [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged,
             [FromServices] CompanyMapper mapper

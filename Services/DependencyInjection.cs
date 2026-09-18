@@ -18,7 +18,7 @@ namespace Services
             services.AddScoped<ICompanyServices, CompanyServices>();
             services.AddScoped<IDealServices, DealServices>();
             services.AddScoped<IContactServices, ContactServices>();
-            services.AddScoped<IDebtService, DebtService>();
+            services.AddScoped<IInvoiceService, InvoiceService>();
             services.AddScoped<ITaskServices, TaskServices>();
             services.AddScoped<IProductSevices, ProductSevices>();
             services.AddScoped<INoteServices, NoteServices>();
