@@ -59,5 +59,24 @@ namespace Services.QueryExtension
 
             _ => query.OrderBy(dp => dp.Product.Name)
         };
+
+        internal static IQueryable<DealProduct> ApplyProductDealSearch(this IQueryable<DealProduct> query, string? searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm)) return query;
+
+            var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var term in terms)
+            {
+                string wildcardTerm = $"%{term}%";
+
+                query = query.Where(dp =>
+                    EF.Functions.ILike(EF.Functions.Unaccent(dp.Deal.Name), EF.Functions.Unaccent(wildcardTerm)) ||
+                    (dp.Deal.Company != null && EF.Functions.ILike(EF.Functions.Unaccent(dp.Deal.Company.Name), EF.Functions.Unaccent(wildcardTerm)))
+                );
+            }
+
+            return query;
+        }
     }
 }

@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Command.Company;
 using Services.Command.Deal;
+using Services.Command.List;
 using Services.Command.Product;
 using Services.Factory.Interfaces;
 using Services.Helpers;
@@ -1039,5 +1040,26 @@ namespace Services.Services
                 data: contacts
             );
         }
+
+        public async Task<Result<PagedResult<ProductDealItemResponse>>> GetProductDealsAsync(Guid productId, SimpleListCommand command) 
+            => await _context.DealProducts
+                .Where(dp => dp.ProductId == productId)
+                .AsNoTracking()
+                .ApplyProductDealSearch(command.SearchTerm)
+                .OrderByDescending(dp => dp.Deal.CreatedAt)
+                .Select(dp => new ProductDealItemResponse
+                {
+                    DealId = dp.DealId,
+                    DealName = dp.Deal.Name,
+                    CompanyName = dp.Deal.Company.Name,
+                    Status = dp.Deal.Status.ToString(),
+                    Quantity = dp.Quantity,
+                    UnitPrice = dp.UnitPrice,
+                    TotalPrice = (long)dp.Quantity * dp.UnitPrice,
+                    CurrencyCode = dp.Deal.Currency.Code,
+                    DecimalPlaces = dp.Deal.Currency.DecimalPlaces,
+                    CloseDate = dp.Deal.CloseDate
+                }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "product_deals");
+
     }
 }

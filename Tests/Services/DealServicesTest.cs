@@ -11,11 +11,13 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Company;
 using Services.Command.Deal;
+using Services.Command.List;
 using Services.Command.Product;
 using Services.Factory;
 using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Results;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
 
@@ -4478,6 +4480,239 @@ namespace Tests.Services
             await Assert.That(items[1].Id).IsEqualTo(contactA.Id);
             await Assert.That(items[1].Email).IsEqualTo("adam@test.pl");
             await Assert.That(items[1].IsPrimary).IsFalse();
+        }
+
+        // ─── GetProductDealsAsync ───────────────────────────────────────────
+
+        [Test]
+        public async Task GetProductDealsAsync_WhenNoDealsContainProduct_ReturnsEmptyPagedResultWithSuccess()
+        {
+            // Arrange
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = null
+            };
+
+            // Act
+            var result = await _dealServicesMock.GetProductDealsAsync(Guid.NewGuid(), command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetProductDealsAsync_MapsAllFieldsAndCalculatesTotalPriceCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+
+            var steelGrade = new SteelGrade {  Name = "Test", Standard = "EN 10255", Density = 7900, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            var currency = new Currency { Name = "Polski Złoty", Code = "PLN", DecimalPlaces = 2 };
+            _contextMock.Currencies.Add(currency);
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"seller_{uniqueSuffix}",
+                Email = $"seller_{uniqueSuffix}@test.pl",
+                FirstName = "Jan",
+                LastName = "Kowalski"
+            };
+            _contextMock.Users.Add(user);
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Stalex Sp. z o.o._{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = user.Id
+            };
+            _contextMock.Companies.Add(company);
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                OwnerId = user.Id,
+                IsPrimary = true
+            };
+            _contextMock.Contacts.Add(contact);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Blacha_{uniqueSuffix}",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                Category = ProductCategoryEnum.Sheet,
+                PricePerUnit = 250000,
+                StockQuantity = 100
+            };
+            _contextMock.Products.Add(product);
+
+            var targetCloseDate = DateTime.UtcNow.AddDays(7);
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = $"D/2026/09/{uniqueSuffix[..4]}",
+                Status = DealsStatusEnum.InProgress,
+                Value = 1250000,
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                OwnerId = user.Id,
+                ContactId = contact.Id,
+                CloseDate = targetCloseDate
+            };
+            _contextMock.Deals.Add(deal);
+
+            var dealProduct = new DealProduct
+            {
+                Id = Guid.NewGuid(),
+                DealId = deal.Id,
+                ProductId = product.Id,
+                Quantity = 5,
+                UnitPrice = 250000 
+            };
+            _contextMock.DealProducts.Add(dealProduct);
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = null
+            };
+
+            // Act
+            var result = await _dealServicesMock.GetProductDealsAsync(product.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
+
+            var item = result.Data.Items.First();
+            await Assert.That(item.DealId).IsEqualTo(deal.Id);
+            await Assert.That(item.DealName).IsEqualTo(deal.Name);
+            await Assert.That(item.CompanyName).IsEqualTo(company.Name);
+            await Assert.That(item.Status).IsEqualTo(DealsStatusEnum.InProgress.ToString());
+            await Assert.That(item.Quantity).IsEqualTo(5);
+            await Assert.That(item.UnitPrice).IsEqualTo(250000);
+            await Assert.That(item.TotalPrice).IsEqualTo(5 * 250000);
+            await Assert.That(item.CurrencyCode).IsEqualTo("PLN");
+            await Assert.That(item.DecimalPlaces).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task GetProductDealsAsync_WhenSearchTermProvided_FiltersByDealNameOrCompanyName()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var steelGrade = new SteelGrade { Name = "Test", Standard = "EN 10255", Density = 7900, IsDeleted = false };
+            _contextMock.SteelGrades.Add(steelGrade);
+            var currency = new Currency { Name = "Polski Złoty", Code = "PLN", DecimalPlaces = 2 };
+            _contextMock.Currencies.Add(currency);
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            _contextMock.UnitsOfMeasure.Add(unit);
+
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"trader_{uniqueSuffix}",
+                Email = $"trader_{uniqueSuffix}@test.pl",
+                FirstName = "Piotr",
+                LastName = "Zieliński"
+            };
+            _contextMock.Users.Add(user);
+
+            var companyAlpha = new Company { Id = Guid.NewGuid(), Name = $"AlphaBud Sp. z o.o._{uniqueSuffix}", NIP = "1111111111", OwnerId = user.Id };
+            var companyBeta = new Company { Id = Guid.NewGuid(), Name = $"BetaMetal S.A._{uniqueSuffix}", NIP = "2222222222", OwnerId = user.Id };
+            _contextMock.Companies.AddRange(companyAlpha, companyBeta);
+
+            var contactAlpha = new Contact { Id = Guid.NewGuid(), FirstName = "C1", LastName = "T1", CompanyId = companyAlpha.Id, OwnerId = user.Id, IsPrimary = true };
+            var contactBeta = new Contact { Id = Guid.NewGuid(), FirstName = "C2", LastName = "T2", CompanyId = companyBeta.Id, OwnerId = user.Id, IsPrimary = true };
+            _contextMock.Contacts.AddRange(contactAlpha, contactBeta);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Rura_{uniqueSuffix}",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                Category = ProductCategoryEnum.Pipe,
+                PricePerUnit = 10000,
+                StockQuantity = 50
+            };
+            _contextMock.Products.Add(product);
+
+            var deal1 = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = $"D/SPEC/{uniqueSuffix}",
+                Status = DealsStatusEnum.ToDo,
+                Value = 100000,
+                CurrencyId = currency.Id,
+                CompanyId = companyAlpha.Id,
+                OwnerId = user.Id,
+                ContactId = contactAlpha.Id,
+                CloseDate = DateTime.UtcNow.AddDays(5)
+            };
+
+            var deal2 = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = $"D/STANDARD/{uniqueSuffix}",
+                Status = DealsStatusEnum.InProgress,
+                Value = 200000,
+                CurrencyId = currency.Id,
+                CompanyId = companyBeta.Id,
+                OwnerId = user.Id,
+                ContactId = contactBeta.Id,
+                CloseDate = DateTime.UtcNow.AddDays(10)
+            };
+            _contextMock.Deals.AddRange(deal1, deal2);
+
+            _contextMock.DealProducts.AddRange(
+                new DealProduct { Id = Guid.NewGuid(), DealId = deal1.Id, ProductId = product.Id, Quantity = 10, UnitPrice = 10000 },
+                new DealProduct { Id = Guid.NewGuid(), DealId = deal2.Id, ProductId = product.Id, Quantity = 20, UnitPrice = 10000 }
+            );
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act 1
+            var searchByDealNameResult = await _dealServicesMock.GetProductDealsAsync(
+                product.Id,
+                new SimpleListCommand { PageNumber = 1, PageSize = 10, SearchTerm = "SPEC" });
+
+            var searchByCompanyResult = await _dealServicesMock.GetProductDealsAsync(
+                product.Id,
+                new SimpleListCommand { PageNumber = 1, PageSize = 10, SearchTerm = "BetaMetal" });
+
+            // Assert
+            await Assert.That(searchByDealNameResult.IsSuccess).IsTrue();
+            await Assert.That(searchByDealNameResult.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(searchByDealNameResult.Data.Items[0].DealId).IsEqualTo(deal1.Id);
+
+            await Assert.That(searchByCompanyResult.IsSuccess).IsTrue();
+            await Assert.That(searchByCompanyResult.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(searchByCompanyResult.Data.Items[0].DealId).IsEqualTo(deal2.Id);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Domain.Common;
 using Services.Command.Company;
 using Services.Command.Deal;
+using Services.Command.List;
 using Services.Command.Product;
 using Services.Response.Company;
 using Services.Response.Deal;
@@ -23,5 +24,6 @@ namespace Services.Interfaces
         Task<Result<ChangeDealStatusResponse>> ChangeDealStatusAsync(ChangeDealStatusCommand command);
         Task<Result> ChangeDealContactAsync(Guid dealId, Guid contactId, Guid currentUserId);
         Task<Result<List<DealAssignableContactResponse>>> GetAssignableContactsForDealAsync(Guid dealId, Guid currentUserId);
+        Task<Result<PagedResult<ProductDealItemResponse>>> GetProductDealsAsync(Guid productId, SimpleListCommand command);
     }
 }
