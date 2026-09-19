@@ -287,7 +287,6 @@ namespace Services.Services
 
             var steelGrade = new SteelGrade
             {
-                Id = Guid.NewGuid(),
                 Name = normalizedName,
                 Standard = string.IsNullOrWhiteSpace(command.Standard) ? null : command.Standard.Trim(),
                 Density = command.Density

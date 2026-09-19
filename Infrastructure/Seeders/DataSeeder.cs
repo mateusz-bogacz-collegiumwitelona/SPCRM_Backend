@@ -673,7 +673,6 @@ namespace Infrastructure.Seeders
                             paidAmount = (long)(deal.Value * (random.Next(30, 71) / 100.0));
                             payments.Add(new InvoicePayment
                             {
-                                Id = Guid.NewGuid(),
                                 InvoiceId = invoiceId,
                                 Amount = paidAmount,
                                 PaymentDate = issueDate.AddDays(random.Next(1, 10)),
@@ -688,7 +687,6 @@ namespace Infrastructure.Seeders
                             fullPaymentDate = issueDate.AddDays(random.Next(1, 12));
                             payments.Add(new InvoicePayment
                             {
-                                Id = Guid.NewGuid(),
                                 InvoiceId = invoiceId,
                                 Amount = paidAmount,
                                 PaymentDate = fullPaymentDate.Value,
@@ -710,7 +708,6 @@ namespace Infrastructure.Seeders
 
                             payments.Add(new InvoicePayment
                             {
-                                Id = Guid.NewGuid(),
                                 InvoiceId = invoiceId,
                                 Amount = firstTranche,
                                 PaymentDate = firstPaymentDate,
@@ -721,7 +718,6 @@ namespace Infrastructure.Seeders
 
                             payments.Add(new InvoicePayment
                             {
-                                Id = Guid.NewGuid(),
                                 InvoiceId = invoiceId,
                                 Amount = secondTranche,
                                 PaymentDate = secondPaymentDate,
@@ -750,7 +746,6 @@ namespace Infrastructure.Seeders
                         Payments = payments,
                         InvoiceProducts = currentDealProducts.Select(dp => new InvoiceProducts
                         {
-                            Id = Guid.NewGuid(),
                             ProductId = dp.Product.Id,
                             ProductName = dp.Product.Name,
                             SteelGrade = dp.Product.SteelGrade?.Name,

@@ -3,9 +3,11 @@ using Domain.Comunication;
 using Domain.Constants;
 using Domain.Enum;
 using Domain.Enum.Triggers;
+using Domain.Events;
 using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -25,19 +27,20 @@ namespace Services.Services
         private readonly ILogger<OfferServices> _logger;
         private readonly IEmailSender _emailSender;
         private readonly IOfferStateMachineFactory _state;
-        private readonly IInventoryService _inventory;
+        private readonly IPublisher _publisher;
+
         public OfferServices(
             AppDbContext context,
             ILogger<OfferServices> logger,
             IEmailSender emailSender,
             IOfferStateMachineFactory state,
-            IInventoryService inventory)
+            IPublisher publisher)
         {
             _context = context;
             _logger = logger;
             _emailSender = emailSender;
             _state = state;
-            _inventory = inventory;
+            _publisher = publisher;
         }
 
         public async Task<Result<PagedResult<OfferListResponse>>> GetOfferListAsync(OfferListCommand command)
@@ -266,7 +269,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<Guid?>> ChangeOfferStatusAsync(ChangeOfferStatusCommand command)
+        public async Task<Result> ChangeOfferStatusAsync(ChangeOfferStatusCommand command)
         {
             var offer = await _context.Offers
                 .Include(o => o.Contact)
@@ -277,7 +280,7 @@ namespace Services.Services
             if (offer == null)
             {
                 _logger.LogInformation("Offer with ID {OfferId} not found.", command.OfferId);
-                return Result<Guid?>.Failure(
+                return Result.Failure(
                     message: "Offer not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.OfferNotFound
@@ -302,7 +305,7 @@ namespace Services.Services
 
             if (!trigger.HasValue)
             {
-                return Result<Guid?>.Failure(
+                return Result.Failure(
                     message: "Invalid target status. Status can only be changed to 'Accepted' or 'Rejected'.",
                     statusCode: StatusCodes.Status400BadRequest,
                     errorCode: ErrorCodes.InvalidOperation
@@ -328,7 +331,7 @@ namespace Services.Services
                 if (!offer.Products.Any())
                 {
                     _logger.LogWarning("Cannot accept offer {OfferId}: no products associated.", offer.Id);
-                    return Result<Guid?>.Failure(
+                    return Result.Failure(
                         message: "Cannot accept an offer without any products.",
                         statusCode: StatusCodes.Status400BadRequest,
                         errorCode: ErrorCodes.InvalidOperation
@@ -357,66 +360,21 @@ namespace Services.Services
                 }
 
                 offer.UpdateAt = DateTime.UtcNow;
-                Guid? createdDealId = null;
 
                 if (command.NewStatus == OfferStatusEnum.Accepted)
                 {
-                    foreach (var op in offer.Products)
-                    {
-                        var stockValidation = await _inventory.ValidateStockAvailabilityAsync(op.ProductId, op.Quantity);
-
-                        if (!stockValidation.IsSuccess)
-                        {
-                            await transaction.RollbackAsync();
-
-                            _logger.LogWarning("Cannot accept offer {OfferId} due to insufficient stock for Product {ProductId}.", offer.Id, op.ProductId);
-
-                            return Result<Guid?>.Failure(
-                                message: $"The offer cannot be accepted. {stockValidation.Message}",
-                                errorCode: ErrorCodes.InvalidOperation,
-                                statusCode: StatusCodes.Status400BadRequest
-                            );
-                        }
-                    }
-
-                    var totalValue = offer.Products.Sum(p => (long)p.Quantity * p.QuotedPrice);
-
-                    var deal = new Deal
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = $"SE/{offer.Name}",
-                        Value = totalValue,
-                        Status = DealsStatusEnum.ToDo,
-                        CloseDate = DateTime.UtcNow.AddMonths(1),
-                        CurrencyId = offer.CurrencyId,
-                        OwnerId = offer.CreatedByUserId,
-                        CompanyId = offer.Contact.CompanyId,
-                        ContactId = offer.ContactId,
-                        DealProducts = offer.Products.Select(op => new DealProduct
-                        {
-                            Id = Guid.NewGuid(),
-                            ProductId = op.ProductId,
-                            Quantity = op.Quantity,
-                            UnitPrice = op.QuotedPrice
-                        }).ToList()
-                    };
-
-                    _context.Deals.Add(deal);
-                    createdDealId = deal.Id;
+                    await _publisher.Publish(new OfferAcceptedEvent(offer.Id));
                 }
 
-                await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("Offer {OfferId} status changed to {NewStatus}. Created Deal ID: {DealId}",
-                    offer.Id, command.NewStatus, createdDealId);
+                _logger.LogInformation("Offer {OfferId} status changed to {NewStatus}.", offer.Id, command.NewStatus);
 
-                return Result<Guid?>.Success(
+                return Result.Success(
                     message: command.NewStatus == OfferStatusEnum.Accepted
                         ? "Offer accepted and converted to sale deal successfully."
                         : "Offer status updated successfully.",
-                    statusCode: StatusCodes.Status200OK,
-                    data: createdDealId
+                    statusCode: StatusCodes.Status200OK
                 );
             }
             catch (Exception ex)
@@ -519,7 +477,6 @@ namespace Services.Services
 
                 var newOfferProducts = command.Items.Select(i => new OfferProducts
                 {
-                    Id = Guid.NewGuid(),
                     OfferId = offer.Id,
                     ProductId = i.ProductId,
                     Quantity = i.Quantity,

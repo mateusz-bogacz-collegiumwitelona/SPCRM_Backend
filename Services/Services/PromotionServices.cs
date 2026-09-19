@@ -595,7 +595,6 @@ namespace Services.Services
 
             var promotion = new Promotion
             {
-                Id = Guid.NewGuid(),
                 Name = command.Name.Trim(),
                 ProductId = command.ProductId,
                 StartDate = startDate,

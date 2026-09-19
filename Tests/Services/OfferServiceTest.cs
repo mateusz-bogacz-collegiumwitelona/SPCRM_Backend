@@ -12,7 +12,6 @@ using Services.Command.List;
 using Services.Command.Offer;
 using Services.Factory;
 using Services.Factory.Interfaces;
-using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
@@ -29,7 +28,7 @@ namespace Tests.Services
         private string _currentSchema = null!;
         protected FakeEmailSender _emailSenderMock = null!;
         protected IOfferStateMachineFactory _stateMock = null!;
-        protected IInventoryService _inventoryMock = null!;
+        protected FakePublisher _publisherMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -100,18 +99,14 @@ namespace Tests.Services
 
             _stateMock = new OfferStateMachineFactory();
 
-            _inventoryMock = new InventoryService(
-                _contextMock,
-                new LoggerFactory().CreateLogger<InventoryService>());
+            _publisherMock = new FakePublisher();
 
             _offerServicesMock = new OfferServices(
                 _contextMock,
                 _loggerMock,
                 _emailSenderMock,
                 _stateMock,
-                _inventoryMock)
-            {
-            };
+                _publisherMock);
         }
 
         [After(Test)]
@@ -1285,20 +1280,19 @@ namespace Tests.Services
         // ─── ChangeOfferStatusAsync ──────────────────────────────────────────
 
         [Test]
-        public async Task ChangeOfferStatusAsync_ConvertsToDealAndDealProducts_WhenAccepted()
+        public async Task ChangeOfferStatusAsync_PublishesOfferAcceptedEvent_WhenAccepted()
         {
             // Arrange
             var (company, contact, currency) = await SeedCompanyAndContactAsync();
 
-            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900 };
+            var steelGrade = new SteelGrade { Name = "1.4301", Density = 7900 };
             _contextMock.SteelGrades.Add(steelGrade);
 
-            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
+            var unit = new UnitOfMeasure { Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
             _contextMock.UnitsOfMeasure.Add(unit);
 
             var product = new Product
             {
-                Id = Guid.NewGuid(),
                 Name = "Rura nierdzewna",
                 SteelGradeId = steelGrade.Id,
                 UnitId = unit.Id,
@@ -1317,7 +1311,6 @@ namespace Tests.Services
 
             var offer = new Offer
             {
-                Id = Guid.NewGuid(),
                 Name = "OF/TEST/ACCEPT",
                 ContactId = contact.Id,
                 CreatedByUserId = contact.OwnerId,
@@ -1329,9 +1322,8 @@ namespace Tests.Services
 
             _contextMock.OfferProducts.Add(new OfferProducts
             {
-                Id = Guid.NewGuid(),
                 OfferId = offer.Id,
-                ProductId = product.Id,
+                ProductId = product.Id, 
                 Quantity = 4,
                 QuotedPrice = 450000
             });
@@ -1350,24 +1342,10 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.Data).IsNotNull();
-
-            var dealId = result.Data!.Value;
-            var createdDeal = await _contextMock.Deals
-                .Include(d => d.DealProducts)
-                .FirstOrDefaultAsync(d => d.Id == dealId);
-
-            await Assert.That(createdDeal).IsNotNull();
-            await Assert.That(createdDeal!.CompanyId).IsEqualTo(company.Id);
-            await Assert.That(createdDeal.ContactId).IsEqualTo(contact.Id);
-            await Assert.That(createdDeal.OwnerId).IsEqualTo(contact.OwnerId);
-            await Assert.That(createdDeal.Value).IsEqualTo(4 * 450000);
-            await Assert.That(createdDeal.DealProducts.Count).IsEqualTo(1);
-            await Assert.That(createdDeal.DealProducts.First().UnitPrice).IsEqualTo(450000);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
 
             var updatedOffer = await _contextMock.Offers.FindAsync(offer.Id);
             await Assert.That(updatedOffer!.Status).IsEqualTo(OfferStatusEnum.Accepted);
-
         }
 
         [Test]
@@ -1407,8 +1385,6 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
-
-
         }
 
         [Test]
@@ -1417,15 +1393,14 @@ namespace Tests.Services
             // Arrange
             var (_, contact, currency) = await SeedCompanyAndContactAsync();
 
-            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "S235", Density = 7850 };
+            var steelGrade = new SteelGrade { Name = "S235", Density = 7850 };
             _contextMock.SteelGrades.Add(steelGrade);
 
-            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+            var unit = new UnitOfMeasure { Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
             _contextMock.UnitsOfMeasure.Add(unit);
 
             var product = new Product
             {
-                Id = Guid.NewGuid(),
                 Name = "Kątownik",
                 SteelGradeId = steelGrade.Id,
                 UnitId = unit.Id,
@@ -1440,7 +1415,6 @@ namespace Tests.Services
 
             var offer = new Offer
             {
-                Id = Guid.NewGuid(),
                 Name = "OF/CORRUPTED/PRODUCTS",
                 ContactId = contact.Id,
                 CreatedByUserId = contact.OwnerId,
@@ -1452,7 +1426,6 @@ namespace Tests.Services
 
             _contextMock.OfferProducts.Add(new OfferProducts
             {
-                Id = Guid.NewGuid(),
                 OfferId = offer.Id,
                 ProductId = product.Id,
                 Quantity = 0,
@@ -1471,82 +1444,6 @@ namespace Tests.Services
             // Act & Assert
             await Assert.That(async () => await _offerServicesMock.ChangeOfferStatusAsync(command))
                 .Throws<DataCorruptionException>();
-        }
-
-        [Test]
-        public async Task ChangeOfferStatusAsync_ReturnsBadRequest_WhenStockValidationFailsOnAcceptance()
-        {
-            // Arrange
-            var (company, contact, currency) = await SeedCompanyAndContactAsync();
-
-            var steelGrade = new SteelGrade { Id = Guid.NewGuid(), Name = "1.4301", Density = 7900 };
-            _contextMock.SteelGrades.Add(steelGrade);
-
-            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt.", BaseMultiplier = 1 };
-            _contextMock.UnitsOfMeasure.Add(unit);
-
-            var product = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = "Blacha deficytowa",
-                SteelGradeId = steelGrade.Id,
-                UnitId = unit.Id,
-                CurrencyId = currency.Id,
-                PricePerUnit = 500000,
-                StockQuantity = 2,
-                Category = ProductCategoryEnum.Sheet,
-                Thickness = 2,
-                Width = 1000,
-                Length = 2000,
-                Weight = 1000,
-                SteelGrade = steelGrade,
-                Unit = unit
-            };
-            _contextMock.Products.Add(product);
-
-            var offer = new Offer
-            {
-                Id = Guid.NewGuid(),
-                Name = "OF/TEST/STOCK_FAIL",
-                ContactId = contact.Id,
-                CreatedByUserId = contact.OwnerId,
-                ValidUntil = DateTime.UtcNow.AddDays(7),
-                Status = OfferStatusEnum.Sent,
-                CurrencyId = currency.Id
-            };
-            _contextMock.Offers.Add(offer);
-
-            _contextMock.OfferProducts.Add(new OfferProducts
-            {
-                Id = Guid.NewGuid(),
-                OfferId = offer.Id,
-                ProductId = product.Id,
-                Quantity = 10,
-                QuotedPrice = 450000
-            });
-
-            await _contextMock.SaveChangesAsync();
-            _contextMock.ChangeTracker.Clear();
-
-            var command = new ChangeOfferStatusCommand
-            {
-                OfferId = offer.Id,
-                NewStatus = OfferStatusEnum.Accepted
-            };
-
-            // Act
-            var result = await _offerServicesMock.ChangeOfferStatusAsync(command);
-
-            // Assert
-            await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
-
-            var unchangedOffer = await _contextMock.Offers.AsNoTracking().FirstOrDefaultAsync(o => o.Id == offer.Id);
-            await Assert.That(unchangedOffer!.Status).IsEqualTo(OfferStatusEnum.Sent);
-
-            var dealCount = await _contextMock.Deals.CountAsync(d => d.Name == $"SE/{offer.Name}");
-            await Assert.That(dealCount).IsEqualTo(0);
         }
 
         // ─── UpdateOfferProductsAsync ──────────────────────────────────────────

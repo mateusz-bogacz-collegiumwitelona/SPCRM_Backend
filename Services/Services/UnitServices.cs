@@ -82,7 +82,6 @@ namespace Services.Services
 
             var unit = new UnitOfMeasure
             {
-                Id = Guid.NewGuid(),
                 Name = trimmedName,
                 Symbol = trimmedSymbol,
                 BaseMultiplier = command.BaseMultiplier

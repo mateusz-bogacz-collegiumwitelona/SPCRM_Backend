@@ -402,7 +402,6 @@ namespace Services.Services
                     OwnerId = userId,
                     DealProducts = command.Products.Select(p => new DealProduct
                     {
-                        Id = Guid.NewGuid(),
                         ProductId = p.ProductId,
                         Quantity = p.Quantity,
                         UnitPrice = p.UnitPrice

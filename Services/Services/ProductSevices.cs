@@ -283,7 +283,6 @@ namespace Services.Services
 
             var product = new Product
             {
-                Id = Guid.NewGuid(),
                 Name = trimName,
                 SteelGrade = steelGrade,
                 SteelGradeId = steelGrade.Id,

@@ -307,7 +307,6 @@ namespace Services.Services
             {
                 var newOffer = new Offer
                 {
-                    Id = Guid.NewGuid(),
                     Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
                     ContactId = client.Id,
                     CreatedByUserId = authorId,
@@ -316,7 +315,6 @@ namespace Services.Services
                     Status = OfferStatusEnum.Sent,
                     Products = productsToOffer.Select(p => new OfferProducts
                     {
-                        Id = Guid.NewGuid(),
                         ProductId = p.ProductId,
                         Quantity = p.Quantity,
                         QuotedPrice = p.FinalPrice,

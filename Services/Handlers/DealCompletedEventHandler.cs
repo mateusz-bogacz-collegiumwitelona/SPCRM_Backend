@@ -67,7 +67,6 @@ namespace Services.Handlers
 
             return new Invoice
             {
-                Id = Guid.NewGuid(),
                 InvoiceNumber = $"FV/{year:0000}/{month:00}/{count + 1:0000}",
                 IssueDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(14),
@@ -78,7 +77,6 @@ namespace Services.Handlers
                 CurrencyId = deal.CurrencyId,
                 InvoiceProducts = deal.DealProducts.Select(dp => new InvoiceProducts
                 {
-                    Id = Guid.NewGuid(),
                     ProductId = dp.ProductId,
                     ProductName = dp.Product.Name,
                     SteelGrade = dp.Product.SteelGrade?.Name,
