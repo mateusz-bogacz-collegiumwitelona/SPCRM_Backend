@@ -568,7 +568,11 @@ namespace Infrastructure.Seeders
             var companies = await _context.Companies.ToListAsync();
             var contacts = await _context.Contacts.ToListAsync();
             var currencies = await _context.Currencies.ToListAsync();
-            var products = await _context.Products.ToListAsync();
+            var products = await _context.Products
+                .Include(p => p.Unit)
+                .Include(p => p.SteelGrade)
+                .Include(p => p.Currency)
+                .ToListAsync();
             var random = new Random();
 
             var deals = new List<Deal>();

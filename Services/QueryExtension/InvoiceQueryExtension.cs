@@ -63,11 +63,11 @@ namespace Services.QueryExtension
                     ? query.OrderByDescending(x => x.TotalAmount)
                     : query.OrderBy(x => x.TotalAmount),
 
-                "issueDate" => sortDescending
+                "issuedate" => sortDescending
                     ? query.OrderByDescending(x => x.IssueDate)
                     : query.OrderBy(x => x.IssueDate),
 
-                "dueDate" => sortDescending
+                "duedate" => sortDescending
                     ? query.OrderByDescending(x => x.DueDate)
                     : query.OrderBy(x => x.DueDate),
 
