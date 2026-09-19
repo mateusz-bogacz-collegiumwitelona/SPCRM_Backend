@@ -158,5 +158,20 @@ namespace Api.Controllers
             var result = await productServices.AddProductStockAsync(mapper.MapAddStock(request, productId));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get product deals")]
+        [EndpointDescription("Get a paginated list of deals associated with a specific product. This endpoint has a search capability.")]
+        [HttpGet("{productId:guid}/deals")]
+        [Authorize]
+        public async Task<IActionResult> GetProductDealsAsync(
+            [FromServices] IDealServices deal,
+            [FromServices] ApiMapper mapper,
+            [FromRoute] Guid productId,
+            [FromQuery] SimpleListRequest request
+            )
+        {
+            var result = await deal.GetProductDealsAsync(productId, mapper.MapSimpleList(request));
+            return HandleResult(result);
+        }
     }
 }
