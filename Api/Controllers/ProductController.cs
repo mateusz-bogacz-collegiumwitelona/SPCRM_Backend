@@ -106,7 +106,7 @@ namespace Api.Controllers
         [EndpointDescription("Get product details for editing by product id.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("edit/{productId:guid}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetProductEditDetailAsync(
             [FromServices] IProductSevices productServices,
             [FromRoute] Guid productId
@@ -145,7 +145,7 @@ namespace Api.Controllers
         }
 
         [HttpPost("{productId:guid}/stock")]
-        [Authorize(Roles = "User,Manager")]
+        [Authorize]
         [EndpointSummary("Add product stock")]
         [EndpointDescription("Add stock to an existing product.")]
         public async Task<IActionResult> AddProductStockAsync(
