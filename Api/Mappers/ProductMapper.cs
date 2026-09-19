@@ -50,6 +50,13 @@ namespace Api.Mappers
         public partial SearchProductAutocompleteCommand MapSearch(SearchProductAutocompleteRequest request);
         private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
 
+        public AddProductStockCommand MapAddStock(AddProductStockRequest request, Guid productId)
+            => new AddProductStockCommand
+            {
+                ProductId = productId,
+                QuantityToAdd = request.QuantityToAdd
+            };
+
         private int MapDecimalDimensionToDatabase(decimal dimension)
             => (int)Math.Round(dimension * 10m);
 

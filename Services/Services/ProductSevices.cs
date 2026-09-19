@@ -361,7 +361,6 @@ namespace Services.Services
             if (command.Diameter.HasValue) product.Diameter = command.Diameter.Value;
             if (command.Weight.HasValue) product.Weight = command.Weight.Value;
             if (command.PricePerUnit.HasValue) product.PricePerUnit = command.PricePerUnit.Value;
-            if (command.StockQuantity.HasValue) product.StockQuantity = command.StockQuantity.Value;
 
             if (!string.IsNullOrWhiteSpace(command.Category))
             {
@@ -626,6 +625,40 @@ namespace Services.Services
                 message: "Products retrieved successfully.",
                 statusCode: StatusCodes.Status200OK,
                 data: response
+            );
+        }
+
+        public async Task<Result> AddProductStockAsync(AddProductStockCommand command)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == command.ProductId);
+            if (product == null)
+            {
+                _logger.LogInformation("Product with ID {ProductId} not found for stock addition.", command.ProductId);
+                return Result.Failure(
+                    message: "Product not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ProductNotFound
+                );
+            }
+
+            if ((long)product.StockQuantity + command.QuantityToAdd > int.MaxValue)
+            {
+                _logger.LogWarning("Attempt to add {Quantity} to product {ProductId} stock would exceed maximum limit.", command.QuantityToAdd, product.Id);
+                return Result.Failure(
+                    message: "Stock quantity exceeds maximum allowable limit.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            product.StockQuantity += command.QuantityToAdd;
+
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Added {Quantity} to stock of product {ProductId}. New stock quantity is {NewStockQuantity}.", command.QuantityToAdd, product.Id, product.StockQuantity);
+            return Result.Success(
+                message: "Product stock updated successfully.",
+                statusCode: StatusCodes.Status200OK
             );
         }
     }

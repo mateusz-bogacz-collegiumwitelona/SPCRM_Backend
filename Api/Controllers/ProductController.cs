@@ -143,5 +143,20 @@ namespace Api.Controllers
             var result = await productServices.SearchProductsAutocompleteAsync(mapper.MapSearch(request));
             return HandleResult(result);
         }
+
+        [HttpPost("{productId:guid}/stock")]
+        [Authorize(Roles = "User,Manager")]
+        [EndpointSummary("Add product stock")]
+        [EndpointDescription("Add stock to an existing product.")]
+        public async Task<IActionResult> AddProductStockAsync(
+            [FromServices] IProductSevices productServices,
+            [FromServices] ProductMapper mapper,
+            [FromRoute] Guid productId,
+            [FromBody] AddProductStockRequest request
+            )
+        {
+            var result = await productServices.AddProductStockAsync(mapper.MapAddStock(request, productId));
+            return HandleResult(result);
+        }
     }
 }

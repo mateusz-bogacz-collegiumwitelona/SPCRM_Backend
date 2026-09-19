@@ -16,5 +16,6 @@ namespace Services.Interfaces
         Task<Result<EditProductDetailResponse>> GetProductEditDetailAsync(Guid id);
         Task<Result> DeleteProductAsync(Guid id);
         Task<Result<List<ProductAutocompleteResponse>>> SearchProductsAutocompleteAsync(SearchProductAutocompleteCommand command);
+        Task<Result> AddProductStockAsync(AddProductStockCommand command);
     }
 }

@@ -938,7 +938,6 @@ namespace Tests.Services
                 Weight = 2500,
                 UnitId = newUnit.Id,
                 PricePerUnit = 20000,
-                StockQuantity = 15,
                 Category = ProductCategoryEnum.Pipe.ToString()
             };
 
@@ -961,7 +960,6 @@ namespace Tests.Services
             await Assert.That(updatedProduct.Weight).IsEqualTo(2500);
             await Assert.That(updatedProduct.UnitId).IsEqualTo(newUnit.Id);
             await Assert.That(updatedProduct.PricePerUnit).IsEqualTo(20000);
-            await Assert.That(updatedProduct.StockQuantity).IsEqualTo(15);
             await Assert.That(updatedProduct.Category).IsEqualTo(ProductCategoryEnum.Pipe);
         }
 
@@ -1008,7 +1006,7 @@ namespace Tests.Services
             {
                 ProductId = product.Id,
                 Name = null,
-                StockQuantity = 120
+                Width = 200
             };
 
             // Act
@@ -1021,7 +1019,7 @@ namespace Tests.Services
             var updatedProduct = await _contextMock.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
             await Assert.That(updatedProduct).IsNotNull();
             await Assert.That(updatedProduct!.Name).IsEqualTo($"ProduktPrzedEdycja_{uniqueSuffix}");
-            await Assert.That(updatedProduct.StockQuantity).IsEqualTo(120);
+            await Assert.That(updatedProduct.Width).IsEqualTo(200);
             await Assert.That(updatedProduct.Thickness).IsEqualTo(10);
             await Assert.That(updatedProduct.PricePerUnit).IsEqualTo(10000);
         }
@@ -1798,6 +1796,127 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data!.Count).IsEqualTo(50);
+        }
+
+        // ─── AddProductStockAsync ───────────────────────────────────────────
+
+        [Test]
+        public async Task AddProductStockAsync_WhenProductDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var command = new AddProductStockCommand
+            {
+                ProductId = Guid.NewGuid(),
+                QuantityToAdd = 10
+            };
+
+            // Act
+            var result = await _productSevicesMock.AddProductStockAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ProductNotFound);
+            await Assert.That(result.Message).IsEqualTo("Product not found.");
+        }
+
+        [Test]
+        public async Task AddProductStockAsync_WhenStockExceedsMaxIntLimit_Returns400BadRequest()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var steelGrade = CreateDummySteelGrade();
+            var currency = CreateDummyCurrency();
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"PrzekroczenieMagazynu_{uniqueSuffix}",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                Category = ProductCategoryEnum.Other,
+                PricePerUnit = 10000,
+                StockQuantity = int.MaxValue - 5
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new AddProductStockCommand
+            {
+                ProductId = product.Id,
+                QuantityToAdd = 10
+            };
+
+            // Act
+            var result = await _productSevicesMock.AddProductStockAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Stock quantity exceeds maximum allowable limit.");
+
+            var dbProduct = await _contextMock.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == product.Id);
+            await Assert.That(dbProduct).IsNotNull();
+            await Assert.That(dbProduct!.StockQuantity).IsEqualTo(int.MaxValue - 5);
+        }
+
+        [Test]
+        public async Task AddProductStockAsync_WhenValidQuantityProvided_IncrementsStockAndSetsUpdateAtViaInterceptor()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var steelGrade = CreateDummySteelGrade();
+            var currency = CreateDummyCurrency();
+            var unit = new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt." };
+
+            var initialStock = 25;
+            var quantityToAdd = 15;
+            var expectedStock = initialStock + quantityToAdd;
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = $"PrzyjecieDostawy_{uniqueSuffix}",
+                SteelGradeId = steelGrade.Id,
+                UnitId = unit.Id,
+                CurrencyId = currency.Id,
+                Category = ProductCategoryEnum.Profile,
+                PricePerUnit = 20000,
+                StockQuantity = initialStock
+            };
+
+            _contextMock.UnitsOfMeasure.Add(unit);
+            _contextMock.Products.Add(product);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var beforeUpdate = DateTime.UtcNow.AddSeconds(-1);
+
+            var command = new AddProductStockCommand
+            {
+                ProductId = product.Id,
+                QuantityToAdd = quantityToAdd
+            };
+
+            // Act
+            var result = await _productSevicesMock.AddProductStockAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Product stock updated successfully.");
+
+            var updatedProduct = await _contextMock.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == product.Id);
+            await Assert.That(updatedProduct).IsNotNull();
+            await Assert.That(updatedProduct!.StockQuantity).IsEqualTo(expectedStock);
+            await Assert.That(updatedProduct.UpdateAt).IsNotNull();
+            await Assert.That(updatedProduct.UpdateAt!.Value).IsGreaterThanOrEqualTo(beforeUpdate);
         }
     }
 }

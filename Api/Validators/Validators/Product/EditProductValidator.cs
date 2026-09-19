@@ -9,7 +9,7 @@ namespace Api.Validators.Validators.Product
         public EditProductValidator()
         {
             RuleFor(x => x.ProductId)
-            .ApplyProductIdRules();
+                .ApplyProductIdRules();
 
             RuleFor(x => x.Name)
                 .ApplyProductNameRules()
@@ -44,9 +44,6 @@ namespace Api.Validators.Validators.Product
 
             RuleFor(x => x.PricePerUnit)
                 .ApplyProductPricePerUnitRule();
-
-            RuleFor(x => x.StockQuantity)
-                .ApplyProductStockQuantityRule();
 
             RuleFor(x => x.Category)
                 .ApplyProductCategoryRule()
