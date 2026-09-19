@@ -236,6 +236,18 @@ namespace Api.Controllers
             var result = await task.AddTaskAsync(mapper.MapAddTaskToDeal(request, dealId), CurrentUserId);
             return HandleResult(result);
         }
+
+        [EndpointSummary("Change deal contact")]
+        [EndpointDescription("Change the contact associated with a specific deal.")]
+        [HttpPut("{dealId}/contact")]
+        public async Task<IActionResult> ChangeDealContactAsync(
+            [FromServices] IDealServices deal,
+            [FromRoute] Guid dealId,
+            [FromQuery] Guid contactId)
+        {
+            var result = await deal.ChangeDealContactAsync(dealId, contactId, CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
 

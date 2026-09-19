@@ -882,5 +882,93 @@ namespace Services.Services
                 .SelectMany(c => c.ContactDetails)
                 .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?.Value;
         }
+
+        public async Task<Result> ChangeDealContactAsync(Guid dealId, Guid contactId, Guid currentUserId)
+        {
+            var deal = await _context.Deals.FirstOrDefaultAsync(d => d.Id == dealId);
+
+            if (deal == null)
+            {
+                _logger.LogInformation("Deal with ID {DealId} not found when attempting to change contact.", dealId);
+                return Result.Failure(
+                    message: "Deal not found.",
+                    errorCode: ErrorCodes.DealNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, deal.OwnerId);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized contact modification on Deal {DealId}.", currentUserId, dealId);
+                throw new ForbiddenException("You are not authorized to modify this deal.");
+            }
+
+            var stateMachine = _state.Create(deal);
+            var canModify = stateMachine.CanModify();
+
+            if (!canModify.IsSuccess)
+            {
+                _logger.LogWarning("Cannot change contact for Deal {DealId} due to status: {Status}.", dealId, deal.Status);
+                return canModify;
+            }
+
+            if (deal.ContactId == contactId)
+            {
+                return Result.Success(
+                    message: "Contact is already assigned to this deal.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+
+            var contact = await _context.Contacts
+                .Include(c => c.ContactDetails)
+                .FirstOrDefaultAsync(c => c.Id == contactId);
+
+            if (contact == null)
+            {
+                _logger.LogInformation("Contact with ID {ContactId} not found when attempting to change contact for Deal {DealId}.", contactId, dealId);
+                return Result.Failure(
+                    message: "Contact not found.",
+                    errorCode: ErrorCodes.ContactNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            if (contact.CompanyId != deal.CompanyId)
+            {
+                _logger.LogWarning("Contact {ContactId} does not belong to Company {CompanyId} linked to Deal {DealId}.",
+                    contact.Id, deal.CompanyId, deal.Id);
+
+                return Result.Failure(
+                    message: "Contact does not belong to the company associated with this deal.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            var hasValidEmail = contact.ContactDetails
+                .Any(cd => !cd.IsDeleted && cd.Type == ContactDetailTypeEnum.EMAIL && !string.IsNullOrWhiteSpace(cd.Value));
+
+            if (!hasValidEmail)
+            {
+                _logger.LogWarning("Contact {ContactId} has no active email address when assigned to Deal {DealId}.", contact.Id, deal.Id);
+                return Result.Failure(
+                    message: "The new contact must have at least one valid email address.",
+                    errorCode: ErrorCodes.InvalidOperation,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            deal.ContactId = contact.Id;
+            deal.UpdateAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Result.Success(
+                message: "Deal contact changed successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
     }
 }

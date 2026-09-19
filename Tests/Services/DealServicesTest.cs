@@ -3899,5 +3899,338 @@ namespace Tests.Services
             await Assert.That(dbDeal!.Status).IsEqualTo(DealsStatusEnum.InProgress);
         }
 
+        // ─── ChangeDealContactAsync ───────────────────────────────────────────────
+
+        [Test]
+        public async Task ChangeDealContactAsync_WhenDealDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+            var randomDealId = Guid.NewGuid();
+            var randomContactId = Guid.NewGuid();
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealContactAsync(randomDealId, randomContactId, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotFound);
+        }
+
+        [Test]
+        public async Task ChangeDealContactAsync_WhenUserIsNotAuthorized_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0050",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _dealServicesMock.ChangeDealContactAsync(deal.Id, contact.Id, unauthorizedUserId))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        [Arguments(DealsStatusEnum.Complete)]
+        [Arguments(DealsStatusEnum.Cancelled)]
+        public async Task ChangeDealContactAsync_WhenDealIsFinalized_ReturnsBadRequest(DealsStatusEnum status)
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0051",
+                Value = 50000,
+                Status = status,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var newContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Piotr",
+                LastName = "Zieliński",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = false
+            };
+            _contextMock.Contacts.Add(newContact);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealContactAsync(deal.Id, newContact.Id, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+        }
+
+        [Test]
+        public async Task ChangeDealContactAsync_WhenContactIsAlreadyAssigned_ReturnsOkWithoutDbUpdate()
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0052",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealContactAsync(deal.Id, contact.Id, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Message).IsEqualTo("Contact is already assigned to this deal.");
+        }
+
+        [Test]
+        public async Task ChangeDealContactAsync_WhenNewContactDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+            var nonExistentContactId = Guid.NewGuid();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0053",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealContactAsync(deal.Id, nonExistentContactId, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+        }
+
+        [Test]
+        public async Task ChangeDealContactAsync_WhenContactBelongsToDifferentCompany_ReturnsBadRequest()
+        {
+            // Arrange
+            var (company1, owner, currency, contact1) = await SeedCompanyAndUserAsync();
+
+            var company2 = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Inna Firma Sp. z o.o.",
+                NIP = "9876543210",
+                OwnerId = owner.Id
+            };
+
+            var contact2 = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Nowak",
+                CompanyId = company2.Id,
+                OwnerId = owner.Id,
+                IsPrimary = true
+            };
+
+            var contactDetail2 = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "adam@inna-firma.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = contact2.Id
+            };
+
+            _contextMock.Companies.Add(company2);
+            _contextMock.Contacts.Add(contact2);
+            _contextMock.ContactDetails.Add(contactDetail2);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0054",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company1.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact1.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealContactAsync(deal.Id, contact2.Id, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("Contact does not belong to the company associated with this deal.");
+        }
+
+        [Test]
+        public async Task ChangeDealContactAsync_WhenNewContactHasNoEmail_ReturnsBadRequest()
+        {
+            // Arrange
+            var (company, owner, currency, currentContact) = await SeedCompanyAndUserAsync();
+
+            var contactWithoutEmail = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Krzysztof",
+                LastName = "Głuchy",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = false
+            };
+
+            var phoneDetail = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "+48123456789",
+                Type = ContactDetailTypeEnum.PHONE,
+                ContactId = contactWithoutEmail.Id
+            };
+
+            _contextMock.Contacts.Add(contactWithoutEmail);
+            _contextMock.ContactDetails.Add(phoneDetail);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0055",
+                Value = 50000,
+                Status = DealsStatusEnum.InProgress,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = currentContact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealContactAsync(deal.Id, contactWithoutEmail.Id, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
+            await Assert.That(result.Message).IsEqualTo("The new contact must have at least one valid email address.");
+        }
+
+        [Test]
+        public async Task ChangeDealContactAsync_WhenValid_UpdatesContactIdAndTimestamp()
+        {
+            // Arrange
+            var (company, owner, currency, currentContact) = await SeedCompanyAndUserAsync();
+
+            var newValidContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marek",
+                LastName = "Kowalski",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = false
+            };
+
+            var emailDetail = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "marek.kowalski@test.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = newValidContact.Id
+            };
+
+            _contextMock.Contacts.Add(newValidContact);
+            _contextMock.ContactDetails.Add(emailDetail);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0056",
+                Value = 75000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = currentContact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.ChangeDealContactAsync(deal.Id, newValidContact.Id, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+
+            var dbDeal = await _contextMock.Deals.AsNoTracking().FirstOrDefaultAsync(d => d.Id == deal.Id);
+            await Assert.That(dbDeal).IsNotNull();
+            await Assert.That(dbDeal!.ContactId).IsEqualTo(newValidContact.Id);
+            await Assert.That(dbDeal.UpdateAt).IsNotNull();
+        }
     }
 }
