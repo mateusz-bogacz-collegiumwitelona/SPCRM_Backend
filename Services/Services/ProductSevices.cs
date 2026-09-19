@@ -653,7 +653,7 @@ namespace Services.Services
             product.StockQuantity += command.QuantityToAdd;
 
             await _context.SaveChangesAsync();
-            
+
             _logger.LogInformation("Added {Quantity} to stock of product {ProductId}. New stock quantity is {NewStockQuantity}.", command.QuantityToAdd, product.Id, product.StockQuantity);
             return Result.Success(
                 message: "Product stock updated successfully.",

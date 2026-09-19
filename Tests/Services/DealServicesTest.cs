@@ -17,7 +17,6 @@ using Services.Factory;
 using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Results;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
 
@@ -4512,7 +4511,7 @@ namespace Tests.Services
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
 
-            var steelGrade = new SteelGrade {  Name = "Test", Standard = "EN 10255", Density = 7900, IsDeleted = false };
+            var steelGrade = new SteelGrade { Name = "Test", Standard = "EN 10255", Density = 7900, IsDeleted = false };
             _contextMock.SteelGrades.Add(steelGrade);
             var currency = new Currency { Name = "Polski Złoty", Code = "PLN", DecimalPlaces = 2 };
             _contextMock.Currencies.Add(currency);
@@ -4583,7 +4582,7 @@ namespace Tests.Services
                 DealId = deal.Id,
                 ProductId = product.Id,
                 Quantity = 5,
-                UnitPrice = 250000 
+                UnitPrice = 250000
             };
             _contextMock.DealProducts.Add(dealProduct);
 

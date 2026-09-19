@@ -1041,7 +1041,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<PagedResult<ProductDealItemResponse>>> GetProductDealsAsync(Guid productId, SimpleListCommand command) 
+        public async Task<Result<PagedResult<ProductDealItemResponse>>> GetProductDealsAsync(Guid productId, SimpleListCommand command)
             => await _context.DealProducts
                 .Where(dp => dp.ProductId == productId)
                 .AsNoTracking()

@@ -17,8 +17,8 @@ namespace Services.Handlers
         private readonly ILogger<OfferAcceptedEventHandler> _logger;
 
         public OfferAcceptedEventHandler(
-            AppDbContext context, 
-            IInventoryService inventory, 
+            AppDbContext context,
+            IInventoryService inventory,
             ILogger<OfferAcceptedEventHandler> logger
             )
         {
@@ -42,7 +42,7 @@ namespace Services.Handlers
 
             foreach (var offerProduct in offer.Products)
             {
-               var stockValidation = await _inventory.ValidateStockAvailabilityAsync(offerProduct.ProductId, offerProduct.Quantity);
+                var stockValidation = await _inventory.ValidateStockAvailabilityAsync(offerProduct.ProductId, offerProduct.Quantity);
                 if (!stockValidation.IsSuccess)
                 {
                     _logger.LogWarning("Cannot accept offer {OfferId}: insufficient stock for Product {ProductId}.",

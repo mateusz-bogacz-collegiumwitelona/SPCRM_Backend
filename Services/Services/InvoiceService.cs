@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Services.Command.Company;
 using Services.Command.Invoice;
 using Services.Command.List;
+using Services.Command.Product;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.QueryExtension;
@@ -413,5 +414,27 @@ namespace Services.Services
                 data: response
             );
         }
+
+        public async Task<Result<PagedResult<ProductInvoiceItemResponse>>> GetProductInvoicesAsync(Guid productId, SimpleListCommand command)
+            => await _context.InvoiceProducts
+                .Where(ip => ip.ProductId == productId)
+                .AsNoTracking()
+                .ApplyProductInvoiceSearch(command.SearchTerm)
+                .OrderByDescending(ip => ip.Invoice.IssueDate)
+                .Select(ip => new ProductInvoiceItemResponse
+                {
+                    InvoiceId = ip.InvoiceId,
+                    InvoiceNumber = ip.Invoice.InvoiceNumber,
+                    CompanyName = ip.Invoice.Company.Name,
+                    IssueDate = ip.Invoice.IssueDate,
+                    DueDate = ip.Invoice.DueDate,
+                    Quantity = ip.Quantity,
+                    UnitPrice = ip.UnitPrice,
+                    TotalPrice = (long)ip.Quantity * ip.UnitPrice,
+                    CurrencyCode = ip.Invoice.Currency.Code,
+                    DecimalPlaces = ip.Invoice.Currency.DecimalPlaces,
+                    IsPaid = ip.Invoice.PaidAmount >= ip.Invoice.TotalAmount
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "product_invoices");
     }
 }

@@ -145,5 +145,24 @@ namespace Services.QueryExtension
 
             return query;
         }
+
+        internal static IQueryable<InvoiceProducts> ApplyProductInvoiceSearch(this IQueryable<InvoiceProducts> query, string? searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm)) return query;
+
+            var terms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var term in terms)
+            {
+                string wildcardTerm = $"%{term}%";
+
+                query = query.Where(ip =>
+                    EF.Functions.ILike(EF.Functions.Unaccent(ip.Invoice.InvoiceNumber), EF.Functions.Unaccent(wildcardTerm)) ||
+                    (ip.Invoice.Company != null && EF.Functions.ILike(EF.Functions.Unaccent(ip.Invoice.Company.Name), EF.Functions.Unaccent(wildcardTerm)))
+                );
+            }
+
+            return query;
+        }
     }
 }

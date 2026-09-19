@@ -5,6 +5,7 @@ using Api.Request.Product;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Services.Command.Product;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -171,6 +172,22 @@ namespace Api.Controllers
             )
         {
             var result = await deal.GetProductDealsAsync(productId, mapper.MapSimpleList(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get product invoices")]
+        [EndpointDescription("Get a paginated list of invoices associated with a specific product. This endpoint has a search capability.")]
+        [HttpGet("{productId:guid}/invoices")]
+        [Authorize]
+        [ProducesResponseType(typeof(Result<PagedResult<ProductInvoiceItemResponse>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetProductInvoicesAsync(
+            [FromServices] IInvoiceService invoice,
+            [FromServices] ApiMapper mapper,
+            [FromRoute] Guid productId,
+            [FromQuery] SimpleListRequest request
+            )
+        {
+            var result = await invoice.GetProductInvoicesAsync(productId, mapper.MapSimpleList(request));
             return HandleResult(result);
         }
     }

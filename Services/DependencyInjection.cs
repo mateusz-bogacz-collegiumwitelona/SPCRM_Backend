@@ -38,10 +38,11 @@ namespace Services
             services.AddScoped<ITaskStateMachineFactory, TaskStateMachineFactory>();
 
             // Handlers
-            services.AddMediatR(cfg => {
+            services.AddMediatR(cfg =>
+            {
                 cfg.RegisterServicesFromAssembly(typeof(DealCompletedEventHandler).Assembly);
                 cfg.RegisterServicesFromAssembly(typeof(OfferAcceptedEventHandler).Assembly);
-                }
+            }
             );
 
             return services;

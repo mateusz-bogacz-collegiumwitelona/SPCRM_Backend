@@ -1962,5 +1962,259 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Invoice not found.");
             await Assert.That(result.Data).IsNull();
         }
+
+        // ─── GetProductInvoicesAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetProductInvoicesAsync_WhenNoInvoicesContainProduct_ReturnsEmptyPagedResultWithSuccess()
+        {
+            // Arrange
+            var randomProductId = Guid.NewGuid();
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = null
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetProductInvoicesAsync(randomProductId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetProductInvoicesAsync_MapsAllFieldsAndCalculatesAmountsAndIsPaidCorrectly()
+        {
+            // Arrange
+            var (company, _, currency, deal, invoice) = await SeedInvoiceGraphAsync(
+                totalAmount: 10000000,
+                paidAmount: 10000000,
+                invoiceNumber: "FV/PROD/TEST/01");
+
+            var realProduct = await SeedProductAsync(currency);
+
+            var issueDate = DateTime.UtcNow.AddDays(-3);
+            var dueDate = DateTime.UtcNow.AddDays(11);
+
+            var invoiceToUpdate = await _contextMock.Invoices.FindAsync(invoice.Id);
+            invoiceToUpdate!.IssueDate = issueDate;
+            invoiceToUpdate.DueDate = dueDate;
+
+            var invoiceProduct = new InvoiceProducts
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoice.Id,
+                ProductId = realProduct.Id,
+                ProductName = realProduct.Name,
+                UnitSymbol = "szt.",
+                Quantity = 5,
+                UnitPrice = 2000000
+            };
+
+            _contextMock.InvoiceProducts.Add(invoiceProduct);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                SearchTerm = null
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetProductInvoicesAsync(realProduct.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
+
+            var item = result.Data.Items.First();
+            await Assert.That(item.InvoiceId).IsEqualTo(invoice.Id);
+            await Assert.That(item.InvoiceNumber).IsEqualTo("FV/PROD/TEST/01");
+            await Assert.That(item.CompanyName).IsEqualTo(company.Name);
+            await Assert.That(item.Quantity).IsEqualTo(5);
+            await Assert.That(item.UnitPrice).IsEqualTo(2000000L);
+            await Assert.That(item.TotalPrice).IsEqualTo(10000000L);
+            await Assert.That(item.CurrencyCode).IsEqualTo("PLN");
+            await Assert.That(item.DecimalPlaces).IsEqualTo(2);
+            await Assert.That(item.IsPaid).IsTrue();
+
+            var diffIssue = (item.IssueDate - issueDate).Duration();
+            await Assert.That(diffIssue < TimeSpan.FromSeconds(1)).IsTrue();
+            var diffDue = (item.DueDate - dueDate).Duration();
+            await Assert.That(diffDue < TimeSpan.FromSeconds(1)).IsTrue();
+        }
+
+        [Test]
+        public async Task GetProductInvoicesAsync_WhenSearchTermProvided_FiltersByInvoiceNumberOrCompanyName()
+        {
+            // Arrange
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var (companyA, owner, currency, deal, invoiceA) = await SeedInvoiceGraphAsync(
+                totalAmount: 5000000,
+                paidAmount: 2000000,
+                invoiceNumber: $"FV/SPEC/{suffix}");
+
+            var companyB = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Metalex Budownictwo_{suffix}",
+                NIP = "9876543210",
+                OwnerId = owner.Id
+            };
+
+            var invoiceB = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = $"FV/COMMON/{suffix}",
+                CompanyId = companyB.Id,
+                CurrencyId = currency.Id,
+                DealId = deal.Id,
+                TotalAmount = 4000000,
+                PaidAmount = 0,
+                IssueDate = DateTime.UtcNow.AddDays(-1),
+                DueDate = DateTime.UtcNow.AddDays(13)
+            };
+
+            var realProduct = await SeedProductAsync(currency);
+
+            _contextMock.Companies.Add(companyB);
+            _contextMock.Invoices.Add(invoiceB);
+
+            _contextMock.InvoiceProducts.AddRange(
+                new InvoiceProducts
+                {
+                    Id = Guid.NewGuid(),
+                    InvoiceId = invoiceA.Id,
+                    ProductId = realProduct.Id,
+                    ProductName = realProduct.Name,
+                    UnitSymbol = "szt.",
+                    Quantity = 2,
+                    UnitPrice = 2500000
+                },
+                new InvoiceProducts
+                {
+                    Id = Guid.NewGuid(),
+                    InvoiceId = invoiceB.Id,
+                    ProductId = realProduct.Id,
+                    ProductName = realProduct.Name,
+                    UnitSymbol = "szt.",
+                    Quantity = 4,
+                    UnitPrice = 1000000
+                }
+            );
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act 
+            var searchByNumberResult = await _invoiceServicesMock.GetProductInvoicesAsync(
+                realProduct.Id,
+                new SimpleListCommand { PageNumber = 1, PageSize = 10, SearchTerm = "SPEC" });
+
+            var searchByCompanyResult = await _invoiceServicesMock.GetProductInvoicesAsync(
+                realProduct.Id,
+                new SimpleListCommand { PageNumber = 1, PageSize = 10, SearchTerm = "Metalex" });
+
+            // Assert 
+            await Assert.That(searchByNumberResult.IsSuccess).IsTrue();
+            await Assert.That(searchByNumberResult.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(searchByNumberResult.Data.Items[0].InvoiceId).IsEqualTo(invoiceA.Id);
+            await Assert.That(searchByNumberResult.Data.Items[0].InvoiceNumber).IsEqualTo($"FV/SPEC/{suffix}");
+            await Assert.That(searchByCompanyResult.IsSuccess).IsTrue();
+            await Assert.That(searchByCompanyResult.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(searchByCompanyResult.Data.Items[0].InvoiceId).IsEqualTo(invoiceB.Id);
+            await Assert.That(searchByCompanyResult.Data.Items[0].CompanyName).IsEqualTo($"Metalex Budownictwo_{suffix}");
+        }
+
+        [Test]
+        public async Task GetProductInvoicesAsync_AppliesPaginationAndSortsDescendingByIssueDate()
+        {
+            // Arrange
+            var (company, _, currency, deal, _) = await SeedInvoiceGraphAsync();
+            var realProduct = await SeedProductAsync(currency);
+
+            var now = DateTime.UtcNow;
+
+            var invOld = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = "FV/SORT/OLD",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                DealId = deal.Id,
+                TotalAmount = 100000,
+                PaidAmount = 0,
+                IssueDate = now.AddDays(-10),
+                DueDate = now.AddDays(4)
+            };
+
+            var invMiddle = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = "FV/SORT/MIDDLE",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                DealId = deal.Id,
+                TotalAmount = 200000,
+                PaidAmount = 0,
+                IssueDate = now.AddDays(-5),
+                DueDate = now.AddDays(9)
+            };
+
+            var invNewest = new Invoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceNumber = "FV/SORT/NEWEST",
+                CompanyId = company.Id,
+                CurrencyId = currency.Id,
+                DealId = deal.Id,
+                TotalAmount = 300000,
+                PaidAmount = 0,
+                IssueDate = now.AddDays(-1),
+                DueDate = now.AddDays(13)
+            };
+
+            _contextMock.Invoices.AddRange(invOld, invMiddle, invNewest);
+
+            _contextMock.InvoiceProducts.AddRange(
+                new InvoiceProducts { Id = Guid.NewGuid(), InvoiceId = invOld.Id, ProductId = realProduct.Id, ProductName = realProduct.Name, UnitSymbol = "szt.", Quantity = 1, UnitPrice = 100000 },
+                new InvoiceProducts { Id = Guid.NewGuid(), InvoiceId = invMiddle.Id, ProductId = realProduct.Id, ProductName = realProduct.Name, UnitSymbol = "szt.", Quantity = 1, UnitPrice = 200000 },
+                new InvoiceProducts { Id = Guid.NewGuid(), InvoiceId = invNewest.Id, ProductId = realProduct.Id, ProductName = realProduct.Name, UnitSymbol = "szt.", Quantity = 1, UnitPrice = 300000 }
+            );
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new SimpleListCommand
+            {
+                PageNumber = 1,
+                PageSize = 2
+            };
+
+            // Act
+            var result = await _invoiceServicesMock.GetProductInvoicesAsync(realProduct.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(2);
+            await Assert.That(result.Data.TotalCount).IsEqualTo(3);
+            await Assert.That(result.Data.TotalPages).IsEqualTo(2);
+
+            await Assert.That(items[0].InvoiceNumber).IsEqualTo("FV/SORT/NEWEST");
+            await Assert.That(items[1].InvoiceNumber).IsEqualTo("FV/SORT/MIDDLE");
+        }
     }
 }

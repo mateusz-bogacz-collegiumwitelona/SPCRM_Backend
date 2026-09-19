@@ -1323,7 +1323,7 @@ namespace Tests.Services
             _contextMock.OfferProducts.Add(new OfferProducts
             {
                 OfferId = offer.Id,
-                ProductId = product.Id, 
+                ProductId = product.Id,
                 Quantity = 4,
                 QuotedPrice = 450000
             });
