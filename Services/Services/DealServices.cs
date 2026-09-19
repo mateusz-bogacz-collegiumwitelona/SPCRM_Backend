@@ -121,6 +121,8 @@ namespace Services.Services
                 from u in uGroup.DefaultIfEmpty()
                 join comp in _context.Companies.AsNoTracking() on d.CompanyId equals comp.Id into compGroup
                 from comp in compGroup.DefaultIfEmpty()
+                join ct in _context.Contacts.AsNoTracking() on d.ContactId equals ct.Id into ctGroup
+                from ct in ctGroup.DefaultIfEmpty()
                 select new
                 {
                     DealExists = true,
@@ -143,6 +145,10 @@ namespace Services.Services
                     d.CompanyId,
                     HasCompany = comp != null,
                     CompanyName = comp != null ? comp.Name : null,
+
+                    d.ContactId,
+                    ContactFirstName = ct != null ? ct.FirstName : null,
+                    ContactLastName = ct != null ? ct.LastName : null,
 
                     InvoicedAmount = d.Invoices.Sum(i => (long?)i.TotalAmount) ?? 0,
                     PaidAmount = d.Invoices.Sum(i => (long?)i.PaidAmount) ?? 0,
@@ -204,6 +210,9 @@ namespace Services.Services
                 OwnerFirstName = query.OwnerFirstName ?? string.Empty,
                 OwnerLastName = query.OwnerLastName ?? string.Empty,
                 CompanyName = query.CompanyName ?? string.Empty,
+                ContactId = query.ContactId,
+                ContactFirstName = query.ContactFirstName ?? string.Empty,
+                ContactLastName = query.ContactLastName ?? string.Empty,
                 InvoicedAmount = query.InvoicedAmount,
                 PaidAmount = query.PaidAmount,
                 IsOverduelInvoices = query.IsOverdueInvoices,
