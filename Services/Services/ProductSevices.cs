@@ -513,7 +513,6 @@ namespace Services.Services
                 Diameter = rawProduct.Diameter.HasValue ? rawProduct.Diameter.Value / 10m : null,
                 Weight = rawProduct.Weight / 1000m,
                 PricePerUnit = rawProduct.PricePerUnit / 10000m,
-                StockQuantity = rawProduct.StockQuantity
             };
 
             return Result<EditProductDetailResponse>.Success(

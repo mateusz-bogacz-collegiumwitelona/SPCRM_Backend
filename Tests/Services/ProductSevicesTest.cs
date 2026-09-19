@@ -1371,7 +1371,6 @@ namespace Tests.Services
             await Assert.That(data.Diameter).IsEqualTo(50.0m);
             await Assert.That(data.Weight).IsEqualTo(15.5m);
             await Assert.That(data.PricePerUnit).IsEqualTo(25.5m);
-            await Assert.That(data.StockQuantity).IsEqualTo(42);
         }
 
         [Test]

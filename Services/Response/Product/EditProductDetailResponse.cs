@@ -16,6 +16,5 @@
         public decimal? Diameter { get; init; }
         public decimal Weight { get; init; }
         public decimal PricePerUnit { get; init; }
-        public int StockQuantity { get; init; }
     }
 }
