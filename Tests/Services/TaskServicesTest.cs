@@ -2336,7 +2336,7 @@ namespace Tests.Services
                 Description = "Brak roli managera nie powinien blokować",
                 DueAt = DateTime.UtcNow.AddDays(2),
                 Priority = TaskPriorityEnum.Low,
-                AssignedToId = user.Id, // Jawne ID bieżącego usera
+                AssignedToId = user.Id,
                 TargetType = TaskTargetTypeEnum.None
             };
 
@@ -3545,7 +3545,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            // Act: Próba ponownego przypisania do managera
+            // Act
             var result = await _taskServicesMock.ChangeAssignedToUserAsync(task.Id, manager.Id, manager.Id);
 
             // Assert

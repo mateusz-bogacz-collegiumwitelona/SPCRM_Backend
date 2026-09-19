@@ -16,7 +16,6 @@ namespace Api.Configuration
                     document.Components ??= new OpenApiComponents();
                     document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
 
-                    // Zmiana z Bearer (JWT) na ciasteczko
                     var cookieScheme = new OpenApiSecurityScheme
                     {
                         Type = SecuritySchemeType.ApiKey,

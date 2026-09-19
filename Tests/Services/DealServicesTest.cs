@@ -1972,7 +1972,7 @@ namespace Tests.Services
                 UnitId = unit.Id,
                 CurrencyId = currency.Id,
                 PricePerUnit = 20000,
-                StockQuantity = 5, // UWAGA: Na magazynie jest tylko 5 sztuk!
+                StockQuantity = 5,
                 Category = ProductCategoryEnum.Pipe,
                 SteelGrade = steelGrade,
                 Unit = unit
@@ -2750,7 +2750,7 @@ namespace Tests.Services
 
             var addedQuantity = 3;
             var addedUnitPrice = 30000L;
-            var expectedNewTotalValue = initialValue + (addedQuantity * addedUnitPrice); // 40 000 + 90 000 = 130 000
+            var expectedNewTotalValue = initialValue + (addedQuantity * addedUnitPrice);
 
             var command = new AddDealProductCommand
             {

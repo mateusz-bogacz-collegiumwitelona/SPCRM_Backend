@@ -76,7 +76,6 @@ namespace Api.Validators.Rule
                 .GreaterThan(TProperty.Zero)
                 .WithErrorCode(ErrorCodes.InvalidProductStockQuantity);
 
-        // Add
         public static void ApplyProductCategoryDimensionsRules<T>(this AbstractValidator<T> validator)
             where T : IAddProductDimensionsContract
         {
@@ -93,7 +92,6 @@ namespace Api.Validators.Rule
                 .When(x => string.Equals(x.Category, ProductCategoryEnum.Bar.ToString(), StringComparison.OrdinalIgnoreCase));
         }
 
-        // Edit
         public static void ApplyEditProductCategoryDimensionsRules<T>(this AbstractValidator<T> validator)
             where T : IEditProductDimensionsContract
         {

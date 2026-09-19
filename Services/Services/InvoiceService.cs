@@ -233,7 +233,7 @@ namespace Services.Services
                           UnitSymbol = ip.UnitSymbol,
                           Quantity = ip.Quantity,
                           UnitPrice = ip.UnitPrice,
-                          TotalPrice = ip.TotalPrice
+                          TotalPrice = ip.TotalPrice,
                       })
                      .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_product_list");
 
@@ -285,6 +285,8 @@ namespace Services.Services
                 {
                     PaymentId = p.Id,
                     Amount = p.Amount,
+                    CurrencyCode = p.Invoice.Currency.Code,
+                    DecimalPlaces = p.Invoice.Currency.DecimalPlaces,
                     PaymentDate = p.PaymentDate,
                     ReferenceNumber = p.ReferenceNumber,
                     Note = p.Note,

@@ -247,7 +247,6 @@ namespace Services.Services
                 );
             }
 
-            // 1. Sprawdzenie integralności encji promocji w bazie
             if (promotion.ProductId == Guid.Empty ||
                 (promotion.PromotionalPrice.HasValue && (!promotion.CurrencyId.HasValue || promotion.PromotionalPrice.Value < 0)) ||
                 (promotion.DiscountPercentage.HasValue && (promotion.DiscountPercentage.Value < 0 || promotion.DiscountPercentage.Value > 100)))

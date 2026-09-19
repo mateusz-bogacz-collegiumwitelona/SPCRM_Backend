@@ -11,9 +11,9 @@
         public required int Quantity { get; init; }
         public required string UnitSymbol { get; init; }
 
-        public required long BaseUnitPrice { get; init; } // prze rabatem
-        public required long UnitPrice { get; init; }     // po rabacie
-        public required long TotalPrice { get; init; }    // netto
+        public required long BaseUnitPrice { get; init; }
+        public required long UnitPrice { get; init; }
+        public required long TotalPrice { get; init; }
 
         public required string CurrencyCode { get; init; }
         public required int DecimalPlaces { get; init; }
