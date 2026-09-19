@@ -32,7 +32,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get invoice detail")]
         [EndpointDescription("Get invoice detail by invoice id")]
-        [HttpGet("{invoiceId}")]
+        [HttpGet("{invoiceId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetInvoiceDetailAsync(
             [FromServices] IInvoiceService invoice,
@@ -46,7 +46,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get invoice products")]
         [EndpointDescription("Get invoice products by invoice id. This list has paggination and search")]
-        [HttpGet("{invoiceId}/products")]
+        [HttpGet("{invoiceId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetInvoiceProductAsync(
             [FromServices] IInvoiceService invoice,
@@ -61,7 +61,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get invoice payment summary")]
         [EndpointDescription("Get invoice payment summary by invoice id")]
-        [HttpGet("{invoiceId}/payment/summary")]
+        [HttpGet("{invoiceId:guid}/payment/summary")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetInvoicePaymentSummaryAsync(
             [FromServices] IInvoiceService invoice,
@@ -74,7 +74,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get invoice payments list")]
         [EndpointDescription("Get invoice payment list witch search")]
-        [HttpGet("{invoiceId}/payment")]
+        [HttpGet("{invoiceId:guid}/payment")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetInvoicePaymentsAsync(
             [FromServices] IInvoiceService invoice,
@@ -89,7 +89,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add invoice payment")]
         [EndpointDescription("Add invoice payment")]
-        [HttpPost("{invoiceId}/payment")]
+        [HttpPost("{invoiceId:guid}/payment")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddInvoicePaymentAsync(
             [FromServices] IInvoiceService invoice,

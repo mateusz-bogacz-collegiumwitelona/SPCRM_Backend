@@ -970,5 +970,65 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        public async Task<Result<List<DealAssignableContactResponse>>> GetAssignableContactsForDealAsync(Guid dealId, Guid currentUserId)
+        {
+            var deal = await _context.Deals
+                .AsNoTracking()
+                .Where(d => d.Id == dealId)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.CompanyId,
+                    d.ContactId,
+                    d.OwnerId
+                })
+                .FirstOrDefaultAsync();
+
+            if (deal == null)
+            {
+                _logger.LogInformation("Deal with ID {DealId} not found when attempting to retrieve assignable contacts.", dealId);
+                return Result<List<DealAssignableContactResponse>>.Failure(
+                    message: "Deal not found.",
+                    errorCode: ErrorCodes.DealNotFound,
+                    statusCode: StatusCodes.Status404NotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, deal.OwnerId);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized access to assignable contacts for Deal {DealId}.", currentUserId, dealId);
+                throw new ForbiddenException("You are not authorized to view assignable contacts for this deal.");
+            }
+
+            var contacts = await _context.Contacts
+                .AsNoTracking()
+                .Where(c => c.CompanyId == deal.CompanyId
+                         && c.Id != deal.ContactId
+                         && c.ContactDetails.Any(cd => !cd.IsDeleted && cd.Type == ContactDetailTypeEnum.EMAIL && !string.IsNullOrWhiteSpace(cd.Value)))
+                .OrderByDescending(c => c.IsPrimary)
+                .ThenBy(c => c.FirstName)
+                .ThenBy(c => c.LastName)
+                .Select(c => new DealAssignableContactResponse
+                {
+                    Id = c.Id,
+                    FullName = c.FirstName + " " + c.LastName,
+                    JobTitle = c.JobTitle,
+                    IsPrimary = c.IsPrimary,
+                    Email = c.ContactDetails
+                        .Where(cd => !cd.IsDeleted && cd.Type == ContactDetailTypeEnum.EMAIL && !string.IsNullOrWhiteSpace(cd.Value))
+                        .OrderByDescending(cd => cd.IsPrimary)
+                        .Select(cd => cd.Value)
+                        .First()
+                })
+                .ToListAsync();
+
+            return Result<List<DealAssignableContactResponse>>.Success(
+                message: "Assignable contacts retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: contacts
+            );
+        }
     }
 }

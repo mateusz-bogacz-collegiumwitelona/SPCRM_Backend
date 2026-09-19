@@ -19,7 +19,7 @@ namespace Api.Controllers
         [EndpointSummary("Get contacts")]
         [EndpointDescription("Show all contacts.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("")]
+        [HttpGet]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactsAsync(
             [FromServices] ContactMapper mapper,
@@ -48,7 +48,7 @@ namespace Api.Controllers
         [EndpointSummary("Get contact detail")]
         [EndpointDescription("Show detail of a specific contact.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("{contactId}")]
+        [HttpGet("{contactId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactDetailAsync(
             [FromServices] IContactServices contact,
@@ -73,7 +73,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact notes")]
         [EndpointDescription("Show all notes for a specific contact.")]
-        [HttpGet("{contactId}/notes")]
+        [HttpGet("{contactId:guid}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactNotesAsync(
             [FromServices] INoteServices note,
@@ -87,9 +87,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpPost]
         [EndpointSummary("Add contact")]
         [EndpointDescription("Add a new contact.")]
+        [HttpPost]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddContactAsync(
             [FromServices] IContactServices contact,
@@ -125,9 +125,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpGet("{contactId}/detail")]
         [EndpointSummary("Get contact detail command")]
         [EndpointDescription("Show detail command for a specific contact.")]
+        [HttpGet("{contactId:guid}/detail")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactDetailCommandAsync(
             [FromServices] IContactServices contact,
@@ -138,9 +138,11 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpPatch("{contactId}/set-primary")]
+
         [EndpointSummary("Set contact as primary")]
         [EndpointDescription("Changes the specified contact to be the primary contact for their company.")]
+        [HttpPatch("{contactId:guid}/set-primary")]
+        [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> SetPrimaryContactAsync(
             [FromServices] IContactServices contact,
             [FromRoute] Guid contactId)
@@ -149,9 +151,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpDelete("{contactId}")]
         [EndpointSummary("Delete contact")]
         [EndpointDescription("Delete an existing contact.")]
+        [HttpDelete("{contactId:guid}")]
         [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> DeleteContactAsync(
             [FromServices] IContactServices contact,
@@ -161,9 +163,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpPatch("change-owner")]
         [EndpointSummary("Change contact owner")]
         [EndpointDescription("Change the owner of a contact.")]
+        [HttpPatch("change-owner")]
         [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> ChangeContactOwnerAsync(
             [FromServices] IContactServices contact,
@@ -174,9 +176,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpGet("available-owners")]
         [EndpointSummary("Get available owners")]
         [EndpointDescription("Show all available owners.")]
+        [HttpGet("available-owners")]
         [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> GetAvailableOwnersAsync([FromServices] IUserServices user)
         {
@@ -184,9 +186,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpGet("to-deals")]
         [EndpointSummary("Get available contacts to use in create deal")]
         [EndpointDescription("Get available contacts to use in create deal")]
+        [HttpGet("to-deals")]
         [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetContactToDealAsync(
             [FromServices] IContactServices contact,

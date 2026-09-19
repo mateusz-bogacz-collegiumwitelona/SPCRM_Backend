@@ -56,7 +56,7 @@ namespace Api.Controllers
         [EndpointSummary("Get sale detail")]
         [EndpointDescription("Returns detailed information about a specific sale.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("{dealId}")]
+        [HttpGet("{dealId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealDetailAsync(
             [FromServices] IDealServices deal,
@@ -69,7 +69,7 @@ namespace Api.Controllers
         [EndpointSummary("Get deal products")]
         [EndpointDescription("Returns a paginated list of products associated with a specific deal.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("{dealId}/products")]
+        [HttpGet("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealProductAsync(
             [FromServices] IDealServices deal,
@@ -88,7 +88,7 @@ namespace Api.Controllers
         [EndpointSummary("Get deal notes")]
         [EndpointDescription("Returns a list of notes associated with a specific deal.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("{dealId}/notes")]
+        [HttpGet("{dealId:guid}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealNotesAsync(
             [FromServices] INoteServices note,
@@ -100,7 +100,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get deal tasks")]
         [EndpointDescription("Returns a paginated list of tasks associated with a specific deal.")]
-        [HttpGet("{dealId}/tasks")]
+        [HttpGet("{dealId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealTasksAsync(
             [FromServices] ITaskServices task,
@@ -128,7 +128,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete a deal")]
         [EndpointDescription("Deletes a specific deal by its ID. (Changed status into Cancelled)")]
-        [HttpDelete("{dealId}")]
+        [HttpDelete("{dealId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> DeleteDealAsync(
             [FromServices] IDealServices deal,
@@ -153,7 +153,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a product to a deal")]
         [EndpointDescription("Adds a product to a specific deal.")]
-        [HttpPut("{dealId}/products")]
+        [HttpPut("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddDealProductAsync(
             [FromServices] IDealServices deal,
@@ -167,7 +167,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete a product from a deal")]
         [EndpointDescription("Deletes a specific product from a deal.")]
-        [HttpDelete("{dealId}/products/{dealProductId}")]
+        [HttpDelete("{dealId:guid}/products/{dealProductId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> DeleteDealProductAsync(
             [FromServices] IDealServices deal,
@@ -180,7 +180,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Update a product in a deal")]
         [EndpointDescription("Updates a specific product in a deal.")]
-        [HttpPatch("{dealId}/products")]
+        [HttpPatch("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> EditDealProductAsync(
             [FromServices] IDealServices deal,
@@ -194,7 +194,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a note to a deal")]
         [EndpointDescription("Adds a new note to a specific deal.")]
-        [HttpPost("{dealId}/notes")]
+        [HttpPost("{dealId:guid}/notes")]
         [Authorize(Roles = "Manager,User")]
 
         public async Task<IActionResult> AddDealNoteAsync(
@@ -210,7 +210,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change deal status")]
         [EndpointDescription("Changes the status of a specific deal.")]
-        [HttpPut("{dealId}/status")]
+        [HttpPut("{dealId:guid}/status")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> ChangeDealStatusAsync(
             [FromServices] IDealServices deal,
@@ -224,7 +224,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add deal task")]
         [EndpointDescription("Add task to a specific deal.")]
-        [HttpPost("{dealId}/tasks")]
+        [HttpPost("{dealId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddDealTaskAsync(
             [FromServices] ITaskServices task,
@@ -239,13 +239,27 @@ namespace Api.Controllers
 
         [EndpointSummary("Change deal contact")]
         [EndpointDescription("Change the contact associated with a specific deal.")]
-        [HttpPut("{dealId}/contact")]
+        [HttpPut("{dealId:guid}/contact")]
+        [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> ChangeDealContactAsync(
             [FromServices] IDealServices deal,
             [FromRoute] Guid dealId,
             [FromQuery] Guid contactId)
         {
             var result = await deal.ChangeDealContactAsync(dealId, contactId, CurrentUserId);
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get assignable contacts for deal")]
+        [EndpointDescription("Get a list of contacts that can be assigned to a specific deal.")]
+        [HttpGet("{dealId:guid}/assignable-contacts")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetAssignableContactsForDealAsync(
+            [FromServices] IDealServices deal,
+            [FromRoute] Guid dealId)
+
+        {
+            var result = await deal.GetAssignableContactsForDealAsync(dealId, CurrentUserId);
             return HandleResult(result);
         }
     }

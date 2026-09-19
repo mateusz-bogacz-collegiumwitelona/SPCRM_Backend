@@ -22,5 +22,6 @@ namespace Services.Interfaces
         Task<Result> EditDealProductAsync(Guid dealId, Guid userId, EditDealProductCommand command);
         Task<Result<ChangeDealStatusResponse>> ChangeDealStatusAsync(ChangeDealStatusCommand command);
         Task<Result> ChangeDealContactAsync(Guid dealId, Guid contactId, Guid currentUserId);
+        Task<Result<List<DealAssignableContactResponse>>> GetAssignableContactsForDealAsync(Guid dealId, Guid currentUserId);
     }
 }

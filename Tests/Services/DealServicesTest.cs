@@ -4232,5 +4232,252 @@ namespace Tests.Services
             await Assert.That(dbDeal!.ContactId).IsEqualTo(newValidContact.Id);
             await Assert.That(dbDeal.UpdateAt).IsNotNull();
         }
+
+        // ─── GetAssignableContactsForDealAsync ───────────────────────────────────
+
+        [Test]
+        public async Task GetAssignableContactsForDealAsync_WhenDealDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+            var randomDealId = Guid.NewGuid();
+
+            // Act
+            var result = await _dealServicesMock.GetAssignableContactsForDealAsync(randomDealId, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.DealNotFound);
+        }
+
+        [Test]
+        public async Task GetAssignableContactsForDealAsync_WhenUserIsNotAuthorized_ThrowsForbiddenException()
+        {
+            // Arrange
+            var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0060",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act & Assert
+            await Assert.That(async () => await _dealServicesMock.GetAssignableContactsForDealAsync(deal.Id, unauthorizedUserId))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task GetAssignableContactsForDealAsync_FiltersOutCurrentContactDifferentCompanyAndContactsWithoutEmail()
+        {
+            // Arrange
+            var (company, owner, currency, currentContact) = await SeedCompanyAndUserAsync();
+
+            var validContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Bartosz",
+                LastName = "Zieliński",
+                JobTitle = "Kierownik Zakupów",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = false
+            };
+
+            var validEmail = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "bartosz@test.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = validContact.Id,
+                IsPrimary = true
+            };
+
+            var otherCompany = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Obca Firma Sp. z o.o.",
+                NIP = "9998887766",
+                OwnerId = owner.Id
+            };
+
+            var otherCompanyContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Obcy",
+                LastName = "Człowiek",
+                CompanyId = otherCompany.Id,
+                OwnerId = owner.Id,
+                IsPrimary = true
+            };
+
+            var otherCompanyEmail = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "obcy@obcafirma.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = otherCompanyContact.Id
+            };
+
+            var noEmailContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marian",
+                LastName = "Głuchy",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = false
+            };
+
+            var phoneDetail = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "+48111222333",
+                Type = ContactDetailTypeEnum.PHONE,
+                ContactId = noEmailContact.Id
+            };
+
+            _contextMock.Companies.Add(otherCompany);
+            _contextMock.Contacts.AddRange(validContact, otherCompanyContact, noEmailContact);
+            _contextMock.ContactDetails.AddRange(validEmail, otherCompanyEmail, phoneDetail);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0061",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = currentContact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.GetAssignableContactsForDealAsync(deal.Id, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!;
+
+            await Assert.That(items).Count().IsEqualTo(1);
+
+            var returnedItem = items.First();
+            await Assert.That(returnedItem.Id).IsEqualTo(validContact.Id);
+            await Assert.That(returnedItem.FullName).IsEqualTo("Bartosz Zieliński");
+            await Assert.That(returnedItem.JobTitle).IsEqualTo("Kierownik Zakupów");
+            await Assert.That(returnedItem.Email).IsEqualTo("bartosz@test.pl");
+            await Assert.That(returnedItem.IsPrimary).IsFalse();
+        }
+
+        [Test]
+        public async Task GetAssignableContactsForDealAsync_OrdersByIsPrimaryDescAndFullNameAsc_AndPicksPrimaryEmailFirst()
+        {
+            // Arrange
+            var (company, owner, currency, currentContact) = await SeedCompanyAndUserAsync();
+
+            var contactA = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Adam",
+                LastName = "Alfabetyczny",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = false
+            };
+            var emailA = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "adam@test.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = contactA.Id
+            };
+
+            var contactB = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Zenon",
+                LastName = "Zarządca",
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                IsPrimary = true
+            };
+
+            var emailSecondary = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "inny@test.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = contactB.Id,
+                IsPrimary = false
+            };
+            var emailPrimary = new ContactDetail
+            {
+                Id = Guid.NewGuid(),
+                Value = "glowny@test.pl",
+                Type = ContactDetailTypeEnum.EMAIL,
+                ContactId = contactB.Id,
+                IsPrimary = true
+            };
+
+            _contextMock.Contacts.AddRange(contactA, contactB);
+            _contextMock.ContactDetails.AddRange(emailA, emailSecondary, emailPrimary);
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/2026/09/19/0062",
+                Value = 50000,
+                Status = DealsStatusEnum.ToDo,
+                CloseDate = DateTime.UtcNow.AddDays(14),
+                CompanyId = company.Id,
+                OwnerId = owner.Id,
+                CurrencyId = currency.Id,
+                ContactId = currentContact.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            // Act
+            var result = await _dealServicesMock.GetAssignableContactsForDealAsync(deal.Id, owner.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!;
+            await Assert.That(items).Count().IsEqualTo(2);
+
+            await Assert.That(items[0].Id).IsEqualTo(contactB.Id);
+            await Assert.That(items[0].Email).IsEqualTo("glowny@test.pl");
+            await Assert.That(items[0].IsPrimary).IsTrue();
+
+            await Assert.That(items[1].Id).IsEqualTo(contactA.Id);
+            await Assert.That(items[1].Email).IsEqualTo("adam@test.pl");
+            await Assert.That(items[1].IsPrimary).IsFalse();
+        }
     }
 }

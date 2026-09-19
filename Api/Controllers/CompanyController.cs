@@ -34,7 +34,7 @@ namespace Api.Controllers
         [EndpointSummary("Get detail about company")]
         [EndpointDescription("Show detail about company. This endpoint return onliy name, Nip and data to map")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("")]
+        [HttpGet]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> Details(
             [FromServices] ICompanyServices companyServices,
@@ -203,7 +203,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a new company address")]
         [EndpointDescription("Add a new company address with its details.")]
-        [HttpPost("address/{companyId:Guid}")]
+        [HttpPost("address/{companyId:guid}")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> AddCompanyAddressAsync(
             [FromServices] ICompanyServices company,
@@ -218,7 +218,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete an existing company")]
         [EndpointDescription("Delete an existing company by its ID.")]
-        [HttpDelete("{companyId:Guid}")]
+        [HttpDelete("{companyId:guid}")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeleteCompanyAsync(
             [FromServices] ICompanyServices company,
@@ -231,7 +231,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete an existing company address")]
         [EndpointDescription("Delete an existing company address by its ID.")]
-        [HttpDelete("address/{addressId:Guid}")]
+        [HttpDelete("address/{addressId:guid}")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> DeleteCompanyAddressAsync(
             [FromServices] ICompanyServices company,
