@@ -23,6 +23,17 @@ namespace Api.Mappers
         [MapProperty(nameof(TaskListRequest.Priority), nameof(TaskListCommand.Priority), Use = nameof(ParseTaskPriority))]
         public partial TaskListCommand MapList(TaskListRequest request);
 
+        public AddTaskCommand MapAddTask(AddTaskRequest request)
+            => new AddTaskCommand
+            {
+                Title = NormalizeName(request.Title),
+                Description = Trim(request.Description),
+                DueAt = request.DueAt,
+                Priority = ParseTaskPriorityNotNull(request.Priority),
+                AssignedToId = request.AssignedToId,
+                TargetType = TaskTargetTypeEnum.None
+            };
+
         public AddTaskCommand MapAddTaskToDeal(AddTaskRequest request, Guid dealId)
             => new AddTaskCommand
             {

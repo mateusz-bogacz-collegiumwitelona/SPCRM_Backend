@@ -169,5 +169,18 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Add tasks")]
+        [EndpointDescription("Add task.")]
+        [HttpPost]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> AddTaskAsync(
+           [FromServices] ITaskServices task,
+           [FromServices] TaskMapper mapper,
+           [FromBody] AddTaskRequest request
+           )
+        {
+            var result = await task.AddTaskAsync(mapper.MapAddTask(request), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
