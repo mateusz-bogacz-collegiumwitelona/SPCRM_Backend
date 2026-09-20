@@ -1,6 +1,6 @@
-﻿namespace Api.Request.Deal
+﻿namespace Api.Request.Task
 {
-    public record AddDealTaskRequest
+    public record AddTaskRequest
     {
         public required string Title { get; init; }
         public required string Description { get; init; }

@@ -1,5 +1,4 @@
 ﻿using Api.Mappers.Helper;
-using Api.Request.Deal;
 using Api.Request.Task;
 using Domain.Enum;
 using Riok.Mapperly.Abstractions;
@@ -24,7 +23,7 @@ namespace Api.Mappers
         [MapProperty(nameof(TaskListRequest.Priority), nameof(TaskListCommand.Priority), Use = nameof(ParseTaskPriority))]
         public partial TaskListCommand MapList(TaskListRequest request);
 
-        public AddTaskCommand MapAddTaskToDeal(AddDealTaskRequest request, Guid dealId)
+        public AddTaskCommand MapAddTaskToDeal(AddTaskRequest request, Guid dealId)
             => new AddTaskCommand
             {
                 Title = NormalizeName(request.Title),
@@ -34,6 +33,18 @@ namespace Api.Mappers
                 AssignedToId = request.AssignedToId,
                 TargetId = dealId,
                 TargetType = TaskTargetTypeEnum.Deal
+            };
+
+        public AddTaskCommand MapAddTaskToContact(AddTaskRequest request, Guid contactId)
+            => new AddTaskCommand
+            {
+                Title = NormalizeName(request.Title),
+                Description = Trim(request.Description),
+                DueAt = request.DueAt,
+                Priority = ParseTaskPriorityNotNull(request.Priority),
+                AssignedToId = request.AssignedToId,
+                TargetId = contactId,
+                TargetType = TaskTargetTypeEnum.Contact
             };
 
         public EditTaskCommand MapEdit(EditTaskRequest request, Guid taskId, Guid userId)

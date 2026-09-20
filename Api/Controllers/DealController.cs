@@ -230,7 +230,7 @@ namespace Api.Controllers
             [FromServices] ITaskServices task,
             [FromServices] TaskMapper mapper,
             [FromRoute] Guid dealId,
-            [FromBody] AddDealTaskRequest request
+            [FromBody] AddTaskRequest request
             )
         {
             var result = await task.AddTaskAsync(mapper.MapAddTaskToDeal(request, dealId), CurrentUserId);

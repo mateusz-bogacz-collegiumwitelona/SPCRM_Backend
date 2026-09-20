@@ -1,12 +1,12 @@
-﻿using Api.Request.Deal;
+﻿using Api.Request.Task;
 using Api.Validators.Rule;
 using FluentValidation;
 
 namespace Api.Validators.Validators.Task
 {
-    public class AddDealTaskValidator : AbstractValidator<AddDealTaskRequest>
+    public class AddTaskValidator : AbstractValidator<AddTaskRequest>
     {
-        public AddDealTaskValidator()
+        public AddTaskValidator()
         {
             RuleFor(x => x.Title).ApplyTaskTitleRules();
             RuleFor(x => x.Description).ApplyTaskDescriptionRules();

@@ -214,5 +214,21 @@ namespace Api.Controllers
             var result = await task.GetContactTaskAsync(contactId, mapper.MapList(request), CurrentUserId);
             return HandleResult(result);
         }
+
+
+        [EndpointSummary("Add contact tasks")]
+        [EndpointDescription("Add task to a specific contact.")]
+        [HttpPost("{contactId:guid}/tasks")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> AddContactTaskAsync(
+            [FromServices] ITaskServices task,
+            [FromServices] TaskMapper mapper,
+            [FromRoute] Guid contactId,
+            [FromBody] AddTaskRequest request
+            )
+        {
+            var result = await task.AddTaskAsync(mapper.MapAddTaskToContact(request, contactId), CurrentUserId);
+            return HandleResult(result);
+        }
     }
 }
