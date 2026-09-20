@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Command.Analytics;
 using Services.Services;
 using Testcontainers.PostgreSql;
 
@@ -149,7 +150,6 @@ namespace Tests.Services
         }
 
         // ─── GetTeamKpiSummaryAsync ─────────────────────────────────────────────────
-
 
         [Test]
         public async Task GetTeamKpiSummaryAsync_WhenDatabaseIsEmpty_ShouldReturnZeroes()
@@ -415,6 +415,170 @@ namespace Tests.Services
             await Assert.That(data.WonDealsThisMonth).IsEqualTo(0);
             await Assert.That(data.PendingTasksCount).IsEqualTo(0);
             await Assert.That(data.OverdueTasksCount).IsEqualTo(0);
+        }
+
+        // ─── GetTeamRevenueChartAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetTeamRevenueChartAsync_WhenHalfYearPeriod_ShouldReturnSixMonthsAndAggregateCorrectly()
+        {
+            // Arrange
+            var (user, currency, company, contact) = await SeedBaseEntitiesAsync();
+            var nowUtc = DateTime.UtcNow;
+
+            var currentMonthStart = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var threeMonthsAgo = currentMonthStart.AddMonths(-3);
+
+            var deals = new List<Deal>
+            {
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/WYKRES/01",
+                    Value = 1_000_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = currentMonthStart.AddDays(2),
+                    OwnerId = user.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/WYKRES/02",
+                    Value = 500_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = threeMonthsAgo.AddDays(1),
+                    OwnerId = user.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/WYKRES/03",
+                    Value = 200_000_000L,
+                    Status = DealsStatusEnum.Cancelled,
+                    CloseDate = currentMonthStart.AddDays(3),
+                    OwnerId = user.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                }
+            };
+
+            _contextMock.Deals.AddRange(deals);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.HalfYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GetTeamRevenueChartAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var chart = result.Data!;
+            await Assert.That(chart.Count).IsEqualTo(6);
+
+            var latestMonthPoint = chart[^1];
+            await Assert.That(latestMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy"));
+            await Assert.That(latestMonthPoint.Revenue).IsEqualTo(100_000m);
+            await Assert.That(latestMonthPoint.DealsWonCount).IsEqualTo(1);
+
+            var threeMonthsAgoPoint = chart[2];
+            await Assert.That(threeMonthsAgoPoint.Label).IsEqualTo(threeMonthsAgo.ToString("MMM yyyy"));
+            await Assert.That(threeMonthsAgoPoint.Revenue).IsEqualTo(50_000m);
+            await Assert.That(threeMonthsAgoPoint.DealsWonCount).IsEqualTo(1);
+
+            var emptyMonthPoint = chart[0]; 
+            await Assert.That(emptyMonthPoint.Revenue).IsEqualTo(0m);
+            await Assert.That(emptyMonthPoint.DealsWonCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetTeamRevenueChartAsync_WhenCurrentYearPeriod_ShouldReturnTwelveMonths()
+        {
+            // Arrange
+            var (user, currency, company, contact) = await SeedBaseEntitiesAsync();
+            var nowUtc = DateTime.UtcNow;
+
+            var januaryFirst = new DateTime(nowUtc.Year, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+
+            var dealInJan = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/JAN/01",
+                Value = 300_000_000L, 
+                Status = DealsStatusEnum.Complete,
+                CloseDate = januaryFirst,
+                OwnerId = user.Id,
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(dealInJan);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.CurrentYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GetTeamRevenueChartAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var chart = result.Data!;
+
+            await Assert.That(chart.Count).IsEqualTo(12);
+
+            var janPoint = chart[0];
+            await Assert.That(janPoint.Revenue).IsEqualTo(30_000m);
+            await Assert.That(janPoint.DealsWonCount).IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task GetTeamRevenueChartAsync_WhenCurrentMonthPeriod_ShouldReturnFourIntervals()
+        {
+            // Arrange
+            var (user, currency, company, contact) = await SeedBaseEntitiesAsync();
+            var nowUtc = DateTime.UtcNow;
+
+            var dealFirstWeek = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/MONTH/01",
+                Value = 150_000_000L, 
+                Status = DealsStatusEnum.Complete,
+                CloseDate = new DateTime(nowUtc.Year, nowUtc.Month, 2, 10, 0, 0, DateTimeKind.Utc),
+                OwnerId = user.Id,
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(dealFirstWeek);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.CurrentMonth };
+
+            // Act
+            var result = await _analyticsServiceMock.GetTeamRevenueChartAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var chart = result.Data!;
+
+            await Assert.That(chart.Count).IsEqualTo(4);
+
+            var firstWeek = chart[0];
+            await Assert.That(firstWeek.Label).IsEqualTo("Dni 1-7");
+            await Assert.That(firstWeek.Revenue).IsEqualTo(15_000m);
+            await Assert.That(firstWeek.DealsWonCount).IsEqualTo(1);
         }
     }
 }

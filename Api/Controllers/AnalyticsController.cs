@@ -1,4 +1,6 @@
 ﻿using Api.Controllers.Base;
+using Api.Mappers;
+using Api.Request.Analytics;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +22,19 @@ namespace Api.Controllers
         public async Task<IActionResult> GetTeamKpiSummaryAsync([FromServices] IAnalyticsService analytics)
         {
             var result = await analytics.GetTeamKpiSummaryAsync();
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get team revenue chart data")]
+        [EndpointDescription("Returns aggregated revenue and deal counts for charts.")]
+        [HttpGet("team/chart")]
+        public async Task<IActionResult> GetTeamRevenueChartAsync(
+            [FromServices] IAnalyticsService analytics,
+            [FromServices] AnalyticsMapper mapper,
+            [FromQuery] AnalyticsChartRequest request
+            )
+        {
+            var result = await analytics.GetTeamRevenueChartAsync(mapper.MapChart(request));
             return HandleResult(result);
         }
     }
