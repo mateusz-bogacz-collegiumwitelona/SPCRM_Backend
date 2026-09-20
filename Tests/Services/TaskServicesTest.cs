@@ -3893,5 +3893,421 @@ namespace Tests.Services
             var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
             await Assert.That(taskInDb.Status).IsEqualTo(TaskStatusEnum.Complete);
         }
+
+        // ─── GetContactTaskAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetContactTaskAsync_MapsAllFieldsRelationsAndAppliesPaginationCorrectly()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var assignedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@test.pl",
+                FirstName = "Właściciel",
+                LastName = "Kontaktu"
+            };
+
+            var assignedUser = new ApplicationUser
+            {
+                Id = assignedUserId,
+                UserName = $"Assigned_{uniqueSuffix}",
+                Email = $"assigned_{uniqueSuffix}@test.pl",
+                FirstName = "Piotr",
+                LastName = "Pracownik"
+            };
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "PLN",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1234567890",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner,
+                IsPrimary = true
+            };
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "Transakcja Powiązana",
+                CompanyId = company.Id,
+                Company = company,
+                CurrencyId = currency.Id,
+                Currency = currency,
+                OwnerId = ownerId,
+                Owner = owner,
+                CloseDate = DateTime.UtcNow,
+                Contact = contact
+            };
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Telefon ofertowy do klienta",
+                Description = "Przedstawienie nowej oferty na blachy",
+                ContactId = contact.Id,
+                Contact = contact,
+                DealId = deal.Id,
+                Deal = deal,
+                AssignedToId = assignedUserId,
+                AssignedTo = assignedUser,
+                DueAt = new DateTime(2026, 10, 5, 14, 30, 0, DateTimeKind.Utc),
+                Status = TaskStatusEnum.InProgress,
+                Priority = TaskPriorityEnum.High,
+                IsDeleted = false,
+                CreatedBy = owner,
+                CreatedById = ownerId
+            };
+
+            _contextMock.Users.AddRange(owner, assignedUser);
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            _contextMock.Deals.Add(deal);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new TaskListCommand
+            {
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _taskServicesMock.GetContactTaskAsync(contact.Id, command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var paged = result.Data!;
+            await Assert.That(paged.TotalCount).IsEqualTo(1);
+
+            var item = paged.Items.First();
+            await Assert.That(item.Id).IsEqualTo(task.Id);
+            await Assert.That(item.Title).IsEqualTo("Telefon ofertowy do klienta");
+            await Assert.That(item.Status).IsEqualTo(TaskStatusEnum.InProgress.ToString());
+            await Assert.That(item.Priority).IsEqualTo(TaskPriorityEnum.High.ToString());
+            await Assert.That(item.AssignedToId).IsEqualTo(assignedUserId);
+            await Assert.That(item.AssignedToFirstName).IsEqualTo("Piotr");
+            await Assert.That(item.AssignedToLastName).IsEqualTo("Pracownik");
+            await Assert.That(item.DealId).IsEqualTo(deal.Id);
+            await Assert.That(item.DealName).IsEqualTo("Transakcja Powiązana");
+        }
+
+        [Test]
+        public async Task GetContactTaskAsync_ReturnsTasksOnlyForSpecifiedContact()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"User_{uniqueSuffix}",
+                Email = $"user_{uniqueSuffix}@test.pl",
+                FirstName = "Tomasz",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "9876543210",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var targetContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Celowy",
+                LastName = "Kontakt",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner,
+                IsPrimary = true
+            };
+
+            var otherContact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Inny",
+                LastName = "Kontakt",
+                CompanyId = company.Id,
+                Company = company,
+                OwnerId = ownerId,
+                Owner = owner,
+                IsPrimary = false
+            };
+
+            var targetTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie kontaktu celowego",
+                ContactId = targetContact.Id,
+                Contact = targetContact,
+                AssignedToId = ownerId,
+                AssignedTo = owner,
+                DueAt = DateTime.UtcNow.AddDays(1),
+                Description = "Opis",
+                IsDeleted = false,
+                CreatedBy = owner,
+                CreatedById = ownerId
+            };
+
+            var otherTask = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie innego kontaktu",
+                ContactId = otherContact.Id,
+                Contact = otherContact,
+                AssignedToId = ownerId,
+                AssignedTo = owner,
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Description = "Opis",
+                IsDeleted = false,
+                CreatedBy = owner,
+                CreatedById = ownerId
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.AddRange(targetContact, otherContact);
+            _contextMock.Tasks.AddRange(targetTask, otherTask);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _taskServicesMock.GetContactTaskAsync(targetContact.Id, command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+
+            var items = result.Data!.Items;
+            await Assert.That(items).Count().IsEqualTo(1);
+            await Assert.That(items[0].Id).IsEqualTo(targetTask.Id);
+        }
+
+        [Test]
+        public async Task GetContactTaskAsync_WhenContactDoesNotExist_Returns404NotFound()
+        {
+            // Arrange
+            var randomContactId = Guid.NewGuid();
+            var randomUserId = Guid.NewGuid();
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _taskServicesMock.GetContactTaskAsync(randomContactId, command, randomUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
+            await Assert.That(result.Message).IsEqualTo("Contact not found.");
+        }
+
+        [Test]
+        public async Task GetContactTaskAsync_WhenUserIsNotOwnerNorManager_ThrowsForbiddenException()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+            var unauthorizedUserId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@t.pl",
+                FirstName = "Właściciel",
+                LastName = "Kontaktu"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "1122334455",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Prywatny",
+                LastName = "Klient",
+                CompanyId = company.Id,
+                Company = company,
+                Owner = owner,
+                OwnerId = ownerId,
+                IsPrimary = true
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act & Assert
+            await Assert.That(async () => await _taskServicesMock.GetContactTaskAsync(contact.Id, command, unauthorizedUserId))
+                .Throws<ForbiddenException>();
+        }
+
+        [Test]
+        public async Task GetContactTaskAsync_WhenUserIsManager_AllowsAccessEvenIfNotOwner()
+        {
+            // Arrange
+            var (company, manager, _) = await SeedCompanyAndUserAsync();
+            await AssignManagerRoleAsync(manager.Id);
+
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var contactOwner = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = $"Trader_{uniqueSuffix}",
+                Email = $"trader_{uniqueSuffix}@test.pl",
+                FirstName = "Handlowiec",
+                LastName = "Pracownik"
+            };
+            _contextMock.Users.Add(contactOwner);
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Klient",
+                LastName = "Handlowca",
+                CompanyId = company.Id,
+                Company = company,
+                Owner = contactOwner,
+                OwnerId = contactOwner.Id,
+                IsPrimary = true
+            };
+            _contextMock.Contacts.Add(contact);
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Zadanie do wglądu menedżera",
+                ContactId = contact.Id,
+                Contact = contact,
+                AssignedToId = contactOwner.Id,
+                AssignedTo = contactOwner,
+                DueAt = DateTime.UtcNow.AddDays(2),
+                Description = "Opis",
+                IsDeleted = false,
+                CreatedBy = contactOwner,
+                CreatedById = contactOwner.Id
+            };
+            _contextMock.Tasks.Add(task);
+
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _taskServicesMock.GetContactTaskAsync(contact.Id, command, manager.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
+            await Assert.That(result.Data.Items[0].Id).IsEqualTo(task.Id);
+        }
+
+        [Test]
+        public async Task GetContactTaskAsync_WhenContactHasNoTasks_ReturnsEmptyListWithSuccessStatus()
+        {
+            // Arrange
+            var uniqueSuffix = Guid.NewGuid().ToString("N");
+            var ownerId = Guid.NewGuid();
+
+            var owner = new ApplicationUser
+            {
+                Id = ownerId,
+                UserName = $"Owner_{uniqueSuffix}",
+                Email = $"owner_{uniqueSuffix}@t.pl",
+                FirstName = "Piotr",
+                LastName = "Kowalski"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Firma_{uniqueSuffix}",
+                NIP = "5566778899",
+                OwnerId = ownerId,
+                Owner = owner
+            };
+
+            var contactWithoutTasks = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Czysty",
+                LastName = "Kontakt",
+                CompanyId = company.Id,
+                Company = company,
+                Owner = owner,
+                OwnerId = ownerId,
+                IsPrimary = true
+            };
+
+            _contextMock.Users.Add(owner);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contactWithoutTasks);
+            await _contextMock.SaveChangesAsync();
+            _contextMock.ChangeTracker.Clear();
+
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _taskServicesMock.GetContactTaskAsync(contactWithoutTasks.Id, command, ownerId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.Items).IsEmpty();
+            await Assert.That(result.Data.TotalCount).IsEqualTo(0);
+        }
     }
 }

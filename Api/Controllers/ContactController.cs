@@ -2,6 +2,7 @@
 using Api.Mappers;
 using Api.Request.Contact;
 using Api.Request.List;
+using Api.Request.Task;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -197,6 +198,20 @@ namespace Api.Controllers
             )
         {
             var result = await contact.GetContactToDealAsync(mapper.MapSimpleList(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get contact tasks")]
+        [EndpointDescription("Returns a paginated list of tasks associated with a specific contact.")]
+        [HttpGet("{contactId:guid}/tasks")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<IActionResult> GetContactTaskAsync(
+            [FromServices] ITaskServices task,
+            [FromServices] TaskMapper mapper,
+            [FromRoute] Guid contactId,
+            [FromQuery] TaskListRequest request)
+        {
+            var result = await task.GetContactTaskAsync(contactId, mapper.MapList(request), CurrentUserId);
             return HandleResult(result);
         }
     }

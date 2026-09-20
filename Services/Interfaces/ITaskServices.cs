@@ -19,5 +19,6 @@ namespace Services.Interfaces
         Task<Result> ExtendTaskDueDateAsync(ExtendTaskDueDateCommand command);
         Task<Result> ChangeAssignedToUserAsync(Guid taskId, Guid newAssignedToUserId, Guid managerId);
         Task<Result> ChangeTaskStatusAsync(ChangeTaskStatusCommand command);
+        Task<Result<PagedResult<ContactTaskResponse>>> GetContactTaskAsync(Guid contactId, TaskListCommand command, Guid currentUserId);
     }
 }

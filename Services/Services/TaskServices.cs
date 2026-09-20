@@ -685,6 +685,52 @@ namespace Services.Services
                     new { Value = TaskStatusEnum.Break.ToString(), Label = "Wstrzymane" }
                 };
 
+        public async Task<Result<PagedResult<ContactTaskResponse>>> GetContactTaskAsync(Guid contactId, TaskListCommand command, Guid currentUserId)
+        {
+            var contactOwnerId = await _context.Contacts
+                .AsNoTracking()
+                .Where(c => c.Id == contactId)
+                .Select(c => (Guid?)c.OwnerId)
+                .FirstOrDefaultAsync();
+
+            if (!contactOwnerId.HasValue)
+            {
+                _logger.LogInformation("Contact {ContactId} not found when retrieving tasks.", contactId);
+                return Result<PagedResult<ContactTaskResponse>>.Failure(
+                    message: "Contact not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.ContactNotFound
+                );
+            }
+
+            var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, contactOwnerId.Value);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} unauthorized access to tasks of Contact {ContactId}.", currentUserId, contactId);
+                throw new ForbiddenException("You do not have permission to view tasks for this contact.");
+            }
+
+            return await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.ContactId == contactId)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .ApplyFilter(command.Status, command.Priority)
+                .ApplySorting(command.SortBy, command.SortDescending)
+                .Select(t => new ContactTaskResponse
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    DueAt = t.DueAt,
+                    Status = t.Status.ToString(),
+                    Priority = t.Priority.ToString(),
+                    AssignedToId = t.AssignedToId,
+                    AssignedToFirstName = t.AssignedTo.FirstName,
+                    AssignedToLastName = t.AssignedTo.LastName,
+                    DealId = t.DealId,
+                    DealName = t.Deal != null ? t.Deal.Name : null
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact-tasks");
+        }
 
         private List<object> GetPriorityDictionary()
             => new List<object>
