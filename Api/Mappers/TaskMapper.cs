@@ -20,22 +20,9 @@ namespace Api.Mappers
                 TaskStatus = ParseTaskStatus(request.TaskStatus)
             };
 
-        public UserTaskListCommand MapUserTask(Guid userId, UserTaskListRequest request)
-            => new UserTaskListCommand
-            {
-                UserId = userId,
-                PageNumber = request.PageNumber,
-                PageSize = request.PageSize,
-                SearchTerm = request.SearchTerm,
-                Status = ParseTaskStatus(request.Status),
-                Priority = ParseTaskPriority(request.Priority),
-                SortBy = request.SortBy,
-                SortDescending = request.SortDescending
-            };
-
-        [MapProperty(nameof(SalesTaskListRequest.Status), nameof(SalesTaskListCommand.Status), Use = nameof(ParseTaskStatus))]
-        [MapProperty(nameof(SalesTaskListRequest.Priority), nameof(SalesTaskListCommand.Priority), Use = nameof(ParseTaskPriority))]
-        public partial SalesTaskListCommand MapSaleTasks(SalesTaskListRequest request);
+        [MapProperty(nameof(TaskListRequest.Status), nameof(TaskListCommand.Status), Use = nameof(ParseTaskStatus))]
+        [MapProperty(nameof(TaskListRequest.Priority), nameof(TaskListCommand.Priority), Use = nameof(ParseTaskPriority))]
+        public partial TaskListCommand MapList(TaskListRequest request);
 
         public AddTaskCommand MapAddTaskToDeal(AddDealTaskRequest request, Guid dealId)
             => new AddTaskCommand

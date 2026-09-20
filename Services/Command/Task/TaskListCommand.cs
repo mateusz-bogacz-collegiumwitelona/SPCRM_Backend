@@ -2,9 +2,8 @@
 
 namespace Services.Command.Task
 {
-    public record UserTaskListCommand
+    public record TaskListCommand
     {
-        public required Guid UserId { get; init; }
         public int? PageNumber { get; init; }
         public int? PageSize { get; init; }
         public string? SearchTerm { get; init; }

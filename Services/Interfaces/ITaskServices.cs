@@ -11,8 +11,8 @@ namespace Services.Interfaces
         Task<Result<TaskDetailResponse>> GetTaskDetailResponse(Guid taskId);
         Task<Result<TaskContactResponse>> GetTaskContactAsync(Guid taskId);
         Task<Result<TaskDealResponse>> GetTaskDealAsync(Guid taskId);
-        Task<Result<PagedResult<UserTaskResponse>>> GetUserTasksAsync(UserTaskListCommand command);
-        Task<Result<PagedResult<SaleTaskResponse>>> GetDealTasksAsync(Guid dealId, SalesTaskListCommand command, Guid currentUserId);
+        Task<Result<PagedResult<UserTaskResponse>>> GetUserTasksAsync(TaskListCommand command, Guid userId);
+        Task<Result<PagedResult<SaleTaskResponse>>> GetDealTasksAsync(Guid dealId, TaskListCommand command, Guid currentUserId);
         Task<Result> AddTaskAsync(AddTaskCommand command, Guid userId);
         Task<Result> DeleteTaskAsync(Guid taskId, Guid userId);
         Task<Result> EditTaskAsync(EditTaskCommand command);

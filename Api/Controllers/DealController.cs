@@ -106,10 +106,10 @@ namespace Api.Controllers
             [FromServices] ITaskServices task,
             [FromServices] TaskMapper mapper,
             [FromRoute] Guid dealId,
-            [FromQuery] SalesTaskListRequest request
+            [FromQuery] TaskListRequest request
             )
         {
-            var result = await task.GetDealTasksAsync(dealId, mapper.MapSaleTasks(request), CurrentUserId);
+            var result = await task.GetDealTasksAsync(dealId, mapper.MapList(request), CurrentUserId);
             return HandleResult(result);
         }
 

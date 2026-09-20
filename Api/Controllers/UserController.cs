@@ -265,10 +265,10 @@ namespace Api.Controllers
             [FromRoute] Guid userId,
             [FromServices] ITaskServices taskServices,
             [FromServices] TaskMapper mapper,
-            [FromQuery] UserTaskListRequest request
+            [FromQuery] TaskListRequest request
         )
         {
-            var result = await taskServices.GetUserTasksAsync(mapper.MapUserTask(userId, request));
+            var result = await taskServices.GetUserTasksAsync(mapper.MapList(request), userId);
             return HandleResult(result);
         }
 

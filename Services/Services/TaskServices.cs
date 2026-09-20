@@ -239,10 +239,10 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<PagedResult<UserTaskResponse>>> GetUserTasksAsync(UserTaskListCommand command)
+        public async Task<Result<PagedResult<UserTaskResponse>>> GetUserTasksAsync(TaskListCommand command, Guid userId)
             => await _context.Tasks
                     .AsNoTracking()
-                    .Where(t => t.AssignedToId == command.UserId)
+                    .Where(t => t.AssignedToId == userId)
                     .ApplySearch(command.SearchTerm ?? string.Empty)
                     .ApplySorting(command.SortBy ?? string.Empty, command.SortDescending)
                     .ApplyFilter(command.Status, command.Priority)
@@ -260,7 +260,7 @@ namespace Services.Services
 
         public async Task<Result<PagedResult<SaleTaskResponse>>> GetDealTasksAsync(
             Guid dealId,
-            SalesTaskListCommand command,
+            TaskListCommand command,
             Guid currentUserId)
         {
             var dealOwnerId = await _context.Deals
@@ -684,6 +684,7 @@ namespace Services.Services
                     new { Value = TaskStatusEnum.Complete.ToString(), Label = "Zakończone" },
                     new { Value = TaskStatusEnum.Break.ToString(), Label = "Wstrzymane" }
                 };
+
 
         private List<object> GetPriorityDictionary()
             => new List<object>

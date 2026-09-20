@@ -1314,15 +1314,14 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(validTask, deletedTask, otherUserTask);
             await _contextMock.SaveChangesAsync();
 
-            var command = new UserTaskListCommand
+            var command = new TaskListCommand
             {
-                UserId = targetUserId,
                 PageNumber = 1,
                 PageSize = 10
             };
 
             // Act
-            var result = await _taskServicesMock.GetUserTasksAsync(command);
+            var result = await _taskServicesMock.GetUserTasksAsync(command, targetUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1428,9 +1427,8 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(taskWithRelations, taskWithoutRelations);
             await _contextMock.SaveChangesAsync();
 
-            var command = new UserTaskListCommand
+            var command = new TaskListCommand
             {
-                UserId = userId,
                 PageNumber = 1,
                 PageSize = 10,
                 SortBy = "title",
@@ -1438,7 +1436,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _taskServicesMock.GetUserTasksAsync(command);
+            var result = await _taskServicesMock.GetUserTasksAsync(command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1518,9 +1516,8 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(taskMatching, taskWrongStatus, taskWrongPriority);
             await _contextMock.SaveChangesAsync();
 
-            var command = new UserTaskListCommand
+            var command = new TaskListCommand
             {
-                UserId = userId,
                 Status = TaskStatusEnum.InProgress,
                 Priority = TaskPriorityEnum.High,
                 PageNumber = 1,
@@ -1528,7 +1525,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _taskServicesMock.GetUserTasksAsync(command);
+            var result = await _taskServicesMock.GetUserTasksAsync(command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1651,33 +1648,30 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(taskByTitle, taskByDeal, taskByContact, taskIrrelevant);
             await _contextMock.SaveChangesAsync();
 
-            var resultTitle = await _taskServicesMock.GetUserTasksAsync(new UserTaskListCommand
+            var resultTitle = await _taskServicesMock.GetUserTasksAsync(new TaskListCommand
             {
-                UserId = userId,
                 SearchTerm = "zolty",
                 PageNumber = 1,
                 PageSize = 10
-            });
+            }, userId);
             await Assert.That(resultTitle.Data!.Items.Count).IsEqualTo(1);
             await Assert.That(resultTitle.Data.Items[0].Id).IsEqualTo(taskByTitle.Id);
 
-            var resultDeal = await _taskServicesMock.GetUserTasksAsync(new UserTaskListCommand
+            var resultDeal = await _taskServicesMock.GetUserTasksAsync(new TaskListCommand
             {
-                UserId = userId,
                 SearchTerm = "Specjalny",
                 PageNumber = 1,
                 PageSize = 10
-            });
+            }, userId);
             await Assert.That(resultDeal.Data!.Items.Count).IsEqualTo(1);
             await Assert.That(resultDeal.Data.Items[0].Id).IsEqualTo(taskByDeal.Id);
 
-            var resultContact = await _taskServicesMock.GetUserTasksAsync(new UserTaskListCommand
+            var resultContact = await _taskServicesMock.GetUserTasksAsync(new TaskListCommand
             {
-                UserId = userId,
                 SearchTerm = "Stanislaw",
                 PageNumber = 1,
                 PageSize = 10
-            });
+            }, userId);
             await Assert.That(resultContact.Data!.Items.Count).IsEqualTo(1);
             await Assert.That(resultContact.Data.Items[0].Id).IsEqualTo(taskByContact.Id);
         }
@@ -1717,9 +1711,8 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(tasks);
             await _contextMock.SaveChangesAsync();
 
-            var command = new UserTaskListCommand
+            var command = new TaskListCommand
             {
-                UserId = userId,
                 PageNumber = 2,
                 PageSize = 2,
                 SortBy = "dueat",
@@ -1727,7 +1720,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _taskServicesMock.GetUserTasksAsync(command);
+            var result = await _taskServicesMock.GetUserTasksAsync(command, userId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1842,7 +1835,7 @@ namespace Tests.Services
             _contextMock.Tasks.Add(task);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SalesTaskListCommand
+            var command = new TaskListCommand
             {
                 PageNumber = 1,
                 PageSize = 10
@@ -1981,7 +1974,7 @@ namespace Tests.Services
             _contextMock.Tasks.AddRange(targetTask, otherTask);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
             var result = await _taskServicesMock.GetDealTasksAsync(targetDeal.Id, command, ownerId);
@@ -2001,7 +1994,7 @@ namespace Tests.Services
             // Arrange
             var randomDealId = Guid.NewGuid();
             var randomUserId = Guid.NewGuid();
-            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
             var result = await _taskServicesMock.GetDealTasksAsync(randomDealId, command, randomUserId);
@@ -2078,7 +2071,7 @@ namespace Tests.Services
             _contextMock.Deals.Add(deal);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act & Assert
             await Assert.That(async () => await _taskServicesMock.GetDealTasksAsync(deal.Id, command, unauthorizedUserId))
@@ -2150,7 +2143,7 @@ namespace Tests.Services
             _contextMock.Deals.Add(dealWithoutTasks);
             await _contextMock.SaveChangesAsync();
 
-            var command = new SalesTaskListCommand { PageNumber = 1, PageSize = 10 };
+            var command = new TaskListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
             var result = await _taskServicesMock.GetDealTasksAsync(dealWithoutTasks.Id, command, ownerId);

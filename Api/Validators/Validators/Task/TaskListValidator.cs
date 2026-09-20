@@ -4,11 +4,10 @@ using FluentValidation;
 
 namespace Api.Validators.Validators.Task
 {
-    public class SalesTaskListValidator : AbstractValidator<SalesTaskListRequest>
+    public class TaskListValidator : AbstractValidator<TaskListRequest>
     {
-        public SalesTaskListValidator()
+        public TaskListValidator()
         {
-
             RuleFor(x => x.PageNumber).ApplyPageNumberRules();
 
             RuleFor(x => x.PageSize).ApplyPageSizeRules();
