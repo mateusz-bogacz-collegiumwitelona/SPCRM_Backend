@@ -31,6 +31,7 @@ namespace Services
             services.AddScoped<IEntityAuthorizationService, EntityAuthorizationService>();
             services.AddScoped<IUserServices, UserServices>();
             services.AddScoped<IInventoryService, InventoryService>();
+            services.AddScoped<IAnalyticsService, AnalyticsService>();
 
             // State Factories
             services.AddScoped<IOfferStateMachineFactory, OfferStateMachineFactory>();
