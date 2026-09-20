@@ -685,15 +685,16 @@ namespace Services.Services
                     new { Value = TaskStatusEnum.Break.ToString(), Label = "Wstrzymane" }
                 };
 
-        public async Task<Result<PagedResult<ContactTaskResponse>>> GetContactTaskAsync(Guid contactId, TaskListCommand command, Guid currentUserId)
+        public async Task<Result<PagedResult<ContactTaskResponse>>> GetContactTaskAsync(
+             Guid contactId,
+             TaskListCommand command,
+             Guid currentUserId)
         {
-            var contactOwnerId = await _context.Contacts
+            var contactExists = await _context.Contacts
                 .AsNoTracking()
-                .Where(c => c.Id == contactId)
-                .Select(c => (Guid?)c.OwnerId)
-                .FirstOrDefaultAsync();
+                .AnyAsync(c => c.Id == contactId);
 
-            if (!contactOwnerId.HasValue)
+            if (!contactExists)
             {
                 _logger.LogInformation("Contact {ContactId} not found when retrieving tasks.", contactId);
                 return Result<PagedResult<ContactTaskResponse>>.Failure(
@@ -703,16 +704,18 @@ namespace Services.Services
                 );
             }
 
-            var hasAccess = await _entityAuth.CanModifyAsync(currentUserId, contactOwnerId.Value);
-            if (!hasAccess)
+            var isManager = await _entityAuth.CanAccessAsync(currentUserId);
+
+            var query = _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.ContactId == contactId);
+
+            if (!isManager)
             {
-                _logger.LogWarning("User {UserId} unauthorized access to tasks of Contact {ContactId}.", currentUserId, contactId);
-                throw new ForbiddenException("You do not have permission to view tasks for this contact.");
+                query = query.Where(t => t.AssignedToId == currentUserId);
             }
 
-            return await _context.Tasks
-                .AsNoTracking()
-                .Where(t => t.ContactId == contactId)
+            return await query
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .ApplyFilter(command.Status, command.Priority)
                 .ApplySorting(command.SortBy, command.SortDescending)
