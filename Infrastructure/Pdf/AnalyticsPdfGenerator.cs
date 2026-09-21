@@ -1,8 +1,10 @@
-﻿using Infrastructure.Pdf.Command;
+﻿using Domain.Constants;
+using Infrastructure.Pdf.Command;
 using Infrastructure.Pdf.Helpers;
 using Infrastructure.Pdf.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
+using System.Collections;
 
 namespace Infrastructure.Pdf
 {
@@ -53,19 +55,19 @@ namespace Infrastructure.Pdf
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
                                 c.Item().Text("Przychód (Tydzień)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text($"{data.RevenueThisWeek:N2} PLN").Bold().FontSize(12);
+                                c.Item().Text(FormatCurrencies(data.RevenueThisWeek)).Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
                                 c.Item().Text("Przychód (Miesiąc)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text($"{data.RevenueThisMonth:N2} PLN").Bold().FontSize(12);
+                                c.Item().Text(FormatCurrencies(data.RevenueThisMonth)).Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
                                 c.Item().Text("Przychód (Rok)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text($"{data.RevenueThisYear:N2} PLN").Bold().FontSize(12);
+                                c.Item().Text(FormatCurrencies(data.RevenueThisYear)).Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
@@ -76,8 +78,8 @@ namespace Infrastructure.Pdf
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
-                                c.Item().Text("Aktywny Lejek").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text($"{data.ActiveDealsPipelineValue:N2} PLN").Bold().FontSize(12);
+                                c.Item().Text("Wartość otwartych szans").FontSize(9).FontColor(Colors.Grey.Medium);
+                                c.Item().Text(FormatCurrencies(data.ActiveDealsPipelineValue)).Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
@@ -97,7 +99,7 @@ namespace Infrastructure.Pdf
                             table.ColumnsDefinition(columns =>
                             {
                                 columns.RelativeColumn(3);
-                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(4);
                                 columns.RelativeColumn(2);
                             });
 
@@ -111,7 +113,7 @@ namespace Infrastructure.Pdf
                             foreach (var metric in data.HistoryMetrics ?? [])
                             {
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5).Text(metric.Label);
-                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text($"{metric.Revenue:N2} PLN");
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(FormatCurrencies(metric.Revenue));
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(metric.DealsWonCount.ToString());
                             }
                         });
@@ -188,30 +190,30 @@ namespace Infrastructure.Pdf
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
                                 c.Item().Text("Przychód Zespołu (Tydzień)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text($"{data.RevenueThisWeek:N2} PLN").Bold().FontSize(12);
+                                c.Item().Text(FormatCurrencies(data.RevenueThisWeek)).Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
                                 c.Item().Text("Przychód Zespołu (Miesiąc)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text($"{data.RevenueThisMonth:N2} PLN").Bold().FontSize(12);
+                                c.Item().Text(FormatCurrencies(data.RevenueThisMonth)).Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
                                 c.Item().Text("Przychód Zespołu (Rok)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text($"{data.RevenueThisYear:N2} PLN").Bold().FontSize(12);
+                                c.Item().Text(FormatCurrencies(data.RevenueThisYear)).Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
-                                c.Item().Text("Aktywne Deale").FontSize(9).FontColor(Colors.Grey.Medium);
+                                c.Item().Text("Aktywne transakcje").FontSize(9).FontColor(Colors.Grey.Medium);
                                 c.Item().Text($"{data.ActiveDealsCount} tematów").Bold().FontSize(12);
                             });
 
                             table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
                             {
-                                c.Item().Text("Zamknięte deale (Miesiąc)").FontSize(9).FontColor(Colors.Grey.Medium);
+                                c.Item().Text("Zamknięte transakcje (Miesiąc)").FontSize(9).FontColor(Colors.Grey.Medium);
                                 c.Item().Text($"{data.WonDealsThisMonth} wygranych / {data.LostDealsThisMonth} straconych").Bold().FontSize(12);
                             });
 
@@ -235,7 +237,7 @@ namespace Infrastructure.Pdf
                                 {
                                     columns.ConstantColumn(25);
                                     columns.RelativeColumn(3);
-                                    columns.RelativeColumn(2);
+                                    columns.RelativeColumn(3);
                                     columns.RelativeColumn(2);
                                     columns.RelativeColumn(2);
                                 });
@@ -254,7 +256,7 @@ namespace Infrastructure.Pdf
                                 {
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5).Text($"{lp++}.");
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5).Text(performer.FullName);
-                                    table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text($"{performer.RevenueThisMonth:N2} PLN");
+                                    table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(FormatCurrencies(performer.RevenueThisMonth));
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(performer.WonDealsThisMonth.ToString());
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text($"{performer.WinRatePercentageThisMonth:N2}%");
                                 }
@@ -287,6 +289,22 @@ namespace Infrastructure.Pdf
             });
 
             return document.GeneratePdf();
+        }
+
+        private static string FormatCurrencies(IEnumerable<CurrencyAmountCommand>? amounts)
+        {
+            if (amounts == null)
+            {
+                return $"0.00 {BusinessConstants.DefaultCurrencyCode}";
+            }
+
+            var list = amounts.ToList();
+            if (list.Count == 0)
+            {
+                return $"0.00 {BusinessConstants.DefaultCurrencyCode}";
+            }
+
+            return string.Join("\n", list.Select(a => $"{a.Amount:N2} {a.CurrencyCode}"));
         }
     }
 }

@@ -23,18 +23,18 @@ namespace Services.Helpers
                 FirstName = summary.FirstName,
                 LastName = summary.LastName,
                 Email = summary.Email,
-                RevenueThisWeek = summary.RevenueThisWeek,
-                RevenueThisMonth = summary.RevenueThisMonth,
-                RevenueThisYear = summary.RevenueThisYear,
+                RevenueThisWeek = MapCurrencies(summary.RevenueThisWeek),
+                RevenueThisMonth = MapCurrencies(summary.RevenueThisMonth),
+                RevenueThisYear = MapCurrencies(summary.RevenueThisYear),
                 WinRatePercentageThisMonth = summary.WinRatePercentageThisMonth,
-                ActiveDealsPipelineValue = summary.ActiveDealsPipelineValue,
+                ActiveDealsPipelineValue = MapCurrencies(summary.ActiveDealsPipelineValue),
                 CompletedTasksThisMonth = summary.CompletedTasksThisMonth,
                 OverdueTasksCount = summary.OverdueTasksCount,
                 PeriodTitle = periodTitle,
                 HistoryMetrics = historyMetrics.Select(h => new HistoryMetricCommand
                 {
                     Label = h.Label,
-                    Revenue = h.Revenue,
+                    Revenue = MapCurrencies(h.Revenue),
                     DealsWonCount = h.DealsWonCount
                 }).ToList()
             };
@@ -55,9 +55,9 @@ namespace Services.Helpers
 
             return new TeamAnalyticsReportCommand
             {
-                RevenueThisWeek = summary.RevenueThisWeek,
-                RevenueThisMonth = summary.RevenueThisMonth,
-                RevenueThisYear = summary.RevenueThisYear,
+                RevenueThisWeek = MapCurrencies(summary.RevenueThisWeek),
+                RevenueThisMonth = MapCurrencies(summary.RevenueThisMonth),
+                RevenueThisYear = MapCurrencies(summary.RevenueThisYear),
                 ActiveDealsCount = summary.ActiveDealsCount,
                 WonDealsThisMonth = summary.WonDealsThisMonth,
                 LostDealsThisMonth = summary.LostDealsThisMonth,
@@ -67,17 +67,25 @@ namespace Services.Helpers
                 HistoryMetrics = historyMetrics.Select(h => new HistoryMetricCommand
                 {
                     Label = h.Label,
-                    Revenue = h.Revenue,
+                    Revenue = MapCurrencies(h.Revenue),
                     DealsWonCount = h.DealsWonCount
                 }).ToList(),
                 TopPerformers = topPerformers.Select(p => new TeamLeaderboardRowCommand
                 {
                     FullName = $"{p.FirstName} {p.LastName}".Trim(),
-                    RevenueThisMonth = p.RevenueThisMonth,
+                    RevenueThisMonth = MapCurrencies(p.RevenueThisMonth),
                     WonDealsThisMonth = p.WonDealsThisMonth,
                     WinRatePercentageThisMonth = p.WinRatePercentageThisMonth
                 }).ToList()
             };
         }
+
+        private static List<CurrencyAmountCommand> MapCurrencies(IEnumerable<CurrencyAmountResponse>? source)
+                => source?.Select(c => new CurrencyAmountCommand
+                {
+                    CurrencyCode = c.CurrencyCode,
+                    Amount = c.Amount,
+                    DecimalPlaces = c.DecimalPlaces
+                }).ToList() ?? [];
     }
 }

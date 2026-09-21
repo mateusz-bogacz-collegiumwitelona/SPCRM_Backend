@@ -2,9 +2,9 @@
 {
     public record TeamKpiSummaryResponse
     {
-        public decimal RevenueThisWeek { get; init; }
-        public decimal RevenueThisMonth { get; init; }
-        public decimal RevenueThisYear { get; init; }
+        public List<CurrencyAmountResponse> RevenueThisWeek { get; init; } = new();
+        public List<CurrencyAmountResponse> RevenueThisMonth { get; init; } = new();
+        public List<CurrencyAmountResponse> RevenueThisYear { get; init; } = new();
 
         public int ActiveDealsCount { get; init; }
         public int WonDealsThisMonth { get; init; }

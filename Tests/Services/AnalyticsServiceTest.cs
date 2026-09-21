@@ -11,7 +11,9 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Analytics;
 using Services.Command.List;
+using Services.Response.Analytics;
 using Services.Services;
+using System.Collections;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
@@ -100,6 +102,10 @@ namespace Tests.Services
             _analyticsServiceMock = new AnalyticsService(_contextMock, _loggerMock, _pdfMock);
         }
 
+
+        private static decimal GetAmount(IEnumerable<CurrencyAmountResponse?> revenues, string currencyCode = "PLN")
+            => revenues?.FirstOrDefault(r => r?.CurrencyCode == currencyCode)?.Amount ?? 0m;
+
         [After(Test)]
         public async Task CleanupAsync()
         {
@@ -172,9 +178,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
 
             var data = result.Data!;
-            await Assert.That(data.RevenueThisWeek).IsEqualTo(0m);
-            await Assert.That(data.RevenueThisMonth).IsEqualTo(0m);
-            await Assert.That(data.RevenueThisYear).IsEqualTo(0m);
+            await Assert.That(data.RevenueThisWeek).IsEmpty();
+            await Assert.That(data.RevenueThisMonth).IsEmpty();
+            await Assert.That(data.RevenueThisYear).IsEmpty();
             await Assert.That(data.ActiveDealsCount).IsEqualTo(0);
             await Assert.That(data.WonDealsThisMonth).IsEqualTo(0);
             await Assert.That(data.LostDealsThisMonth).IsEqualTo(0);
@@ -293,7 +299,7 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             var data = result.Data!;
 
-            await Assert.That(data.RevenueThisYear).IsEqualTo(175_000.00m);
+            await Assert.That(GetAmount(data.RevenueThisYear)).IsEqualTo(175_000.00m);
             await Assert.That(data.WonDealsThisMonth).IsEqualTo(2);
             await Assert.That(data.LostDealsThisMonth).IsEqualTo(1);
             await Assert.That(data.ActiveDealsCount).IsEqualTo(2);
@@ -420,7 +426,7 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             var data = result.Data!;
 
-            await Assert.That(data.RevenueThisMonth).IsEqualTo(0m);
+            await Assert.That(data.RevenueThisMonth).IsEmpty();
             await Assert.That(data.WonDealsThisMonth).IsEqualTo(0);
             await Assert.That(data.PendingTasksCount).IsEqualTo(0);
             await Assert.That(data.OverdueTasksCount).IsEqualTo(0);
@@ -496,16 +502,16 @@ namespace Tests.Services
 
             var latestMonthPoint = chart[^1];
             await Assert.That(latestMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy"));
-            await Assert.That(latestMonthPoint.Revenue).IsEqualTo(100_000m);
+            await Assert.That(GetAmount(latestMonthPoint.Revenue)).IsEqualTo(100_000m);
             await Assert.That(latestMonthPoint.DealsWonCount).IsEqualTo(1);
 
             var threeMonthsAgoPoint = chart[2];
             await Assert.That(threeMonthsAgoPoint.Label).IsEqualTo(threeMonthsAgo.ToString("MMM yyyy"));
-            await Assert.That(threeMonthsAgoPoint.Revenue).IsEqualTo(50_000m);
+            await Assert.That(GetAmount(threeMonthsAgoPoint.Revenue)).IsEqualTo(50_000m);
             await Assert.That(threeMonthsAgoPoint.DealsWonCount).IsEqualTo(1);
 
             var emptyMonthPoint = chart[0];
-            await Assert.That(emptyMonthPoint.Revenue).IsEqualTo(0m);
+            await Assert.That(emptyMonthPoint.Revenue).IsEmpty();
             await Assert.That(emptyMonthPoint.DealsWonCount).IsEqualTo(0);
         }
 
@@ -546,7 +552,7 @@ namespace Tests.Services
             await Assert.That(chart.Count).IsEqualTo(12);
 
             var janPoint = chart[0];
-            await Assert.That(janPoint.Revenue).IsEqualTo(30_000m);
+            await Assert.That(GetAmount(janPoint.Revenue)).IsEqualTo(30_000m);
             await Assert.That(janPoint.DealsWonCount).IsEqualTo(1);
         }
 
@@ -586,7 +592,7 @@ namespace Tests.Services
 
             var firstWeek = chart[0];
             await Assert.That(firstWeek.Label).IsEqualTo("Dni 1-7");
-            await Assert.That(firstWeek.Revenue).IsEqualTo(15_000m);
+            await Assert.That(GetAmount(firstWeek.Revenue)).IsEqualTo(15_000m);
             await Assert.That(firstWeek.DealsWonCount).IsEqualTo(1);
         }
 
@@ -777,11 +783,11 @@ namespace Tests.Services
             await Assert.That(data.FirstName).IsEqualTo(targetUser.FirstName);
             await Assert.That(data.LastName).IsEqualTo(targetUser.LastName);
             await Assert.That(data.Email).IsEqualTo(targetUser.Email);
-            await Assert.That(data.RevenueThisWeek).IsEqualTo(80_000m);
-            await Assert.That(data.RevenueThisMonth).IsEqualTo(120_000m);
-            await Assert.That(data.RevenueThisYear).IsEqualTo(150_000m);
+            await Assert.That(GetAmount(data.RevenueThisWeek)).IsEqualTo(80_000m);
+            await Assert.That(GetAmount(data.RevenueThisMonth)).IsEqualTo(120_000m);
+            await Assert.That(GetAmount(data.RevenueThisYear)).IsEqualTo(150_000m);
             await Assert.That(data.ActiveDealsCount).IsEqualTo(1);
-            await Assert.That(data.ActiveDealsPipelineValue).IsEqualTo(50_000m);
+            await Assert.That(GetAmount(data.ActiveDealsPipelineValue)).IsEqualTo(50_000m);
             await Assert.That(data.WonDealsThisMonth).IsEqualTo(2);
             await Assert.That(data.LostDealsThisMonth).IsEqualTo(1);
             await Assert.That(data.WinRatePercentageThisMonth).IsEqualTo(66.67m);
@@ -805,7 +811,7 @@ namespace Tests.Services
             await Assert.That(data.WonDealsThisMonth).IsEqualTo(0);
             await Assert.That(data.LostDealsThisMonth).IsEqualTo(0);
             await Assert.That(data.WinRatePercentageThisMonth).IsEqualTo(0m);
-            await Assert.That(data.ActiveDealsPipelineValue).IsEqualTo(0m);
+            await Assert.That(data.ActiveDealsPipelineValue).IsEmpty();
         }
 
         // ─── GetEmployeeRevenueChartAsync ─────────────────────────────────────────────────
@@ -936,16 +942,16 @@ namespace Tests.Services
 
             var currentMonthPoint = chart[^1];
             await Assert.That(currentMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy"));
-            await Assert.That(currentMonthPoint.Revenue).IsEqualTo(60_000m);
+            await Assert.That(GetAmount(currentMonthPoint.Revenue)).IsEqualTo(60_000m);
             await Assert.That(currentMonthPoint.DealsWonCount).IsEqualTo(1);
 
             var twoMonthsAgoPoint = chart[3];
             await Assert.That(twoMonthsAgoPoint.Label).IsEqualTo(twoMonthsAgo.ToString("MMM yyyy"));
-            await Assert.That(twoMonthsAgoPoint.Revenue).IsEqualTo(40_000m);
+            await Assert.That(GetAmount(twoMonthsAgoPoint.Revenue)).IsEqualTo(40_000m);
             await Assert.That(twoMonthsAgoPoint.DealsWonCount).IsEqualTo(1);
 
             var emptyMonthPoint = chart[0];
-            await Assert.That(emptyMonthPoint.Revenue).IsEqualTo(0m);
+            await Assert.That(emptyMonthPoint.Revenue).IsEmpty();
             await Assert.That(emptyMonthPoint.DealsWonCount).IsEqualTo(0);
         }
 
@@ -982,9 +988,10 @@ namespace Tests.Services
             var chart = result.Data!;
 
             await Assert.That(chart.Count).IsEqualTo(4);
+
             var firstInterval = chart[0];
             await Assert.That(firstInterval.Label).IsEqualTo("Dni 1-7");
-            await Assert.That(firstInterval.Revenue).IsEqualTo(25_000m);
+            await Assert.That(GetAmount(firstInterval.Revenue)).IsEqualTo(25_000m);
             await Assert.That(firstInterval.DealsWonCount).IsEqualTo(1);
         }
 
@@ -1139,16 +1146,19 @@ namespace Tests.Services
             var items = pagedData.Items.ToList();
 
             await Assert.That(items.Count).IsEqualTo(3);
+           
             await Assert.That(items[0].EmployeeId).IsEqualTo(user2.Id);
-            await Assert.That(items[0].RevenueThisMonth).IsEqualTo(150_000m);
+            await Assert.That(GetAmount(items[0].RevenueThisMonth)).IsEqualTo(150_000m);
             await Assert.That(items[0].WonDealsThisMonth).IsEqualTo(2);
             await Assert.That(items[0].WinRatePercentageThisMonth).IsEqualTo(100m);
+           
             await Assert.That(items[1].EmployeeId).IsEqualTo(user1.Id);
-            await Assert.That(items[1].RevenueThisMonth).IsEqualTo(50_000m);
+            await Assert.That(GetAmount(items[1].RevenueThisMonth)).IsEqualTo(50_000m);
             await Assert.That(items[1].WonDealsThisMonth).IsEqualTo(1);
             await Assert.That(items[1].WinRatePercentageThisMonth).IsEqualTo(50m);
+            
             await Assert.That(items[2].EmployeeId).IsEqualTo(user3.Id);
-            await Assert.That(items[2].RevenueThisMonth).IsEqualTo(0m);
+            await Assert.That(items[2].RevenueThisMonth).IsEmpty();
             await Assert.That(items[2].WonDealsThisMonth).IsEqualTo(0);
             await Assert.That(items[2].ActiveDealsCount).IsEqualTo(1);
             await Assert.That(items[2].WinRatePercentageThisMonth).IsEqualTo(0m);

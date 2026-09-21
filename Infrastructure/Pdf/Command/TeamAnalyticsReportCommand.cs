@@ -2,9 +2,9 @@
 {
     public record TeamAnalyticsReportCommand
     {
-        public required decimal RevenueThisWeek { get; init; }
-        public required decimal RevenueThisMonth { get; init; }
-        public required decimal RevenueThisYear { get; init; }
+        public  List<CurrencyAmountCommand> RevenueThisWeek { get; init; } = new();
+        public List<CurrencyAmountCommand> RevenueThisMonth { get; init; } = new();
+        public List<CurrencyAmountCommand> RevenueThisYear { get; init; } = new();
         public required int ActiveDealsCount { get; init; }
         public required int WonDealsThisMonth { get; init; }
         public required int LostDealsThisMonth { get; init; }

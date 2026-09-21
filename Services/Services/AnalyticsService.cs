@@ -30,11 +30,11 @@ namespace Services.Services
             DateTime StartOfYearUtc);
 
         private sealed record BaseKpiMetrics(
-            decimal RevenueThisWeek,
-            decimal RevenueThisMonth,
-            decimal RevenueThisYear,
+            List<CurrencyAmountResponse> RevenueThisWeek,
+            List<CurrencyAmountResponse> RevenueThisMonth,
+            List<CurrencyAmountResponse> RevenueThisYear,
             int ActiveDealsCount,
-            decimal ActiveDealsPipelineValue,
+            List<CurrencyAmountResponse> ActiveDealsPipelineValue,
             int WonDealsThisMonth,
             int LostDealsThisMonth,
             decimal WinRatePercentageThisMonth,
@@ -183,41 +183,42 @@ namespace Services.Services
             return await _context.Users
                 .AsNoTracking()
                 .Where(u => !u.IsDeleted)
-                .Select(u => new
+                .OrderByDescending(u => u.Deals.Count(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc))
+                .ThenBy(u => u.LastName)
+                .Select(u => new LeaderboardItemResponse
                 {
                     EmployeeId = u.Id,
                     FirstName = u.FirstName,
                     LastName = u.LastName,
                     Email = u.Email ?? string.Empty,
 
-                    RevenueRaw = u.Deals
-                        .Where(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc)
-                        .Sum(d => (long?)d.Value) ?? 0,
-
                     WonDealsThisMonth = u.Deals
                         .Count(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc),
 
-                    LostDealsThisMonth = u.Deals
-                        .Count(d => d.Status == DealsStatusEnum.Cancelled && d.CloseDate >= periods.StartOfMonthUtc),
-
                     ActiveDealsCount = u.Deals
-                        .Count(d => d.Status != DealsStatusEnum.Complete && d.Status != DealsStatusEnum.Cancelled)
+                        .Count(d => d.Status != DealsStatusEnum.Complete && d.Status != DealsStatusEnum.Cancelled),
+
+                    WinRatePercentageThisMonth = (u.Deals.Count(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc) +
+                                                 u.Deals.Count(d => d.Status == DealsStatusEnum.Cancelled && d.CloseDate >= periods.StartOfMonthUtc)) > 0
+                        ? Math.Round(
+                            (decimal)u.Deals.Count(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc) /
+                            (u.Deals.Count(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc) +
+                             u.Deals.Count(d => d.Status == DealsStatusEnum.Cancelled && d.CloseDate >= periods.StartOfMonthUtc)) * 100m,
+                            BusinessConstants.DefaultPercentageDecimalPlaces)
+                        : 0m,
+
+                    RevenueThisMonth = u.Deals
+                        .Where(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc)
+                        .GroupBy(d => new { d.Currency.Code, d.Currency.DecimalPlaces })
+                        .Select(g => new CurrencyAmountResponse
+                        {
+                           CurrencyCode = g.Key.Code,
+                            DecimalPlaces = g.Key.DecimalPlaces,
+                            Amount = (decimal)(g.Sum(d => (long?)d.Value) ?? 0) / BusinessConstants.CurrencyScaleFactor
+                        })
+                        .ToList()
                 })
-                .OrderByDescending(x => x.RevenueRaw)
-                .ThenByDescending(x => x.WonDealsThisMonth)
-                .Select(x => new LeaderboardItemResponse
-                {
-                    EmployeeId = x.EmployeeId,
-                    FirstName = x.FirstName,
-                    LastName = x.LastName,
-                    Email = x.Email,
-                    RevenueThisMonth = Math.Round(x.RevenueRaw / BusinessConstants.CurrencyScaleFactor, BusinessConstants.DefaultPercentageDecimalPlaces),
-                    WonDealsThisMonth = x.WonDealsThisMonth,
-                    ActiveDealsCount = x.ActiveDealsCount,
-                    WinRatePercentageThisMonth = (x.WonDealsThisMonth + x.LostDealsThisMonth) > 0
-                        ? Math.Round(((decimal)x.WonDealsThisMonth / (x.WonDealsThisMonth + x.LostDealsThisMonth)) * 100m, BusinessConstants.DefaultPercentageDecimalPlaces)
-                        : 0m
-                }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "team_leaderboard");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "team_leaderboard");
         }
 
         public async Task<Result<PdfFileResponse>> GenerateEmployeeReportPdfAsync(Guid employeeId, AnalyticsChartCommand chartCommand)
@@ -327,7 +328,13 @@ namespace Services.Services
                         var startOfMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
                         var dealsInMonth = await completeDealsQuery
                             .Where(d => d.CloseDate >= startOfMonth && d.CloseDate <= nowUtc)
-                            .Select(d => new { d.CloseDate, d.Value })
+                            .Select(d => new
+                            {
+                                d.CloseDate,
+                                d.Value,
+                                CurrencyCode = d.Currency.Code,
+                                DecimalPlaces = d.Currency.DecimalPlaces
+                            })
                             .ToListAsync();
 
                         int daysInMonth = DateTime.DaysInMonth(nowUtc.Year, nowUtc.Month);
@@ -339,10 +346,19 @@ namespace Services.Services
                                 .Where(d => d.CloseDate.Day >= startDay && d.CloseDate.Day <= endDay)
                                 .ToList();
 
+                            var revenues = weekDeals
+                                .GroupBy(d => new { d.CurrencyCode, d.DecimalPlaces })
+                                .Select(g => new CurrencyAmountResponse { 
+                                    CurrencyCode = g.Key.CurrencyCode,
+                                    DecimalPlaces = g.Key.DecimalPlaces,
+                                    Amount = Math.Round((decimal)g.Sum(d => d.Value) / BusinessConstants.CurrencyScaleFactor, g.Key.DecimalPlaces)
+                                })
+                                .ToList();
+
                             chartItems.Add(new AnalyticsChartMetricResponse
                             {
                                 Label = $"Dni {startDay}-{endDay}",
-                                Revenue = ToDecimalCurrency(weekDeals.Sum(d => (long?)d.Value) ?? 0),
+                                Revenue = revenues,
                                 DealsWonCount = weekDeals.Count
                             });
                         }
@@ -354,11 +370,19 @@ namespace Services.Services
                         var sixMonthsAgo = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-5);
                         var halfYearDeals = await completeDealsQuery
                             .Where(d => d.CloseDate >= sixMonthsAgo)
-                            .GroupBy(d => new { d.CloseDate.Year, d.CloseDate.Month })
+                            .GroupBy(d => new
+                            {
+                                d.CloseDate.Year,
+                                d.CloseDate.Month,
+                                CurrencyCode = d.Currency.Code,
+                                DecimalPlaces = d.Currency.DecimalPlaces
+                            })
                             .Select(g => new
                             {
                                 g.Key.Year,
                                 g.Key.Month,
+                                g.Key.CurrencyCode,
+                                g.Key.DecimalPlaces,
                                 RevenueRaw = g.Sum(x => (long?)x.Value) ?? 0,
                                 Count = g.Count()
                             })
@@ -367,13 +391,23 @@ namespace Services.Services
                         for (int i = 5; i >= 0; i--)
                         {
                             var target = nowUtc.AddMonths(-i);
-                            var found = halfYearDeals.FirstOrDefault(d => d.Year == target.Year && d.Month == target.Month);
+                            var matchingDeals = halfYearDeals
+                                .Where(d => d.Year == target.Year && d.Month == target.Month)
+                                .ToList();
+
+                            var revenues = matchingDeals
+                                .Select(m => new CurrencyAmountResponse { 
+                                    CurrencyCode = m.CurrencyCode,
+                                    DecimalPlaces = m.DecimalPlaces,
+                                    Amount = Math.Round((decimal)m.RevenueRaw / BusinessConstants.CurrencyScaleFactor, m.DecimalPlaces)
+                                })
+                                .ToList();
 
                             chartItems.Add(new AnalyticsChartMetricResponse
                             {
                                 Label = target.ToString("MMM yyyy", BusinessConstants.DefaultCultureCode),
-                                Revenue = found != null ? ToDecimalCurrency(found.RevenueRaw) : 0m,
-                                DealsWonCount = found?.Count ?? 0
+                                Revenue = revenues,
+                                DealsWonCount = matchingDeals.Sum(m => m.Count)
                             });
                         }
                         break;
@@ -384,29 +418,46 @@ namespace Services.Services
                         var startOfYear = new DateTime(nowUtc.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                         var yearDeals = await completeDealsQuery
                             .Where(d => d.CloseDate >= startOfYear)
-                            .GroupBy(d => d.CloseDate.Month)
+                            .GroupBy(d => new
+                            {
+                                Month = d.CloseDate.Month,
+                                CurrencyCode = d.Currency.Code,
+                                DecimalPlaces = d.Currency.DecimalPlaces
+                            })
                             .Select(g => new
                             {
-                                Month = g.Key,
+                                g.Key.Month,
+                                g.Key.CurrencyCode,
+                                g.Key.DecimalPlaces,
                                 RevenueRaw = g.Sum(x => (long?)x.Value) ?? 0,
                                 Count = g.Count()
                             })
                             .ToListAsync();
 
-
                         for (int m = 1; m <= 12; m++)
                         {
-                            var found = yearDeals.FirstOrDefault(d => d.Month == m);
-                            var monthDate = new DateTime(nowUtc.Year, m, 1);
+                            var matchingDeals = yearDeals
+                                .Where(d => d.Month == m)
+                                .ToList();
 
+                            var monthDate = new DateTime(nowUtc.Year, m, 1);
                             var rawMonthName = monthDate.ToString("MMMM", BusinessConstants.DefaultCultureCode);
                             var capitalizedMonth = char.ToUpper(rawMonthName[0], BusinessConstants.DefaultCultureCode) + rawMonthName[1..];
+
+                            var revenues = matchingDeals
+                                .Select(d => new CurrencyAmountResponse
+                                {
+                                    CurrencyCode = d.CurrencyCode,
+                                    DecimalPlaces = d.DecimalPlaces,
+                                    Amount = Math.Round((decimal)d.RevenueRaw / BusinessConstants.CurrencyScaleFactor, d.DecimalPlaces)
+                                })
+                                .ToList();
 
                             chartItems.Add(new AnalyticsChartMetricResponse
                             {
                                 Label = capitalizedMonth,
-                                Revenue = found != null ? ToDecimalCurrency(found.RevenueRaw) : 0m,
-                                DealsWonCount = found?.Count ?? 0
+                                Revenue = revenues,
+                                DealsWonCount = matchingDeals.Sum(d => d.Count)
                             });
                         }
                         break;
@@ -415,9 +466,6 @@ namespace Services.Services
 
             return chartItems;
         }
-
-        private static decimal ToDecimalCurrency(long rawValue)
-            => Math.Round(rawValue / BusinessConstants.CurrencyScaleFactor, BusinessConstants.DefaultPercentageDecimalPlaces);
 
         private static DatePeriodsContext GetDatePeriods()
         {
@@ -445,17 +493,11 @@ namespace Services.Services
                 completeDealsQuery = completeDealsQuery.Where(d => d.OwnerId == employeeId.Value);
             }
 
-            var revYearRaw = await completeDealsQuery
-                .Where(d => d.CloseDate >= periods.StartOfYearUtc)
-                .SumAsync(d => (long?)d.Value) ?? 0;
+            var revYear = await CalculateGroupedRevenueAsync(completeDealsQuery.Where(d => d.CloseDate >= periods.StartOfYearUtc));
 
-            var revMonthRaw = await completeDealsQuery
-                .Where(d => d.CloseDate >= periods.StartOfMonthUtc)
-                .SumAsync(d => (long?)d.Value) ?? 0;
+            var revMonth = await CalculateGroupedRevenueAsync(completeDealsQuery.Where(d => d.CloseDate >= periods.StartOfMonthUtc));
 
-            var revWeekRaw = await completeDealsQuery
-                .Where(d => d.CloseDate >= periods.StartOfWeekUtc)
-                .SumAsync(d => (long?)d.Value) ?? 0;
+            var revWeek = await CalculateGroupedRevenueAsync(completeDealsQuery.Where(d => d.CloseDate >= periods.StartOfWeekUtc));
 
             var activeDealsQuery = _context.Deals
                 .AsNoTracking()
@@ -465,6 +507,7 @@ namespace Services.Services
             {
                 activeDealsQuery = activeDealsQuery.Where(d => d.OwnerId == employeeId.Value);
             }
+            var activeDealsPipeline = await CalculateGroupedRevenueAsync(activeDealsQuery);
 
             var activeDealsCount = await activeDealsQuery.CountAsync();
             var activeDealsValueRaw = await activeDealsQuery.SumAsync(d => (long?)d.Value) ?? 0;
@@ -506,11 +549,11 @@ namespace Services.Services
                 .CountAsync(t => t.Status != TaskStatusEnum.Complete && t.DueAt < periods.NowUtc);
 
             return new BaseKpiMetrics(
-                RevenueThisWeek: ToDecimalCurrency(revWeekRaw),
-                RevenueThisMonth: ToDecimalCurrency(revMonthRaw),
-                RevenueThisYear: ToDecimalCurrency(revYearRaw),
+                RevenueThisWeek: revWeek,
+                RevenueThisMonth: revMonth,
+                RevenueThisYear: revYear,
                 ActiveDealsCount: activeDealsCount,
-                ActiveDealsPipelineValue: ToDecimalCurrency(activeDealsValueRaw),
+                ActiveDealsPipelineValue: activeDealsPipeline,
                 WonDealsThisMonth: wonDealsThisMonth,
                 LostDealsThisMonth: lostDealsThisMonth,
                 WinRatePercentageThisMonth: winRate,
@@ -519,6 +562,27 @@ namespace Services.Services
                 OverdueTasksCount: overdueTasksCount
             );
         }
+
+        private static async Task<List<CurrencyAmountResponse>> CalculateGroupedRevenueAsync(IQueryable<Deal> query)
+        {
+            var raw = await query
+                .GroupBy(d => new { d.Currency.Code, d.Currency.DecimalPlaces })
+                .Select(g => new
+                {
+                    g.Key.Code,
+                    g.Key.DecimalPlaces,
+                    TotalRaw = g.Sum(d => (long?)d.Value) ?? 0
+                })
+                .ToListAsync();
+
+            return raw.Select(r => new CurrencyAmountResponse
+            {
+                CurrencyCode = r.Code,
+                DecimalPlaces = r.DecimalPlaces,
+                Amount = Math.Round(r.TotalRaw / BusinessConstants.CurrencyScaleFactor, r.DecimalPlaces)
+            }).ToList();
+        }
+
 
     }
 }

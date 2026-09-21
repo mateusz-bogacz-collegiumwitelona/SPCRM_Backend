@@ -6,11 +6,11 @@
         public required string FirstName { get; init; }
         public required string LastName { get; init; }
         public required string Email { get; init; }
-        public decimal RevenueThisWeek { get; init; }
-        public decimal RevenueThisMonth { get; init; }
-        public decimal RevenueThisYear { get; init; }
+        public List<CurrencyAmountResponse> RevenueThisWeek { get; init; } = new();
+        public List<CurrencyAmountResponse> RevenueThisMonth { get; init; } = new();
+        public List<CurrencyAmountResponse> RevenueThisYear { get; init; } = new();
         public int ActiveDealsCount { get; init; }
-        public decimal ActiveDealsPipelineValue { get; init; }
+        public List<CurrencyAmountResponse> ActiveDealsPipelineValue { get; init; } = new();
         public int WonDealsThisMonth { get; init; }
         public int LostDealsThisMonth { get; init; }
         public decimal WinRatePercentageThisMonth { get; init; }

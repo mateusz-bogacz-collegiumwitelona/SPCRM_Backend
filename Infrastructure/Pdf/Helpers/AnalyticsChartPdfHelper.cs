@@ -1,4 +1,5 @@
-﻿using Infrastructure.Pdf.Command;
+﻿using Domain.Constants;
+using Infrastructure.Pdf.Command;
 using ScottPlot;
 using SkiaSharp;
 
@@ -15,7 +16,18 @@ namespace Infrastructure.Pdf.Helpers
 
             var safeFontName = GetSystemFontName();
 
-            var values = historyMetrics.Select(m => (double)m.Revenue).ToArray();
+            var detectedCurrency = historyMetrics
+                .SelectMany(m => m.Revenue)
+                .Select(r => r.CurrencyCode)
+                .FirstOrDefault() ?? BusinessConstants.DefaultCurrencyCode;
+
+            var values = historyMetrics.Select(m =>
+            {
+                var preferred = m.Revenue.FirstOrDefault(r => r.CurrencyCode == BusinessConstants.DefaultCurrencyCode)
+                                ?? m.Revenue.FirstOrDefault();
+                return preferred != null ? (double)preferred.Amount : 0.0;
+            }).ToArray();
+
             var labels = historyMetrics.Select(m => m.Label).ToArray();
 
             var bars = new List<Bar>();
@@ -43,7 +55,7 @@ namespace Infrastructure.Pdf.Helpers
             plot.Axes.Bottom.TickLabelStyle.Alignment = Alignment.MiddleRight;
             plot.Axes.Bottom.TickLabelStyle.ForeColor = Color.FromHex("#111827");
 
-            plot.Axes.Left.Label.Text = "Przychód (PLN)";
+            plot.Axes.Left.Label.Text = $"Przychód ({detectedCurrency})";
             plot.Axes.Left.Label.FontName = safeFontName;
             plot.Axes.Left.Label.FontSize = 12;
             plot.Axes.Left.Label.Bold = true;
