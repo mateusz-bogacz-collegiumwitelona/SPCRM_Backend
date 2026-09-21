@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Constants;
 using Domain.Enum;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -195,6 +196,115 @@ namespace Services.Services
             return Result<List<AnalyticsChartMetricResponse>>.Success(
                 data: chartItems,
                 message: "Chart data retrieved successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        public async Task<Result<EmployeeKpiSummaryResponse>> GetEmployeeKpiSummaryAsync(Guid employeeId)
+        {
+            var user = await _context.Users.AsNoTracking()
+                .Where(u => u.Id == employeeId && !u.IsDeleted)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FirstName,
+                    u.LastName,
+                    u.Email
+                })
+                .FirstOrDefaultAsync();
+
+
+            if (user == null)
+            {
+                _logger.LogWarning("Employee with ID {EmployeeId} not found.", employeeId);
+                return Result<EmployeeKpiSummaryResponse>.Failure(
+                    message: "Employee not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound
+                    );
+            }
+
+            var nowUtc = DateTime.UtcNow;
+
+            var startOfYearUtc = new DateTime(nowUtc.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var startOfMonthUtc = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            int diffToMonday = (7 + ((int)nowUtc.DayOfWeek - (int)DayOfWeek.Monday)) % 7;
+            var startOfWeekUtc = new DateTime(nowUtc.Year, nowUtc.Month, nowUtc.Day, 0, 0, 0, DateTimeKind.Utc)
+                .AddDays(-diffToMonday);
+
+            var completeDeals = _context.Deals
+                .AsNoTracking()
+                .Where(d => d.Status == DealsStatusEnum.Complete && d.OwnerId == employeeId);
+
+            var reviewYearRaw = await completeDeals
+                .Where(d => d.CloseDate >= startOfYearUtc)
+                .SumAsync(d => (long?)d.Value) ?? 0;
+
+            var reviewMonthRaw = await completeDeals
+                .Where(d => d.CloseDate >= startOfMonthUtc)
+                .SumAsync(d => (long?)d.Value) ?? 0;
+
+            var reviewWeekRaw = await completeDeals
+                .Where(d => d.CloseDate >= startOfWeekUtc)
+                .SumAsync(d => (long?)d.Value) ?? 0;
+
+            var activateDealQuery = _context.Deals
+                .AsNoTracking()
+                .Where(d => d.OwnerId == employeeId && d.Status != DealsStatusEnum.Complete && d.Status != DealsStatusEnum.Cancelled);
+
+            var activeDealsCount = await activateDealQuery.CountAsync();
+            var activeDealsValueRaw = await activateDealQuery.SumAsync(d => (long?)d.Value) ?? 0;
+
+            var wonDealsThisMonth = await _context.Deals
+                .AsNoTracking()
+                .CountAsync(d => d.Status == DealsStatusEnum.Complete && d.OwnerId == employeeId && d.CloseDate >= startOfMonthUtc);
+
+            var lostDealsThisMonth = await _context.Deals
+                .AsNoTracking()
+                .CountAsync(d => d.OwnerId == employeeId && d.Status == DealsStatusEnum.Cancelled && d.CloseDate >= startOfMonthUtc);
+
+            int closedDealsTotal = wonDealsThisMonth + lostDealsThisMonth;
+            decimal winRate = closedDealsTotal > 0
+                ? Math.Round(((decimal)wonDealsThisMonth / closedDealsTotal) * 100m, 2)
+                : 0m;
+
+            var completedTasksThisMonth = await _context.Tasks
+                .AsNoTracking()
+                .CountAsync(t => t.AssignedToId == employeeId && t.Status == TaskStatusEnum.Complete && t.DueAt >= startOfMonthUtc);
+
+            var pendingTasksCount = await _context.Tasks
+                .AsNoTracking()
+                .CountAsync(t => t.AssignedToId == employeeId && t.Status != TaskStatusEnum.Complete);
+
+            var overdueTasksCount = await _context.Tasks
+                .AsNoTracking()
+                .CountAsync(t => t.AssignedToId == employeeId && t.Status != TaskStatusEnum.Complete && t.DueAt < nowUtc);
+
+            var response = new EmployeeKpiSummaryResponse
+            {
+                EmployeeId = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email ?? string.Empty,
+                RevenueThisWeek = Math.Round(reviewWeekRaw / 10000.0m, 2),
+                RevenueThisMonth = Math.Round(reviewMonthRaw / 10000.0m, 2),
+                RevenueThisYear = Math.Round(reviewYearRaw / 10000.0m, 2),
+                ActiveDealsCount = activeDealsCount,
+                ActiveDealsPipelineValue = Math.Round(activeDealsValueRaw / 10000.0m, 2),
+                WonDealsThisMonth = wonDealsThisMonth,
+                LostDealsThisMonth = lostDealsThisMonth,
+                WinRatePercentageThisMonth = winRate,
+                CompletedTasksThisMonth = completedTasksThisMonth,
+                PendingTasksCount = pendingTasksCount,
+                OverdueTasksCount = overdueTasksCount
+            };
+
+            _logger.LogInformation("Employee KPI summary retrieved successfully for user: {EmployeeId}", employeeId);
+
+            return Result<EmployeeKpiSummaryResponse>.Success(
+                data: response,
+                message: "Employee KPI summary retrieved successfully.",
                 statusCode: StatusCodes.Status200OK
             );
         }

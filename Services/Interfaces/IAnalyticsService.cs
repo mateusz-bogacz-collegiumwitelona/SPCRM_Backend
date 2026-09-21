@@ -1,9 +1,6 @@
 ﻿using Domain.Common;
 using Services.Command.Analytics;
 using Services.Response.Analytics;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Services.Interfaces
 {
@@ -11,5 +8,6 @@ namespace Services.Interfaces
     {
         Task<Result<TeamKpiSummaryResponse>> GetTeamKpiSummaryAsync();
         Task<Result<List<AnalyticsChartMetricResponse>>> GetTeamRevenueChartAsync(AnalyticsChartCommand command);
+        Task<Result<EmployeeKpiSummaryResponse>> GetEmployeeKpiSummaryAsync(Guid employeeId);
     }
 }

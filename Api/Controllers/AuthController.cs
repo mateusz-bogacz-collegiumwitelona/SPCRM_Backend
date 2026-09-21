@@ -1,9 +1,11 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Auth;
+using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Analytics;
 
 namespace Api.Controllers
 {
@@ -87,6 +89,17 @@ namespace Api.Controllers
         )
         {
             var result = await userServices.ResetPasswordAsync(mapper.MapResetPassword(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get employee KPI summary")]
+        [EndpointDescription("Returns overall financial, deals, conversion rate, and task performance metrics for a specific employee.")]
+        [HttpGet("employees/{employeeId:guid}/kpi")]
+        public async Task<IActionResult> GetEmployeeKpiSummaryAsync(
+            [FromRoute] Guid employeeId,
+            [FromServices] IAnalyticsService analytics)
+        {
+            var result = await analytics.GetEmployeeKpiSummaryAsync(employeeId);
             return HandleResult(result);
         }
     }

@@ -1,4 +1,5 @@
-﻿using Domain.Enum;
+﻿using Domain.Constants;
+using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
@@ -580,5 +581,224 @@ namespace Tests.Services
             await Assert.That(firstWeek.Revenue).IsEqualTo(15_000m);
             await Assert.That(firstWeek.DealsWonCount).IsEqualTo(1);
         }
+
+        // ─── GetEmployeeKpiSummaryAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetEmployeeKpiSummaryAsync_WhenUserDoesNotExist_ShouldReturnNotFound()
+        {
+            // Arrange
+            var nonExistingUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeKpiSummaryAsync(nonExistingUserId);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task GetEmployeeKpiSummaryAsync_WhenUserIsSoftDeleted_ShouldReturnNotFound()
+        {
+            // Arrange
+            var (user, _, _, _) = await SeedBaseEntitiesAsync();
+            user.IsDeleted = true;
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeKpiSummaryAsync(user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task GetEmployeeKpiSummaryAsync_WhenMultipleUsersExist_ShouldIsolateEmployeeMetricsAndCalculateWinRate()
+        {
+            // Arrange
+            var (targetUser, currency, company, contact) = await SeedBaseEntitiesAsync();
+
+            var otherUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Marek",
+                LastName = "Zieliński",
+                Email = "marek.zielinski@stal-crm.pl",
+                UserName = "marek.zielinski@stal-crm.pl"
+            };
+            _contextMock.Users.Add(otherUser);
+            await _contextMock.SaveChangesAsync();
+
+            var nowUtc = DateTime.UtcNow;
+            int diffToMonday = (7 + ((int)nowUtc.DayOfWeek - (int)DayOfWeek.Monday)) % 7;
+            var startOfWeek = new DateTime(nowUtc.Year, nowUtc.Month, nowUtc.Day, 0, 0, 0, DateTimeKind.Utc).AddDays(-diffToMonday);
+            var startOfMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var startOfYear = new DateTime(nowUtc.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var deals = new List<Deal>
+            {
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TARGET/01",
+                    Value = 800_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfWeek.AddHours(2),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TARGET/02",
+                    Value = 400_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfMonth.AddDays(1),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TARGET/03",
+                    Value = 300_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfYear.AddMinutes(5),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TARGET/04",
+                    Value = 100_000_000L,
+                    Status = DealsStatusEnum.Cancelled,
+                    CloseDate = startOfMonth.AddDays(2),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TARGET/05",
+                    Value = 500_000_000L,
+                    Status = DealsStatusEnum.ToDo,
+                    CloseDate = nowUtc.AddDays(5),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/OTHER/01",
+                    Value = 2_000_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfMonth.AddDays(3),
+                    OwnerId = otherUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                }
+            };
+
+            var tasks = new List<Tasks>
+            {
+                new Tasks
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Spotkanie z klientem",
+                    Description = "Dopięcie kontraktu",
+                    Status = TaskStatusEnum.Complete,
+                    Priority = TaskPriorityEnum.High,
+                    DueAt = startOfMonth.AddDays(2),
+                    AssignedToId = targetUser.Id,
+                    CreatedById = targetUser.Id
+                },
+                new Tasks
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Telefon ofertowy",
+                    Description = "Kontakt ponowny",
+                    Status = TaskStatusEnum.InProgress,
+                    Priority = TaskPriorityEnum.Medium,
+                    DueAt = nowUtc.AddDays(-1),
+                    AssignedToId = targetUser.Id,
+                    CreatedById = targetUser.Id
+                },
+                new Tasks
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Zadanie innego handlowca",
+                    Description = "Inny opis",
+                    Status = TaskStatusEnum.InProgress,
+                    Priority = TaskPriorityEnum.High,
+                    DueAt = nowUtc.AddDays(-1),
+                    AssignedToId = otherUser.Id,
+                    CreatedById = otherUser.Id
+                }
+            };
+
+            _contextMock.Deals.AddRange(deals);
+            _contextMock.Tasks.AddRange(tasks);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeKpiSummaryAsync(targetUser.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+           
+            var data = result.Data!;
+
+            await Assert.That(data.EmployeeId).IsEqualTo(targetUser.Id);
+            await Assert.That(data.FirstName).IsEqualTo(targetUser.FirstName);
+            await Assert.That(data.LastName).IsEqualTo(targetUser.LastName);
+            await Assert.That(data.Email).IsEqualTo(targetUser.Email);
+            await Assert.That(data.RevenueThisWeek).IsEqualTo(80_000m);
+            await Assert.That(data.RevenueThisMonth).IsEqualTo(120_000m);
+            await Assert.That(data.RevenueThisYear).IsEqualTo(150_000m);
+            await Assert.That(data.ActiveDealsCount).IsEqualTo(1);
+            await Assert.That(data.ActiveDealsPipelineValue).IsEqualTo(50_000m);
+            await Assert.That(data.WonDealsThisMonth).IsEqualTo(2);
+            await Assert.That(data.LostDealsThisMonth).IsEqualTo(1);
+            await Assert.That(data.WinRatePercentageThisMonth).IsEqualTo(66.67m);
+            await Assert.That(data.CompletedTasksThisMonth).IsEqualTo(1);
+            await Assert.That(data.PendingTasksCount).IsEqualTo(1);
+            await Assert.That(data.OverdueTasksCount).IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task GetEmployeeKpiSummaryAsync_WhenNoDealsClosed_ShouldReturnZeroWinRateWithoutDivisionByZero()
+        {
+            // Arrange
+            var (user, _, _, _) = await SeedBaseEntitiesAsync();
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeKpiSummaryAsync(user.Id);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var data = result.Data!;
+            await Assert.That(data.WonDealsThisMonth).IsEqualTo(0);
+            await Assert.That(data.LostDealsThisMonth).IsEqualTo(0);
+            await Assert.That(data.WinRatePercentageThisMonth).IsEqualTo(0m);
+            await Assert.That(data.ActiveDealsPipelineValue).IsEqualTo(0m);
+        }
+
     }
 }
