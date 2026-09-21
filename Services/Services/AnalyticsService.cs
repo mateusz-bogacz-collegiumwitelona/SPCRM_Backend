@@ -13,6 +13,7 @@ using Services.Helpers;
 using Services.Interfaces;
 using Services.Response.Analytics;
 using Services.Response.Pdf;
+using System.Globalization;
 
 namespace Services.Services
 {
@@ -331,7 +332,7 @@ namespace Services.Services
 
                             chartItems.Add(new AnalyticsChartMetricResponse
                             {
-                                Label = target.ToString("MMM yyyy"),
+                                Label = target.ToString("MMM yyyy", new CultureInfo("pl-PL")),
                                 Revenue = found != null ? ToDecimalCurrency(found.RevenueRaw) : 0m,
                                 DealsWonCount = found?.Count ?? 0
                             });
@@ -353,14 +354,19 @@ namespace Services.Services
                             })
                             .ToListAsync();
 
+                        var plCulture = new CultureInfo("pl-PL");
+
                         for (int m = 1; m <= 12; m++)
                         {
                             var found = yearDeals.FirstOrDefault(d => d.Month == m);
                             var monthDate = new DateTime(nowUtc.Year, m, 1);
 
+                            var rawMonthName = monthDate.ToString("MMMM", plCulture);
+                            var capitalizedMonth = char.ToUpper(rawMonthName[0], plCulture) + rawMonthName[1..];
+
                             chartItems.Add(new AnalyticsChartMetricResponse
                             {
-                                Label = monthDate.ToString("MMM"),
+                                Label = capitalizedMonth,
                                 Revenue = found != null ? ToDecimalCurrency(found.RevenueRaw) : 0m,
                                 DealsWonCount = found?.Count ?? 0
                             });

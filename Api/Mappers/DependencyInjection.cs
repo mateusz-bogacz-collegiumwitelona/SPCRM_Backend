@@ -20,6 +20,7 @@
             services.AddScoped<OfferMapper>();
             services.AddScoped<UserMapper>();
             services.AddScoped<InvoiceMapper>();
+            services.AddScoped<AnalyticsMapper>();
 
             return services;
         }

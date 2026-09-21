@@ -1,4 +1,5 @@
 ﻿using Infrastructure.Pdf.Command;
+using Infrastructure.Pdf.Helpers;
 using Infrastructure.Pdf.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -24,7 +25,7 @@ namespace Infrastructure.Pdf
                             col.Item().Text("Raport Efektywności Handlowca").Bold().FontSize(18).FontColor(Colors.Blue.Darken3);
                             col.Item().Text($"Pracownik: {data.FirstName} {data.LastName}").Bold().FontSize(12);
                             col.Item().Text($"Email: {data.Email}");
-                            col.Item().Text($"Wygenerowano: {data.GeneratedAtUtc:yyyy-MM-dd HH:mm} UTC");
+                            col.Item().Text($"Wygenerowano: {data.GeneratedAtUtc:yyyy.MM.dd HH:mm}");
                         });
 
                         row.RelativeItem(2).AlignRight().Column(col =>
@@ -35,7 +36,7 @@ namespace Infrastructure.Pdf
                         });
                     });
 
-                    page.Content().PaddingVertical(20).Column(col =>
+                    page.Content().PaddingVertical(15).Column(col =>
                     {
                         col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
                             .Text("Kluczowe Wskaźniki Efektywności (KPI)").Bold().FontSize(12);
@@ -86,7 +87,7 @@ namespace Infrastructure.Pdf
                             });
                         });
 
-                        col.Item().PaddingTop(25);
+                        col.Item().PaddingTop(20);
 
                         col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
                             .Text(data.PeriodTitle).Bold().FontSize(12);
@@ -102,18 +103,33 @@ namespace Infrastructure.Pdf
 
                             table.Header(header =>
                             {
-                                header.Cell().BorderBottom(1).BorderColor(Colors.Grey.Medium).Padding(5).Text("Okres").Bold();
-                                header.Cell().BorderBottom(1).BorderColor(Colors.Grey.Medium).AlignRight().Padding(5).Text("Przychód").Bold();
-                                header.Cell().BorderBottom(1).BorderColor(Colors.Grey.Medium).AlignRight().Padding(5).Text("Zamknięte tematy").Bold();
+                                header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5).Text("Okres").Bold();
+                                header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text("Przychód").Bold();
+                                header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text("Zamknięte tematy").Bold();
                             });
 
-                            foreach (var metric in data.HistoryMetrics)
+                            foreach (var metric in data.HistoryMetrics ?? [])
                             {
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5).Text(metric.Label);
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text($"{metric.Revenue:N2} PLN");
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(metric.DealsWonCount.ToString());
                             }
                         });
+
+                        if (data.HistoryMetrics != null && data.HistoryMetrics.Any())
+                        {
+                            col.Item().PageBreak();
+
+                            col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
+                                .Text($"Wykres Sprzedaży - {data.PeriodTitle}").Bold().FontSize(12);
+
+                            var chartSvg = AnalyticsChartPdfHelper.GenerateRevenueChartImage(data.HistoryMetrics);
+
+                            col.Item().PaddingTop(25).Element(c =>
+                            {
+                                c.Width(520).Svg(chartSvg).FitWidth();
+                            });
+                        }
                     });
 
                     page.Footer().AlignCenter().Text(x =>

@@ -47,6 +47,7 @@ namespace Infrastructure
             // pdf config
             QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
             services.AddScoped<IInvoicePdfGenerator, InvoicePdfGenerator>();
+            services.AddScoped<IAnalyticsPdfGenerator, AnalyticsPdfGenerator>();
 
             return services;
         }
