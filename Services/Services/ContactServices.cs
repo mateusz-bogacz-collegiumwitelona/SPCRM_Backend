@@ -46,7 +46,7 @@ namespace Services.Services
                         Id = c.Id,
                         FirstName = c.FirstName,
                         LastName = c.LastName,
-                        JobTitle = c.JobTitle ?? "",
+                        JobTitle = c.JobTitle ?? string.Empty,
                         CompanyName = c.Company.Name,
                         OwnerFirstName = c.Owner.FirstName,
                         OwnerLastName = c.Owner.LastName,
@@ -79,10 +79,10 @@ namespace Services.Services
                         Id = c.Id,
                         FirstName = c.FirstName,
                         LastName = c.LastName,
-                        JobTitle = c.JobTitle ?? "",
+                        JobTitle = c.JobTitle ?? string.Empty,
                         IsPrimary = c.IsPrimary,
-                        OwnerFirstName = c.Owner.FirstName ?? "",
-                        OwnerLastName = c.Owner.LastName ?? ""
+                        OwnerFirstName = c.Owner.FirstName ?? string.Empty,
+                        OwnerLastName = c.Owner.LastName ?? string.Empty
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_contacts");
 
@@ -597,7 +597,7 @@ namespace Services.Services
                 throw new MissingUserRoleException(newOwner.Id);
             }
 
-            if (newOwnerRoleNames.Contains("ADMIN"))
+            if (newOwnerRoleNames.Contains(BusinessConstants.AdminNormalized))
             {
                 _logger.LogWarning("Attempted to assign contact {ContactId} ownership to an admin user {UserId}.", command.ContactId, command.NewOwnerId);
                 return Result.Failure(
@@ -635,7 +635,7 @@ namespace Services.Services
                         CompanyName = c.Company.Name,
                         Nip = c.Company.NIP
                     })
-            .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-contacts");
+            .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_contacts");
 
         private ContactDetailTypeEnum ParseWithString(string? name)
             => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)

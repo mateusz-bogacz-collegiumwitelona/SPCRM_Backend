@@ -78,7 +78,7 @@ namespace Services.Services
                         Code = c.Code,
                         DecimalPlace = c.DecimalPlaces
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "currency");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "currencies");
 
         public async Task<Result> AddCurrencyAsync(AddCurrencyCommand command)
         {

@@ -57,22 +57,10 @@ namespace Services.Services
 
         public async Task<Result<PromotionDetailResponse>> GetPromotionDetailAsync(Guid promotionId)
         {
-            var rawData = await (
-                from p in _context.Promotions.AsNoTracking()
-                where p.Id == promotionId
-                join pr in _context.Products.AsNoTracking() on p.ProductId equals pr.Id into prodGroup
-                from pr in prodGroup.DefaultIfEmpty()
-                join sg in _context.SteelGrades.AsNoTracking() on pr.SteelGradeId equals sg.Id into sgGroup
-                from sg in sgGroup.DefaultIfEmpty()
-                join u in _context.UnitsOfMeasure.AsNoTracking() on pr.UnitId equals u.Id into uGroup
-                from u in uGroup.DefaultIfEmpty()
-                join curr in _context.Currencies.AsNoTracking() on p.CurrencyId equals curr.Id into currGroup
-                from curr in currGroup.DefaultIfEmpty()
-                join c in _context.Contacts.AsNoTracking() on p.ContactId equals c.Id into cGroup
-                from c in cGroup.DefaultIfEmpty()
-                join comp in _context.Companies.AsNoTracking() on c.CompanyId equals comp.Id into compGroup
-                from comp in compGroup.DefaultIfEmpty()
-                select new
+            var rawData = await _context.Promotions
+                .AsNoTracking()
+                .Where(p => p.Id == promotionId)
+                .Select(p => new
                 {
                     p.Id,
                     p.Name,
@@ -82,38 +70,45 @@ namespace Services.Services
                     p.DiscountPercentage,
                     p.PromotionalPrice,
                     p.CurrencyId,
-                    CurrencyCode = curr != null ? curr.Code : null,
-                    CurrencyDecimalPlaces = curr != null ? (int?)curr.DecimalPlaces : null,
+                    CurrencyCode = p.Currency != null ? p.Currency.Code : null,
+                    CurrencyDecimalPlaces = p.Currency != null ? (int?)p.Currency.DecimalPlaces : null,
                     p.MinQuantity,
                     p.MinWeight,
 
                     p.ProductId,
-                    HasProduct = pr != null,
-                    ProductName = pr != null ? pr.Name : null,
-                    HasSteelGrade = sg != null,
-                    SteelGradeName = sg != null ? sg.Name : null,
-                    Category = pr != null ? (ProductCategoryEnum?)pr.Category : null,
-                    Diameter = pr != null ? pr.Diameter : null,
-                    Thickness = pr != null ? (int?)pr.Thickness : null,
-                    Width = pr != null ? (int?)pr.Width : null,
-                    Length = pr != null ? (int?)pr.Length : null,
-                    PricePerUnit = pr != null ? (long?)pr.PricePerUnit : null,
-                    StockQuantity = pr != null ? (int?)pr.StockQuantity : null,
-                    UnitSymbol = u != null ? u.Symbol : null,
+                    HasProduct = p.Product != null,
+                    ProductName = p.Product != null ? p.Product.Name : null,
+                    HasSteelGrade = p.Product != null && p.Product.SteelGrade != null,
+                    SteelGradeName = p.Product != null && p.Product.SteelGrade != null ? p.Product.SteelGrade.Name : null,
+                    Category = p.Product != null ? (ProductCategoryEnum?)p.Product.Category : null,
+                    Diameter = p.Product != null ? p.Product.Diameter : null,
+                    Thickness = p.Product != null ? (int?)p.Product.Thickness : null,
+                    Width = p.Product != null ? (int?)p.Product.Width : null,
+                    Length = p.Product != null ? (int?)p.Product.Length : null,
+                    PricePerUnit = p.Product != null ? (long?)p.Product.PricePerUnit : null,
+                    StockQuantity = p.Product != null ? (int?)p.Product.StockQuantity : null,
+                    UnitSymbol = p.Product != null && p.Product.Unit != null ? p.Product.Unit.Symbol : null,
 
                     p.ContactId,
-                    HasContact = c != null,
-                    ContactFirstName = c != null ? c.FirstName : null,
-                    ContactLastName = c != null ? c.LastName : null,
-                    ContactCompanyName = comp != null ? comp.Name : null,
+                    HasContact = p.Contact != null,
+                    ContactFirstName = p.Contact != null ? p.Contact.FirstName : null,
+                    ContactLastName = p.Contact != null ? p.Contact.LastName : null,
+                    ContactCompanyName = p.Contact != null && p.Contact.Company != null ? p.Contact.Company.Name : null,
 
                     p.CreatedAt,
                     p.UpdateAt
-                }
-            ).FirstOrDefaultAsync();
+                })
+                .FirstOrDefaultAsync();
 
             if (rawData == null)
             {
+                var promotionExists = await _context.Promotions.AsNoTracking().AnyAsync(p => p.Id == promotionId);
+                if (promotionExists)
+                {
+                    _logger.LogError("Critical data corruption: Promotion {PromotionId} exists but its relational linkages (Product/Dictionaries) are missing.", promotionId);
+                    throw new DataCorruptionException($"Promotion '{promotionId}' is linked to non-existent or corrupted product.");
+                }
+
                 _logger.LogInformation("Promotion with ID {PromotionId} not found.", promotionId);
                 return Result<PromotionDetailResponse>.Failure(
                     message: "Promotion not found.",

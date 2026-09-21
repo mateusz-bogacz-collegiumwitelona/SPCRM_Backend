@@ -56,7 +56,7 @@ namespace Services.Services
                         Id = st.Id,
                         Name = st.Name,
                         Standard = st.Standard,
-                        Density = st.Density / 1000m
+                        Density = st.Density / BusinessConstants.DensityScaleFactor
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "steel-grade");
 
@@ -210,7 +210,7 @@ namespace Services.Services
                 return Result.Failure(
                     message: "Steel grade not found",
                     statusCode: StatusCodes.Status404NotFound,
-                    errorCode: ErrorCodes.NotFound
+                    errorCode: ErrorCodes.SteelGradeNotFound
                 );
             }
 

@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Models;
 using Infrastructure.Pdf.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -81,8 +82,8 @@ namespace Infrastructure.Pdf
                             {
                                 foreach (var item in invoice.InvoiceProducts)
                                 {
-                                    var unitPrice = item.UnitPrice / 10000m;
-                                    var lineTotal = (item.Quantity * item.UnitPrice) / 10000m;
+                                    var unitPrice = item.UnitPrice / BusinessConstants.CurrencyScaleFactor;
+                                    var lineTotal = (item.Quantity * item.UnitPrice) / BusinessConstants.CurrencyScaleFactor;
                                     calculatedTotal += lineTotal;
 
                                     var steelGradeText = !string.IsNullOrWhiteSpace(item.SteelGrade)
@@ -102,7 +103,7 @@ namespace Infrastructure.Pdf
 
                         col.Item().AlignRight().PaddingTop(15).Column(c =>
                         {
-                            var totalToPay = calculatedTotal > 0 ? calculatedTotal : (invoice.TotalAmount / 10000m);
+                            var totalToPay = calculatedTotal > 0 ? calculatedTotal : (invoice.TotalAmount / BusinessConstants.CurrencyScaleFactor);
                             c.Item().Text($"Do zapłaty: {totalToPay:F2} {invoice.Currency.Code}").Bold().FontSize(14);
                         });
                     });
@@ -177,8 +178,8 @@ namespace Infrastructure.Pdf
                            {
                                foreach (var item in invoice.InvoiceProducts)
                                {
-                                   var unitPrice = item.UnitPrice / 10000m;
-                                   var lineTotal = (item.Quantity * item.UnitPrice) / 10000m;
+                                   var unitPrice = item.UnitPrice / BusinessConstants.CurrencyScaleFactor;
+                                   var lineTotal = (item.Quantity * item.UnitPrice) / BusinessConstants.CurrencyScaleFactor;
                                    calculatedTotal += lineTotal;
 
                                    var steelGradeText = !string.IsNullOrWhiteSpace(item.SteelGrade)
@@ -198,7 +199,7 @@ namespace Infrastructure.Pdf
 
                        col.Item().AlignRight().PaddingTop(15).Column(c =>
                        {
-                           var totalToPay = calculatedTotal > 0 ? calculatedTotal : (invoice.TotalAmount / 10000m);
+                           var totalToPay = calculatedTotal > 0 ? calculatedTotal : (invoice.TotalAmount / BusinessConstants.CurrencyScaleFactor);
                            c.Item().Text($"Total to pay: {totalToPay:F2} {invoice.Currency.Code}").Bold().FontSize(14);
                        });
                    });

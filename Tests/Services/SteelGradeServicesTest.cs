@@ -629,7 +629,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
-            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.SteelGradeNotFound);
         }
 
         [Test]

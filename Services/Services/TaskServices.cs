@@ -123,34 +123,32 @@ namespace Services.Services
 
         public async Task<Result<TaskContactResponse>> GetTaskContactAsync(Guid taskId)
         {
-            var query = await (
-                from t in _context.Tasks.AsNoTracking()
-                where t.Id == taskId && t.ContactId != null
-                join c in _context.Contacts.AsNoTracking() on t.ContactId equals c.Id into cGroup
-                from c in cGroup.DefaultIfEmpty()
-                join comp in _context.Companies.AsNoTracking() on c.CompanyId equals comp.Id into compGroup
-                from comp in compGroup.DefaultIfEmpty()
-                select new
+            var contactData = await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.Id == taskId && t.ContactId != null)
+                .Select(t => new
                 {
-                    HasContact = c != null,
-                    ContactId = c != null ? c.Id : Guid.Empty,
-                    FirstName = c != null ? c.FirstName : null,
-                    LastName = c != null ? c.LastName : null,
-                    JobTitle = c != null ? c.JobTitle : null,
-                    CompanyName = comp != null ? comp.Name : null,
-                    ContactWays = c != null ? c.ContactDetails
-                        .Where(cd => !cd.IsDeleted)
-                        .Select(cd => new ContactWayResponse
-                        {
-                            Type = cd.Type.ToString(),
-                            Value = cd.Value,
-                            Label = cd.Label ?? string.Empty,
-                            IsPrimary = cd.IsPrimary
-                        }).ToList() : new List<ContactWayResponse>()
-                }
-            ).FirstOrDefaultAsync();
+                    HasContact = t.Contact != null,
+                    ContactId = t.Contact != null ? t.Contact.Id : Guid.Empty,
+                    FirstName = t.Contact != null ? t.Contact.FirstName : null,
+                    LastName = t.Contact != null ? t.Contact.LastName : null,
+                    JobTitle = t.Contact != null ? t.Contact.JobTitle : null,
+                    CompanyName = t.Contact != null && t.Contact.Company != null ? t.Contact.Company.Name : null,
+                    ContactWays = t.Contact != null
+                        ? t.Contact.ContactDetails
+                            .Where(cd => !cd.IsDeleted)
+                            .Select(cd => new ContactWayResponse
+                            {
+                                Type = cd.Type.ToString(),
+                                Value = cd.Value,
+                                Label = cd.Label ?? string.Empty,
+                                IsPrimary = cd.IsPrimary
+                            }).ToList()
+                        : new List<ContactWayResponse>()
+                })
+                .FirstOrDefaultAsync();
 
-            if (query == null || !query.HasContact)
+            if (contactData == null || !contactData.HasContact)
             {
                 _logger.LogInformation("Contact for task with ID {TaskId} not found.", taskId);
                 return Result<TaskContactResponse>.Failure(
@@ -160,7 +158,7 @@ namespace Services.Services
                 );
             }
 
-            if (string.IsNullOrWhiteSpace(query.FirstName) || string.IsNullOrWhiteSpace(query.CompanyName))
+            if (string.IsNullOrWhiteSpace(contactData.FirstName) || string.IsNullOrWhiteSpace(contactData.CompanyName))
             {
                 _logger.LogError("Critical data corruption: Contact linked to Task {TaskId} has missing required fields.", taskId);
                 throw new DataCorruptionException($"Contact linked to task '{taskId}' contains corrupted state.");
@@ -168,12 +166,12 @@ namespace Services.Services
 
             var response = new TaskContactResponse
             {
-                ContactId = query.ContactId,
-                FirstName = query.FirstName,
-                LastName = query.LastName ?? string.Empty,
-                JobTitle = query.JobTitle ?? string.Empty,
-                CompanyName = query.CompanyName,
-                ContactWays = query.ContactWays
+                ContactId = contactData.ContactId,
+                FirstName = contactData.FirstName,
+                LastName = contactData.LastName ?? string.Empty,
+                JobTitle = contactData.JobTitle ?? string.Empty,
+                CompanyName = contactData.CompanyName,
+                ContactWays = contactData.ContactWays
             };
 
             return Result<TaskContactResponse>.Success(
@@ -185,25 +183,21 @@ namespace Services.Services
 
         public async Task<Result<TaskDealResponse>> GetTaskDealAsync(Guid taskId)
         {
-            var query = await (
-                from t in _context.Tasks.AsNoTracking()
-                where t.Id == taskId && t.DealId != null
-                join d in _context.Deals.AsNoTracking() on t.DealId equals d.Id into dGroup
-                from d in dGroup.DefaultIfEmpty()
-                join curr in _context.Currencies.AsNoTracking() on d.CurrencyId equals curr.Id into currGroup
-                from curr in currGroup.DefaultIfEmpty()
-                select new
+            var query = await _context.Tasks
+                .AsNoTracking()
+                .Where(t => t.Id == taskId && t.DealId != null)
+                .Select(t => new
                 {
-                    HasDeal = d != null,
-                    DealId = d != null ? d.Id : Guid.Empty,
-                    Name = d != null ? d.Name : null,
-                    Value = d != null ? d.Value : 0,
-                    Status = d != null ? d.Status.ToString() : null,
-                    CloseDate = d != null ? d.CloseDate : default,
-                    CurrencyCode = curr != null ? curr.Code : null,
-                    DecimalPlaces = curr != null ? (int?)curr.DecimalPlaces : null
-                }
-            ).FirstOrDefaultAsync();
+                    HasDeal = t.Deal != null,
+                    DealId = t.Deal != null ? t.Deal.Id : Guid.Empty,
+                    Name = t.Deal != null ? t.Deal.Name : null,
+                    Value = t.Deal != null ? t.Deal.Value : 0,
+                    Status = t.Deal != null ? t.Deal.Status.ToString() : null,
+                    CloseDate = t.Deal != null ? t.Deal.CloseDate : default,
+                    CurrencyCode = t.Deal != null && t.Deal.Currency != null ? t.Deal.Currency.Code : null,
+                    DecimalPlaces = t.Deal != null && t.Deal.Currency != null ? (int?)t.Deal.Currency.DecimalPlaces : null
+                })
+                .FirstOrDefaultAsync();
 
             if (query == null || !query.HasDeal)
             {
@@ -258,7 +252,7 @@ namespace Services.Services
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "user-tasks");
 
-        public async Task<Result<PagedResult<SaleTaskResponse>>> GetDealTasksAsync(
+        public async Task<Result<PagedResult<DealTaskResponse>>> GetDealTasksAsync(
             Guid dealId,
             TaskListCommand command,
             Guid currentUserId)
@@ -272,8 +266,8 @@ namespace Services.Services
             if (!dealOwnerId.HasValue)
             {
                 _logger.LogInformation("Deal {DealId} not found when retrieving tasks.", dealId);
-                return Result<PagedResult<SaleTaskResponse>>.Failure(
-                    message: "Sale not found.",
+                return Result<PagedResult<DealTaskResponse>>.Failure(
+                    message: "Deal not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.DealNotFound
                 );
@@ -292,7 +286,7 @@ namespace Services.Services
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .ApplyFilter(command.Status, command.Priority)
                 .ApplySorting(command.SortBy, command.SortDescending)
-                .Select(t => new SaleTaskResponse
+                .Select(t => new DealTaskResponse
                 {
                     Id = t.Id,
                     Title = t.Title,

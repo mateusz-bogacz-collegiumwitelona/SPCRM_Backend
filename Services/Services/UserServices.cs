@@ -46,25 +46,22 @@ namespace Services.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var users = await (
-                from user in _context.Users
-                where user.EmailConfirmed
-                   && (user.LockoutEnd == null || user.LockoutEnd <= now)
-                   && !user.IsDeleted
-                join userRole in _context.UserRoles on user.Id equals userRole.UserId
-                join role in _context.Roles on userRole.RoleId equals role.Id
-                where role.Name != "Admin"
-                select new UserSimpleListResponse
+            var users = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.EmailConfirmed
+                         && (u.LockoutEnd == null || u.LockoutEnd <= now)
+                         && !u.IsDeleted
+                         && _context.UserRoles.Any(ur => ur.UserId == u.Id
+                             && _context.Roles.Any(r => r.Id == ur.RoleId && r.Name != BusinessConstants.RoleAdmin)))
+                .OrderBy(u => u.LastName)
+                .ThenBy(u => u.FirstName)
+                .Select(u => new UserSimpleListResponse
                 {
-                    Id = user.Id,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName
-                }
-            )
-            .Distinct()
-            .OrderBy(u => u.LastName)
-            .ThenBy(u => u.FirstName)
-            .ToListAsync();
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName
+                })
+                .ToListAsync();
 
             return Result<List<UserSimpleListResponse>>.Success(
                 message: "User list retrieved successfully.",
@@ -121,21 +118,24 @@ namespace Services.Services
                 throw new MissingUserRoleException();
             }
 
-            var owners = await (from u in _context.Users.AsNoTracking()
-                                join ur in _context.UserRoles on u.Id equals ur.UserId
-                                join r in _context.Roles on ur.RoleId equals r.Id
-                                where !u.IsDeleted
-                                      && (u.LockoutEnd == null || u.LockoutEnd <= now)
-                                      && r.NormalizedName != "ADMIN"
-                                orderby u.LastName, u.FirstName
-                                select new OwnerResponse
-                                {
-                                    Id = u.Id,
-                                    FirstName = u.FirstName,
-                                    LastName = u.LastName,
-                                    Role = r.Name!
-                                })
-                                .ToListAsync();
+            var owners = await _context.Users
+                .AsNoTracking()
+                .Where(u => !u.IsDeleted && (u.LockoutEnd == null || u.LockoutEnd <= now))
+                .Where(u => _context.UserRoles
+                    .Any(ur => ur.UserId == u.Id && _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName != BusinessConstants.AdminNormalized)))
+                .OrderBy(u => u.LastName)
+                .ThenBy(u => u.FirstName)
+                .Select(u => new OwnerResponse
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Role = (from ur in _context.UserRoles
+                            join r in _context.Roles on ur.RoleId equals r.Id
+                            where ur.UserId == u.Id
+                            select r.Name).FirstOrDefault() ?? string.Empty
+                })
+                .ToListAsync();
 
             return Result<List<OwnerResponse>>.Success(
                 message: "Available owners retrieved successfully",
@@ -164,15 +164,15 @@ namespace Services.Services
             var firstPart = command.FirstName.Trim();
             var lastPart = command.LastName.Trim();
 
-            var safeFirst = firstPart.Length >= 3 ? firstPart[..3] : firstPart;
-            var safeLast = lastPart.Length >= 3 ? lastPart[..3] : lastPart;
+            var safeFirst = firstPart.Length >= BusinessConstants.UserNamePartLength ? firstPart[..BusinessConstants.UserNamePartLength] : firstPart;
+            var safeLast = lastPart.Length >= BusinessConstants.UserNamePartLength ? lastPart[..BusinessConstants.UserNamePartLength] : lastPart;
             var baseUserName = $"{safeFirst}{safeLast}".ToLowerInvariant();
 
             string candidateUserName;
             var random = Random.Shared;
             do
             {
-                candidateUserName = $"{baseUserName}{random.Next(100, 1000)}";
+                candidateUserName = $"{baseUserName}{random.Next(BusinessConstants.UserNameRandomMin, BusinessConstants.UserNameRandomMax)}";
             }
             while (await _context.Users.AnyAsync(u => u.NormalizedUserName == candidateUserName.ToUpperInvariant()));
 
@@ -323,7 +323,7 @@ namespace Services.Services
                 );
             }
 
-            if (await _userManager.IsInRoleAsync(user, "Admin"))
+            if (await _userManager.IsInRoleAsync(user, BusinessConstants.RoleAdmin))
             {
                 _logger.LogWarning("Cannot ban an admin: {Email}", user.NormalizedEmail);
                 return Result.Failure(
@@ -421,7 +421,7 @@ namespace Services.Services
                 );
             }
 
-            if (await _userManager.IsInRoleAsync(userToDelete, "Admin"))
+            if (await _userManager.IsInRoleAsync(userToDelete, BusinessConstants.RoleAdmin))
             {
                 _logger.LogWarning("Attempted to delete admin account: {UserId}.", command.UserId);
                 return Result.Failure(

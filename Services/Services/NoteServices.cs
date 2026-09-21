@@ -156,9 +156,9 @@ namespace Services.Services
             }
 
             var isAuthor = user.Id == note.AuthorId;
-            var isManager = await _userManager.IsInRoleAsync(user, "Manager") || await _userManager.IsInRoleAsync(user, "Admin");
 
-            if (!isAuthor && !isManager)
+
+            if (!isAuthor && !await HasAccessAsync(user))
             {
                 _logger.LogWarning("Security violation: User {UserId} attempted to edit note {NoteId} owned by {AuthorId}.", userId, command.Id, note.AuthorId);
                 throw new ForbiddenException("You are not authorized to edit this note.");
@@ -285,9 +285,8 @@ namespace Services.Services
             }
 
             var isAuthor = note.AuthorId == userId;
-            var isPrivileged = await _userManager.IsInRoleAsync(user, "Manager") || await _userManager.IsInRoleAsync(user, "Admin");
 
-            if (!isAuthor && !isPrivileged)
+            if (!isAuthor && !await HasAccessAsync(user))
             {
                 _logger.LogWarning("Security violation: User {UserId} attempted to delete note {NoteId} owned by {AuthorId}.", userId, noteId, note.AuthorId);
                 throw new ForbiddenException("You are not authorized to delete this note.");
@@ -303,5 +302,9 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK
             );
         }
+
+        private async Task<bool> HasAccessAsync(ApplicationUser user)
+            => await _userManager.IsInRoleAsync(user, BusinessConstants.RoleManager) || await _userManager.IsInRoleAsync(user, BusinessConstants.RoleAdmin);
+
     }
 }

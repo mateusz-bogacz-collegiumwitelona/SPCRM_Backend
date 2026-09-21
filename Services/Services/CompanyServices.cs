@@ -118,7 +118,7 @@ namespace Services.Services
                     Longitude = a.Location != null ? a.Location.X : (double?)null,
                     Type = a.AddressType.ToString()
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "comapny_adresses");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_addresses");
 
 
         public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command)
@@ -223,7 +223,7 @@ namespace Services.Services
                 );
             }
 
-            if (addresses.Count(a => a.Type == AddressTypeEnum.Headquarters) != 1)
+            if (addresses.Count(a => a.Type == AddressTypeEnum.Headquarters) != BusinessConstants.RequiredHeadquartersCount)
             {
                 _logger.LogWarning(
                     "User {UserId} tried to add company '{CompanyName}' with {HeadquartersCount} headquarters addresses.",
@@ -625,7 +625,7 @@ namespace Services.Services
             var addressCount = await _context.CompanyAdresses
                 .CountAsync(ca => ca.CompanyId == address.CompanyId);
 
-            if (addressCount <= 1)
+            if (addressCount <= BusinessConstants.MinimumCompanyAddressesCount)
             {
                 _logger.LogWarning("Attempted to delete the last remaining address {AddressId} for company {CompanyId}.", addressId, address.CompanyId);
                 return Result.Failure(
@@ -699,7 +699,7 @@ namespace Services.Services
                 throw new MissingUserRoleException(user.Id);
             }
 
-            if (userRoleNames.Contains("ADMIN"))
+            if (userRoleNames.Contains(BusinessConstants.AdminNormalized))
             {
                 _logger.LogWarning("Attempted to assign company {CompanyId} ownership to an admin user {UserId}.", command.CompanyId, command.UserId);
                 return Result.Failure(
@@ -770,8 +770,6 @@ namespace Services.Services
                 data: response
             );
         }
-
-
 
         private static CompanyAdress CreateAddressEntity(AddCompanyAdressCommand command, Guid? companyId = null)
         {

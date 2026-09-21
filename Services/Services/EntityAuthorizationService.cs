@@ -1,4 +1,5 @@
-﻿using Infrastructure;
+﻿using Domain.Constants;
+using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Services.Interfaces;
 
@@ -14,18 +15,12 @@ namespace Services.Services
         }
 
         public async Task<bool> CanModifyAsync(Guid currentUserId, Guid resourceOwnerId)
-            => currentUserId == resourceOwnerId ||
-                await (from ur in _context.UserRoles
-                       join r in _context.Roles on ur.RoleId equals r.Id
-                       where ur.UserId == currentUserId &&
-                       (r.NormalizedName == "MANAGER")
-                       select ur.UserId).AnyAsync();
+             => currentUserId == resourceOwnerId || await CanAccessAsync(currentUserId);
 
         public async Task<bool> CanAccessAsync(Guid userId)
-            => await (from ur in _context.UserRoles
-                      join r in _context.Roles on ur.RoleId equals r.Id
-                      where ur.UserId == userId &&
-                      (r.NormalizedName == "MANAGER")
-                      select ur.UserId).AnyAsync();
+            => await _context.UserRoles
+                .AsNoTracking()
+                .AnyAsync(ur => ur.UserId == userId &&
+                    _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == BusinessConstants.ManagerNormalized));
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Domain.Comunication;
+using Domain.Constants;
 using Domain.Events;
 using Domain.Models;
 using Infrastructure;
@@ -104,7 +105,7 @@ namespace Services.Handlers
                 InvoiceNumber = invoice.InvoiceNumber,
                 RecipientEmail = recipientEmail,
                 RecipientName = deal.Company.Name,
-                TotalGrossAmount = invoice.TotalAmount / 10000m,
+                TotalGrossAmount = invoice.TotalAmount / BusinessConstants.CurrencyScaleFactor,
                 CurrencyCode = deal.Currency.Code,
                 DueDate = invoice.DueDate,
                 Language = language ?? "pl"

@@ -70,19 +70,22 @@ namespace Services.Services
 
         public async Task<Result<OfferDetailResponse>> GetOfferDetailAsync(Guid id)
         {
-            var offerData = await (
-                from o in _context.Offers.AsNoTracking()
-                where o.Id == id
-                join u in _context.Users.AsNoTracking() on o.CreatedByUserId equals u.Id into userGroup
-                from u in userGroup.DefaultIfEmpty()
-                select new
+            var offerData = await _context.Offers
+                .AsNoTracking()
+                .Where(o => o.Id == id)
+                .Select(o => new
                 {
-                    Offer = o,
-                    AuthorFirstName = u != null ? u.FirstName : null,
-                    AuthorLastName = u != null ? u.LastName : null,
-                    AuthorExists = u != null
-                }
-            ).FirstOrDefaultAsync();
+                    o.Id,
+                    o.Name,
+                    o.Status,
+                    o.ValidUntil,
+                    o.CreatedByUserId,
+                    Author = _context.Users
+                        .Where(u => u.Id == o.CreatedByUserId)
+                        .Select(u => new { u.FirstName, u.LastName })
+                        .FirstOrDefault()
+                })
+                .FirstOrDefaultAsync();
 
             if (offerData == null)
             {
@@ -94,21 +97,21 @@ namespace Services.Services
                 );
             }
 
-            if (!offerData.AuthorExists)
+            if (offerData.Author == null)
             {
-                _logger.LogError("Critical data corruption: Offer {OfferId} has orphaned CreatedByUserId {UserId}.", id, offerData.Offer.CreatedByUserId);
-                throw new DataCorruptionException($"Offer '{id}' is linked to non-existent creator '{offerData.Offer.CreatedByUserId}'.");
+                _logger.LogError("Critical data corruption: Offer {OfferId} has orphaned CreatedByUserId {UserId}.", id, offerData.CreatedByUserId);
+                throw new DataCorruptionException($"Offer '{id}' is linked to non-existent creator '{offerData.CreatedByUserId}'.");
             }
 
             var response = new OfferDetailResponse
             {
-                OfferId = offerData.Offer.Id,
-                OfferName = offerData.Offer.Name,
-                Status = offerData.Offer.Status.ToString(),
-                ValidUntil = offerData.Offer.ValidUntil,
-                IsExpired = offerData.Offer.ValidUntil < DateTime.UtcNow,
-                CreatedByUserFirstName = offerData.AuthorFirstName ?? string.Empty,
-                CreatedByUserLastName = offerData.AuthorLastName ?? string.Empty
+                OfferId = offerData.Id,
+                OfferName = offerData.Name,
+                Status = offerData.Status.ToString(),
+                ValidUntil = offerData.ValidUntil,
+                IsExpired = offerData.ValidUntil < DateTime.UtcNow,
+                CreatedByUserFirstName = offerData.Author.FirstName ?? string.Empty,
+                CreatedByUserLastName = offerData.Author.LastName ?? string.Empty
             };
 
             return Result<OfferDetailResponse>.Success(
@@ -120,28 +123,30 @@ namespace Services.Services
 
         public async Task<Result<OfferClientDetail>> GetOfferClientDetailAsync(Guid id)
         {
-            var offerDetail = await (
-                from o in _context.Offers.AsNoTracking()
-                where o.Id == id
-                join c in _context.Contacts.AsNoTracking() on o.ContactId equals c.Id into contactGroup
-                from c in contactGroup.DefaultIfEmpty()
-                join comp in _context.Companies.AsNoTracking() on c.CompanyId equals comp.Id into companyGroup
-                from comp in companyGroup.DefaultIfEmpty()
-                select new
-                {
-                    OfferExists = true,
-                    ContactId = o.ContactId,
-                    HasContact = c != null,
-                    ContactFirstName = c != null ? c.FirstName : null,
-                    ContactLastName = c != null ? c.LastName : null,
-                    ContactJobTitle = c != null ? c.JobTitle : null,
-                    HasCompany = comp != null,
-                    CompanyName = comp != null ? comp.Name : null
-                }
-            ).FirstOrDefaultAsync();
+            var offerDetail = await _context.Offers
+                 .AsNoTracking()
+                 .Where(o => o.Id == id)
+                 .Select(o => new
+                 {
+                     o.ContactId,
+                     HasContact = o.Contact != null,
+                     ContactFirstName = o.Contact != null ? o.Contact.FirstName : null,
+                     ContactLastName = o.Contact != null ? o.Contact.LastName : null,
+                     ContactJobTitle = o.Contact != null ? o.Contact.JobTitle : null,
+                     HasCompany = o.Contact != null && o.Contact.Company != null,
+                     CompanyName = o.Contact != null && o.Contact.Company != null ? o.Contact.Company.Name : null
+                 })
+                 .FirstOrDefaultAsync();
 
             if (offerDetail == null)
             {
+                var offerExists = await _context.Offers.AsNoTracking().AnyAsync(o => o.Id == id);
+                if (offerExists)
+                {
+                    _logger.LogError("Critical data corruption: Offer {OfferId} has corrupted relational linkages.", id);
+                    throw new DataCorruptionException($"Offer '{id}' has corrupted contact or company linkage.");
+                }
+
                 _logger.LogInformation("Offer with ID {OfferId} not found.", id);
                 return Result<OfferClientDetail>.Failure(
                     message: "Offer not found.",
@@ -243,7 +248,7 @@ namespace Services.Services
 
             var targetDate = command.NewValidUntil.HasValue
                 ? DateTime.SpecifyKind(command.NewValidUntil.Value, DateTimeKind.Utc)
-                : DateTime.UtcNow.AddDays(7);
+                : DateTime.UtcNow.AddDays(BusinessConstants.DefaultMailingValidityDays);
 
             var stateCheck = _state.Create(offer).CanExtendValidity(targetDate);
             if (!stateCheck.IsSuccess)
@@ -590,7 +595,7 @@ namespace Services.Services
                     op.Product.Length
                 ),
                 Weight = op.Product.Weight,
-                UnitSymbol = op.Product.Unit?.Symbol ?? "szt.",
+                UnitSymbol = op.Product.Unit?.Symbol ?? BusinessConstants.DefaultUnitSymbol,
                 Quantity = op.Quantity,
                 CurrencyCode = offer.Currency.Code,
                 FinalPrice = op.QuotedPrice,
@@ -697,7 +702,7 @@ namespace Services.Services
                 CanEdit = stateMachine.CanEditProducts().IsSuccess,
                 CanDelete = stateMachine.CanDelete().IsSuccess,
                 CanResendEmail = stateMachine.CanResendEmail().IsSuccess,
-                CanExtendValidity = stateMachine.CanExtendValidity(DateTime.UtcNow.AddDays(7)).IsSuccess,
+                CanExtendValidity = stateMachine.CanExtendValidity(DateTime.UtcNow.AddDays(BusinessConstants.DefaultMailingValidityDays)).IsSuccess,
                 AllowedStatusTransitions = allowedTransitions
             };
 

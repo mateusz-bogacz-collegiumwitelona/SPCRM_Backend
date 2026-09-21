@@ -507,12 +507,12 @@ namespace Services.Services
                 CurrencyId = rawProduct.CurrencyId,
                 Category = rawProduct.Category.ToString(),
 
-                Thickness = rawProduct.Thickness / 10m,
-                Width = rawProduct.Width / 10m,
-                Length = rawProduct.Length / 10m,
-                Diameter = rawProduct.Diameter.HasValue ? rawProduct.Diameter.Value / 10m : null,
-                Weight = rawProduct.Weight / 1000m,
-                PricePerUnit = rawProduct.PricePerUnit / 10000m,
+                Thickness = rawProduct.Thickness / BusinessConstants.DimensionScaleFactor,
+                Width = rawProduct.Width / BusinessConstants.DimensionScaleFactor,
+                Length = rawProduct.Length / BusinessConstants.DimensionScaleFactor,
+                Diameter = rawProduct.Diameter.HasValue ? rawProduct.Diameter.Value / BusinessConstants.DimensionScaleFactor : null,
+                Weight = rawProduct.Weight / BusinessConstants.WeightScaleFactor,
+                PricePerUnit = rawProduct.PricePerUnit / BusinessConstants.CurrencyScaleFactor,
             };
 
             return Result<EditProductDetailResponse>.Success(

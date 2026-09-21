@@ -13,7 +13,6 @@ using Services.Command.Mailing;
 using Services.Command.Support;
 using Services.Helpers;
 using Services.Interfaces;
-using System.Globalization;
 
 namespace Services.Services
 {
@@ -55,10 +54,7 @@ namespace Services.Services
                 );
             }
 
-            string formattedDate = DateTime.UtcNow.ToString(
-                "dddd, dd MMMM yyyy HH:mm",
-                new CultureInfo("pl-PL")
-            );
+            string formattedDate = DateTime.UtcNow.ToString(BusinessConstants.FullPolishDateTime, BusinessConstants.DefaultCultureCode);
 
             var reportDomain = new ReportDomain
             {
@@ -214,7 +210,7 @@ namespace Services.Services
             List<Currency> currencies)
         {
             var uniqueCommands = commands.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
-            var defaultCurrency = currencies.FirstOrDefault(c => c.Code == "PLN") ?? currencies.First();
+            var defaultCurrency = currencies.FirstOrDefault(c => c.Code == BusinessConstants.DefaultCurrencyCode) ?? currencies.First();
 
             return uniqueCommands.Select(cmd =>
             {
@@ -241,7 +237,7 @@ namespace Services.Services
                     {
                         isPromoted = true;
                         originalPrice = standardPrice;
-                        discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, 2);
+                        discountPercentage = Math.Round((1m - ((decimal)finalPrice / standardPrice)) * 100m, BusinessConstants.DefaultPercentageDecimalPlaces);
                     }
 
                     var activePromotion = product.Promotions
@@ -284,7 +280,7 @@ namespace Services.Services
                     SteelGrade = product.SteelGrade?.Name ?? string.Empty,
                     FormattedDimensions = formatDimension,
                     Weight = product.Weight,
-                    UnitSymbol = product.Unit?.Symbol ?? "szt.",
+                    UnitSymbol = product.Unit?.Symbol ?? BusinessConstants.DefaultUnitSymbol,
                     Quantity = cmd.Quantity,
                     CurrencyCode = targetCurrency.Code,
                     FinalPrice = finalPrice,
@@ -301,17 +297,17 @@ namespace Services.Services
             Guid authorId)
         {
             var offerCurrencyId = productsToOffer.FirstOrDefault()?.CurrencyId
-                ?? (await _context.Currencies.FirstAsync(c => c.Code == "PLN")).Id;
+                 ?? (await _context.Currencies.FirstAsync(c => c.Code == BusinessConstants.DefaultCurrencyCode)).Id;
 
             foreach (var client in clients)
             {
                 var newOffer = new Offer
                 {
-                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
+                    Name = $"OF/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid().ToString("N")[..BusinessConstants.OfferNumberSuffixLength].ToUpper()}",
                     ContactId = client.Id,
                     CreatedByUserId = authorId,
                     CurrencyId = offerCurrencyId,
-                    ValidUntil = DateTime.UtcNow.AddDays(7),
+                    ValidUntil = DateTime.UtcNow.AddDays(BusinessConstants.DefaultMailingValidityDays),
                     Status = OfferStatusEnum.Sent,
                     Products = productsToOffer.Select(p => new OfferProducts
                     {

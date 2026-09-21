@@ -84,37 +84,6 @@ namespace Services.Helpers
                 TotalPages = 0
             };
         }
-
-        public static Result<PagedResult<TDestination>> MapData<TSource, TDestination>(
-             this Result<PagedResult<TSource>> result,
-             Func<TSource, TDestination> mapper)
-        {
-            if (!result.IsSuccess || result.Data == null)
-            {
-                return Result<PagedResult<TDestination>>.Failure(
-                    message: result.Message ?? "Operation failed",
-                    statusCode: result.StatusCode,
-                    errors: result.Errors
-                    );
-            }
-
-            var pagedData = result.Data;
-
-            var mappedPagedData = new PagedResult<TDestination>
-            {
-                Items = pagedData.Items.Select(mapper).ToList(),
-                PageNumber = pagedData.PageNumber,
-                PageSize = pagedData.PageSize,
-                TotalCount = pagedData.TotalCount,
-                TotalPages = pagedData.TotalPages
-            };
-
-            return Result<PagedResult<TDestination>>.Success(
-                message: result.Message ?? "Operation failed",
-                statusCode: result.StatusCode,
-                data: mappedPagedData
-                );
-        }
     }
 }
 

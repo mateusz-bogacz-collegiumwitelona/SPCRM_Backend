@@ -25,13 +25,13 @@ namespace Services.Services
         {
             var productsIds = dealProducts.Select(dp => dp.ProductId).Distinct().ToList();
 
-            var proudcts = await _context.Products
+            var products = await _context.Products
                 .Where(p => productsIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id);
 
             foreach (var dealProduct in dealProducts)
             {
-                if (!proudcts.TryGetValue(dealProduct.ProductId, out var product))
+                if (!products.TryGetValue(dealProduct.ProductId, out var product))
                 {
                     _logger.LogError("Product with ID {ProductId} not found.", dealProduct.ProductId);
                     return Result.Failure(
@@ -42,7 +42,7 @@ namespace Services.Services
 
                 if (product.StockQuantity < dealProduct.Quantity)
                 {
-                    _logger.LogWarning($"Insufficient stock for product {product.Name}. Requested: {dealProduct.Quantity}, Available: {product.StockQuantity}");
+                    _logger.LogWarning("Insufficient stock for product {ProductName}. Requested: {Requested}, Available: {Available}", product.Name, dealProduct.Quantity, product.StockQuantity);
                     return Result.Failure(
                         message: $"Insufficient stock for product {product.Name}. Requested: {dealProduct.Quantity}, Available: {product.StockQuantity}",
                         statusCode: StatusCodes.Status400BadRequest,
@@ -83,7 +83,7 @@ namespace Services.Services
 
             if (product == null)
             {
-                _logger.LogError($"Product with ID {productId} not found.");
+                _logger.LogError("Product with ID {productId} not found.", productId);
                 return Result.Failure(
                     message: $"Product with ID {productId} not found.",
                     statusCode: StatusCodes.Status404NotFound,

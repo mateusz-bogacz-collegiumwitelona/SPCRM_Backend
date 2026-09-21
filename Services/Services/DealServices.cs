@@ -100,7 +100,7 @@ namespace Services.Services
                         SalesmanFirstName = d.Owner.FirstName,
                         SalesmanLastName = d.Owner.LastName,
                         Name = d.Name,
-                        Value = (decimal)d.Value / 10000m,
+                        Value = Math.Round((decimal)d.Value / BusinessConstants.CurrencyScaleFactor, BusinessConstants.DefaultCurrencyDecimalPlaces),
                         Code = d.Currency.Code,
                         DecimalPlaces = d.Currency.DecimalPlaces,
                         Status = d.Status.ToString(),
@@ -113,55 +113,53 @@ namespace Services.Services
         {
             var now = DateTime.UtcNow;
 
-            var query = await (
-                from d in _context.Deals.AsNoTracking()
-                where d.Id == dealId
-                join curr in _context.Currencies.AsNoTracking() on d.CurrencyId equals curr.Id into currGroup
-                from curr in currGroup.DefaultIfEmpty()
-                join u in _context.Users.AsNoTracking() on d.OwnerId equals u.Id into uGroup
-                from u in uGroup.DefaultIfEmpty()
-                join comp in _context.Companies.AsNoTracking() on d.CompanyId equals comp.Id into compGroup
-                from comp in compGroup.DefaultIfEmpty()
-                join ct in _context.Contacts.AsNoTracking() on d.ContactId equals ct.Id into ctGroup
-                from ct in ctGroup.DefaultIfEmpty()
-                select new
-                {
-                    DealExists = true,
-                    d.Id,
-                    d.Name,
-                    d.Value,
-                    Status = d.Status.ToString(),
-                    d.CloseDate,
+            var query = await _context.Deals
+             .AsNoTracking()
+             .Where(d => d.Id == dealId)
+             .Select(d => new
+             {
+                 d.Id,
+                 d.Name,
+                 d.Value,
+                 Status = d.Status.ToString(),
+                 d.CloseDate,
 
-                    d.CurrencyId,
-                    HasCurrency = curr != null,
-                    CurrencyCode = curr != null ? curr.Code : null,
-                    DecimalPlaces = curr != null ? (int?)curr.DecimalPlaces : null,
+                 d.CurrencyId,
+                 HasCurrency = d.Currency != null,
+                 CurrencyCode = d.Currency != null ? d.Currency.Code : null,
+                 DecimalPlaces = d.Currency != null ? (int?)d.Currency.DecimalPlaces : null,
 
-                    d.OwnerId,
-                    HasOwner = u != null,
-                    OwnerFirstName = u != null ? u.FirstName : null,
-                    OwnerLastName = u != null ? u.LastName : null,
+                 d.OwnerId,
+                 HasOwner = d.Owner != null,
+                 OwnerFirstName = d.Owner != null ? d.Owner.FirstName : null,
+                 OwnerLastName = d.Owner != null ? d.Owner.LastName : null,
 
-                    d.CompanyId,
-                    HasCompany = comp != null,
-                    CompanyName = comp != null ? comp.Name : null,
+                 d.CompanyId,
+                 HasCompany = d.Company != null,
+                 CompanyName = d.Company != null ? d.Company.Name : null,
 
-                    d.ContactId,
-                    ContactFirstName = ct != null ? ct.FirstName : null,
-                    ContactLastName = ct != null ? ct.LastName : null,
+                 d.ContactId,
+                 ContactFirstName = d.Contact != null ? d.Contact.FirstName : null,
+                 ContactLastName = d.Contact != null ? d.Contact.LastName : null,
 
-                    InvoicedAmount = d.Invoices.Sum(i => (long?)i.TotalAmount) ?? 0,
-                    PaidAmount = d.Invoices.Sum(i => (long?)i.PaidAmount) ?? 0,
-                    IsOverdueInvoices = d.Invoices.Any(i =>
-                        (i.TotalAmount - i.PaidAmount) > 0 &&
-                        i.DueDate < now
-                    )
-                }
-            ).FirstOrDefaultAsync();
+                 InvoicedAmount = d.Invoices.Sum(i => (long?)i.TotalAmount) ?? 0,
+                 PaidAmount = d.Invoices.Sum(i => (long?)i.PaidAmount) ?? 0,
+                 IsOverdueInvoices = d.Invoices.Any(i =>
+                     (i.TotalAmount - i.PaidAmount) > 0 &&
+                     i.DueDate < now
+                 )
+             })
+             .FirstOrDefaultAsync();
 
             if (query == null)
             {
+                var dealExists = await _context.Deals.AsNoTracking().AnyAsync(d => d.Id == dealId);
+                if (dealExists)
+                {
+                    _logger.LogError("Critical data corruption: Deal {DealId} exists but failed to join required relations.", dealId);
+                    throw new DataCorruptionException($"Deal '{dealId}' contains corrupted relational linkages.");
+                }
+
                 _logger.LogInformation("Deal with ID {DealId} not found.", dealId);
                 return Result<DealDetailResponse>.Failure(
                     message: "Deal not found.",
@@ -175,7 +173,7 @@ namespace Services.Services
             if (!hasAccess)
             {
                 _logger.LogWarning("User {UserId} attempted unauthorized access to Deal {DealId}.", currentUserId, dealId);
-                throw new ForbiddenException("You are not authorized to modify this company.");
+                throw new ForbiddenException("You are not authorized to access this deal.");
             }
 
             if (!query.HasCurrency || !query.HasOwner || !query.HasCompany ||
@@ -770,6 +768,7 @@ namespace Services.Services
         public async Task<Result<ChangeDealStatusResponse>> ChangeDealStatusAsync(ChangeDealStatusCommand command)
         {
             var deal = await _context.Deals
+                .AsSplitQuery()
                 .Include(d => d.Currency)
                 .Include(d => d.Contact)
                     .ThenInclude(ct => ct.ContactDetails)

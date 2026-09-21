@@ -1,6 +1,6 @@
 ﻿namespace Services.Response.Task
 {
-    public record SaleTaskResponse
+    public record DealTaskResponse
     {
         public required Guid Id { get; init; }
         public required string Title { get; init; }

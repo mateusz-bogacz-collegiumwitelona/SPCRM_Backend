@@ -1,4 +1,5 @@
 ﻿using Domain.Comunication;
+using Domain.Constants;
 using Email.Interfaces;
 using Hangfire;
 using Microsoft.Extensions.Configuration;
@@ -86,9 +87,9 @@ namespace Email
 
                 foreach (var p in domain.Products)
                 {
-                    decimal actualWeight = p.Weight / 1000m;
+                    decimal actualWeight = p.Weight / BusinessConstants.WeightScaleFactor;
 
-                    decimal formattedFinalPrice = p.FinalPrice / 10000m;
+                    decimal formattedFinalPrice = p.FinalPrice / BusinessConstants.CurrencyScaleFactor;
 
                     string nameCell = p.ProductName;
                     if (p.IsPromoted)
@@ -99,7 +100,7 @@ namespace Email
                     string priceCell = $"{formattedFinalPrice:0.00} {p.CurrencyCode}";
                     if (p.OriginalPrice.HasValue)
                     {
-                        decimal formattedOriginalPrice = p.OriginalPrice.Value / 10000m;
+                        decimal formattedOriginalPrice = p.OriginalPrice.Value / BusinessConstants.CurrencyScaleFactor;
 
                         priceCell = $"<s style='color: #7f8c8d; font-size: 12px;'>{formattedOriginalPrice:0.00}</s><br/>"
                                   + $"<strong style='color: #27ae60; font-size: 14px;'>{formattedFinalPrice:0.00} {p.CurrencyCode}</strong>";

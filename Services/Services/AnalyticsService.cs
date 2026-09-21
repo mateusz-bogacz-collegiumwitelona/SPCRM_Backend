@@ -13,7 +13,6 @@ using Services.Helpers;
 using Services.Interfaces;
 using Services.Response.Analytics;
 using Services.Response.Pdf;
-using System.Globalization;
 
 namespace Services.Services
 {
@@ -212,11 +211,11 @@ namespace Services.Services
                     FirstName = x.FirstName,
                     LastName = x.LastName,
                     Email = x.Email,
-                    RevenueThisMonth = Math.Round(x.RevenueRaw / 10000.0m, 2),
+                    RevenueThisMonth = Math.Round(x.RevenueRaw / BusinessConstants.CurrencyScaleFactor, BusinessConstants.DefaultPercentageDecimalPlaces),
                     WonDealsThisMonth = x.WonDealsThisMonth,
                     ActiveDealsCount = x.ActiveDealsCount,
                     WinRatePercentageThisMonth = (x.WonDealsThisMonth + x.LostDealsThisMonth) > 0
-                        ? Math.Round(((decimal)x.WonDealsThisMonth / (x.WonDealsThisMonth + x.LostDealsThisMonth)) * 100m, 2)
+                        ? Math.Round(((decimal)x.WonDealsThisMonth / (x.WonDealsThisMonth + x.LostDealsThisMonth)) * 100m, BusinessConstants.DefaultPercentageDecimalPlaces)
                         : 0m
                 }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "team_leaderboard");
         }
@@ -372,7 +371,7 @@ namespace Services.Services
 
                             chartItems.Add(new AnalyticsChartMetricResponse
                             {
-                                Label = target.ToString("MMM yyyy", new CultureInfo("pl-PL")),
+                                Label = target.ToString("MMM yyyy", BusinessConstants.DefaultCultureCode),
                                 Revenue = found != null ? ToDecimalCurrency(found.RevenueRaw) : 0m,
                                 DealsWonCount = found?.Count ?? 0
                             });
@@ -394,15 +393,14 @@ namespace Services.Services
                             })
                             .ToListAsync();
 
-                        var plCulture = new CultureInfo("pl-PL");
 
                         for (int m = 1; m <= 12; m++)
                         {
                             var found = yearDeals.FirstOrDefault(d => d.Month == m);
                             var monthDate = new DateTime(nowUtc.Year, m, 1);
 
-                            var rawMonthName = monthDate.ToString("MMMM", plCulture);
-                            var capitalizedMonth = char.ToUpper(rawMonthName[0], plCulture) + rawMonthName[1..];
+                            var rawMonthName = monthDate.ToString("MMMM", BusinessConstants.DefaultCultureCode);
+                            var capitalizedMonth = char.ToUpper(rawMonthName[0], BusinessConstants.DefaultCultureCode) + rawMonthName[1..];
 
                             chartItems.Add(new AnalyticsChartMetricResponse
                             {
@@ -419,7 +417,7 @@ namespace Services.Services
         }
 
         private static decimal ToDecimalCurrency(long rawValue)
-            => Math.Round(rawValue / 10000.0m, 2);
+            => Math.Round(rawValue / BusinessConstants.CurrencyScaleFactor, BusinessConstants.DefaultPercentageDecimalPlaces);
 
         private static DatePeriodsContext GetDatePeriods()
         {
@@ -488,7 +486,7 @@ namespace Services.Services
 
             int closedDealsTotal = wonDealsThisMonth + lostDealsThisMonth;
             decimal winRate = closedDealsTotal > 0
-                ? Math.Round(((decimal)wonDealsThisMonth / closedDealsTotal) * 100m, 2)
+                ? Math.Round(((decimal)wonDealsThisMonth / closedDealsTotal) * 100m, BusinessConstants.DefaultPercentageDecimalPlaces)
                 : 0m;
 
             var tasksQuery = _context.Tasks.AsNoTracking();

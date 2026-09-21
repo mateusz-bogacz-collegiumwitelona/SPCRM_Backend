@@ -1411,7 +1411,7 @@ namespace Tests.Services
                     Title = "Przygotowanie specyfikacji technicznej",
                     Status = TaskStatusEnum.ToDo,
                     Priority = TaskPriorityEnum.Medium,
-                    DueAt = nowUtc.AddDays(-2), 
+                    DueAt = nowUtc.AddDays(-2),
                     AssignedToId = user2.Id,
                     CreatedById = user2.Id,
                     Description = "A bo ja wiem"
