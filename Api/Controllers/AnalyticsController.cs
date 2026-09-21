@@ -37,5 +37,18 @@ namespace Api.Controllers
             var result = await analytics.GetTeamRevenueChartAsync(mapper.MapChart(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Get employee revenue chart data")]
+        [EndpointDescription("Returns aggregated revenue and deal counts for an individual employee charts.")]
+        [HttpGet("employees/{employeeId:guid}/chart")]
+        public async Task<IActionResult> GetEmployeeRevenueChartAsync(
+            [FromRoute] Guid employeeId,
+            [FromServices] IAnalyticsService analytics,
+            [FromServices] AnalyticsMapper mapper,
+            [FromQuery] AnalyticsChartRequest request)
+        {
+            var result = await analytics.GetEmployeeRevenueChartAsync(employeeId, mapper.MapChart(request));
+            return HandleResult(result);
+        }
     }
 }

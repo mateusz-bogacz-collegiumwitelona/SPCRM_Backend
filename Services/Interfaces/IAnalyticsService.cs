@@ -9,5 +9,6 @@ namespace Services.Interfaces
         Task<Result<TeamKpiSummaryResponse>> GetTeamKpiSummaryAsync();
         Task<Result<List<AnalyticsChartMetricResponse>>> GetTeamRevenueChartAsync(AnalyticsChartCommand command);
         Task<Result<EmployeeKpiSummaryResponse>> GetEmployeeKpiSummaryAsync(Guid employeeId);
+        Task<Result<List<AnalyticsChartMetricResponse>>> GetEmployeeRevenueChartAsync(Guid employeeId, AnalyticsChartCommand command);
     }
 }

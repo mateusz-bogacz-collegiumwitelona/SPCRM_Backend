@@ -1,4 +1,5 @@
-﻿using Domain.Constants;
+﻿using Docker.DotNet.Models;
+using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Analytics;
 using Services.Services;
+using System.ComponentModel.Design;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
@@ -800,5 +802,184 @@ namespace Tests.Services
             await Assert.That(data.ActiveDealsPipelineValue).IsEqualTo(0m);
         }
 
+        // ─── GetEmployeeRevenueChartAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetEmployeeRevenueChartAsync_WhenUserDoesNotExist_ShouldReturnNotFound()
+        {
+            // Arrange
+            var nonExistingUserId = Guid.NewGuid();
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.HalfYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeRevenueChartAsync(nonExistingUserId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task GetEmployeeRevenueChartAsync_WhenUserIsSoftDeleted_ShouldReturnNotFound()
+        {
+            // Arrange
+            var (user, _, _, _) = await SeedBaseEntitiesAsync();
+            user.IsDeleted = true;
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.HalfYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeRevenueChartAsync(user.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task GetEmployeeRevenueChartAsync_WhenDealsExist_ShouldIsolateEmployeeDataAndAggregateCorrectly()
+        {
+            // Arrange
+            var (targetUser, currency, company, contact) = await SeedBaseEntitiesAsync();
+
+            var otherUser = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Tomasz",
+                LastName = "Kowalski",
+                Email = "tomasz.kowalski@stal-crm.pl",
+                UserName = "tomasz.kowalski@stal-crm.pl"
+            };
+            _contextMock.Users.Add(otherUser);
+            await _contextMock.SaveChangesAsync();
+
+            var nowUtc = DateTime.UtcNow;
+            var currentMonthStart = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var twoMonthsAgo = currentMonthStart.AddMonths(-2);
+
+            var deals = new List<Deal>
+            {
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/EMP_CHART/01",
+                    Value = 600_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = currentMonthStart.AddDays(2),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/EMP_CHART/02",
+                    Value = 400_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = twoMonthsAgo.AddDays(5),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/EMP_CHART/03",
+                    Value = 100_000_000L,
+                    Status = DealsStatusEnum.Cancelled,
+                    CloseDate = currentMonthStart.AddDays(3),
+                    OwnerId = targetUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/OTHER_CHART/01",
+                    Value = 1_500_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = currentMonthStart.AddDays(2),
+                    OwnerId = otherUser.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                }
+            };
+
+            _contextMock.Deals.AddRange(deals);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.HalfYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeRevenueChartAsync(targetUser.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var chart = result.Data!;
+            await Assert.That(chart.Count).IsEqualTo(6);
+
+            var currentMonthPoint = chart[^1];
+            await Assert.That(currentMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy"));
+            await Assert.That(currentMonthPoint.Revenue).IsEqualTo(60_000m);
+            await Assert.That(currentMonthPoint.DealsWonCount).IsEqualTo(1);
+
+            var twoMonthsAgoPoint = chart[3];
+            await Assert.That(twoMonthsAgoPoint.Label).IsEqualTo(twoMonthsAgo.ToString("MMM yyyy"));
+            await Assert.That(twoMonthsAgoPoint.Revenue).IsEqualTo(40_000m);
+            await Assert.That(twoMonthsAgoPoint.DealsWonCount).IsEqualTo(1);
+
+            var emptyMonthPoint = chart[0];
+            await Assert.That(emptyMonthPoint.Revenue).IsEqualTo(0m);
+            await Assert.That(emptyMonthPoint.DealsWonCount).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetEmployeeRevenueChartAsync_WhenCurrentMonth_ShouldReturnFourWeeklyIntervals()
+        {
+            // Arrange
+            var (targetUser, currency, company, contact) = await SeedBaseEntitiesAsync();
+            var nowUtc = DateTime.UtcNow;
+
+            var dealFirstInterval = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/EMP_MONTH/01",
+                Value = 250_000_000L,
+                Status = DealsStatusEnum.Complete,
+                CloseDate = new DateTime(nowUtc.Year, nowUtc.Month, 3, 10, 0, 0, DateTimeKind.Utc),
+                OwnerId = targetUser.Id,
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                ContactId = contact.Id
+            };
+
+            _contextMock.Deals.Add(dealFirstInterval);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.CurrentMonth };
+
+            // Act
+            var result = await _analyticsServiceMock.GetEmployeeRevenueChartAsync(targetUser.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var chart = result.Data!;
+
+            await Assert.That(chart.Count).IsEqualTo(4);
+            var firstInterval = chart[0];
+            await Assert.That(firstInterval.Label).IsEqualTo("Dni 1-7");
+            await Assert.That(firstInterval.Revenue).IsEqualTo(25_000m);
+            await Assert.That(firstInterval.DealsWonCount).IsEqualTo(1);
+        }
     }
 }
