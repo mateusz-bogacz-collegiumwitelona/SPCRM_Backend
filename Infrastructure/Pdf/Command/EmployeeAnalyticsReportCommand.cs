@@ -11,7 +11,7 @@
         public List<CurrencyAmountCommand> RevenueThisYear { get; init; } = new();
 
         public required decimal WinRatePercentageThisMonth { get; init; }
-        public  List<CurrencyAmountCommand>  ActiveDealsPipelineValue { get; init; } = new();
+        public List<CurrencyAmountCommand> ActiveDealsPipelineValue { get; init; } = new();
         public required int CompletedTasksThisMonth { get; init; }
         public required int OverdueTasksCount { get; init; }
         public required string PeriodTitle { get; init; }

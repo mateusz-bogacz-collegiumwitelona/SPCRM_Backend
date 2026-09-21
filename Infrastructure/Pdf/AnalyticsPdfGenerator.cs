@@ -4,7 +4,6 @@ using Infrastructure.Pdf.Helpers;
 using Infrastructure.Pdf.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
-using System.Collections;
 
 namespace Infrastructure.Pdf
 {

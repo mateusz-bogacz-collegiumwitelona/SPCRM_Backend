@@ -212,7 +212,7 @@ namespace Services.Services
                         .GroupBy(d => new { d.Currency.Code, d.Currency.DecimalPlaces })
                         .Select(g => new CurrencyAmountResponse
                         {
-                           CurrencyCode = g.Key.Code,
+                            CurrencyCode = g.Key.Code,
                             DecimalPlaces = g.Key.DecimalPlaces,
                             Amount = (decimal)(g.Sum(d => (long?)d.Value) ?? 0) / BusinessConstants.CurrencyScaleFactor
                         })
@@ -348,7 +348,8 @@ namespace Services.Services
 
                             var revenues = weekDeals
                                 .GroupBy(d => new { d.CurrencyCode, d.DecimalPlaces })
-                                .Select(g => new CurrencyAmountResponse { 
+                                .Select(g => new CurrencyAmountResponse
+                                {
                                     CurrencyCode = g.Key.CurrencyCode,
                                     DecimalPlaces = g.Key.DecimalPlaces,
                                     Amount = Math.Round((decimal)g.Sum(d => d.Value) / BusinessConstants.CurrencyScaleFactor, g.Key.DecimalPlaces)
@@ -396,7 +397,8 @@ namespace Services.Services
                                 .ToList();
 
                             var revenues = matchingDeals
-                                .Select(m => new CurrencyAmountResponse { 
+                                .Select(m => new CurrencyAmountResponse
+                                {
                                     CurrencyCode = m.CurrencyCode,
                                     DecimalPlaces = m.DecimalPlaces,
                                     Amount = Math.Round((decimal)m.RevenueRaw / BusinessConstants.CurrencyScaleFactor, m.DecimalPlaces)

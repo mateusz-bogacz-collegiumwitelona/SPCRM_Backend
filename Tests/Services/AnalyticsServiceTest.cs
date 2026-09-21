@@ -13,7 +13,7 @@ using Services.Command.Analytics;
 using Services.Command.List;
 using Services.Response.Analytics;
 using Services.Services;
-using System.Collections;
+using System.Globalization;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
@@ -500,13 +500,15 @@ namespace Tests.Services
             var chart = result.Data!;
             await Assert.That(chart.Count).IsEqualTo(6);
 
+            var polishCulture = new CultureInfo("pl-PL");
+
             var latestMonthPoint = chart[^1];
-            await Assert.That(latestMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy"));
+            await Assert.That(latestMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy", polishCulture));
             await Assert.That(GetAmount(latestMonthPoint.Revenue)).IsEqualTo(100_000m);
             await Assert.That(latestMonthPoint.DealsWonCount).IsEqualTo(1);
 
             var threeMonthsAgoPoint = chart[2];
-            await Assert.That(threeMonthsAgoPoint.Label).IsEqualTo(threeMonthsAgo.ToString("MMM yyyy"));
+            await Assert.That(threeMonthsAgoPoint.Label).IsEqualTo(threeMonthsAgo.ToString("MMM yyyy", polishCulture));
             await Assert.That(GetAmount(threeMonthsAgoPoint.Revenue)).IsEqualTo(50_000m);
             await Assert.That(threeMonthsAgoPoint.DealsWonCount).IsEqualTo(1);
 
@@ -940,13 +942,15 @@ namespace Tests.Services
             var chart = result.Data!;
             await Assert.That(chart.Count).IsEqualTo(6);
 
+            var polishCulture = new CultureInfo("pl-PL");
+
             var currentMonthPoint = chart[^1];
-            await Assert.That(currentMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy"));
+            await Assert.That(currentMonthPoint.Label).IsEqualTo(nowUtc.ToString("MMM yyyy", polishCulture));
             await Assert.That(GetAmount(currentMonthPoint.Revenue)).IsEqualTo(60_000m);
             await Assert.That(currentMonthPoint.DealsWonCount).IsEqualTo(1);
 
             var twoMonthsAgoPoint = chart[3];
-            await Assert.That(twoMonthsAgoPoint.Label).IsEqualTo(twoMonthsAgo.ToString("MMM yyyy"));
+            await Assert.That(twoMonthsAgoPoint.Label).IsEqualTo(twoMonthsAgo.ToString("MMM yyyy", polishCulture));
             await Assert.That(GetAmount(twoMonthsAgoPoint.Revenue)).IsEqualTo(40_000m);
             await Assert.That(twoMonthsAgoPoint.DealsWonCount).IsEqualTo(1);
 
@@ -1146,17 +1150,17 @@ namespace Tests.Services
             var items = pagedData.Items.ToList();
 
             await Assert.That(items.Count).IsEqualTo(3);
-           
+
             await Assert.That(items[0].EmployeeId).IsEqualTo(user2.Id);
             await Assert.That(GetAmount(items[0].RevenueThisMonth)).IsEqualTo(150_000m);
             await Assert.That(items[0].WonDealsThisMonth).IsEqualTo(2);
             await Assert.That(items[0].WinRatePercentageThisMonth).IsEqualTo(100m);
-           
+
             await Assert.That(items[1].EmployeeId).IsEqualTo(user1.Id);
             await Assert.That(GetAmount(items[1].RevenueThisMonth)).IsEqualTo(50_000m);
             await Assert.That(items[1].WonDealsThisMonth).IsEqualTo(1);
             await Assert.That(items[1].WinRatePercentageThisMonth).IsEqualTo(50m);
-            
+
             await Assert.That(items[2].EmployeeId).IsEqualTo(user3.Id);
             await Assert.That(items[2].RevenueThisMonth).IsEmpty();
             await Assert.That(items[2].WonDealsThisMonth).IsEqualTo(0);

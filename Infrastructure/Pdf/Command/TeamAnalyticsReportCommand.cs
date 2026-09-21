@@ -2,7 +2,7 @@
 {
     public record TeamAnalyticsReportCommand
     {
-        public  List<CurrencyAmountCommand> RevenueThisWeek { get; init; } = new();
+        public List<CurrencyAmountCommand> RevenueThisWeek { get; init; } = new();
         public List<CurrencyAmountCommand> RevenueThisMonth { get; init; } = new();
         public List<CurrencyAmountCommand> RevenueThisYear { get; init; } = new();
         public required int ActiveDealsCount { get; init; }
