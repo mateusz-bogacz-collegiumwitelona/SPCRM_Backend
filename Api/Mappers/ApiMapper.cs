@@ -10,5 +10,7 @@ namespace Api.Mappers
         public partial BasicListCommand MapList(BasicListRequest request);
 
         public partial SimpleListCommand MapSimpleList(SimpleListRequest request);
+
+        public partial PaggedCommand MapPagged(PaggedRequest request);
     }
 }

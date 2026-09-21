@@ -1,4 +1,4 @@
-﻿using Docker.DotNet.Models;
+﻿using Domain.Constants;
 using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
@@ -9,8 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Services.Command.Analytics;
+using Services.Command.List;
 using Services.Services;
-using System.ComponentModel.Design;
 using Testcontainers.PostgreSql;
 
 namespace Tests.Services
@@ -980,6 +980,232 @@ namespace Tests.Services
             await Assert.That(firstInterval.Label).IsEqualTo("Dni 1-7");
             await Assert.That(firstInterval.Revenue).IsEqualTo(25_000m);
             await Assert.That(firstInterval.DealsWonCount).IsEqualTo(1);
+        }
+
+        // ─── GetTeamLeaderboardAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetTeamLeaderboardAsync_WhenUsersExist_ShouldRankByRevenueDescendingAndCalculateMetrics()
+        {
+            // Arrange
+            var nowUtc = DateTime.UtcNow;
+            var startOfMonthUtc = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var currency = new Currency
+            {
+                Id = Guid.NewGuid(),
+                Name = "Polski Złoty",
+                Code = "PLN",
+                DecimalPlaces = 2
+            };
+
+            var user1 = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = "jan@example.com",
+                UserName = "jan@example.com"
+            };
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = "Leaderboard Sp. z o.o.",
+                NIP = "9999999999",
+                OwnerId = user1.Id
+            };
+
+            var contact = new Contact
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Michał",
+                LastName = "Nowicki",
+                CompanyId = company.Id,
+                IsPrimary = true,
+                OwnerId = user1.Id
+            };
+
+            var user2 = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Anna",
+                LastName = "Nowak",
+                Email = "anna@example.com",
+                UserName = "anna@example.com"
+            };
+
+            var user3 = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Piotr",
+                LastName = "Wiśniewski",
+                Email = "piotr@example.com",
+                UserName = "piotr@example.com"
+            };
+
+            _contextMock.Currencies.Add(currency);
+            _contextMock.Users.AddRange(user1, user2, user3);
+            _contextMock.Companies.Add(company);
+            _contextMock.Contacts.Add(contact);
+            await _contextMock.SaveChangesAsync();
+
+            var deals = new List<Deal>
+            {
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/U1/01",
+                    Value = 500_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfMonthUtc.AddDays(2),
+                    OwnerId = user1.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/U1/02",
+                    Value = 200_000_000L,
+                    Status = DealsStatusEnum.Cancelled,
+                    CloseDate = startOfMonthUtc.AddDays(3),
+                    OwnerId = user1.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/U2/01",
+                    Value = 1_000_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfMonthUtc.AddDays(1),
+                    OwnerId = user2.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/U2/02",
+                    Value = 500_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfMonthUtc.AddDays(5),
+                    OwnerId = user2.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/U3/01",
+                    Value = 300_000_000L,
+                    Status = DealsStatusEnum.ToDo,
+                    CloseDate = nowUtc.AddDays(10),
+                    OwnerId = user3.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                }
+            };
+
+            _contextMock.Deals.AddRange(deals);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PaggedCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _analyticsServiceMock.GetTeamLeaderboardAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var pagedData = result.Data!;
+            await Assert.That(pagedData.TotalCount).IsEqualTo(3);
+
+            var items = pagedData.Items.ToList();
+
+            await Assert.That(items.Count).IsEqualTo(3);
+            await Assert.That(items[0].EmployeeId).IsEqualTo(user2.Id);
+            await Assert.That(items[0].RevenueThisMonth).IsEqualTo(150_000m);
+            await Assert.That(items[0].WonDealsThisMonth).IsEqualTo(2);
+            await Assert.That(items[0].WinRatePercentageThisMonth).IsEqualTo(100m);
+            await Assert.That(items[1].EmployeeId).IsEqualTo(user1.Id);
+            await Assert.That(items[1].RevenueThisMonth).IsEqualTo(50_000m);
+            await Assert.That(items[1].WonDealsThisMonth).IsEqualTo(1);
+            await Assert.That(items[1].WinRatePercentageThisMonth).IsEqualTo(50m);
+            await Assert.That(items[2].EmployeeId).IsEqualTo(user3.Id);
+            await Assert.That(items[2].RevenueThisMonth).IsEqualTo(0m);
+            await Assert.That(items[2].WonDealsThisMonth).IsEqualTo(0);
+            await Assert.That(items[2].ActiveDealsCount).IsEqualTo(1);
+            await Assert.That(items[2].WinRatePercentageThisMonth).IsEqualTo(0m);
+        }
+
+        [Test]
+        public async Task GetTeamLeaderboardAsync_WhenUserIsSoftDeleted_ShouldExcludeDeletedUser()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Krzysztof",
+                LastName = "Usunięty",
+                Email = "krzysztof@example.com",
+                UserName = "krzysztof@example.com",
+                IsDeleted = true
+            };
+
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PaggedCommand { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _analyticsServiceMock.GetTeamLeaderboardAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data!.TotalCount).IsEqualTo(0);
+            await Assert.That(result.Data.Items).IsEmpty();
+        }
+
+        [Test]
+        public async Task GetTeamLeaderboardAsync_WhenPaginationApplied_ShouldReturnCorrectPage()
+        {
+            // Arrange
+            for (int i = 1; i <= 5; i++)
+            {
+                _contextMock.Users.Add(new ApplicationUser
+                {
+                    Id = Guid.NewGuid(),
+                    FirstName = $"Pracownik{i}",
+                    LastName = "Testowy",
+                    Email = $"pracownik{i}@example.com",
+                    UserName = $"pracownik{i}@example.com"
+                });
+            }
+            await _contextMock.SaveChangesAsync();
+
+            var command = new PaggedCommand { PageNumber = 2, PageSize = 2 };
+
+            // Act
+            var result = await _analyticsServiceMock.GetTeamLeaderboardAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            var data = result.Data!;
+
+            await Assert.That(data.TotalCount).IsEqualTo(5);
+            await Assert.That(data.Items.Count).IsEqualTo(2);
+            await Assert.That(data.PageNumber).IsEqualTo(2);
+            await Assert.That(data.TotalPages).IsEqualTo(3);
         }
     }
 }

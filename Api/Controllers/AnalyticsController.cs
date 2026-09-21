@@ -1,10 +1,12 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Analytics;
+using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Analytics;
 
 namespace Api.Controllers
 {
@@ -48,6 +50,19 @@ namespace Api.Controllers
             [FromQuery] AnalyticsChartRequest request)
         {
             var result = await analytics.GetEmployeeRevenueChartAsync(employeeId, mapper.MapChart(request));
+            return HandleResult(result);
+        }
+
+        [EndpointSummary("Get team sales leaderboard")]
+        [EndpointDescription("Returns a paginated leaderboard of active sales employees ranked by revenue generated this month.")]
+        [ProducesResponseType(typeof(Result<PagedResult<LeaderboardItemResponse>>), StatusCodes.Status200OK)]
+        [HttpGet("team/leaderboard")]
+        public async Task<IActionResult> GetTeamLeaderboardAsync(
+            [FromServices] IAnalyticsService analytics,
+            [FromServices] ApiMapper mapper,
+            [FromQuery] PaggedRequest request)
+        {
+            var result = await analytics.GetTeamLeaderboardAsync(mapper.MapPagged(request));
             return HandleResult(result);
         }
     }
