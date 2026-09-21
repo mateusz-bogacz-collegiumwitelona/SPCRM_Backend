@@ -1307,5 +1307,137 @@ namespace Tests.Services
             await Assert.That(pdfResponse.FileName).EndsWith(".pdf");
         }
 
+        // ─── GenerateTeamReportPdfAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GenerateTeamReportPdfAsync_WhenDatabaseIsEmpty_ShouldGeneratePdfSuccessfullyWithZeroes()
+        {
+            // Arrange
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.CurrentYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GenerateTeamReportPdfAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var pdfResponse = result.Data!;
+            await Assert.That(pdfResponse.ContentType).IsEqualTo("application/pdf");
+            await Assert.That(pdfResponse.FileContents).IsNotNull();
+            await Assert.That(pdfResponse.FileContents.Length).IsGreaterThan(0);
+            await Assert.That(pdfResponse.FileName).StartsWith($"Raport_Zespolu_{command.Period}_");
+            await Assert.That(pdfResponse.FileName).EndsWith(".pdf");
+        }
+
+        [Test]
+        public async Task GenerateTeamReportPdfAsync_WhenDataValid_ShouldGenerateTeamPdfReportWithLeaderboardAndChart()
+        {
+            // Arrange
+            var (user1, currency, company, contact) = await SeedBaseEntitiesAsync();
+
+            var user2 = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Monika",
+                LastName = "Kaczmarek",
+                Email = "monika.kaczmarek@stal-crm.pl",
+                UserName = "monika.kaczmarek@stal-crm.pl"
+            };
+
+            _contextMock.Users.Add(user2);
+            await _contextMock.SaveChangesAsync();
+
+            var nowUtc = DateTime.UtcNow;
+            var startOfMonthUtc = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var deals = new List<Deal>
+            {
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TEAM_PDF/01",
+                    Value = 1_200_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfMonthUtc.AddDays(2),
+                    OwnerId = user1.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TEAM_PDF/02",
+                    Value = 800_000_000L,
+                    Status = DealsStatusEnum.Complete,
+                    CloseDate = startOfMonthUtc.AddDays(4),
+                    OwnerId = user2.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                },
+                new Deal
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "D/TEAM_PDF/03",
+                    Value = 300_000_000L,
+                    Status = DealsStatusEnum.Cancelled,
+                    CloseDate = startOfMonthUtc.AddDays(5),
+                    OwnerId = user2.Id,
+                    CurrencyId = currency.Id,
+                    CompanyId = company.Id,
+                    ContactId = contact.Id
+                }
+            };
+
+            var tasks = new List<Tasks>
+            {
+                new Tasks
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Wizyta handlowa na budowie",
+                    Status = TaskStatusEnum.Complete,
+                    Priority = TaskPriorityEnum.High,
+                    DueAt = startOfMonthUtc.AddDays(3),
+                    AssignedToId = user1.Id,
+                    CreatedById = user1.Id,
+                    Description = "Tak tak tam w lustrze to niestety ja"
+                },
+                new Tasks
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Przygotowanie specyfikacji technicznej",
+                    Status = TaskStatusEnum.ToDo,
+                    Priority = TaskPriorityEnum.Medium,
+                    DueAt = nowUtc.AddDays(-2), 
+                    AssignedToId = user2.Id,
+                    CreatedById = user2.Id,
+                    Description = "A bo ja wiem"
+                }
+            };
+
+            _contextMock.Deals.AddRange(deals);
+            _contextMock.Tasks.AddRange(tasks);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.HalfYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GenerateTeamReportPdfAsync(command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var pdfResponse = result.Data!;
+            await Assert.That(pdfResponse.ContentType).IsEqualTo("application/pdf");
+            await Assert.That(pdfResponse.FileContents).IsNotNull();
+            await Assert.That(pdfResponse.FileContents.Length).IsGreaterThan(0);
+            await Assert.That(pdfResponse.FileName).StartsWith($"Raport_Zespolu_{command.Period}_");
+            await Assert.That(pdfResponse.FileName).EndsWith(".pdf");
+        }
     }
 }
