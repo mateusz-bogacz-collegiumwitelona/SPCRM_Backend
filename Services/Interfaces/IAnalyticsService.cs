@@ -14,5 +14,6 @@ namespace Services.Interfaces
         Task<Result<List<AnalyticsChartMetricResponse>>> GetEmployeeRevenueChartAsync(Guid employeeId, AnalyticsChartCommand command);
         Task<Result<PagedResult<LeaderboardItemResponse>>> GetTeamLeaderboardAsync(PaggedCommand command);
         Task<Result<PdfFileResponse>> GenerateEmployeeReportPdfAsync(Guid employeeId, AnalyticsChartCommand chartCommand);
+        Task<Result<PdfFileResponse>> GenerateTeamReportPdfAsync(AnalyticsChartCommand chartCommand);
     }
 }

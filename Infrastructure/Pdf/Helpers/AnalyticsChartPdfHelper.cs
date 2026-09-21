@@ -6,7 +6,7 @@ namespace Infrastructure.Pdf.Helpers
 {
     public static class AnalyticsChartPdfHelper
     {
-        public static string GenerateRevenueChartImage(List<EmployeeHistoryMetricCommand> historyMetrics)
+        public static string GenerateRevenueChartImage(List<HistoryMetricCommand> historyMetrics)
         {
             var plot = new Plot();
 

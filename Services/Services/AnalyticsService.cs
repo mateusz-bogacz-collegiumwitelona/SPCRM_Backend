@@ -275,6 +275,46 @@ namespace Services.Services
                statusCode: StatusCodes.Status200OK);
         }
 
+
+        public async Task<Result<PdfFileResponse>> GenerateTeamReportPdfAsync(AnalyticsChartCommand chartCommand)
+        {
+            var summaryResponse = await GetTeamKpiSummaryAsync();
+            var chartResponse = await GetTeamRevenueChartAsync(chartCommand);
+
+            var leaderboardResponse = await GetTeamLeaderboardAsync(new PaggedCommand
+            {
+                PageNumber = 1,
+                PageSize = 5
+            });
+
+            var summary = summaryResponse.Data!;
+            var historyMetrics = chartResponse.Data ?? new List<AnalyticsChartMetricResponse>();
+            var topPerformers = leaderboardResponse.Data?.Items.ToList() ?? new List<LeaderboardItemResponse>();
+
+            var reportModel = _mapper.MapToTeamReportModel(
+                summary,
+                historyMetrics,
+                topPerformers,
+                chartCommand.Period);
+
+            byte[] pdfBytes = _pdf.GenerateTeamReportPdf(reportModel);
+
+            var fileName = $"Raport_Zespolu_{chartCommand.Period}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+
+            var response = new PdfFileResponse
+            {
+                FileContents = pdfBytes,
+                ContentType = "application/pdf",
+                FileName = fileName
+            };
+
+            _logger.LogInformation("Team analytics report PDF generated successfully. Period: {Period}", chartCommand.Period);
+            return Result<PdfFileResponse>.Success(
+                data: response,
+                message: "Team report generated successfully.",
+                statusCode: StatusCodes.Status200OK);
+        }
+
         private async Task<List<AnalyticsChartMetricResponse>> BuildRevenueChartAsync(IQueryable<Deal> completeDealsQuery, AnalyticsPeriodEnum period)
         {
             var nowUtc = DateTime.UtcNow;
@@ -481,6 +521,7 @@ namespace Services.Services
                 OverdueTasksCount: overdueTasksCount
             );
         }
+
     }
 }
 

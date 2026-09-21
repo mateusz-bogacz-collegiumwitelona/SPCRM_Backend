@@ -78,5 +78,17 @@ namespace Api.Controllers
             var result = await analytics.GenerateEmployeeReportPdfAsync(employeeId, mapper.MapChart(request));
             return HandleResult(result);
         }
+
+        [EndpointSummary("Download team analytics report PDF")]
+        [EndpointDescription("Generates and returns an analytical PDF performance report for the entire sales team.")]
+        [HttpGet("team/report/pdf")]
+        public async Task<IActionResult> DownloadTeamReportPdfAsync(
+            [FromServices] IAnalyticsService analytics,
+            [FromServices] AnalyticsMapper mapper,
+            [FromQuery] AnalyticsChartRequest request)
+        {
+            var result = await analytics.GenerateTeamReportPdfAsync(mapper.MapChart(request));
+            return HandleResult(result);
+        }
     }
 }

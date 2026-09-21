@@ -1,6 +1,6 @@
 ﻿namespace Infrastructure.Pdf.Command
 {
-    public record EmployeeHistoryMetricCommand
+    public record HistoryMetricCommand
     {
         public required string Label { get; init; }
         public required decimal Revenue { get; init; }
