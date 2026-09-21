@@ -1,9 +1,10 @@
 ﻿using Domain.Constants;
-using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
+using Infrastructure.Pdf;
+using Infrastructure.Pdf.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -25,11 +26,14 @@ namespace Tests.Services
 
         protected AnalyticsService _analyticsServiceMock = null!;
         protected ILogger<AnalyticsService> _loggerMock = null!;
+        private IAnalyticsPdfGenerator _pdfMock = null!;
 
         [Before(Class)]
         [Obsolete]
         public static async Task SetupClassAsync()
         {
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
             _dbContainer = new PostgreSqlBuilder()
                 .WithImage("postgis/postgis:18-3.6")
                 .WithDatabase("testdb")
@@ -91,7 +95,9 @@ namespace Tests.Services
 
             _loggerMock = new LoggerFactory().CreateLogger<AnalyticsService>();
 
-            _analyticsServiceMock = new AnalyticsService(_contextMock, _loggerMock);
+            _pdfMock = new AnalyticsPdfGenerator();
+
+            _analyticsServiceMock = new AnalyticsService(_contextMock, _loggerMock, _pdfMock);
         }
 
         [After(Test)]
@@ -498,7 +504,7 @@ namespace Tests.Services
             await Assert.That(threeMonthsAgoPoint.Revenue).IsEqualTo(50_000m);
             await Assert.That(threeMonthsAgoPoint.DealsWonCount).IsEqualTo(1);
 
-            var emptyMonthPoint = chart[0]; 
+            var emptyMonthPoint = chart[0];
             await Assert.That(emptyMonthPoint.Revenue).IsEqualTo(0m);
             await Assert.That(emptyMonthPoint.DealsWonCount).IsEqualTo(0);
         }
@@ -516,7 +522,7 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = "D/JAN/01",
-                Value = 300_000_000L, 
+                Value = 300_000_000L,
                 Status = DealsStatusEnum.Complete,
                 CloseDate = januaryFirst,
                 OwnerId = user.Id,
@@ -555,7 +561,7 @@ namespace Tests.Services
             {
                 Id = Guid.NewGuid(),
                 Name = "D/MONTH/01",
-                Value = 150_000_000L, 
+                Value = 150_000_000L,
                 Status = DealsStatusEnum.Complete,
                 CloseDate = new DateTime(nowUtc.Year, nowUtc.Month, 2, 10, 0, 0, DateTimeKind.Utc),
                 OwnerId = user.Id,
@@ -764,7 +770,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
-           
+
             var data = result.Data!;
 
             await Assert.That(data.EmployeeId).IsEqualTo(targetUser.Id);
@@ -1207,5 +1213,99 @@ namespace Tests.Services
             await Assert.That(data.PageNumber).IsEqualTo(2);
             await Assert.That(data.TotalPages).IsEqualTo(3);
         }
+
+        // ─── GenerateEmployeeReportPdfAsync ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task GenerateEmployeeReportPdfAsync_WhenUserDoesNotExist_ShouldReturnNotFound()
+        {
+            // Arrange
+            var nonExistingUserId = Guid.NewGuid();
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.CurrentYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GenerateEmployeeReportPdfAsync(nonExistingUserId, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task GenerateEmployeeReportPdfAsync_WhenUserIsSoftDeleted_ShouldReturnNotFound()
+        {
+            // Arrange
+            var (user, _, _, _) = await SeedBaseEntitiesAsync();
+            user.IsDeleted = true;
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.HalfYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GenerateEmployeeReportPdfAsync(user.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsFalse();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
+            await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserNotFound);
+        }
+
+        [Test]
+        public async Task GenerateEmployeeReportPdfAsync_WhenDataValid_ShouldGeneratePdfFileSuccessfully()
+        {
+            // Arrange
+            var (user, currency, company, contact) = await SeedBaseEntitiesAsync();
+            var nowUtc = DateTime.UtcNow;
+
+            var deal = new Deal
+            {
+                Id = Guid.NewGuid(),
+                Name = "D/PDF/01",
+                Value = 750_000_000L,
+                Status = DealsStatusEnum.Complete,
+                CloseDate = nowUtc,
+                OwnerId = user.Id,
+                CurrencyId = currency.Id,
+                CompanyId = company.Id,
+                ContactId = contact.Id
+            };
+
+            var task = new Tasks
+            {
+                Id = Guid.NewGuid(),
+                Title = "Przygotowanie oferty rocznej",
+                Description = "PDF raport test",
+                Status = TaskStatusEnum.Complete,
+                Priority = TaskPriorityEnum.High,
+                DueAt = nowUtc,
+                AssignedToId = user.Id,
+                CreatedById = user.Id
+            };
+
+            _contextMock.Deals.Add(deal);
+            _contextMock.Tasks.Add(task);
+            await _contextMock.SaveChangesAsync();
+
+            var command = new AnalyticsChartCommand { Period = AnalyticsPeriodEnum.CurrentYear };
+
+            // Act
+            var result = await _analyticsServiceMock.GenerateEmployeeReportPdfAsync(user.Id, command);
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var pdfResponse = result.Data!;
+            await Assert.That(pdfResponse.ContentType).IsEqualTo("application/pdf");
+            await Assert.That(pdfResponse.FileContents).IsNotNull();
+            await Assert.That(pdfResponse.FileContents.Length).IsGreaterThan(0);
+
+            var safeLastName = user.LastName.Replace(" ", "_");
+            await Assert.That(pdfResponse.FileName).StartsWith($"Raport_{safeLastName}_{command.Period}_");
+            await Assert.That(pdfResponse.FileName).EndsWith(".pdf");
+        }
+
     }
 }

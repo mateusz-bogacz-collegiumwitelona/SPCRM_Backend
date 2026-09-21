@@ -16,6 +16,7 @@ using Services.Interfaces;
 using Services.QueryExtension;
 using Services.Response.Company;
 using Services.Response.Invoice;
+using Services.Response.Pdf;
 
 
 namespace Services.Services
@@ -372,7 +373,7 @@ namespace Services.Services
                 );
         }
 
-        public async Task<Result<InvoicePdfFileResponse>> DownloadInvoicePdfAsync(Guid invoiceId, string language = "pl")
+        public async Task<Result<PdfFileResponse>> DownloadInvoicePdfAsync(Guid invoiceId, string language = "pl")
         {
             var invoice = await _context.Invoices
                 .AsNoTracking()
@@ -384,7 +385,7 @@ namespace Services.Services
             if (invoice == null)
             {
                 _logger.LogWarning("Invoice with id {InvoiceId} not found.", invoiceId);
-                return Result<InvoicePdfFileResponse>.Failure(
+                return Result<PdfFileResponse>.Failure(
                     message: "Invoice not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.InvoiceNotFound
@@ -399,7 +400,7 @@ namespace Services.Services
                 ? $"Invoice_{safeInvoiceNumber}.pdf"
                 : $"Faktura_{safeInvoiceNumber}.pdf";
 
-            var response = new InvoicePdfFileResponse
+            var response = new PdfFileResponse
             {
                 FileContents = pdfBytes,
                 ContentType = "application/pdf",
@@ -408,7 +409,7 @@ namespace Services.Services
 
             _logger.LogInformation("Generate pdf for invoice with id {invoiceId}", invoiceId);
 
-            return Result<InvoicePdfFileResponse>.Success(
+            return Result<PdfFileResponse>.Success(
                 message: "Invoice PDF generated successfully.",
                 statusCode: StatusCodes.Status200OK,
                 data: response

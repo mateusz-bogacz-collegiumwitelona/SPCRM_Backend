@@ -3,6 +3,7 @@ using Domain.Constants;
 using Domain.Enum;
 using Domain.Models;
 using Infrastructure;
+using Infrastructure.Pdf.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ using Services.Command.List;
 using Services.Helpers;
 using Services.Interfaces;
 using Services.Response.Analytics;
+using Services.Response.Pdf;
 
 namespace Services.Services
 {
@@ -18,6 +20,8 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<AnalyticsService> _logger;
+        private readonly IAnalyticsPdfGenerator _pdf;
+        private readonly AnalyticsMapper _mapper = new AnalyticsMapper();
 
         private sealed record DatePeriodsContext(
             DateTime NowUtc,
@@ -38,10 +42,11 @@ namespace Services.Services
             int PendingTasksCount,
             int OverdueTasksCount);
 
-        public AnalyticsService(AppDbContext context, ILogger<AnalyticsService> logger)
+        public AnalyticsService(AppDbContext context, ILogger<AnalyticsService> logger, IAnalyticsPdfGenerator pdf)
         {
             _context = context;
             _logger = logger;
+            _pdf = pdf;
         }
 
         public async Task<Result<TeamKpiSummaryResponse>> GetTeamKpiSummaryAsync()
@@ -215,6 +220,60 @@ namespace Services.Services
                 }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "team_leaderboard");
         }
 
+        public async Task<Result<PdfFileResponse>> GenerateEmployeeReportPdfAsync(Guid employeeId, AnalyticsChartCommand chartCommand)
+        {
+            var summaryResponse = await GetEmployeeKpiSummaryAsync(employeeId);
+
+            if (!summaryResponse.IsSuccess)
+            {
+                _logger.LogWarning("Failed to generate PDF report for employee {EmployeeId}: {ErrorMessage}", employeeId, summaryResponse.Message);
+                return Result<PdfFileResponse>.Failure(
+                    message: summaryResponse.Message ?? "Failed to generate PDF report",
+                    statusCode: summaryResponse.StatusCode,
+                    errorCode: summaryResponse.ErrorCode ?? ErrorCodes.InternalError
+                );
+            }
+
+            var chartResponse = await GetEmployeeRevenueChartAsync(employeeId, chartCommand);
+
+            if (!chartResponse.IsSuccess)
+            {
+                _logger.LogWarning("Failed to generate PDF report for employee {EmployeeId}: {ErrorMessage}", employeeId, chartResponse.Message);
+                return Result<PdfFileResponse>.Failure(
+                    message: chartResponse.Message ?? "Failed to generate PDF report",
+                    statusCode: chartResponse.StatusCode,
+                    errorCode: chartResponse.ErrorCode ?? ErrorCodes.InternalError
+                );
+            }
+
+            var summary = summaryResponse.Data!;
+            var historyMetrics = chartResponse.Data ?? new List<AnalyticsChartMetricResponse>();
+
+            var reportModel = _mapper.MapToReportModel(
+                 summaryResponse.Data!,
+                 chartResponse.Data ?? new List<AnalyticsChartMetricResponse>(),
+                 chartCommand.Period);
+
+
+            byte[] pdfBytes = _pdf.GenerateEmployeeReportPdf(reportModel);
+
+            var safeLastName = summary.LastName.Replace(" ", "_");
+            var fileName = $"Raport_{safeLastName}_{chartCommand.Period}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+
+            var response = new PdfFileResponse
+            {
+                FileContents = pdfBytes,
+                ContentType = "application/pdf",
+                FileName = fileName
+            };
+
+            _logger.LogInformation("Analytics report PDF generated successfully for employee: {EmployeeId}, Period: {Period}", employeeId, chartCommand.Period);
+            return Result<PdfFileResponse>.Success(
+               data: response,
+               message: "Report generated successfully.",
+               statusCode: StatusCodes.Status200OK);
+        }
+
         private async Task<List<AnalyticsChartMetricResponse>> BuildRevenueChartAsync(IQueryable<Deal> completeDealsQuery, AnalyticsPeriodEnum period)
         {
             var nowUtc = DateTime.UtcNow;
@@ -365,7 +424,7 @@ namespace Services.Services
 
             var activeDealsCount = await activeDealsQuery.CountAsync();
             var activeDealsValueRaw = await activeDealsQuery.SumAsync(d => (long?)d.Value) ?? 0;
-            
+
             var baseMonthDeals = _context.Deals
                 .AsNoTracking()
                 .Where(d => d.CloseDate >= periods.StartOfMonthUtc);

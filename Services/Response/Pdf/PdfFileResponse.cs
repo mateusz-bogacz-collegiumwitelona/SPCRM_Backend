@@ -1,6 +1,6 @@
-﻿namespace Services.Response.Invoice
+﻿namespace Services.Response.Pdf
 {
-    public record InvoicePdfFileResponse
+    public record PdfFileResponse
     {
         public required byte[] FileContents { get; init; }
         public required string ContentType { get; init; }

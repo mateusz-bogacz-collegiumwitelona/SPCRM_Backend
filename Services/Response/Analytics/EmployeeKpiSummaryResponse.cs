@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Services.Response.Analytics
+﻿namespace Services.Response.Analytics
 {
     public record EmployeeKpiSummaryResponse
     {

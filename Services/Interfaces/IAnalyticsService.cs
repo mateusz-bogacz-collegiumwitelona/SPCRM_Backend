@@ -2,6 +2,7 @@
 using Services.Command.Analytics;
 using Services.Command.List;
 using Services.Response.Analytics;
+using Services.Response.Pdf;
 
 namespace Services.Interfaces
 {
@@ -12,5 +13,6 @@ namespace Services.Interfaces
         Task<Result<EmployeeKpiSummaryResponse>> GetEmployeeKpiSummaryAsync(Guid employeeId);
         Task<Result<List<AnalyticsChartMetricResponse>>> GetEmployeeRevenueChartAsync(Guid employeeId, AnalyticsChartCommand command);
         Task<Result<PagedResult<LeaderboardItemResponse>>> GetTeamLeaderboardAsync(PaggedCommand command);
+        Task<Result<PdfFileResponse>> GenerateEmployeeReportPdfAsync(Guid employeeId, AnalyticsChartCommand chartCommand);
     }
 }

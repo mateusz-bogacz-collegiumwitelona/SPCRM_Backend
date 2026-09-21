@@ -5,6 +5,7 @@ using Services.Command.List;
 using Services.Command.Product;
 using Services.Response.Company;
 using Services.Response.Invoice;
+using Services.Response.Pdf;
 
 namespace Services.Interfaces
 {
@@ -18,7 +19,7 @@ namespace Services.Interfaces
         Task<Result<InvoicePaymentSummaryResponse>> GetInvoicePaymentSummaryAsync(Guid invoiceId);
         Task<Result<PagedResult<InvoicePaymentListResponse>>> GetInvoicePaymentsAsync(Guid invoiceId, SimpleListCommand command);
         Task<Result> AddInvoicePaymentAsync(Guid invoiceId, Guid userId, AddInvoicePaymentCommand command);
-        Task<Result<InvoicePdfFileResponse>> DownloadInvoicePdfAsync(Guid invoiceId, string language = "pl");
+        Task<Result<PdfFileResponse>> DownloadInvoicePdfAsync(Guid invoiceId, string language = "pl");
         Task<Result<PagedResult<ProductInvoiceItemResponse>>> GetProductInvoicesAsync(Guid productId, SimpleListCommand command);
     }
 }
