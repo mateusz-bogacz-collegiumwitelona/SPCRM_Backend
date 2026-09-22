@@ -5,6 +5,7 @@ using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -14,7 +15,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class InvoiceController : AuthControllerBase
+    public class InvoiceController : BaseControlle
     {
         [EndpointSummary("Get invoice list")]
         [EndpointDescription("Get invoice list with pagination, sorting, filtering and search")]
@@ -106,6 +107,7 @@ namespace Api.Controllers
         [EndpointDescription("Dowloand invoice in pl or en")]
         [HttpGet("{invoiceId:guid}/pdf")]
         [Authorize(Roles = "User,Manager")]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> DownloadInvoicePdf(
             [FromServices] IInvoiceService invoice,
             [FromRoute] Guid invoiceId,

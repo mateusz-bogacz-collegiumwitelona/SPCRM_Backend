@@ -8,6 +8,7 @@ using Api.Request.Task;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Deal;
 
@@ -18,7 +19,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class DealController : AuthControllerBase
+    public class DealController : BaseControlle
     {
         [EndpointSummary("Get user deals")]
         [EndpointDescription("Show data of deals. Regular users only see their own deals, managers can see all or filter by OwnerId.")]
@@ -212,6 +213,7 @@ namespace Api.Controllers
         [EndpointDescription("Changes the status of a specific deal.")]
         [HttpPut("{dealId:guid}/status")]
         [Authorize(Roles = "User,Manager")]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> ChangeDealStatusAsync(
             [FromServices] IDealServices deal,
             [FromServices] DealMapper mapper,

@@ -14,7 +14,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class UnitController : AuthControllerBase
+    public class UnitController : BaseControlle
     {
         [EndpointSummary("Get simple list of unit")]
         [EndpointDescription("Get list of unit without serach, paggination etc.")]

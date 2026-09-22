@@ -1,12 +1,20 @@
 ﻿using Domain.Common;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Api.Controllers.Base
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public abstract class BaseController : ControllerBase
+    public abstract class BaseControlle : ControllerBase
     {
+        protected Guid CurrentUserId
+        {
+            get
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                return Guid.Parse(userId!);
+            }
+        }
+
         protected IActionResult HandleResult<T>(Result<T> result)
         {
             if (result == null)

@@ -15,13 +15,13 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class ProductController : AuthControllerBase
+    public class ProductController : BaseControlle
     {
 
         [EndpointSummary("Get product list")]
         [EndpointDescription("Get product list with pagination, sorting and filtering.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("")]
+        [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetProductListAsync(
             [FromServices] IProductSevices productServices,

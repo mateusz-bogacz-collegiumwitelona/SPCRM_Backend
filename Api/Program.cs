@@ -61,6 +61,7 @@ try
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
     builder.Services.AddWorkerServices(builder.Configuration);
+    builder.Services.AddRateLimitingConfiguration();
 
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -94,8 +95,11 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseRateLimiter();
 
-    app.MapControllers().RequireAuthorization();
+    app.MapControllers()
+        .RequireAuthorization()
+        .RequireRateLimiting("per-user"); ;
 
     app.UseHangfirePipeline();
 

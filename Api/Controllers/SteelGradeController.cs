@@ -15,7 +15,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class SteelGradeController : AuthControllerBase
+    public class SteelGradeController : BaseControlle
     {
         [EndpointSummary("Get steel grade list")]
         [EndpointDescription("Get steel grade list with pagination, sorting and search.")]

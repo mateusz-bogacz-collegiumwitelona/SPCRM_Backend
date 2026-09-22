@@ -5,6 +5,7 @@ using Api.Request.Offer;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -14,7 +15,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class OfferController : AuthControllerBase
+    public class OfferController : BaseControlle
     {
         [EndpointSummary("Get offer list")]
         [EndpointDescription("Get offer list with pagination, sorting and filtering.")]
@@ -93,6 +94,7 @@ namespace Api.Controllers
         [EndpointDescription("Change offer status by offer ID")]
         [HttpPatch("change-status")]
         [Authorize]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> ChangeOfferStatusAsync(
             [FromServices] IOfferServices offer,
             [FromServices] OfferMapper mapper,
@@ -119,6 +121,7 @@ namespace Api.Controllers
         [EndpointDescription("Resend offer email by offer ID.")]
         [HttpPost("resend-email")]
         [Authorize]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> ResendOfferEmailAsync(
             [FromServices] IOfferServices offer,
             [FromServices] OfferMapper mapper,

@@ -15,7 +15,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class ContactController : AuthControllerBase
+    public class ContactController : BaseControlle
     {
         [EndpointSummary("Get contacts")]
         [EndpointDescription("Show all contacts.")]
@@ -62,7 +62,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact ways")]
         [EndpointDescription("Show all ways to contact a specific contact.")]
-        [HttpGet("{contactId}/ways")]
+        [HttpGet("{contactId:guid}/ways")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactWaysAsync(
             [FromServices] IContactServices contact,

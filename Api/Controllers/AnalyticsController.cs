@@ -5,6 +5,7 @@ using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Analytics;
 
@@ -16,7 +17,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class AnalyticsController : AuthControllerBase
+    public class AnalyticsController : BaseControlle
     {
         [EndpointSummary("Get team KPI summary")]
         [EndpointDescription("Returns overall financial, deals, and task performance metrics for the whole team.")]
@@ -66,9 +67,22 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+
+        [EndpointSummary("Get employee KPI summary")]
+        [EndpointDescription("Returns overall financial, deals, conversion rate, and task performance metrics for a specific employee.")]
+        [HttpGet("employees/{employeeId:guid}/kpi")]
+        public async Task<IActionResult> GetEmployeeKpiSummaryAsync(
+            [FromRoute] Guid employeeId,
+            [FromServices] IAnalyticsService analytics)
+        {
+            var result = await analytics.GetEmployeeKpiSummaryAsync(employeeId);
+            return HandleResult(result);
+        }
+
         [EndpointSummary("Download employee analytics report PDF")]
         [EndpointDescription("Generates and returns an analytical PDF performance report for a specific employee.")]
         [HttpGet("employees/{employeeId:guid}/report/pdf")]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> DownloadEmployeeReportPdfAsync(
             [FromRoute] Guid employeeId,
             [FromServices] IAnalyticsService analytics,
@@ -82,6 +96,7 @@ namespace Api.Controllers
         [EndpointSummary("Download team analytics report PDF")]
         [EndpointDescription("Generates and returns an analytical PDF performance report for the entire sales team.")]
         [HttpGet("team/report/pdf")]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> DownloadTeamReportPdfAsync(
             [FromServices] IAnalyticsService analytics,
             [FromServices] AnalyticsMapper mapper,
@@ -90,5 +105,6 @@ namespace Api.Controllers
             var result = await analytics.GenerateTeamReportPdfAsync(mapper.MapChart(request));
             return HandleResult(result);
         }
+
     }
 }

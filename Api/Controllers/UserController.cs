@@ -9,6 +9,7 @@ using Api.Request.User;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -18,7 +19,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class UserController : AuthControllerBase
+    public class UserController : BaseControlle
     {
         [EndpointSummary("Get simple list of users")]
         [EndpointDescription("Get list of users without serach, paggination etc. And without admins")]
@@ -51,6 +52,7 @@ namespace Api.Controllers
         [EndpointDescription("Add new user with role")]
         [HttpPost("create")]
         [Authorize(Roles = "Admin")]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> CreateUserAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -65,6 +67,7 @@ namespace Api.Controllers
         [EndpointDescription("Confirm email with token")]
         [HttpPost("confirm-email")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-strict")]
         public async Task<IActionResult> ConfirmEmailAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -148,6 +151,7 @@ namespace Api.Controllers
         [EndpointDescription("Confirms user email change using the token sent to the new email address.")]
         [HttpPost("confirm-email-change")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-strict")]
         public async Task<IActionResult> ConfirmChangeUserEmailAsync(
             [FromServices] IUserServices userService,
             [FromServices] UserMapper mapper,

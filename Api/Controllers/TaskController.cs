@@ -13,7 +13,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class TaskController : AuthControllerBase
+    public class TaskController : BaseControlle
     {
         [EndpointSummary("Get tasks for calendar")]
         [EndpointDescription("Show tasks for calendar view. " +

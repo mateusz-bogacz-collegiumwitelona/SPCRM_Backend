@@ -13,6 +13,7 @@
         public const string DataIntegrityError = "DATA_INTEGRITY_ERROR";
         public const string TokenRequired = "TOKEN_REQUIRED";
         public const string TokenInvalid = "TOKEN_INVALID";
+        public const string TooManyRequests = "TOO_MANY_REQUESTS";
 
         // Validation 
         public const string EmailRequired = "VAL_001";

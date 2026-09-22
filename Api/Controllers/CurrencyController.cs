@@ -14,7 +14,7 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class CurrencyController : AuthControllerBase
+    public class CurrencyController : BaseControlle
     {
         [EndpointSummary("Get currency list")]
         [EndpointDescription("Get simple currency list with no pagination, sorting and filtering.")]

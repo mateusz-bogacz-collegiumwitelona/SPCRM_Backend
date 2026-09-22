@@ -5,8 +5,8 @@ using Api.Request.List;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
-using Services.Response.Company;
 
 namespace Api.Controllers
 {
@@ -15,13 +15,14 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class CompanyController : AuthControllerBase
+    public class CompanyController : BaseControlle
     {
         [EndpointSummary("Get data to global map")]
         [EndpointDescription("Show data of every company on the global map.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("map")]
         [Authorize(Roles = "Manager,User")]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> Map(
             [FromServices] ICompanyServices companyServices,
             string? searchTerm = null
@@ -126,7 +127,6 @@ namespace Api.Controllers
         [EndpointSummary("Get paginated list of companies")]
         [EndpointDescription("Show a paginated list of companies with optional filtering, sorting, and search term. " +
             "Returns basic company details along with the headquarters address and the date of the last deal.")]
-        [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
         [HttpGet("list")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyListAsync(

@@ -6,6 +6,7 @@ using Api.Request.Support;
 using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -15,13 +16,14 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class MailingController : AuthControllerBase
+    public class MailingController : BaseControlle
     {
         [EndpointSummary("Send email to support")]
         [EndpointDescription("Sends an email to the support team with the provided details.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpPost("support")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-strict")]
         public async Task<IActionResult> SendEmailToSupport(
             [FromServices] MailingMapper mapper,
             [FromServices] IMailingServices _supportServices,
@@ -37,6 +39,7 @@ namespace Api.Controllers
             "trackable offer records in the database with their respective quoted prices and expiration details.")]
         [HttpPost("offert")]
         [Authorize(Roles = "User,Manager")]
+        [EnableRateLimiting("expensive")]
         public async Task<IActionResult> SendProductMailingAsync(
             [FromServices] IMailingServices mailing,
             [FromServices] MailingMapper mapper,

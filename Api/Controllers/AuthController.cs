@@ -3,6 +3,7 @@ using Api.Mappers;
 using Api.Request.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 
 namespace Api.Controllers
@@ -11,7 +12,8 @@ namespace Api.Controllers
     [Route("api/auth")]
     [Tags("Authentication")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public class AuthController : AuthControllerBase
+    [EnableRateLimiting("auth-strict")]
+    public class AuthController : BaseControlle
     {
         [EndpointSummary("Authenticate user (Login Step 1)")]
         [EndpointDescription("Authenticates a user using their email and password. " +
@@ -38,6 +40,7 @@ namespace Api.Controllers
         [EndpointDescription("Logs out the authenticated user by clearing the authentication cookie.")]
         [HttpPost("logout")]
         [Authorize]
+        [DisableRateLimiting]
         public async Task<IActionResult> LogoutAsync(
             [FromServices] IAuthServices authServices
             )
@@ -48,6 +51,7 @@ namespace Api.Controllers
 
         [HttpGet("me")]
         [Authorize]
+        [EnableRateLimiting("per-user")]
         public async Task<IActionResult> GetUserDataAsync(
             [FromServices] IAuthServices authServices
             )
@@ -87,17 +91,6 @@ namespace Api.Controllers
         )
         {
             var result = await userServices.ResetPasswordAsync(mapper.MapResetPassword(request));
-            return HandleResult(result);
-        }
-
-        [EndpointSummary("Get employee KPI summary")]
-        [EndpointDescription("Returns overall financial, deals, conversion rate, and task performance metrics for a specific employee.")]
-        [HttpGet("employees/{employeeId:guid}/kpi")]
-        public async Task<IActionResult> GetEmployeeKpiSummaryAsync(
-            [FromRoute] Guid employeeId,
-            [FromServices] IAnalyticsService analytics)
-        {
-            var result = await analytics.GetEmployeeKpiSummaryAsync(employeeId);
             return HandleResult(result);
         }
     }

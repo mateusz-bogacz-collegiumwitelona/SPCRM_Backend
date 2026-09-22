@@ -13,12 +13,12 @@ namespace Api.Controllers
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
-    public class PromotionController : AuthControllerBase
+    public class PromotionController : BaseControlle
     {
         [EndpointSummary("Get promotion list")]
         [EndpointDescription("Get promotion list with pagination, sorting and filtering.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
-        [HttpGet("")]
+        [HttpGet]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetPromotionListAsync(
             [FromServices] IPromotionServices promotion,
