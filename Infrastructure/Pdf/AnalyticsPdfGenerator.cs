@@ -4,6 +4,7 @@ using Infrastructure.Pdf.Helpers;
 using Infrastructure.Pdf.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace Infrastructure.Pdf
 {
@@ -42,7 +43,15 @@ namespace Infrastructure.Pdf
                         col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
                             .Text("Kluczowe Wskaźniki Efektywności (KPI)").Bold().FontSize(12);
 
-                        col.Item().PaddingTop(10).Table(table =>
+                        col.Item().PaddingTop(10).Row(row =>
+                        {
+                            row.Spacing(10);
+                            row.RelativeItem().Element(c => RenderCurrencyPeriodBlock(c, "Przychód (Tydzień)", data.RevenueThisWeek));
+                            row.RelativeItem().Element(c => RenderCurrencyPeriodBlock(c, "Przychód (Miesiąc)", data.RevenueThisMonth));
+                            row.RelativeItem().Element(c => RenderCurrencyPeriodBlock(c, "Przychód (Rok)", data.RevenueThisYear));
+                        });
+
+                        col.Item().PaddingTop(12).Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -51,37 +60,19 @@ namespace Infrastructure.Pdf
                                 columns.RelativeColumn();
                             });
 
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
-                            {
-                                c.Item().Text("Przychód (Tydzień)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text(FormatCurrencies(data.RevenueThisWeek)).Bold().FontSize(12);
-                            });
-
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
-                            {
-                                c.Item().Text("Przychód (Miesiąc)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text(FormatCurrencies(data.RevenueThisMonth)).Bold().FontSize(12);
-                            });
-
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
-                            {
-                                c.Item().Text("Przychód (Rok)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text(FormatCurrencies(data.RevenueThisYear)).Bold().FontSize(12);
-                            });
-
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(6).Column(c =>
                             {
                                 c.Item().Text("Skuteczność (Win Rate)").FontSize(9).FontColor(Colors.Grey.Medium);
                                 c.Item().Text($"{data.WinRatePercentageThisMonth:N2}%").Bold().FontSize(12);
                             });
 
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(6).Column(c =>
                             {
                                 c.Item().Text("Wartość otwartych szans").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text(FormatCurrencies(data.ActiveDealsPipelineValue)).Bold().FontSize(12);
+                                RenderCurrencyTable(c.Item().PaddingTop(4), data.ActiveDealsPipelineValue);
                             });
 
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(6).Column(c =>
                             {
                                 c.Item().Text("Zadania (Zrobione / Zaległe)").FontSize(9).FontColor(Colors.Grey.Medium);
                                 c.Item().Text($"{data.CompletedTasksThisMonth} / {data.OverdueTasksCount}").Bold().FontSize(12);
@@ -93,6 +84,7 @@ namespace Infrastructure.Pdf
                         col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
                             .Text(data.PeriodTitle).Bold().FontSize(12);
 
+                        // Tabela z historią i sumami per waluta
                         col.Item().PaddingTop(10).Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
@@ -105,31 +97,53 @@ namespace Infrastructure.Pdf
                             table.Header(header =>
                             {
                                 header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5).Text("Okres").Bold();
-                                header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text("Przychód").Bold();
+                                header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5).Text("Przychód").Bold();
                                 header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text("Zamknięte tematy").Bold();
                             });
 
                             foreach (var metric in data.HistoryMetrics ?? [])
                             {
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5).Text(metric.Label);
-                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(FormatCurrencies(metric.Revenue));
+                                RenderCurrencyTable(table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5), metric.Revenue);
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(metric.DealsWonCount.ToString());
                             }
+
+                            // Suma łączna walut w stopce tabeli
+                            var currencyTotals = (data.HistoryMetrics ?? Enumerable.Empty<HistoryMetricCommand>())
+                                .SelectMany(m => m.Revenue)
+                                .GroupBy(r => new { r.CurrencyCode, r.DecimalPlaces })
+                                .Select(g => new CurrencyAmountCommand
+                                {
+                                    CurrencyCode = g.Key.CurrencyCode,
+                                    DecimalPlaces = g.Key.DecimalPlaces,
+                                    Amount = g.Sum(x => x.Amount)
+                                })
+                                .ToList();
+
+                            var totalDeals = (data.HistoryMetrics ?? Enumerable.Empty<HistoryMetricCommand>()).Sum(m => m.DealsWonCount);
+
+                            table.Cell().BorderTop(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5).Text("Suma").Bold();
+                            RenderCurrencyTable(table.Cell().BorderTop(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5), currencyTotals, isBold: true);
+                            table.Cell().BorderTop(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text(totalDeals.ToString()).Bold();
                         });
 
+                        // Diagramy - jeden wykres dla każdej waluty
                         if (data.HistoryMetrics != null && data.HistoryMetrics.Any())
                         {
-                            col.Item().PageBreak();
+                            var charts = AnalyticsChartPdfHelper.GenerateRevenueChartsPerCurrency(data.HistoryMetrics);
 
-                            col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
-                                .Text($"Wykres Sprzedaży - {data.PeriodTitle}").Bold().FontSize(12);
-
-                            var chartSvg = AnalyticsChartPdfHelper.GenerateRevenueChartImage(data.HistoryMetrics);
-
-                            col.Item().PaddingTop(25).Element(c =>
+                            foreach (var (currency, svg) in charts)
                             {
-                                c.Width(520).Svg(chartSvg).FitWidth();
-                            });
+                                col.Item().PageBreak();
+
+                                col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
+                                    .Text($"Wykres Sprzedaży ({currency}) - {data.PeriodTitle}").Bold().FontSize(12);
+
+                                col.Item().PaddingTop(20).Element(c =>
+                                {
+                                    c.Width(520).Svg(svg).FitWidth();
+                                });
+                            }
                         }
                     });
 
@@ -177,7 +191,15 @@ namespace Infrastructure.Pdf
                         col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
                             .Text("Kluczowe Wskaźniki Efektywności Zespołu (KPI)").Bold().FontSize(12);
 
-                        col.Item().PaddingTop(10).Table(table =>
+                        col.Item().PaddingTop(10).Row(row =>
+                        {
+                            row.Spacing(10);
+                            row.RelativeItem().Element(c => RenderCurrencyPeriodBlock(c, "Przychód Zespołu (Tydzień)", data.RevenueThisWeek));
+                            row.RelativeItem().Element(c => RenderCurrencyPeriodBlock(c, "Przychód Zespołu (Miesiąc)", data.RevenueThisMonth));
+                            row.RelativeItem().Element(c => RenderCurrencyPeriodBlock(c, "Przychód Zespołu (Rok)", data.RevenueThisYear));
+                        });
+
+                        col.Item().PaddingTop(12).Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -186,37 +208,19 @@ namespace Infrastructure.Pdf
                                 columns.RelativeColumn();
                             });
 
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
-                            {
-                                c.Item().Text("Przychód Zespołu (Tydzień)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text(FormatCurrencies(data.RevenueThisWeek)).Bold().FontSize(12);
-                            });
-
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
-                            {
-                                c.Item().Text("Przychód Zespołu (Miesiąc)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text(FormatCurrencies(data.RevenueThisMonth)).Bold().FontSize(12);
-                            });
-
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
-                            {
-                                c.Item().Text("Przychód Zespołu (Rok)").FontSize(9).FontColor(Colors.Grey.Medium);
-                                c.Item().Text(FormatCurrencies(data.RevenueThisYear)).Bold().FontSize(12);
-                            });
-
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(6).Column(c =>
                             {
                                 c.Item().Text("Aktywne transakcje").FontSize(9).FontColor(Colors.Grey.Medium);
                                 c.Item().Text($"{data.ActiveDealsCount} tematów").Bold().FontSize(12);
                             });
 
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(6).Column(c =>
                             {
                                 c.Item().Text("Zamknięte transakcje (Miesiąc)").FontSize(9).FontColor(Colors.Grey.Medium);
                                 c.Item().Text($"{data.WonDealsThisMonth} wygranych / {data.LostDealsThisMonth} straconych").Bold().FontSize(12);
                             });
 
-                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(8).Column(c =>
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten3).Padding(6).Column(c =>
                             {
                                 c.Item().Text("Zadania Zespołu (Zrobione / Zaległe)").FontSize(9).FontColor(Colors.Grey.Medium);
                                 c.Item().Text($"{data.CompletedTasksThisMonth} / {data.OverdueTasksCount}").Bold().FontSize(12);
@@ -245,7 +249,7 @@ namespace Infrastructure.Pdf
                                 {
                                     header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5).Text("Lp.").Bold();
                                     header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5).Text("Handlowiec").Bold();
-                                    header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text("Przychód").Bold();
+                                    header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).Padding(5).Text("Przychód").Bold();
                                     header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text("Wygrane").Bold();
                                     header.Cell().BorderBottom(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text("Skuteczność").Bold();
                                 });
@@ -255,26 +259,30 @@ namespace Infrastructure.Pdf
                                 {
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5).Text($"{lp++}.");
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5).Text(performer.FullName);
-                                    table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(FormatCurrencies(performer.RevenueThisMonth));
+                                    RenderCurrencyTable(table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Padding(5), performer.RevenueThisMonth);
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(performer.WonDealsThisMonth.ToString());
                                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text($"{performer.WinRatePercentageThisMonth:N2}%");
                                 }
                             });
                         }
 
+                        // Wykresy zespołu per waluta
                         if (data.HistoryMetrics is { Count: > 0 })
                         {
-                            col.Item().PageBreak();
+                            var charts = AnalyticsChartPdfHelper.GenerateRevenueChartsPerCurrency(data.HistoryMetrics);
 
-                            col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
-                                .Text($"Wykres Sprzedaży Zespołu - {data.PeriodTitle}").Bold().FontSize(12);
-
-                            var chartSvg = AnalyticsChartPdfHelper.GenerateRevenueChartImage(data.HistoryMetrics);
-
-                            col.Item().PaddingTop(25).Element(c =>
+                            foreach (var (currency, svg) in charts)
                             {
-                                c.Width(520).Svg(chartSvg).FitWidth();
-                            });
+                                col.Item().PageBreak();
+
+                                col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
+                                    .Text($"Wykres Sprzedaży Zespołu ({currency}) - {data.PeriodTitle}").Bold().FontSize(12);
+
+                                col.Item().PaddingTop(20).Element(c =>
+                                {
+                                    c.Width(520).Svg(svg).FitWidth();
+                                });
+                            }
                         }
                     });
 
@@ -290,20 +298,63 @@ namespace Infrastructure.Pdf
             return document.GeneratePdf();
         }
 
-        private static string FormatCurrencies(IEnumerable<CurrencyAmountCommand>? amounts)
+        private static void RenderCurrencyPeriodBlock(IContainer container, string title, IEnumerable<CurrencyAmountCommand>? amounts)
         {
-            if (amounts == null)
+            container.Column(col =>
             {
-                return $"0.00 {BusinessConstants.DefaultCurrencyCode}";
-            }
+                col.Item().Text(title).FontSize(9).FontColor(Colors.Grey.Medium);
+                col.Item().PaddingTop(4).Border(1).BorderColor(Colors.Grey.Lighten3).Padding(6)
+                    .Element(c => RenderCurrencyTable(c, amounts));
+            });
+        }
 
-            var list = amounts.ToList();
+        private static void RenderCurrencyTable(IContainer container, IEnumerable<CurrencyAmountCommand>? amounts, bool isBold = false)
+        {
+            var list = amounts?.ToList() ?? new List<CurrencyAmountCommand>();
+
             if (list.Count == 0)
             {
-                return $"0.00 {BusinessConstants.DefaultCurrencyCode}";
+                list.Add(new CurrencyAmountCommand
+                {
+                    CurrencyCode = BusinessConstants.DefaultCurrencyCode,
+                    DecimalPlaces = 2,
+                    Amount = 0
+                });
             }
 
-            return string.Join("\n", list.Select(a => $"{a.Amount:N2} {a.CurrencyCode}"));
+            container.Table(t =>
+            {
+                t.ColumnsDefinition(cols =>
+                {
+                    cols.RelativeColumn(3);
+                    cols.RelativeColumn(2);
+                });
+
+                t.Header(header =>
+                {
+                    header.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten4)
+                        .AlignRight().Padding(3)
+                        .Text("Kwota").FontSize(8).FontColor(Colors.Grey.Darken1);
+                    header.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten4)
+                        .AlignLeft().Padding(3)
+                        .Text("Waluta").FontSize(8).FontColor(Colors.Grey.Darken1);
+                });
+
+                foreach (var a in list)
+                {
+                    var format = $"N{a.DecimalPlaces}";
+                    var amountText = a.Amount.ToString(format);
+
+                    var cellAmount = t.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).AlignRight().Padding(3).Text(amountText);
+                    var cellCurrency = t.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).AlignLeft().Padding(3).Text(a.CurrencyCode);
+
+                    if (isBold)
+                    {
+                        cellAmount.Bold();
+                        cellCurrency.Bold();
+                    }
+                }
+            });
         }
     }
 }

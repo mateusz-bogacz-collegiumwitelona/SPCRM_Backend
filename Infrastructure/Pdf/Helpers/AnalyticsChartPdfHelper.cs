@@ -7,72 +7,86 @@ namespace Infrastructure.Pdf.Helpers
 {
     public static class AnalyticsChartPdfHelper
     {
-        public static string GenerateRevenueChartImage(List<HistoryMetricCommand> historyMetrics)
+        public static List<(string CurrencyCode, string svg)> GenerateRevenueChartsPerCurrency(List<HistoryMetricCommand> historyCommand)
         {
-            var plot = new Plot();
+            var result = new List<(string CurrencyCode, string svg)>();
 
-            plot.FigureBackground.Color = Color.FromHex("#ffffff");
-            plot.DataBackground.Color = Color.FromHex("#ffffff");
+            if (historyCommand == null || !historyCommand.Any())
+                return result;
 
-            var safeFontName = GetSystemFontName();
-
-            var detectedCurrency = historyMetrics
-                .SelectMany(m => m.Revenue)
+            var distinctCurrencies = historyCommand
+                .SelectMany(h => h.Revenue)
                 .Select(r => r.CurrencyCode)
-                .FirstOrDefault() ?? BusinessConstants.DefaultCurrencyCode;
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
 
-            var values = historyMetrics.Select(m =>
+            if (!distinctCurrencies.Any())
             {
-                var preferred = m.Revenue.FirstOrDefault(r => r.CurrencyCode == BusinessConstants.DefaultCurrencyCode)
-                                ?? m.Revenue.FirstOrDefault();
-                return preferred != null ? (double)preferred.Amount : 0.0;
-            }).ToArray();
-
-            var labels = historyMetrics.Select(m => m.Label).ToArray();
-
-            var bars = new List<Bar>();
-            var ticks = new ScottPlot.Tick[labels.Length];
-
-            for (int i = 0; i < values.Length; i++)
-            {
-                bars.Add(new Bar
-                {
-                    Position = i,
-                    Value = values[i],
-                    FillColor = Color.FromHex("#1e40af"),
-                    LineWidth = 0
-                });
-
-                ticks[i] = new ScottPlot.Tick(i, labels[i]);
+                distinctCurrencies.Add(BusinessConstants.DefaultCurrencyCode);
             }
 
-            plot.Add.Bars(bars);
+            var safeFontName = GetSystemFontName();
+            var labels = historyCommand.Select(h => h.Label).ToArray();
 
-            plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
-            plot.Axes.Bottom.TickLabelStyle.FontName = safeFontName;
-            plot.Axes.Bottom.TickLabelStyle.FontSize = 11;
-            plot.Axes.Bottom.TickLabelStyle.Rotation = -35;
-            plot.Axes.Bottom.TickLabelStyle.Alignment = Alignment.MiddleRight;
-            plot.Axes.Bottom.TickLabelStyle.ForeColor = Color.FromHex("#111827");
+            foreach (var currency in distinctCurrencies)
+            {
+                var plot = new Plot();
+                plot.FigureBackground.Color = Color.FromHex("#ffffff");
+                plot.DataBackground.Color = Color.FromHex("#ffffff");
 
-            plot.Axes.Left.Label.Text = $"Przychód ({detectedCurrency})";
-            plot.Axes.Left.Label.FontName = safeFontName;
-            plot.Axes.Left.Label.FontSize = 12;
-            plot.Axes.Left.Label.Bold = true;
-            plot.Axes.Left.Label.ForeColor = Color.FromHex("#111827");
+                var values = historyCommand.Select(m =>
+                {
+                    var match = m.Revenue.FirstOrDefault(r => r.CurrencyCode == currency);
+                    return match != null ? (double)match.Amount : 0.0;
+                }).ToArray();
 
-            plot.Axes.Left.TickLabelStyle.FontName = safeFontName;
-            plot.Axes.Left.TickLabelStyle.FontSize = 10;
-            plot.Axes.Left.TickLabelStyle.ForeColor = Color.FromHex("#111827");
+                var bar = new List<Bar>();
+                var ticks = new Tick[labels.Length];
 
-            plot.Axes.SetLimitsX(-0.6, Math.Max(values.Length - 0.4, 1));
-            var maxVal = values.Length > 0 && values.Max() > 0 ? values.Max() * 1.15 : 1000;
-            plot.Axes.SetLimitsY(0, maxVal);
+                for (int i = 0; i < labels.Length; i++)
+                {
+                    bar.Add(new Bar
+                    {
+                        Position = i,
+                        Value = values[i],
+                        FillColor = Color.FromHex("#1e40af"),
+                        LineWidth = 0
+                    });
 
-            plot.Layout.Fixed(new PixelPadding(90, 25, 75, 20));
-            plot.Grid.MajorLineColor = Color.FromHex("#e5e7eb");
+                    ticks[i] = new Tick(i, labels[i]);
+                }
 
-            return plot.GetSvgXml(850, 420);
+                plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
+                plot.Add.Bars(bar);
+                plot.Axes.Bottom.TickLabelStyle.FontName = safeFontName;
+                plot.Axes.Bottom.TickLabelStyle.FontSize = 10;
+                plot.Axes.Bottom.TickLabelStyle.Rotation = -35;
+                plot.Axes.Bottom.TickLabelStyle.Alignment = Alignment.MiddleRight;
+                plot.Axes.Bottom.TickLabelStyle.ForeColor = Color.FromHex("#111827");
+
+                plot.Axes.Left.Label.Text = $"Przychód ({currency})";
+                plot.Axes.Left.Label.FontName = safeFontName;
+                plot.Axes.Left.Label.FontSize = 11;
+                plot.Axes.Left.Label.Bold = true;
+                plot.Axes.Left.Label.ForeColor = Color.FromHex("#111827");
+
+                plot.Axes.Left.TickLabelStyle.FontName = safeFontName;
+                plot.Axes.Left.TickLabelStyle.FontSize = 9;
+                plot.Axes.Left.TickLabelStyle.ForeColor = Color.FromHex("#111827");
+
+                plot.Axes.SetLimitsX(-0.6, Math.Max(values.Length - 0.4, 1));
+                var maxVal = values.Length > 0 && values.Max() > 0 ? values.Max() * 1.15 : 1000;
+                plot.Axes.SetLimitsY(0, maxVal);
+
+                plot.Layout.Fixed(new PixelPadding(85, 25, 65, 20));
+                plot.Grid.MajorLineColor = Color.FromHex("#e5e7eb");
+
+                var svg = plot.GetSvgXml(850, 360);
+                result.Add((currency, svg));
+            }
+
+            return result;
         }
 
         private static string GetSystemFontName()
