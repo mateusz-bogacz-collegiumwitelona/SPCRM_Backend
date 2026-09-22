@@ -11,6 +11,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.List;
 using Services.Command.Offer;
 using Services.Factory.Interfaces;
@@ -28,19 +29,24 @@ namespace Services.Services
         private readonly IEmailSender _emailSender;
         private readonly IOfferStateMachineFactory _state;
         private readonly IPublisher _publisher;
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
 
         public OfferServices(
             AppDbContext context,
             ILogger<OfferServices> logger,
             IEmailSender emailSender,
             IOfferStateMachineFactory state,
-            IPublisher publisher)
+            IPublisher publisher,
+            ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
             _emailSender = emailSender;
             _state = state;
             _publisher = publisher;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<PagedResult<OfferListResponse>>> GetOfferListAsync(OfferListCommand command)
@@ -66,7 +72,7 @@ namespace Services.Services
                     Status = o.Status.ToString(),
                     IsExpired = o.ValidUntil < DateTime.UtcNow
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "offers");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "offers", _ct);
 
         public async Task<Result<OfferDetailResponse>> GetOfferDetailAsync(Guid id)
         {
@@ -85,7 +91,7 @@ namespace Services.Services
                         .Select(u => new { u.FirstName, u.LastName })
                         .FirstOrDefault()
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (offerData == null)
             {
@@ -136,7 +142,7 @@ namespace Services.Services
                      HasCompany = o.Contact != null && o.Contact.Company != null,
                      CompanyName = o.Contact != null && o.Contact.Company != null ? o.Contact.Company.Name : null
                  })
-                 .FirstOrDefaultAsync();
+                 .FirstOrDefaultAsync(_ct);
 
             if (offerDetail == null)
             {
@@ -190,7 +196,7 @@ namespace Services.Services
                     o.CurrencyId,
                     CurrencyCode = o.Currency != null ? o.Currency.Code : null
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (offer == null)
             {
@@ -223,7 +229,7 @@ namespace Services.Services
                     CurrencyCode = op.Offer.Currency.Code,
                     DecimalPlaces = op.Offer.Currency.DecimalPlaces
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "offer-products");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "offer-products", _ct);
         }
 
         public async Task<Result> ExtendOfferValidityAsync(ExtendOfferValidityCommand command)
@@ -671,7 +677,7 @@ namespace Services.Services
         {
             var offer = await _context.Offers
                 .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id, _ct);
 
             if (offer == null)
             {

@@ -6,6 +6,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Currency;
 using Services.Command.List;
 using Services.Helpers;
@@ -19,11 +20,15 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<CurrencyServices> _logger;
+        private readonly ICancellationTokenAccessor _ctAccessor;
 
-        public CurrencyServices(AppDbContext context, ILogger<CurrencyServices> logger)
+        private CancellationToken _ct => _ctAccessor.Token;
+
+        public CurrencyServices(AppDbContext context, ILogger<CurrencyServices> logger, ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<List<CurrencyListResponse>>> GetCurrencySimpleListAsync()
@@ -38,7 +43,7 @@ namespace Services.Services
                     c.Code,
                     c.DecimalPlaces
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             var corruptedCurrency = currencies.FirstOrDefault(c =>
                 string.IsNullOrWhiteSpace(c.Code) ||
@@ -78,7 +83,7 @@ namespace Services.Services
                         Code = c.Code,
                         DecimalPlace = c.DecimalPlaces
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "currencies");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "currencies", _ct);
 
         public async Task<Result> AddCurrencyAsync(AddCurrencyCommand command)
         {

@@ -9,12 +9,14 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Analytics;
 using Services.Command.List;
 using Services.Response.Analytics;
 using Services.Services;
 using System.Globalization;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -29,6 +31,7 @@ namespace Tests.Services
         protected AnalyticsService _analyticsServiceMock = null!;
         protected ILogger<AnalyticsService> _loggerMock = null!;
         private IAnalyticsPdfGenerator _pdfMock = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -99,7 +102,9 @@ namespace Tests.Services
 
             _pdfMock = new AnalyticsPdfGenerator();
 
-            _analyticsServiceMock = new AnalyticsService(_contextMock, _loggerMock, _pdfMock);
+            _ctMock = new FakeCancellationTokenAccessor();
+
+            _analyticsServiceMock = new AnalyticsService(_contextMock, _loggerMock, _pdfMock, _ctMock);
         }
 
 

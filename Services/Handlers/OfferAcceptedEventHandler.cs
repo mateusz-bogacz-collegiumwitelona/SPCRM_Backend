@@ -32,7 +32,7 @@ namespace Services.Handlers
             var offer = await _context.Offers
                 .Include(o => o.Contact)
                 .Include(o => o.Products)
-                .FirstOrDefaultAsync(o => o.Id == notification.OfferId, token);
+                .FirstOrDefaultAsync(o => o.Id == notification.OfferId);
 
             if (offer == null)
             {
@@ -72,8 +72,8 @@ namespace Services.Handlers
                 }).ToList()
             };
 
-            await _context.Deals.AddAsync(deal, token);
-            await _context.SaveChangesAsync(token);
+            await _context.Deals.AddAsync(deal);
+            await _context.SaveChangesAsync();
         }
     }
 }

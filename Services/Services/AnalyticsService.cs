@@ -7,6 +7,7 @@ using Infrastructure.Pdf.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Analytics;
 using Services.Command.List;
 using Services.Helpers;
@@ -22,6 +23,9 @@ namespace Services.Services
         private readonly ILogger<AnalyticsService> _logger;
         private readonly IAnalyticsPdfGenerator _pdf;
         private readonly AnalyticsMapper _mapper = new AnalyticsMapper();
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
 
         private sealed record DatePeriodsContext(
             DateTime NowUtc,
@@ -42,11 +46,16 @@ namespace Services.Services
             int PendingTasksCount,
             int OverdueTasksCount);
 
-        public AnalyticsService(AppDbContext context, ILogger<AnalyticsService> logger, IAnalyticsPdfGenerator pdf)
+        public AnalyticsService(
+            AppDbContext context,
+            ILogger<AnalyticsService> logger,
+            IAnalyticsPdfGenerator pdf,
+            ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
             _pdf = pdf;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<TeamKpiSummaryResponse>> GetTeamKpiSummaryAsync()
@@ -104,7 +113,7 @@ namespace Services.Services
                     u.LastName,
                     u.Email
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (user == null)
             {
@@ -149,7 +158,7 @@ namespace Services.Services
         {
             var user = await _context.Users.AsNoTracking()
                 .Where(u => u.Id == employeeId && !u.IsDeleted)
-                .AnyAsync();
+                .AnyAsync(_ct);
 
             if (!user)
             {
@@ -218,7 +227,7 @@ namespace Services.Services
                         })
                         .ToList()
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "team_leaderboard");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "team_leaderboard", _ct);
         }
 
         public async Task<Result<PdfFileResponse>> GenerateEmployeeReportPdfAsync(Guid employeeId, AnalyticsChartCommand chartCommand)
@@ -335,7 +344,7 @@ namespace Services.Services
                                 CurrencyCode = d.Currency.Code,
                                 DecimalPlaces = d.Currency.DecimalPlaces
                             })
-                            .ToListAsync();
+                            .ToListAsync(_ct);
 
                         int daysInMonth = DateTime.DaysInMonth(nowUtc.Year, nowUtc.Month);
                         for (int week = 1; week <= 4; week++)
@@ -387,7 +396,7 @@ namespace Services.Services
                                 RevenueRaw = g.Sum(x => (long?)x.Value) ?? 0,
                                 Count = g.Count()
                             })
-                            .ToListAsync();
+                            .ToListAsync(_ct);
 
                         for (int i = 5; i >= 0; i--)
                         {
@@ -434,7 +443,7 @@ namespace Services.Services
                                 RevenueRaw = g.Sum(x => (long?)x.Value) ?? 0,
                                 Count = g.Count()
                             })
-                            .ToListAsync();
+                            .ToListAsync(_ct);
 
                         for (int m = 1; m <= 12; m++)
                         {
@@ -511,8 +520,8 @@ namespace Services.Services
             }
             var activeDealsPipeline = await CalculateGroupedRevenueAsync(activeDealsQuery);
 
-            var activeDealsCount = await activeDealsQuery.CountAsync();
-            var activeDealsValueRaw = await activeDealsQuery.SumAsync(d => (long?)d.Value) ?? 0;
+            var activeDealsCount = await activeDealsQuery.CountAsync(_ct);
+            var activeDealsValueRaw = await activeDealsQuery.SumAsync(d => (long?)d.Value, _ct) ?? 0;
 
             var baseMonthDeals = _context.Deals
                 .AsNoTracking()
@@ -542,13 +551,13 @@ namespace Services.Services
             }
 
             var completedTasksThisMonth = await tasksQuery
-                .CountAsync(t => t.Status == TaskStatusEnum.Complete && t.DueAt >= periods.StartOfMonthUtc);
+                .CountAsync(t => t.Status == TaskStatusEnum.Complete && t.DueAt >= periods.StartOfMonthUtc, _ct);
 
             var pendingTasksCount = await tasksQuery
-                .CountAsync(t => t.Status != TaskStatusEnum.Complete);
+                .CountAsync(t => t.Status != TaskStatusEnum.Complete, _ct);
 
             var overdueTasksCount = await tasksQuery
-                .CountAsync(t => t.Status != TaskStatusEnum.Complete && t.DueAt < periods.NowUtc);
+                .CountAsync(t => t.Status != TaskStatusEnum.Complete && t.DueAt < periods.NowUtc, _ct);
 
             return new BaseKpiMetrics(
                 RevenueThisWeek: revWeek,
@@ -565,7 +574,7 @@ namespace Services.Services
             );
         }
 
-        private static async Task<List<CurrencyAmountResponse>> CalculateGroupedRevenueAsync(IQueryable<Deal> query)
+        private async Task<List<CurrencyAmountResponse>> CalculateGroupedRevenueAsync(IQueryable<Deal> query)
         {
             var raw = await query
                 .GroupBy(d => new { d.Currency.Code, d.Currency.DecimalPlaces })
@@ -575,7 +584,7 @@ namespace Services.Services
                     g.Key.DecimalPlaces,
                     TotalRaw = g.Sum(d => (long?)d.Value) ?? 0
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return raw.Select(r => new CurrencyAmountResponse
             {
@@ -584,8 +593,6 @@ namespace Services.Services
                 Amount = Math.Round(r.TotalRaw / BusinessConstants.CurrencyScaleFactor, r.DecimalPlaces)
             }).ToList();
         }
-
-
     }
 }
 

@@ -7,6 +7,7 @@ using Infrastructure.Pdf.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Command.Invoice;
 using Services.Command.List;
@@ -27,24 +28,29 @@ namespace Services.Services
         private readonly ILogger<InvoiceService> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
         private readonly IInvoicePdfGenerator _pdf;
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
 
         public InvoiceService(
             AppDbContext context,
             ILogger<InvoiceService> logger,
             IEntityAuthorizationService entityAuth,
-            IInvoicePdfGenerator pdf)
+            IInvoicePdfGenerator pdf,
+            ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
             _pdf = pdf;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<List<CompanyDebtSummaryResponse>>> GetCompanyDebtSummaryAsync(Guid companyId)
         {
             var companyExists = await _context.Companies
                 .AsNoTracking()
-                .AnyAsync(c => c.Id == companyId);
+                .AnyAsync(c => c.Id == companyId, _ct);
 
             if (!companyExists)
             {
@@ -68,7 +74,7 @@ namespace Services.Services
                     DecimalPlaces = i.Currency.DecimalPlaces,
                     i.CurrencyId
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             var corruptedInvoice = unpaidInvoices.FirstOrDefault(i =>
                 i.CurrencyId == Guid.Empty ||
@@ -108,7 +114,7 @@ namespace Services.Services
         {
             var companyExists = await _context.Companies
                 .AsNoTracking()
-                .AnyAsync(c => c.Id == command.CompanyId);
+                .AnyAsync(c => c.Id == command.CompanyId, _ct);
 
             if (!companyExists)
             {
@@ -123,7 +129,7 @@ namespace Services.Services
             var hasCorruptedInvoices = await _context.Invoices
                 .AsNoTracking()
                 .Where(i => i.CompanyId == command.CompanyId && i.PaidAmount < i.TotalAmount)
-                .AnyAsync(i => i.CurrencyId == Guid.Empty || i.PaidAmount < 0 || i.TotalAmount < 0);
+                .AnyAsync(i => i.CurrencyId == Guid.Empty || i.PaidAmount < 0 || i.TotalAmount < 0, _ct);
 
             if (hasCorruptedInvoices)
             {
@@ -133,7 +139,7 @@ namespace Services.Services
 
             var now = DateTime.UtcNow;
 
-            var query = _context.Invoices
+            return await _context.Invoices
                 .AsNoTracking()
                 .Where(i => i.CompanyId == command.CompanyId && i.PaidAmount < i.TotalAmount)
                 .OrderBy(i => i.DueDate)
@@ -146,9 +152,8 @@ namespace Services.Services
                     DecimalPlaces = i.Currency.DecimalPlaces,
                     DueDate = i.DueDate,
                     DaysOverdue = i.DueDate < now ? (int)(now - i.DueDate).TotalDays : 0
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_debt");
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_debt", _ct);
         }
 
         public async Task<Result<PagedResult<InvoiceResponse>>> GetInvoiceListAsync(InvoiceListCommand command)
@@ -181,7 +186,7 @@ namespace Services.Services
                     IsOverDue = i.IsOverDue,
                     DueDate = i.DueDate,
                 })
-            .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_list");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_list", _ct);
 
         public async Task<Result<InvoiceDetailResponse>> GetInvoiceDetailAsync(Guid invoiceId)
         {
@@ -201,7 +206,7 @@ namespace Services.Services
                     DealId = i.DealId,
                     DealName = i.Deal != null ? i.Deal.Name : null
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (invoice == null)
             {
@@ -237,7 +242,7 @@ namespace Services.Services
                           UnitPrice = ip.UnitPrice,
                           TotalPrice = ip.TotalPrice,
                       })
-                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_product_list");
+                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_product_list", _ct);
 
         public async Task<Result<InvoicePaymentSummaryResponse>> GetInvoicePaymentSummaryAsync(Guid invoiceId)
         {
@@ -258,7 +263,7 @@ namespace Services.Services
                     IsOverDue = (i.TotalAmount - i.PaidAmount) > 0 && i.DueDate < DateTime.UtcNow,
                     PaymentsCount = i.Payments.Count
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (summary == null)
             {
@@ -295,7 +300,7 @@ namespace Services.Services
                     CreatedByFirstName = p.CreatedBy != null ? p.CreatedBy.FirstName : null,
                     CreatedByLastName = p.CreatedBy != null ? p.CreatedBy.LastName : null
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_payment_list");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "invoice_payment_list", _ct);
 
         public async Task<Result> AddInvoicePaymentAsync(Guid invoiceId, Guid userId, AddInvoicePaymentCommand command)
         {
@@ -380,7 +385,7 @@ namespace Services.Services
                 .Include(i => i.Currency)
                 .Include(i => i.Company)
                 .Include(i => i.InvoiceProducts)
-                .FirstOrDefaultAsync(i => i.Id == invoiceId);
+                .FirstOrDefaultAsync(i => i.Id == invoiceId, _ct);
 
             if (invoice == null)
             {
@@ -436,6 +441,6 @@ namespace Services.Services
                     DecimalPlaces = ip.Invoice.Currency.DecimalPlaces,
                     IsPaid = ip.Invoice.PaidAmount >= ip.Invoice.TotalAmount
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "product_invoices");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "product_invoices", _ct);
     }
 }

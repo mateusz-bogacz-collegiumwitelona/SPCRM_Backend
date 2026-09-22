@@ -12,7 +12,8 @@ namespace Services.Helpers
            int? number,
            int? size,
            ILogger logger,
-           string entityName = "item"
+           string entityName = "item",
+           CancellationToken cancellationToken = default // 1. Opcjonalny parametr na końcu
            )
         {
             try
@@ -22,7 +23,7 @@ namespace Services.Helpers
                 int pageNumber = number ?? 1;
                 int pageSize = size ?? 10;
 
-                int totalCount = await source.CountAsync();
+                int totalCount = await source.CountAsync(cancellationToken);
 
                 if (totalCount == 0)
                 {
@@ -45,7 +46,7 @@ namespace Services.Helpers
                 var items = await source
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 var pagedResult = new PagedResult<T>
                 {
@@ -61,6 +62,11 @@ namespace Services.Helpers
                     statusCode: StatusCodes.Status200OK,
                     data: pagedResult
                     );
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation("Pagination for {EntityName} was cancelled by the client.", entityName);
+                throw;
             }
             catch (Exception ex)
             {
@@ -86,4 +92,3 @@ namespace Services.Helpers
         }
     }
 }
-

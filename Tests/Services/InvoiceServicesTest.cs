@@ -11,12 +11,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Command.Invoice;
 using Services.Command.List;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -32,6 +34,7 @@ namespace Tests.Services
         protected IEntityAuthorizationService _entityAuthMock = null!;
         protected IInvoicePdfGenerator _pdfMock = null!;
         private string _currentSchema = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -104,7 +107,10 @@ namespace Tests.Services
 
             _pdfMock = new InvoicePdfGenerator();
 
-            _invoiceServicesMock = new InvoiceService(_contextMock, _loggerMock, _entityAuthMock, _pdfMock);
+            _ctMock = new FakeCancellationTokenAccessor();
+
+
+            _invoiceServicesMock = new InvoiceService(_contextMock, _loggerMock, _entityAuthMock, _pdfMock, _ctMock);
         }
 
         [After(Test)]

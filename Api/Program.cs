@@ -51,6 +51,9 @@ try
         });
     });
 
+    // Cancellation token 
+    builder.Services.AddHttpContextAccessor();
+
     // Add configs
     builder.Services.AddSwaggerConfiguration();
     builder.Services.AddMappers();

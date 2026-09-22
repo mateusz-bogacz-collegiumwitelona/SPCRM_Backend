@@ -12,9 +12,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Note;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -22,16 +24,14 @@ namespace Tests.Services
     public class NoteServiceTest
     {
         protected AppDbContext _contextMock = null!;
-
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
-
         protected NoteServices _noteServicesMock = null!;
         protected ILogger<NoteServices> _loggerMock = null!;
         protected UserManager<ApplicationUser> _userManagerMock = null!;
         protected RoleManager<IdentityRole<Guid>> _roleManagerMock = null!;
-
         private string _currentSchema = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -121,7 +121,9 @@ namespace Tests.Services
 
             _loggerMock = new LoggerFactory().CreateLogger<NoteServices>();
 
-            _noteServicesMock = new NoteServices(_contextMock, _loggerMock, _userManagerMock);
+            _ctMock = new FakeCancellationTokenAccessor();
+
+            _noteServicesMock = new NoteServices(_contextMock, _loggerMock, _userManagerMock, _ctMock);
         }
 
         [After(Test)]

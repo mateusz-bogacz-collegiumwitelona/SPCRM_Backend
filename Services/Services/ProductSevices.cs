@@ -7,6 +7,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.List;
 using Services.Command.Product;
 using Services.Helpers;
@@ -21,18 +22,24 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<ProductSevices> _logger;
+        private readonly ICancellationTokenAccessor _ctAccessor;
 
-        public ProductSevices(AppDbContext context, ILogger<ProductSevices> logger)
+        private CancellationToken _ct => _ctAccessor.Token;
+
+        public ProductSevices(AppDbContext context,
+            ILogger<ProductSevices> logger,
+            ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<PagedResult<ProductResponse>>> GetProductListAsync(ProductListCommand command)
         {
             var now = DateTime.UtcNow;
 
-            var query = _context.Products
+            return await _context.Products
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .ApplyFilter(command.ProductCategory, command.SteelGrade, command.HasActivePromotion)
@@ -60,9 +67,8 @@ namespace Services.Services
                         (!pr.StartDate.HasValue || pr.StartDate <= now) &&
                         (!pr.EndDate.HasValue || pr.EndDate >= now)
                         )
-                });
-
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "products");
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "products", _ct);
         }
 
         public async Task<Result<IEnumerable<string>>> GetProductCategoryAsync()
@@ -122,7 +128,7 @@ namespace Services.Services
                         })
                         .FirstOrDefault()
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (productData == null)
             {
@@ -184,7 +190,7 @@ namespace Services.Services
         {
             var now = DateTime.UtcNow;
 
-            var query = _context.Products
+            return await _context.Products
                 .AsNoTracking()
                 .ApplySearch(command.SearchTerm ?? string.Empty)
                 .Select(p => new MailingProductResponse
@@ -209,8 +215,8 @@ namespace Services.Services
                             ? (long?)pr.PromotionalPrice.Value
                             : (long?)(p.PricePerUnit * (1 - (pr.DiscountPercentage ?? 0) / 100m)))
                         .FirstOrDefault()
-                });
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing products");
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing_products", _ct);
         }
 
         public async Task<Result> AddProductAsync(AddProductCommand command)
@@ -470,7 +476,7 @@ namespace Services.Services
                     p.StockQuantity,
                     CurrencyExists = p.Currency != null
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (rawProduct == null)
             {
@@ -603,7 +609,7 @@ namespace Services.Services
                     SteelGradeName = p.SteelGrade != null ? p.SteelGrade.Name : null,
                     p.PricePerUnit
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             var corrupted = rawProducts.FirstOrDefault(p => p.PricePerUnit < 0 || p.SteelGradeId == Guid.Empty || string.IsNullOrWhiteSpace(p.SteelGradeName));
             if (corrupted != null)

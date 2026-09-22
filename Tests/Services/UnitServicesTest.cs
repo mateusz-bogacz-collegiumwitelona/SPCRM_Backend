@@ -6,24 +6,24 @@ using Infrastructure.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.List;
 using Services.Command.Unit;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
     public class UnitServicesTest
     {
         protected AppDbContext _contextMock = null!;
-
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
-
         protected UnitServices _unitServicesMok = null!;
         protected ILogger<UnitServices> _loggerMock = null!;
-
         private string _currentSchema = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -88,7 +88,9 @@ namespace Tests.Services
 
             _loggerMock = new LoggerFactory().CreateLogger<UnitServices>();
 
-            _unitServicesMok = new UnitServices(_contextMock, _loggerMock);
+            _ctMock = new FakeCancellationTokenAccessor();
+
+            _unitServicesMok = new UnitServices(_contextMock, _loggerMock, _ctMock);
         }
 
         [After(Test)]

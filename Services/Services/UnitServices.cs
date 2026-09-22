@@ -6,6 +6,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.List;
 using Services.Command.Unit;
 using Services.Helpers;
@@ -19,11 +20,15 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<UnitServices> _logger;
+        private readonly ICancellationTokenAccessor _ctAccessor;
 
-        public UnitServices(AppDbContext context, ILogger<UnitServices> logger)
+        private CancellationToken _ct => _ctAccessor.Token;
+
+        public UnitServices(AppDbContext context, ILogger<UnitServices> logger, ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<List<UnitSimpleListResponse>>> GetSimpleUnitList()
@@ -35,7 +40,7 @@ namespace Services.Services
                     Name = uom.Name,
                     Symbol = uom.Symbol
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<UnitSimpleListResponse>>.Success(
                 data: query,
@@ -56,7 +61,7 @@ namespace Services.Services
                     Symbol = uom.Symbol,
                     BaseMultiplier = uom.BaseMultiplier
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "unit-of-mesure");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "unit-of-mesure", _ct);
 
         public async Task<Result> AddUnitAsync(AddUnitCommand command)
         {

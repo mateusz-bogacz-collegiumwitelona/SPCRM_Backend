@@ -9,27 +9,28 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Task;
 using Services.Factory;
 using Services.Factory.Interfaces;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
     public class TaskServicesTest
     {
         protected AppDbContext _contextMock = null!;
-
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
-
         protected TaskServices _taskServicesMock = null!;
         protected ILogger<TaskServices> _loggerMock = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
         private string _currentSchema = null!;
         protected ITaskStateMachineFactory _stateMock = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
 
         [Before(Class)]
@@ -101,7 +102,9 @@ namespace Tests.Services
 
             _stateMock = new TaskStateMachineFactory();
 
-            _taskServicesMock = new TaskServices(_contextMock, _loggerMock, _entityAuthMock, _stateMock);
+            _ctMock = new FakeCancellationTokenAccessor();
+
+            _taskServicesMock = new TaskServices(_contextMock, _loggerMock, _entityAuthMock, _stateMock, _ctMock);
         }
 
         [After(Test)]

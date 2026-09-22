@@ -7,6 +7,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Task;
 using Services.Factory.Interfaces;
 using Services.Helpers;
@@ -22,19 +23,23 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<TaskServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
-
         private readonly ITaskStateMachineFactory _state;
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
 
         public TaskServices(
             AppDbContext context,
             ILogger<TaskServices> logger,
             IEntityAuthorizationService entityAuth,
-            ITaskStateMachineFactory state)
+            ITaskStateMachineFactory state,
+            ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
             _state = state;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<List<TaskCalendarResponse>>> GetTasksForCalendarAsync(TaskCalendarCommand command)
@@ -61,7 +66,7 @@ namespace Services.Services
                     DealName = t.Deal != null ? t.Deal.Name : string.Empty,
                     DealId = t.Deal != null ? t.Deal.Id : null
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<TaskCalendarResponse>>.Success(
                 message: "Tasks retrieved successfully",
@@ -96,7 +101,7 @@ namespace Services.Services
                     Status = t.Status.ToString(),
                     Priority = t.Priority.ToString()
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (query == null)
             {
@@ -146,7 +151,7 @@ namespace Services.Services
                             }).ToList()
                         : new List<ContactWayResponse>()
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (contactData == null || !contactData.HasContact)
             {
@@ -197,7 +202,7 @@ namespace Services.Services
                     CurrencyCode = t.Deal != null && t.Deal.Currency != null ? t.Deal.Currency.Code : null,
                     DecimalPlaces = t.Deal != null && t.Deal.Currency != null ? (int?)t.Deal.Currency.DecimalPlaces : null
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (query == null || !query.HasDeal)
             {
@@ -250,7 +255,7 @@ namespace Services.Services
                         ContactName = t.Contact != null ? $"{t.Contact.FirstName} {t.Contact.LastName}".Trim() : null,
                         DealName = t.Deal != null ? t.Deal.Name : null
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "user-tasks");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "user-tasks", _ct);
 
         public async Task<Result<PagedResult<DealTaskResponse>>> GetDealTasksAsync(
             Guid dealId,
@@ -261,7 +266,7 @@ namespace Services.Services
                 .AsNoTracking()
                 .Where(d => d.Id == dealId)
                 .Select(d => (Guid?)d.OwnerId)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (!dealOwnerId.HasValue)
             {
@@ -300,7 +305,7 @@ namespace Services.Services
                     ContactFirstName = t.Contact != null ? t.Contact.FirstName : null,
                     ContactLastName = t.Contact != null ? t.Contact.LastName : null
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-tasks");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal-tasks", _ct);
         }
 
         public async Task<Result> AddTaskAsync(AddTaskCommand command, Guid userId)
@@ -670,15 +675,6 @@ namespace Services.Services
             );
         }
 
-        private List<object> GetStatusDictionary()
-            => new List<object>
-                {
-                    new { Value = TaskStatusEnum.ToDo.ToString(), Label = "Do zrobienia" },
-                    new { Value = TaskStatusEnum.InProgress.ToString(), Label = "W trakcie" },
-                    new { Value = TaskStatusEnum.Complete.ToString(), Label = "Zakończone" },
-                    new { Value = TaskStatusEnum.Break.ToString(), Label = "Wstrzymane" }
-                };
-
         public async Task<Result<PagedResult<ContactTaskResponse>>> GetContactTaskAsync(
              Guid contactId,
              TaskListCommand command,
@@ -686,7 +682,7 @@ namespace Services.Services
         {
             var contactExists = await _context.Contacts
                 .AsNoTracking()
-                .AnyAsync(c => c.Id == contactId);
+                .AnyAsync(c => c.Id == contactId, _ct);
 
             if (!contactExists)
             {
@@ -726,7 +722,7 @@ namespace Services.Services
                     DealId = t.DealId,
                     DealName = t.Deal != null ? t.Deal.Name : null
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact-tasks");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact-tasks", _ct);
         }
 
         private List<object> GetPriorityDictionary()
@@ -736,5 +732,14 @@ namespace Services.Services
                     new { Value = TaskPriorityEnum.Medium.ToString(), Label = "Średni" },
                     new { Value = TaskPriorityEnum.High.ToString(), Label = "Wysoki" }
                 };
+
+        private List<object> GetStatusDictionary()
+           => new List<object>
+               {
+                    new { Value = TaskStatusEnum.ToDo.ToString(), Label = "Do zrobienia" },
+                    new { Value = TaskStatusEnum.InProgress.ToString(), Label = "W trakcie" },
+                    new { Value = TaskStatusEnum.Complete.ToString(), Label = "Zakończone" },
+                    new { Value = TaskStatusEnum.Break.ToString(), Label = "Wstrzymane" }
+               };
     }
 }

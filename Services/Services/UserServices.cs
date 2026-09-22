@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Auth;
 using Services.Command.User;
 using Services.Helpers;
@@ -27,19 +28,24 @@ namespace Services.Services
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly ILogger<UserServices> _logger;
         private readonly IEmailSender _emailSender;
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
 
         public UserServices(
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole<Guid>> roleManager,
             AppDbContext context,
             ILogger<UserServices> logger,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            ICancellationTokenAccessor ctAccessor)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
             _logger = logger;
             _emailSender = emailSender;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<List<UserSimpleListResponse>>> GetUserSimpleListAsync()
@@ -61,7 +67,7 @@ namespace Services.Services
                     FirstName = u.FirstName,
                     LastName = u.LastName
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<UserSimpleListResponse>>.Success(
                 message: "User list retrieved successfully.",
@@ -74,7 +80,7 @@ namespace Services.Services
         {
             var hasUsersWithoutRole = await _context.Users
                  .Where(u => !u.IsDeleted)
-                 .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id));
+                 .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id), _ct);
 
             if (hasUsersWithoutRole)
             {
@@ -100,7 +106,7 @@ namespace Services.Services
                             select r.Name).FirstOrDefault() ?? string.Empty,
                     IsBlocked = u.LockoutEnd != null && u.LockoutEnd > now
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "users");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "users", _ct);
         }
 
         public async Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync()
@@ -110,7 +116,7 @@ namespace Services.Services
             var hasUsersWithoutRole = await _context.Users
                 .AsNoTracking()
                 .Where(u => !u.IsDeleted)
-                .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id));
+                .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id), _ct);
 
             if (hasUsersWithoutRole)
             {
@@ -135,7 +141,7 @@ namespace Services.Services
                             where ur.UserId == u.Id
                             select r.Name).FirstOrDefault() ?? string.Empty
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<OwnerResponse>>.Success(
                 message: "Available owners retrieved successfully",
@@ -918,12 +924,12 @@ namespace Services.Services
                 );
             }
 
-            int companyOwnerCount = await _context.Companies.CountAsync(c => c.OwnerId == userId);
-            int contactOwnerCount = await _context.Contacts.CountAsync(c => c.OwnerId == userId);
+            int companyOwnerCount = await _context.Companies.CountAsync(c => c.OwnerId == userId, _ct);
+            int contactOwnerCount = await _context.Contacts.CountAsync(c => c.OwnerId == userId, _ct);
             int activeDealCount = await _context.Deals.CountAsync(d => d.OwnerId == userId
-                && (d.Status == DealsStatusEnum.ToDo || d.Status == DealsStatusEnum.InProgress));
+                && (d.Status == DealsStatusEnum.ToDo || d.Status == DealsStatusEnum.InProgress), _ct);
             int activeTaskCount = await _context.Tasks.CountAsync(t => t.AssignedToId == userId
-                 && (t.Status != TaskStatusEnum.Complete && t.Status != TaskStatusEnum.Break));
+                 && (t.Status != TaskStatusEnum.Complete && t.Status != TaskStatusEnum.Break), _ct);
 
             var response = new UserDetailResponse
             {
@@ -965,7 +971,7 @@ namespace Services.Services
                         .Where(r => r.Name != null)
                         .OrderBy(r => r.Name)
                         .Select(r => r.Name!)
-                        .ToListAsync(),
+                        .ToListAsync(_ct),
                     statusCode: StatusCodes.Status200OK
                 );
     }

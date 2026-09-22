@@ -6,6 +6,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.List;
 using Services.Command.Product;
 using Services.Command.SteelGrade;
@@ -21,11 +22,19 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<SteelGradeServices> _logger;
+        private readonly ICancellationTokenAccessor _ctAccessor;
 
-        public SteelGradeServices(AppDbContext context, ILogger<SteelGradeServices> logger)
+        private CancellationToken _ct => _ctAccessor.Token;
+
+        public SteelGradeServices(
+            AppDbContext context,
+            ILogger<SteelGradeServices> logger,
+            ICancellationTokenAccessor ctAccessor
+            )
         {
             _context = context;
             _logger = logger;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<IEnumerable<SteelGradeResponse>>> GetSteelGradesAsync()
@@ -37,7 +46,7 @@ namespace Services.Services
                     Id = s.Id,
                     Name = s.Name
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<IEnumerable<SteelGradeResponse>>.Success(
                 message: "Steel grades retrieved successfully",
@@ -58,7 +67,7 @@ namespace Services.Services
                         Standard = st.Standard,
                         Density = st.Density / BusinessConstants.DensityScaleFactor
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "steel-grade");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "steel-grade", _ct);
 
         public async Task<Result<List<ProductSimpleResponse>>> GetAssociatedProductsAsync(Guid steelGradeId)
         {
@@ -70,7 +79,7 @@ namespace Services.Services
                     Name = p.Name,
                     Category = p.Category.ToString()
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<ProductSimpleResponse>>.Success(
                 message: "Products retrieved",

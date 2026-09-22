@@ -9,6 +9,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Command.Deal;
 using Services.Command.List;
@@ -30,6 +31,9 @@ namespace Services.Services
         private readonly IDealStateMachineFactory _state;
         private readonly IInventoryService _inventory;
         private readonly IPublisher _publisher;
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
 
         public DealServices(
             AppDbContext context,
@@ -37,7 +41,8 @@ namespace Services.Services
             IEntityAuthorizationService entityAuth,
             IDealStateMachineFactory state,
             IInventoryService inventory,
-            IPublisher publisher
+            IPublisher publisher,
+            ICancellationTokenAccessor ctAccessor
             )
         {
             _context = context;
@@ -46,13 +51,14 @@ namespace Services.Services
             _state = state;
             _inventory = inventory;
             _publisher = publisher;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<PagedResult<UserDealResponse>>> GetDealsAsync(DealListCommand command, Guid? forcedOwnerId = null)
         {
             var effectiveOwnerId = forcedOwnerId ?? command.OwnerId;
 
-            var query = await _context.Deals
+            return await _context.Deals
                        .AsNoTracking()
                        .ApplyFilter(
                            command.CompanyName,
@@ -79,9 +85,8 @@ namespace Services.Services
                            OwnerFirstName = d.Owner.FirstName,
                            OwnerLastName = d.Owner.LastName
                        })
-                       .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales");
+                       .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "sales", _ct);
 
-            return query;
         }
 
         public async Task<Result<List<string>>> GetDealsStatus()
@@ -107,7 +112,7 @@ namespace Services.Services
                         CloseDate = d.CloseDate,
                         CreatedAt = d.CreatedAt
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_sales");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_sales", _ct);
 
         public async Task<Result<DealDetailResponse>> GetDealDetailAsync(Guid dealId, Guid currentUserId)
         {
@@ -149,7 +154,7 @@ namespace Services.Services
                      i.DueDate < now
                  )
              })
-             .FirstOrDefaultAsync();
+             .FirstOrDefaultAsync(_ct);
 
             if (query == null)
             {
@@ -280,7 +285,7 @@ namespace Services.Services
                     CurrencyCode = dp.Deal.Currency.Code,
                     DecimalPlaces = dp.Deal.Currency.DecimalPlaces
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_products", _ct);
         }
 
         public async Task<Result> AddDealAsync(AddDealCommand command, Guid userId)
@@ -860,38 +865,6 @@ namespace Services.Services
             );
         }
 
-        private static string? ResolveRecipientEmail(Deal deal, string? customEmail)
-        {
-            if (!string.IsNullOrWhiteSpace(customEmail))
-            {
-                return customEmail;
-            }
-
-            var dealContactEmail = deal.Contact?.ContactDetails?
-                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)?.Value
-                ?? deal.Contact?.ContactDetails?
-                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?.Value;
-
-            if (!string.IsNullOrWhiteSpace(dealContactEmail))
-            {
-                return dealContactEmail;
-            }
-
-            var primaryCompanyEmail = deal.Company?.Contacts?
-                .Where(c => c.IsPrimary)
-                .SelectMany(c => c.ContactDetails)
-                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)?.Value;
-
-            if (!string.IsNullOrWhiteSpace(primaryCompanyEmail))
-            {
-                return primaryCompanyEmail;
-            }
-
-            return deal.Company?.Contacts?
-                .SelectMany(c => c.ContactDetails)
-                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?.Value;
-        }
-
         public async Task<Result> ChangeDealContactAsync(Guid dealId, Guid contactId, Guid currentUserId)
         {
             var deal = await _context.Deals.FirstOrDefaultAsync(d => d.Id == dealId);
@@ -992,7 +965,7 @@ namespace Services.Services
                     d.ContactId,
                     d.OwnerId
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (deal == null)
             {
@@ -1031,7 +1004,7 @@ namespace Services.Services
                         .Select(cd => cd.Value)
                         .First()
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<DealAssignableContactResponse>>.Success(
                 message: "Assignable contacts retrieved successfully.",
@@ -1058,7 +1031,38 @@ namespace Services.Services
                     CurrencyCode = dp.Deal.Currency.Code,
                     DecimalPlaces = dp.Deal.Currency.DecimalPlaces,
                     CloseDate = dp.Deal.CloseDate
-                }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "product_deals");
+                }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "product_deals", _ct);
 
+        private static string? ResolveRecipientEmail(Deal deal, string? customEmail)
+        {
+            if (!string.IsNullOrWhiteSpace(customEmail))
+            {
+                return customEmail;
+            }
+
+            var dealContactEmail = deal.Contact?.ContactDetails?
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)?.Value
+                ?? deal.Contact?.ContactDetails?
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?.Value;
+
+            if (!string.IsNullOrWhiteSpace(dealContactEmail))
+            {
+                return dealContactEmail;
+            }
+
+            var primaryCompanyEmail = deal.Company?.Contacts?
+                .Where(c => c.IsPrimary)
+                .SelectMany(c => c.ContactDetails)
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL && cd.IsPrimary)?.Value;
+
+            if (!string.IsNullOrWhiteSpace(primaryCompanyEmail))
+            {
+                return primaryCompanyEmail;
+            }
+
+            return deal.Company?.Contacts?
+                .SelectMany(c => c.ContactDetails)
+                .FirstOrDefault(cd => cd.Type == ContactDetailTypeEnum.EMAIL)?.Value;
+        }
     }
 }

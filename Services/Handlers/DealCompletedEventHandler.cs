@@ -39,7 +39,7 @@ namespace Services.Handlers
                 .Include(d => d.DealProducts)
                     .ThenInclude(dp => dp.Product)
                         .ThenInclude(p => p.Unit)
-                .FirstOrDefaultAsync(d => d.Id == notification.DealId, cancellationToken);
+                .FirstOrDefaultAsync(d => d.Id == notification.DealId);
 
             if (deal == null)
             {
@@ -47,22 +47,20 @@ namespace Services.Handlers
                 return;
             }
 
-            var invoice = await BuildInvoiceForDealAsync(deal, cancellationToken);
-            await _context.Invoices.AddAsync(invoice, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            var invoice = await BuildInvoiceForDealAsync(deal);
+            await _context.Invoices.AddAsync(invoice);
+            await _context.SaveChangesAsync();
 
             _logger.LogInformation("Invoice {InvoiceNumber} created for Deal {DealId}.", invoice.InvoiceNumber, deal.Id);
 
             await DispatchInvoiceEmailAsync(invoice, deal, notification.RecipientEmail, notification.Language);
         }
 
-        private async Task<Invoice> BuildInvoiceForDealAsync(Deal deal, CancellationToken cancellationToken)
+        private async Task<Invoice> BuildInvoiceForDealAsync(Deal deal)
         {
             var year = DateTime.UtcNow.Year;
             var month = DateTime.UtcNow.Month;
-            var count = await _context.Invoices.CountAsync(
-                i => i.IssueDate.Year == year && i.IssueDate.Month == month,
-                cancellationToken);
+            var count = await _context.Invoices.CountAsync(i => i.IssueDate.Year == year && i.IssueDate.Month == month);
 
             var totalAmount = deal.DealProducts.Sum(dp => (long)dp.Quantity * dp.UnitPrice);
 

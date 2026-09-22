@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Note;
 using Services.Helpers;
 using Services.Interfaces;
@@ -22,21 +23,25 @@ namespace Services.Services
         private readonly ILogger<NoteServices> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
 
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
+
         public NoteServices(
             AppDbContext context,
             ILogger<NoteServices> logger,
-            UserManager<ApplicationUser> roleManger
-
+            UserManager<ApplicationUser> roleManger,
+            ICancellationTokenAccessor ctAccessor
             )
         {
             _context = context;
             _logger = logger;
             _userManager = roleManger;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<PagedResult<ContactNoteResponse>>> GetContactNoteAsync(NoteListCommand command)
-        {
-            var query = _context.Notes
+            => await _context.Notes
                 .OfType<ContactNote>()
                 .Include(n => n.Author)
                 .Where(n => n.ContactId == command.SearchId)
@@ -53,10 +58,8 @@ namespace Services.Services
                     CreatedAt = n.CreatedAt,
                     UpdateAt = n.UpdateAt,
                     AuthorId = n.Author.Id,
-                });
+                }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact_notes", _ct);
 
-            return await query.ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact_notes");
-        }
 
         public async Task<Result<List<NoteResponse>>> GetDealNotesAsync(Guid dealId)
         {
@@ -76,7 +79,7 @@ namespace Services.Services
                     UpdatedAt = n.UpdateAt ?? null,
                     AuthorId = n.Author.Id,
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<NoteResponse>>.Success(
                 data: query,
@@ -89,7 +92,7 @@ namespace Services.Services
         {
             bool isTaskExists = await _context.Tasks
                 .AsNoTracking()
-                .AnyAsync(t => t.Id == taskId);
+                .AnyAsync(t => t.Id == taskId, _ct);
 
             if (!isTaskExists)
             {
@@ -116,7 +119,7 @@ namespace Services.Services
                     UpdatedAt = n.UpdateAt ?? null,
                     AuthorId = n.Author.Id,
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<NoteResponse>>.Success(
                 data: query,

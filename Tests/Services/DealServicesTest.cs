@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Command.Deal;
 using Services.Command.List;
@@ -37,6 +38,7 @@ namespace Tests.Services
         protected IDealStateMachineFactory _stateMock = null!;
         protected IInventoryService _inventoryMock = null!;
         protected FakePublisher _publisherMock = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -113,13 +115,16 @@ namespace Tests.Services
 
             _publisherMock = new FakePublisher();
 
+            _ctMock = new FakeCancellationTokenAccessor();
+
             _dealServicesMock = new DealServices(
                 _contextMock,
                 _loggerMock,
                 _entityAuthMock,
                 _stateMock,
                 _inventoryMock,
-                _publisherMock);
+                _publisherMock,
+                _ctMock);
         }
 
         [After(Test)]

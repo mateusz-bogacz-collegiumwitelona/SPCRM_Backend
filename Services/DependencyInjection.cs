@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Services.Accessors;
 using Services.Factory;
 using Services.Factory.Interfaces;
 using Services.Handlers;
@@ -12,6 +13,9 @@ namespace Services
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
+            // Accessors
+            services.AddScoped<ICancellationTokenAccessor, HttpCancellationTokenAccessor>();
+
             // Services
             services.AddScoped<TokenServices>();
             services.AddScoped<IAuthServices, AuthServices>();

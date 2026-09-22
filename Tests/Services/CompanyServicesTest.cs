@@ -10,10 +10,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -30,6 +32,7 @@ namespace Tests.Services
         private int SRID = 4326; // WGS 84
         private string _currentSchema = null!;
         protected IEntityAuthorizationService _entityAuthMock = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -95,9 +98,12 @@ namespace Tests.Services
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<CompanyServices>();
+
             _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _companyServicesMock = new CompanyServices(_contextMock, _loggerMock, _entityAuthMock);
+            _ctMock = new FakeCancellationTokenAccessor();
+
+            _companyServicesMock = new CompanyServices(_contextMock, _loggerMock, _entityAuthMock, _ctMock);
         }
 
         [After(Test)]

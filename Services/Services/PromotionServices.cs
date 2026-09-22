@@ -7,6 +7,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Promotion;
 using Services.Helpers;
 using Services.Interfaces;
@@ -19,11 +20,19 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<PromotionServices> _logger;
+        private readonly ICancellationTokenAccessor _ctAccessor;
 
-        public PromotionServices(AppDbContext context, ILogger<PromotionServices> logger)
+        private CancellationToken _ct => _ctAccessor.Token;
+
+        public PromotionServices(
+            AppDbContext context,
+            ILogger<PromotionServices> logger,
+            ICancellationTokenAccessor ctAccessor
+            )
         {
             _context = context;
             _logger = logger;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<PagedResult<PromotionResponse>>> GetPromotionListAsync(PromotionListCommand command)
@@ -52,7 +61,7 @@ namespace Services.Services
                         EndDate = p.EndDate,
                         IsActive = p.IsActive
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "promotions");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "promotions", _ct);
 
 
         public async Task<Result<PromotionDetailResponse>> GetPromotionDetailAsync(Guid promotionId)
@@ -98,7 +107,7 @@ namespace Services.Services
                     p.CreatedAt,
                     p.UpdateAt
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (rawData == null)
             {

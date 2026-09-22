@@ -8,24 +8,24 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.List;
 using Services.Command.Product;
 using Services.Helpers;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
     public class ProductSevicesTest
     {
         protected AppDbContext _contextMock = null!;
-
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
-
         protected ProductSevices _productSevicesMock = null!;
         protected ILogger<ProductSevices> _loggerMock = null!;
-
+        private ICancellationTokenAccessor _ctMock = null!;
         private string _currentSchema = null!;
 
         [Before(Class)]
@@ -91,7 +91,10 @@ namespace Tests.Services
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<ProductSevices>();
-            _productSevicesMock = new ProductSevices(_contextMock, _loggerMock);
+
+            _ctMock = new FakeCancellationTokenAccessor();
+
+            _productSevicesMock = new ProductSevices(_contextMock, _loggerMock, _ctMock);
         }
 
         [After(Test)]

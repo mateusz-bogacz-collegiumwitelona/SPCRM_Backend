@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.List;
 using Services.Command.Offer;
 using Services.Factory;
@@ -29,6 +30,8 @@ namespace Tests.Services
         protected FakeEmailSender _emailSenderMock = null!;
         protected IOfferStateMachineFactory _stateMock = null!;
         protected FakePublisher _publisherMock = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
+
 
         [Before(Class)]
         [Obsolete]
@@ -101,12 +104,15 @@ namespace Tests.Services
 
             _publisherMock = new FakePublisher();
 
+            _ctMock = new FakeCancellationTokenAccessor();
+
             _offerServicesMock = new OfferServices(
                 _contextMock,
                 _loggerMock,
                 _emailSenderMock,
                 _stateMock,
-                _publisherMock);
+                _publisherMock,
+                _ctMock);
         }
 
         [After(Test)]

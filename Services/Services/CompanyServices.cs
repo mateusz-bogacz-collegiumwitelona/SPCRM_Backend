@@ -7,6 +7,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Helpers;
 using Services.Interfaces;
@@ -20,14 +21,20 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<CompanyServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
+
         public CompanyServices(
             AppDbContext context,
             ILogger<CompanyServices> logger,
-            IEntityAuthorizationService entityAuth)
+            IEntityAuthorizationService entityAuth,
+            ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<List<CompaniesMapResponse>>> Map(string? searchTerm = null)
@@ -66,7 +73,7 @@ namespace Services.Services
                     Longitude = a.Location != null ? a.Location.X : (double?)null,
                     Type = a.AddressType.ToString()
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<CompaniesMapResponse>>.Success(
                 message: "Company list retrieved successfully",
@@ -78,7 +85,7 @@ namespace Services.Services
         public async Task<Result<CompanyDetailResponse>> Details(Guid id, Guid userId)
         {
             var company = await _context.Companies
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id, _ct);
 
             if (company == null)
             {
@@ -118,7 +125,7 @@ namespace Services.Services
                     Longitude = a.Location != null ? a.Location.X : (double?)null,
                     Type = a.AddressType.ToString()
                 })
-                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_addresses");
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_addresses", _ct);
 
 
         public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command)
@@ -159,7 +166,7 @@ namespace Services.Services
 
                         CreatedAt = c.CreatedAt,
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies", _ct);
 
         public async Task<Result<List<CompanySimpleListResponse>>> GetCompanySimpleListAsync()
         {
@@ -169,7 +176,7 @@ namespace Services.Services
                 {
                     Id = c.Id,
                     Name = c.Name
-                }).ToListAsync();
+                }).ToListAsync(_ct);
 
             return Result<List<CompanySimpleListResponse>>.Success(
                 message: "Company simple list retrieved successfully",
@@ -739,7 +746,7 @@ namespace Services.Services
                     c.NIP,
                     c.OwnerId
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (companyData == null)
             {

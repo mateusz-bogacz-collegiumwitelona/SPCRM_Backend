@@ -9,12 +9,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Command.Contact;
 using Services.Command.List;
 using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -31,6 +33,7 @@ namespace Tests.Services
         private string _currentSchema = null!;
 
         protected IEntityAuthorizationService _entityAuthMock = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -99,7 +102,9 @@ namespace Tests.Services
 
             _entityAuthMock = new EntityAuthorizationService(_contextMock);
 
-            _contactServicesMock = new ContactServices(_contextMock, _loggerMock, _entityAuthMock);
+            _ctMock = new FakeCancellationTokenAccessor();
+
+            _contactServicesMock = new ContactServices(_contextMock, _loggerMock, _entityAuthMock, _ctMock);
         }
 
         [After(Test)]

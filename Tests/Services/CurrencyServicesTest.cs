@@ -7,10 +7,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Currency;
 using Services.Command.List;
 using Services.Services;
 using Testcontainers.PostgreSql;
+using Tests.Services.Fakes;
 
 namespace Tests.Services
 {
@@ -22,6 +24,8 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
         private string _currentSchema = null!;
+        private ICancellationTokenAccessor _ctMock = null!;
+
 
         [Before(Class)]
         [Obsolete]
@@ -82,8 +86,9 @@ namespace Tests.Services
             await _contextMock.Database.ExecuteSqlRawAsync(createScript);
 
             _loggerMock = new LoggerFactory().CreateLogger<CurrencyServices>();
+            _ctMock = new FakeCancellationTokenAccessor();
 
-            _currencyServicesMock = new CurrencyServices(_contextMock, _loggerMock);
+            _currencyServicesMock = new CurrencyServices(_contextMock, _loggerMock, _ctMock);
         }
 
         [After(Test)]

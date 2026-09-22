@@ -7,6 +7,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Services.Accessors;
 using Services.Command.Company;
 using Services.Command.Contact;
 using Services.Command.List;
@@ -23,15 +24,20 @@ namespace Services.Services
         private readonly AppDbContext _context;
         private readonly ILogger<ContactServices> _logger;
         private readonly IEntityAuthorizationService _entityAuth;
+        private readonly ICancellationTokenAccessor _ctAccessor;
+
+        private CancellationToken _ct => _ctAccessor.Token;
 
         public ContactServices(
             AppDbContext context,
             ILogger<ContactServices> logger,
-            IEntityAuthorizationService entityAuth)
+            IEntityAuthorizationService entityAuth,
+            ICancellationTokenAccessor ctAccessor)
         {
             _context = context;
             _logger = logger;
             _entityAuth = entityAuth;
+            _ctAccessor = ctAccessor;
         }
 
         public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command)
@@ -52,7 +58,7 @@ namespace Services.Services
                         OwnerLastName = c.Owner.LastName,
                         IsPrimary = c.IsPrimary
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts", _ct);
 
 
         public async Task<Result<List<string>>> GetCompaniesAsync()
@@ -60,7 +66,7 @@ namespace Services.Services
             var companies = await _context.Contacts
                 .Select(c => c.Company.Name)
                 .Distinct()
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<string>>.Success(
                 message: "Companies retrieved successfully",
@@ -84,7 +90,7 @@ namespace Services.Services
                         OwnerFirstName = c.Owner.FirstName ?? string.Empty,
                         OwnerLastName = c.Owner.LastName ?? string.Empty
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_contacts");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "company_contacts", _ct);
 
         public async Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId)
         {
@@ -104,7 +110,7 @@ namespace Services.Services
                     c.OwnerId,
                     c.IsPrimary
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (contact == null)
             {
@@ -145,7 +151,7 @@ namespace Services.Services
         {
             var contactExists = await _context.Contacts
                 .AsNoTracking()
-                .AnyAsync(c => c.Id == contactId);
+                .AnyAsync(c => c.Id == contactId, _ct);
 
             if (!contactExists)
             {
@@ -167,7 +173,7 @@ namespace Services.Services
                     Label = c.Label ?? string.Empty,
                     IsPrimary = c.IsPrimary
                 })
-                .ToListAsync();
+                .ToListAsync(_ct);
 
             return Result<List<ContactWayResponse>>.Success(
                 message: "Contact details retrieved successfully",
@@ -191,7 +197,7 @@ namespace Services.Services
                         ContactLastName = c.LastName,
                         ContactId = c.Id
                     })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing_clients");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "mailing_clients", _ct);
 
         public async Task<Result> AddContactAsync(AddContactCommand command, Guid userId)
         {
@@ -409,7 +415,7 @@ namespace Services.Services
                         })
                         .ToList()
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(_ct);
 
             if (contactData == null)
             {
@@ -635,7 +641,7 @@ namespace Services.Services
                         CompanyName = c.Company.Name,
                         Nip = c.Company.NIP
                     })
-            .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_contacts");
+                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "deal_contacts", _ct);
 
         private ContactDetailTypeEnum ParseWithString(string? name)
             => Enum.TryParse<ContactDetailTypeEnum>(name, ignoreCase: true, out var result)

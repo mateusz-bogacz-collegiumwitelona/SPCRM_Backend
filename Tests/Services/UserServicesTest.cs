@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Services.Accessors;
 using Services.Command.Auth;
 using Services.Command.User;
 using Services.Services;
@@ -34,7 +35,7 @@ namespace Tests.Services
         private static PostgreSqlContainer _dbContainer = null!;
         private static string _connectionString = null!;
         protected FakeEmailSender _emailSenderMock = null!;
-
+        private ICancellationTokenAccessor _ctMock = null!;
 
         [Before(Class)]
         [Obsolete]
@@ -144,6 +145,7 @@ namespace Tests.Services
                 null!,
                 null!
             );
+            _ctMock = new FakeCancellationTokenAccessor();
 
             _loggerMock = NullLogger<UserServices>.Instance;
             _emailSenderMock = new FakeEmailSender();
@@ -153,7 +155,8 @@ namespace Tests.Services
                 _roleManagerMock,
                 _contextMock,
                 _loggerMock,
-                _emailSenderMock
+                _emailSenderMock,
+                _ctMock
             );
         }
 
