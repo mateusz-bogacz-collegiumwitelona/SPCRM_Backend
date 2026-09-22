@@ -13,7 +13,7 @@ namespace Services.Helpers
            int? size,
            ILogger logger,
            string entityName = "item",
-           CancellationToken cancellationToken = default // 1. Opcjonalny parametr na końcu
+           CancellationToken cancellationToken = default
            )
         {
             try

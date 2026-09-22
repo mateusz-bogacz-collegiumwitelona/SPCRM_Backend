@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="{{Lang}}">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #334155;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .header {
+            background-color: #004a8f;
+            padding: 22px 24px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+            .header h1 {
+                margin: 0;
+                font-size: 19px;
+                font-weight: 600;
+            }
+
+        .content {
+            padding: 32px 28px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .btn-container {
+            text-align: center;
+            margin: 26px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: #004a8f;
+            color: #ffffff !important;
+            padding: 12px 26px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .box-row {
+            margin: 6px 0;
+            font-size: 14px;
+        }
+
+        .box-label {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .alert-danger {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+            padding: 14px;
+            margin: 18px 0;
+            border-radius: 4px;
+        }
+
+        .alert-warning {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            color: #92400e;
+            padding: 14px;
+            margin: 18px 0;
+            border-radius: 4px;
+        }
+
+        .fallback {
+            font-size: 12px;
+            color: #64748b;
+            word-break: break-all;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .footer {
+            background-color: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header" style="{{HeaderStyle}}">
+            <h1>{{Title}}</h1>
+        </div>
+        <div class="content">
+            {{Content}}
+        </div>
+        <div class="footer">
+            Wiadomość wygenerowana automatycznie przez system SPCRM.
+        </div>
+    </div>
+</body>
+</html>

@@ -1,25 +1,21 @@
-<!DOCTYPE html>
-<html lang="pl">
+<p style="margin-top:0;">Dzień dobry,</p>
+<p>Twoje konto w systemie SPCRM zostało pomyślnie utworzone. Poniżej znajdują się Twoje dane dostępowe:</p>
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-</head>
+<div class="box">
+    <div class="box-row"><span class="box-label">Imię i nazwisko:</span> {{FirstName}} {{LastName}}</div>
+    <div class="box-row"><span class="box-label">Adres e-mail:</span> {{Email}}</div>
+    <div class="box-row"><span class="box-label">Login:</span> <strong>{{UserName}}</strong></div>
+</div>
 
-<body>
-    <h1>
-        Witaj w systemie SPCRM
-    </h1>
-    <p>
-        Zostałeś zalogowany do systemu SPCRM. Poniżej znajdują się Twoje dane logowania:
-    </p>
-    <p>Imię i nazwisko: {{FirstName}} {{LastName}}</p>
-    <p>Adres e-mail: {{Email}}</p>
-    <p>Nazwa użytkownika: {{UserName}}</p>
-    <p>Hasło zostanie ci podane przez administartora systemu.</p>
-    <p>Zostało ci tylko aktywować konto klikając w link poniżej:</p>
-    <a href="{{Link}}">Aktywuj konto</a>
-    <p>Lub kopjując poniższy link: {{Link}}</p>
-</body>
+<p style="font-size: 13px; color: #64748b;">
+    Hasło początkowe zostanie przekazane bezpośrednio przez administratora systemu.
+</p>
 
-</html>
+<div class="btn-container">
+    <a href="{{Link}}" class="btn">Aktywuj konto i ustaw hasło</a>
+</div>
+
+<div class="fallback">
+    Jeśli przycisk nie działa, skopiuj poniższy link do przeglądarki:<br />
+    <a href="{{Link}}" style="color: #004a8f;">{{Link}}</a>
+</div>

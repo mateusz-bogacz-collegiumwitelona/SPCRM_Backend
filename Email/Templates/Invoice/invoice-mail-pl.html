@@ -1,24 +1,27 @@
-<!DOCTYPE html>
-<html lang="pl">
+<p style="margin-top:0;">Szanowni Państwo, <strong>{{RecipientName}}</strong>,</p>
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-</head>
+<p style="color: #475569;">
+    Dziękujemy za realizację zamówienia w naszym systemie. W załączniku do tej wiadomości przesyłamy dokument faktury VAT w formacie PDF.
+</p>
 
-<body>
-    <h1>
-        Szanowni Państwo, {{RecipientName}},
-    </h1>
-    <p>
-        Dziękujemy za realizację zamówienia. W załączniku przesyłamy fakturę VAT nr {{InvoiceNumber}}.
-    </p>
-    <p>Kwota do zapłaty: {{TotalAmount}} {{Currency}}</p>
-    <p>Termin płatności: {{DueDate}}</p>
-    <p>Poniżej mailu znajduje się faktura.</p>
-    <p>Z poważaniem, Zespół SPCRM</p>
+<div class="box">
+    <div class="box-row">
+        <span class="box-label">Numer faktury:</span> <strong>{{InvoiceNumber}}</strong>
+    </div>
+    <div class="box-row">
+        <span class="box-label">Kwota do zapłaty:</span>
+        <strong style="color: #004a8f; font-size: 15px;">{{TotalAmount}} {{Currency}}</strong>
+    </div>
+    <div class="box-row">
+        <span class="box-label">Termin płatności:</span> {{DueDate}}
+    </div>
+</div>
 
-    <h5>Wiadomość wygenerowana automatycznie przez system SPCRM.</h5>
-</body>
+<p style="font-size: 13px; color: #64748b;">
+    Plik PDF z pełnym rozliczeniem pozycji zamówienia oraz danymi do przelewu bankowego znajduje się w załączniku poniżej.
+</p>
 
-</html>
+<p style="margin-top: 24px; font-size: 13px; color: #475569;">
+    Z poważaniem,<br />
+    <strong>Zespół SPCRM</strong>
+</p>

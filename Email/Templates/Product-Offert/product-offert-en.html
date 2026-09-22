@@ -1,46 +1,30 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-        .steel-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: Arial, sans-serif;
-        }
+<p style="margin-top:0;">Dear Sir/Madam,</p>
 
-            .steel-table th, .steel-table td {
-                border: 1px solid #dddddd;
-                padding: 10px;
-                text-align: left;
-            }
+<p style="color: #475569;">
+    Please find below our current offer for steel products according to your requirements:
+</p>
 
-            .steel-table th {
-                background-color: #f2f2f2;
-                color: #333;
-                font-weight: bold;
-            }
-    </style>
-</head>
-<body>
-    <h1>Current Steel Products Offer</h1>
-    <p>Dear Sir/Madam, please find below our proposed materials:</p>
+<table class="steel-table">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Grade</th>
+            <th>Dimensions</th>
+            <th>Weight</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ProductRows}}
+    </tbody>
+</table>
 
-    <table class="steel-table">
-        <thead>
-            <tr>
-                <th>Product</th>
-                <th>Grade</th>
-                <th>Dimensions</th>
-                <th>Weight</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ProductRows}}
-        </tbody>
-    </table>
-</body>
-</html>
+<p style="font-size: 13px; color: #64748b; margin-top: 24px;">
+    Should you have any questions or require custom specifications, please feel free to contact your account manager.
+</p>
+
+<p style="margin-top: 24px; font-size: 13px; color: #475569;">
+    Best regards,<br />
+    <strong>SPCRM Sales Department</strong>
+</p>

@@ -1,21 +1,10 @@
-<!DOCTYPE html>
-<html lang="pl">
+<div class="box" style="margin-top:0;">
+    <div class="box-row"><span class="box-label">Użytkownik:</span> <strong>{{Name}} {{Surname}}</strong> (<a href="mailto:{{Email}}" style="color:#004a8f;">{{Email}}</a>)</div>
+    <div class="box-row"><span class="box-label">Data:</span> {{Time}}</div>
+    <div class="box-row"><span class="box-label">Temat:</span> <strong>{{Title}}</strong></div>
+</div>
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-</head>
-
-<body>
-    <h1>
-        Zgłoszono nowy błąd
-    </h1>
-    <p>
-        Użytkownik : {{Name}} {{Surname}} ({{Email}})
-    </p>
-    <p>Data: {{Time}}</p>
-    <p>Temat: {{Title}}</p>
-    <p>Treść: {{Message}}</p>
-</body>
-
-</html>
+<div style="font-size: 13px; font-weight: 600; color: #475569; margin: 20px 0 6px;">Treść zgłoszenia:</div>
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #1e293b;">
+    {{Message}}
+</div>

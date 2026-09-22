@@ -1,46 +1,30 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-        .steel-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: Arial, sans-serif;
-        }
+<p style="margin-top:0;">Szanowni Państwo,</p>
 
-            .steel-table th, .steel-table td {
-                border: 1px solid #dddddd;
-                padding: 10px;
-                text-align: left;
-            }
+<p style="color: #475569;">
+    Poniżej przesyłamy aktualne zestawienie przygotowanych materiałów stalowych wraz z cenami jednostkowymi:
+</p>
 
-            .steel-table th {
-                background-color: #f2f2f2;
-                color: #333;
-                font-weight: bold;
-            }
-    </style>
-</head>
-<body>
-    <h1>Aktualna oferta wyrobów hutniczych</h1>
-    <p>Szanowni Państwo, poniżej przesyłamy zestawienie proponowanych materiałów:</p>
+<table class="steel-table">
+    <thead>
+        <tr>
+            <th>Produkt</th>
+            <th>Gatunek</th>
+            <th>Wymiary</th>
+            <th>Waga</th>
+            <th>Ilość</th>
+            <th>Cena jedn.</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ProductRows}}
+    </tbody>
+</table>
 
-    <table class="steel-table">
-        <thead>
-            <tr>
-                <th>Produkt</th>
-                <th>Gatunek</th>
-                <th>Wymiary</th>
-                <th>Waga</th>
-                <th>Ilość</th>
-                <th>Cena jedn.</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ProductRows}}
-        </tbody>
-    </table>
-</body>
-</html>
+<p style="font-size: 13px; color: #64748b; margin-top: 24px;">
+    W razie pytań lub chęci modyfikacji parametrów oferty zapraszamy do kontaktu z przypisanym opiekunem handlowym.
+</p>
+
+<p style="margin-top: 24px; font-size: 13px; color: #475569;">
+    Z poważaniem,<br />
+    <strong>Dział Handlowy SPCRM</strong>
+</p>
