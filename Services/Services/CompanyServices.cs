@@ -37,7 +37,7 @@ namespace Services.Services
             _ctAccessor = ctAccessor;
         }
 
-        public async Task<Result<List<CompaniesMapResponse>>> Map(string? searchTerm = null)
+        public async Task<Result<List<CompaniesMapResponse>>> GetMapAsync(string? searchTerm = null)
         {
             var query = _context.CompanyAdresses.AsQueryable();
 
@@ -82,7 +82,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<CompanyDetailResponse>> Details(Guid id, Guid userId)
+        public async Task<Result<CompanyDetailResponse>> GetCompanyDetailsAsync(Guid id, Guid userId)
         {
             var company = await _context.Companies
                 .FirstOrDefaultAsync(c => c.Id == id, _ct);
@@ -112,7 +112,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddresses(CompanyCommand command)
+        public async Task<Result<PagedResult<AddressDetailResponse>>> GetCompanyAddressesAsync(CompanyCommand command)
             => await _context.CompanyAdresses
                 .Where(a => a.CompanyId == command.CompanyId)
                 .Select(a => new AddressDetailResponse

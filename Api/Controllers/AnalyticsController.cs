@@ -8,19 +8,18 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Analytics;
+using Services.Response.Pdf;
 
 namespace Api.Controllers
 {
     [Route("api/analytics")]
     [ApiController]
     [Authorize(Roles = "Manager")]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class AnalyticsController : BaseControlle
     {
         [EndpointSummary("Get team KPI summary")]
         [EndpointDescription("Returns overall financial, deals, and task performance metrics for the whole team.")]
+        [ProducesResponseType(typeof(Result<TeamKpiSummaryResponse>), StatusCodes.Status200OK)]
         [HttpGet("team/kpi")]
         public async Task<IActionResult> GetTeamKpiSummaryAsync([FromServices] IAnalyticsService analytics)
         {
@@ -30,6 +29,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Get team revenue chart data")]
         [EndpointDescription("Returns aggregated revenue and deal counts for charts.")]
+        [ProducesResponseType(typeof(Result<List<AnalyticsChartMetricResponse>>), StatusCodes.Status200OK)]
+
         [HttpGet("team/chart")]
         public async Task<IActionResult> GetTeamRevenueChartAsync(
             [FromServices] IAnalyticsService analytics,
@@ -43,6 +44,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get employee revenue chart data")]
         [EndpointDescription("Returns aggregated revenue and deal counts for an individual employee charts.")]
+        [ProducesResponseType(typeof(Result<List<AnalyticsChartMetricResponse>>), StatusCodes.Status200OK)]
         [HttpGet("employees/{employeeId:guid}/chart")]
         public async Task<IActionResult> GetEmployeeRevenueChartAsync(
             [FromRoute] Guid employeeId,
@@ -70,6 +72,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get employee KPI summary")]
         [EndpointDescription("Returns overall financial, deals, conversion rate, and task performance metrics for a specific employee.")]
+        [ProducesResponseType(typeof(Result<EmployeeKpiSummaryResponse>), StatusCodes.Status200OK)]
         [HttpGet("employees/{employeeId:guid}/kpi")]
         public async Task<IActionResult> GetEmployeeKpiSummaryAsync(
             [FromRoute] Guid employeeId,
@@ -81,6 +84,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Download employee analytics report PDF")]
         [EndpointDescription("Generates and returns an analytical PDF performance report for a specific employee.")]
+        [ProducesResponseType(typeof(Result<PdfFileResponse>), StatusCodes.Status200OK)]
         [HttpGet("employees/{employeeId:guid}/report/pdf")]
         [EnableRateLimiting("expensive")]
         public async Task<IActionResult> DownloadEmployeeReportPdfAsync(
@@ -95,6 +99,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Download team analytics report PDF")]
         [EndpointDescription("Generates and returns an analytical PDF performance report for the entire sales team.")]
+        [ProducesResponseType(typeof(Result<PdfFileResponse>), StatusCodes.Status200OK)]
         [HttpGet("team/report/pdf")]
         [EnableRateLimiting("expensive")]
         public async Task<IActionResult> DownloadTeamReportPdfAsync(

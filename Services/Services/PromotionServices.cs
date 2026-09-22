@@ -375,6 +375,20 @@ namespace Services.Services
 
             if (!string.IsNullOrWhiteSpace(command.Name))
             {
+                var isNameExist = await _context.Promotions
+                    .AsNoTracking()
+                    .AnyAsync(p => p.Id != command.Id && p.Name == command.Name.Trim());
+
+                if (isNameExist)
+                {
+                    _logger.LogWarning("Promotion name '{PromotionName}' already exists.", command.Name.Trim());
+                    return Result.Failure(
+                        message: "Promotion name already exists.",
+                        statusCode: StatusCodes.Status409Conflict,
+                        errorCode: ErrorCodes.PromotionNameAlreadyExists
+                    );
+                }
+
                 promotion.Name = command.Name.Trim();
             }
 

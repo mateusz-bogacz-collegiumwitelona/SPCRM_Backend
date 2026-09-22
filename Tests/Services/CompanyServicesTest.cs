@@ -122,10 +122,10 @@ namespace Tests.Services
             }
         }
 
-        // ─── Map ─────────────────────────────────────────────────
+        // ─── GetMapAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task Map_WhenSearchTermIsNull_ReturnsCompaniesWithMappedCoordinates()
+        public async Task GetMapAsync_WhenSearchTermIsNull_ReturnsCompaniesWithMappedCoordinates()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -164,7 +164,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _companyServicesMock.Map(searchTerm: null);
+            var result = await _companyServicesMock.GetMapAsync(searchTerm: null);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -179,7 +179,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task Map_WhenSearchTermProvided_FiltersResultsCorrectly()
+        public async Task GetMapAsync_WhenSearchTermProvided_FiltersResultsCorrectly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -233,7 +233,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act 
-            var result = await _companyServicesMock.Map("99888");
+            var result = await _companyServicesMock.GetMapAsync("99888");
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -243,17 +243,17 @@ namespace Tests.Services
             await Assert.That(result.Data.Any(c => c.Name == companyToIgnore.Name)).IsFalse();
         }
 
-        // ─── Details ─────────────────────────────────────────────────
+        // ─── GetCompanyDetailsAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task Details_WhenCompanyDoesNotExist_Returns404NotFound()
+        public async Task GetCompanyDetailsAsync_WhenCompanyDoesNotExist_Returns404NotFound()
         {
             // Arrange
             var nonExistentCompanyId = Guid.NewGuid();
             var randomUserId = Guid.NewGuid();
 
             // Act
-            var result = await _companyServicesMock.Details(nonExistentCompanyId, randomUserId);
+            var result = await _companyServicesMock.GetCompanyDetailsAsync(nonExistentCompanyId, randomUserId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
@@ -262,7 +262,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task Details_WhenUserIsOwner_ReturnsCompanyWithIsYourTrue()
+        public async Task GetCompanyDetailsAsync_WhenUserIsOwner_ReturnsCompanyWithIsYourTrue()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -294,7 +294,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _companyServicesMock.Details(company.Id, ownerId);
+            var result = await _companyServicesMock.GetCompanyDetailsAsync(company.Id, ownerId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -305,10 +305,10 @@ namespace Tests.Services
             await Assert.That(result.Data.Name).IsEqualTo(company.Name);
         }
 
-        // ─── GetCompanyAddresses ─────────────────────────────────────────────────
+        // ─── GetCompanyAddressesAsync ─────────────────────────────────────────────────
 
         [Test]
-        public async Task GetCompanyAddresses_WhenCompanyHasAddresses_ReturnsMappedCoordinatesAndFiltersProperly()
+        public async Task GetCompanyAddressesAsync_WhenCompanyHasAddresses_ReturnsMappedCoordinatesAndFiltersProperly()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -374,7 +374,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _companyServicesMock.GetCompanyAddresses(command);
+            var result = await _companyServicesMock.GetCompanyAddressesAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -390,7 +390,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetCompanyAddresses_WhenPaginationProvided_ReturnsCorrectPageSize()
+        public async Task GetCompanyAddressesAsync_WhenPaginationProvided_ReturnsCorrectPageSize()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -454,7 +454,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _companyServicesMock.GetCompanyAddresses(command);
+            var result = await _companyServicesMock.GetCompanyAddressesAsync(command);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1244,7 +1244,6 @@ namespace Tests.Services
                 }
             };
 
-            // Przypadek 2: Ten sam NIP
             var commandWithSameNip = new AddCompanyCommand
             {
                 Name = $"DifferentName_{uniqueSuffix}",

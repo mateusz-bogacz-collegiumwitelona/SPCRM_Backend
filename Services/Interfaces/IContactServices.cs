@@ -18,7 +18,7 @@ namespace Services.Interfaces
         Task<Result> AddContactAsync(AddContactCommand command, Guid userId);
         Task<Result<List<string>>> GetContactTypeAsync();
         Task<Result> EditContactAsync(EditContactCommand command, Guid currentUserId);
-        Task<Result<ContactDetailCommand>> GetContactDetailCommand(Guid contactId);
+        Task<Result<ContacDetailWithWaysResponse>> GetContactDetailWithWaysAsync(Guid contactId);
         Task<Result> SetPrimaryContactAsync(Guid contactId, Guid currentUserId);
         Task<Result> DeleteContactAsync(Guid contactId);
         Task<Result> ChangeContactOwnerAsync(ChangeContactOwnerCommand command);

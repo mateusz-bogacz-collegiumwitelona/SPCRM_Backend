@@ -7,19 +7,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
+using Services.Response.Offer;
 
 namespace Api.Controllers
 {
     [Route("api/offer")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class OfferController : BaseControlle
     {
         [EndpointSummary("Get offer list")]
         [EndpointDescription("Get offer list with pagination, sorting and filtering.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<OfferListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetOfferListAsync(
@@ -34,6 +32,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get offer detail")]
         [EndpointDescription("Get offer detail by ID.")]
+        [ProducesResponseType(typeof(Result<OfferDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("detail/{offerId:guid}")]
         [Authorize]
         public async Task<IActionResult> GetOfferDetailAsync(
@@ -47,6 +46,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get offer client detail")]
         [EndpointDescription("Get offer client detail by offer ID.")]
+        [ProducesResponseType(typeof(Result<OfferClientDetail>), StatusCodes.Status200OK)]
         [HttpGet("client/{offerId:guid}")]
         [Authorize]
         public async Task<IActionResult> GetOfferClientDetailAsync(
@@ -61,6 +61,7 @@ namespace Api.Controllers
         [EndpointSummary("Get offer product detail")]
         [EndpointDescription("Get offer product detail by offer ID. " +
             "This list have search and paggination.")]
+        [ProducesResponseType(typeof(Result<PagedResult<OfferProductResponse>>), StatusCodes.Status200OK)]
         [HttpGet("product/{offerId:guid}")]
         [Authorize]
         public async Task<IActionResult> GetOfferProductsAsync(
@@ -76,6 +77,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Extend offer validity")]
         [EndpointDescription("Extend offer validity by offer ID. User can get data but not must.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [Authorize]
         [HttpPatch("extend")]
         public async Task<IActionResult> ExtendOfferValidityAsync(
@@ -92,6 +94,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change offer status")]
         [EndpointDescription("Change offer status by offer ID")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("change-status")]
         [Authorize]
         [EnableRateLimiting("expensive")]
@@ -106,6 +109,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Update offer products")]
         [EndpointDescription("Update offer products by offer ID.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("products")]
         [Authorize]
         public async Task<IActionResult> UpdateOfferProductsAsync(
@@ -119,6 +123,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Resend offer email")]
         [EndpointDescription("Resend offer email by offer ID.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("resend-email")]
         [Authorize]
         [EnableRateLimiting("expensive")]
@@ -134,6 +139,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete offer")]
         [EndpointDescription("Delete offer by offer ID.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{offerId:guid}")]
         [Authorize]
         public async Task<IActionResult> DeleteOfferAsync(
@@ -147,6 +153,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get offer allowed actions")]
         [EndpointDescription("Get offer allowed actions by offer ID.")]
+        [ProducesResponseType(typeof(Result<OfferAllowedActionsResponse>), StatusCodes.Status200OK)]
         [HttpGet("{id:guid}/allowed-actions")]
         [Authorize]
         public async Task<IActionResult> GetOfferAllowedActionsAsync(
@@ -159,6 +166,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get offer status list")]
         [EndpointDescription("Get offer status list.")]
+        [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("status")]
         [Authorize]
         public async Task<IActionResult> GetOfferStatusAsync([FromServices] IOfferServices offerServices)

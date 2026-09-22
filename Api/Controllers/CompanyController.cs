@@ -7,68 +7,66 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
+using Services.Response.Company;
 
 namespace Api.Controllers
 {
     [Route("api/company")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class CompanyController : BaseControlle
     {
         [EndpointSummary("Get data to global map")]
         [EndpointDescription("Show data of every company on the global map.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<CompaniesMapResponse>>), StatusCodes.Status200OK)]
         [HttpGet("map")]
         [Authorize(Roles = "Manager,User")]
         [EnableRateLimiting("expensive")]
-        public async Task<IActionResult> Map(
+        public async Task<IActionResult> GetMapAsync(
             [FromServices] ICompanyServices companyServices,
             string? searchTerm = null
             )
         {
-            var result = await companyServices.Map(searchTerm);
+            var result = await companyServices.GetMapAsync(searchTerm);
             return HandleResult(result);
         }
 
         [EndpointSummary("Get detail about company")]
         [EndpointDescription("Show detail about company. This endpoint return onliy name, Nip and data to map")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<CompanyDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> Details(
+        public async Task<IActionResult> GetCompanyDetailsAsync(
             [FromServices] ICompanyServices companyServices,
             [FromQuery] Guid companyId
             )
         {
-            var result = await companyServices.Details(companyId, CurrentUserId);
+            var result = await companyServices.GetCompanyDetailsAsync(companyId, CurrentUserId);
             return HandleResult(result);
         }
 
         [EndpointSummary("Get all company adresses")]
         [EndpointDescription("Show all company adresses. This endpoint return only city, street, zip-code, lat and log")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<AddressDetailResponse>>), StatusCodes.Status200OK)]
         [HttpGet("addresses")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> GetCompanyAddresses(
+        public async Task<IActionResult> GetCompanyAddressesAsync(
             [FromServices] CompanyMapper mapper,
             [FromServices] ICompanyServices companyServices,
             [FromQuery] Guid companyId,
             [FromQuery] PaggedRequest pagged
             )
         {
-            var result = await companyServices.GetCompanyAddresses(mapper.MapBasic(companyId, pagged));
+            var result = await companyServices.GetCompanyAddressesAsync(mapper.MapBasic(companyId, pagged));
             return HandleResult(result);
         }
 
         [EndpointSummary("Get company contacts")]
         [EndpointDescription("Show all company contacts. " +
             "This endpoint return only first name, last name, job title and if contact is primary")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<CompanyContactResponse>>), StatusCodes.Status200OK)]
         [HttpGet("contacts")]
         [Authorize(Roles = "Manager,User")]
-        public async Task<IActionResult> GetCompanyContacts(
+        public async Task<IActionResult> GetCompanyContactsAsync(
             [FromServices] CompanyMapper mapper,
             [FromServices] IContactServices contactServices,
             [FromQuery] Guid companyId,
@@ -82,7 +80,7 @@ namespace Api.Controllers
         [EndpointSummary("Get company sales")]
         [EndpointDescription("Show all company sales. " +
             "This endpoint return only name, value, close date and status")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<CompanyDealsResponse>>), StatusCodes.Status200OK)]
         [HttpGet("sales")]
         public async Task<IActionResult> GetComapanyDealsAsync(
             [FromServices] CompanyMapper mapper,
@@ -97,7 +95,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get company debt summary")]
         [EndpointDescription("Show total unpaid amount grouped by currency for a specific company.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<CompanyDebtSummaryResponse>>), StatusCodes.Status200OK)]
         [HttpGet("debts/summary")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyDebtSummaryAsync(
@@ -110,7 +108,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get company debts details")]
         [EndpointDescription("Show all unpaid invoices for a specific company with pagination.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<CompanyDebtDetailResponse>>), StatusCodes.Status200OK)]
         [HttpGet("debts")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyDebts(
@@ -127,6 +125,7 @@ namespace Api.Controllers
         [EndpointSummary("Get paginated list of companies")]
         [EndpointDescription("Show a paginated list of companies with optional filtering, sorting, and search term. " +
             "Returns basic company details along with the headquarters address and the date of the last deal.")]
+        [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
         [HttpGet("list")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyListAsync(
@@ -150,6 +149,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get simple list of companies")]
         [EndpointDescription("Show a simple list of companies with only ID and Name.")]
+        [ProducesResponseType(typeof(Result<List<CompanySimpleListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple-list")]
         public async Task<IActionResult> GetCompanySimpleListAsync(
             [FromServices] ICompanyServices companyServices
@@ -161,6 +161,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a new company")]
         [EndpointDescription("Add a new company with its details.")]
+        [ProducesResponseType(typeof(Result<Guid>), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> AddCompanyAsync(
@@ -175,6 +176,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit an existing company")]
         [EndpointDescription("Edit an existing company with its details.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> EditCompanyAsync(
@@ -189,6 +191,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit an existing company address")]
         [EndpointDescription("Edit an existing company address with its details.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("address")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> EditCompanyAddressAsync(
@@ -203,6 +206,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a new company address")]
         [EndpointDescription("Add a new company address with its details.")]
+        [ProducesResponseType(typeof(Result<Guid>), StatusCodes.Status201Created)]
         [HttpPost("address/{companyId:guid}")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> AddCompanyAddressAsync(
@@ -218,6 +222,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete an existing company")]
         [EndpointDescription("Delete an existing company by its ID.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{companyId:guid}")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeleteCompanyAsync(
@@ -231,6 +236,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete an existing company address")]
         [EndpointDescription("Delete an existing company address by its ID.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("address/{addressId:guid}")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> DeleteCompanyAddressAsync(
@@ -242,8 +248,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [EndpointSummary("Delete an existing company address")]
-        [EndpointDescription("Delete an existing company address by its ID.")]
+        [EndpointSummary("Change company owner")]
+        [EndpointDescription("Reassign company ownership to another user.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("change-owner")]
         [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> ChangeCompanyOwnerAsync(
@@ -258,6 +265,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get address type list")]
         [EndpointDescription("Get address type list")]
+        [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("address/types")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetCompanyAddressTypes(
@@ -268,6 +276,9 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
+        [EndpointSummary("Get company edit details")]
+        [EndpointDescription("Get company details (ID, Name, NIP) required for the edit form.")]
+        [ProducesResponseType(typeof(Result<EditCompanyDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("edit-detail/{id:guid}")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetEditCompanyDetailAsync(

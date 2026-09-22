@@ -5,20 +5,19 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Note;
+using Services.Response.Task;
 
 namespace Api.Controllers
 {
     [Route("api/tasks")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class TaskController : BaseControlle
     {
         [EndpointSummary("Get tasks for calendar")]
         [EndpointDescription("Show tasks for calendar view. " +
             "This endpoint return tasks within a specified date range")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<TaskCalendarResponse>>), StatusCodes.Status200OK)]
         [HttpGet("calendar")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTasksForCalendarAsync(
@@ -44,7 +43,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get task detail")]
         [EndpointDescription("Returns detailed information about a specific task.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<TaskDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskDetailResponse(
@@ -58,7 +57,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get task contact")]
         [EndpointDescription("Returns contact information associated with a specific task.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<TaskContactResponse>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}/contact")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskContactAsync(
@@ -72,7 +71,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get task deal")]
         [EndpointDescription("Returns deal information associated with a specific task.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<TaskDealResponse>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}/deal")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskDealAsync(
@@ -86,7 +85,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get task notes")]
         [EndpointDescription("Returns notes associated with a specific task.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<NoteResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskNotesAsync(
@@ -100,6 +99,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete task")]
         [EndpointDescription("Delete a specific task.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{taskId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> DeleteTaskAsync(
@@ -113,6 +113,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit task")]
         [EndpointDescription("Edit a specific task.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{taskId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> EditTaskAsync(
@@ -128,6 +129,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Extend task due date")]
         [EndpointDescription("Extend the due date of a specific task.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{taskId:guid}/extend-due-date")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> ExtendTaskDueDateAsync(
@@ -143,6 +145,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change assigned user")]
         [EndpointDescription("Change the assigned user of a specific task.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{taskId:guid}/change-assigned-user/{assigneeId}")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> ChangeAssignedToUserAsync(
@@ -157,6 +160,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change task status")]
         [EndpointDescription("Change the status of a specific task.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("change-status")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> ChangeTaskStatusAsync(
@@ -171,6 +175,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add tasks")]
         [EndpointDescription("Add task.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddTaskAsync(

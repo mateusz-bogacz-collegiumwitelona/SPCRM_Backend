@@ -10,14 +10,12 @@ namespace Api.Controllers
 {
     [Route("api/note")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class NoteController : BaseControlle
     {
 
         [EndpointSummary("Edit note")]
         [EndpointDescription("Edit an existing note.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("edit")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> EditNoteAsync(
@@ -36,6 +34,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add note")]
         [EndpointDescription("Add note, this endpoint determinate with note type is save by NoteEnum")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> AddNoteAsync(
@@ -50,6 +49,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete note")]
         [EndpointDescription("Delete an existing note.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> DeleteNoteAsync(

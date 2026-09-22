@@ -11,14 +11,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Deal;
+using Services.Response.Note;
+using Services.Response.Task;
 
 namespace Api.Controllers
 {
     [Route("api/sales")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class DealController : BaseControlle
     {
         [EndpointSummary("Get user deals")]
@@ -45,7 +44,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get sales statuses")]
         [EndpointDescription("Show available sales statuses.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("statuses")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealsStatuses([FromServices] IDealServices deal)
@@ -56,7 +55,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get sale detail")]
         [EndpointDescription("Returns detailed information about a specific sale.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<DealDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealDetailAsync(
@@ -69,7 +68,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get deal products")]
         [EndpointDescription("Returns a paginated list of products associated with a specific deal.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<DealProductResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealProductAsync(
@@ -88,7 +87,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get deal notes")]
         [EndpointDescription("Returns a list of notes associated with a specific deal.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<NoteResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealNotesAsync(
@@ -101,6 +100,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get deal tasks")]
         [EndpointDescription("Returns a paginated list of tasks associated with a specific deal.")]
+        [ProducesResponseType(typeof(Result<PagedResult<DealTaskResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealTasksAsync(
@@ -116,6 +116,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a new deal")]
         [EndpointDescription("Creates a new deal with the provided details.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddDealAsync(
@@ -129,6 +130,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete a deal")]
         [EndpointDescription("Deletes a specific deal by its ID. (Changed status into Cancelled)")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{dealId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> DeleteDealAsync(
@@ -141,6 +143,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Extend deal close date")]
         [EndpointDescription("Extends the close date of a specific deal.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("extend-close-date")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> ExtendDealCloseDateAsync(
@@ -154,6 +157,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a product to a deal")]
         [EndpointDescription("Adds a product to a specific deal.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddDealProductAsync(
@@ -168,6 +172,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete a product from a deal")]
         [EndpointDescription("Deletes a specific product from a deal.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{dealId:guid}/products/{dealProductId}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> DeleteDealProductAsync(
@@ -181,6 +186,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Update a product in a deal")]
         [EndpointDescription("Updates a specific product in a deal.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> EditDealProductAsync(
@@ -195,9 +201,9 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a note to a deal")]
         [EndpointDescription("Adds a new note to a specific deal.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{dealId:guid}/notes")]
         [Authorize(Roles = "Manager,User")]
-
         public async Task<IActionResult> AddDealNoteAsync(
             [FromServices] INoteServices note,
             [FromServices] NoteMapper mapper,
@@ -211,6 +217,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change deal status")]
         [EndpointDescription("Changes the status of a specific deal.")]
+        [ProducesResponseType(typeof(Result<ChangeDealStatusResponse>), StatusCodes.Status200OK)]
         [HttpPut("{dealId:guid}/status")]
         [Authorize(Roles = "User,Manager")]
         [EnableRateLimiting("expensive")]
@@ -226,6 +233,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add deal task")]
         [EndpointDescription("Add task to a specific deal.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{dealId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddDealTaskAsync(
@@ -241,6 +249,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change deal contact")]
         [EndpointDescription("Change the contact associated with a specific deal.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{dealId:guid}/contact")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> ChangeDealContactAsync(
@@ -254,6 +263,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get assignable contacts for deal")]
         [EndpointDescription("Get a list of contacts that can be assigned to a specific deal.")]
+        [ProducesResponseType(typeof(Result<List<DealAssignableContactResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/assignable-contacts")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetAssignableContactsForDealAsync(

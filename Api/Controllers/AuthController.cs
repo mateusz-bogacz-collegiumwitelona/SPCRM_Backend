@@ -1,17 +1,18 @@
 ﻿using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Auth;
+using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
+using Services.Response.Auth;
 
 namespace Api.Controllers
 {
     [ApiController]
     [Route("api/auth")]
     [Tags("Authentication")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [EnableRateLimiting("auth-strict")]
     public class AuthController : BaseControlle
     {
@@ -20,6 +21,7 @@ namespace Api.Controllers
             "If credentials are valid, a HttpOnlyCookie was given.")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status423Locked)]
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> LoginAsync(
@@ -41,6 +43,7 @@ namespace Api.Controllers
         [HttpPost("logout")]
         [Authorize]
         [DisableRateLimiting]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> LogoutAsync(
             [FromServices] IAuthServices authServices
             )
@@ -52,6 +55,8 @@ namespace Api.Controllers
         [HttpGet("me")]
         [Authorize]
         [EnableRateLimiting("per-user")]
+        [ProducesResponseType(typeof(Result<AuthResponse>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Result<AuthResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetUserDataAsync(
             [FromServices] IAuthServices authServices
             )

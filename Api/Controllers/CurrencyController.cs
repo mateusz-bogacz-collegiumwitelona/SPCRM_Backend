@@ -6,19 +6,17 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Currency;
 
 namespace Api.Controllers
 {
     [Route("api/currency")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class CurrencyController : BaseControlle
     {
         [EndpointSummary("Get currency list")]
         [EndpointDescription("Get simple currency list with no pagination, sorting and filtering.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<CurrencyListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple")]
         [Authorize]
         public async Task<IActionResult> GetCurrencySimpleListAsync([FromServices] ICurrencyServices currency)
@@ -29,7 +27,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get currency list with pagination, sorting and filtering")]
         [EndpointDescription("Get currency list with pagination, sorting and filtering.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<CurrencyListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetCurrenyListAsync(
@@ -43,6 +41,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add currency")]
         [EndpointDescription("Add a new currency.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddCurrencyAsync(
@@ -56,6 +55,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit currency")]
         [EndpointDescription("Edit currency by id.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> EditCurrencyAsync(

@@ -110,6 +110,7 @@
         public const string InvalidPromotioMinQuantity = "PROM_006";
         public const string InvalidPromotioMinWeight = "PROM_007";
         public const string DiscountPercentageAndPriceCannotBothChoice = "PROM_008";
+        public const string PromotionNameAlreadyExists = "PROM_009";
 
         // Currency
         public const string CurrencyNotFound = "CUR_001";

@@ -244,7 +244,7 @@ namespace Services.Services
                         _logger.LogWarning("Steel grade with this name: {name} already exists", normalizedName);
                         return Result.Failure(
                             message: "Steel grade with this name already exists",
-                            statusCode: StatusCodes.Status400BadRequest,
+                            statusCode: StatusCodes.Status409Conflict,
                             errorCode: ErrorCodes.SteelGradeAlreadyExist
                         );
                     }
@@ -289,7 +289,7 @@ namespace Services.Services
                 _logger.LogWarning("Steel grade with this name: {name} already exist", normalizedName);
                 return Result.Failure(
                     message: "Steel grade with this name already exist",
-                    statusCode: StatusCodes.Status400BadRequest,
+                    statusCode: StatusCodes.Status409Conflict,
                     errorCode: ErrorCodes.SteelGradeAlreadyExist
                 );
             }

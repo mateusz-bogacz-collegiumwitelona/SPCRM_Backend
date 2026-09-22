@@ -7,19 +7,20 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Contact;
+using Services.Response.Note;
+using Services.Response.Task;
+using Services.Response.User;
 
 namespace Api.Controllers
 {
     [Route("api/contacts")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class ContactController : BaseControlle
     {
         [EndpointSummary("Get contacts")]
         [EndpointDescription("Show all contacts.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<ContactsResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactsAsync(
@@ -37,7 +38,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get companies")]
         [EndpointDescription("Show all companies in contact list.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("companies")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetCompaniesAsync([FromServices] IContactServices contact)
@@ -48,7 +49,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact detail")]
         [EndpointDescription("Show detail of a specific contact.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<ContactsResponse>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactDetailAsync(
@@ -62,6 +63,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact ways")]
         [EndpointDescription("Show all ways to contact a specific contact.")]
+        [ProducesResponseType(typeof(Result<List<ContactWayResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}/ways")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactWaysAsync(
@@ -74,6 +76,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact notes")]
         [EndpointDescription("Show all notes for a specific contact.")]
+        [ProducesResponseType(typeof(Result<PagedResult<ContactNoteResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}/notes")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactNotesAsync(
@@ -90,6 +93,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add contact")]
         [EndpointDescription("Add a new contact.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddContactAsync(
@@ -102,9 +106,10 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpGet("types")]
         [EndpointSummary("Get contact types")]
         [EndpointDescription("Show all available contact types.")]
+        [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
+        [HttpGet("types")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactTypesAsync([FromServices] IContactServices contact)
         {
@@ -112,9 +117,10 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpPatch("edit")]
         [EndpointSummary("Edit contact")]
         [EndpointDescription("Edit an existing contact.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [HttpPatch("edit")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> EditContactAsync(
             [FromServices] IContactServices contact,
@@ -126,22 +132,24 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [EndpointSummary("Get contact detail command")]
-        [EndpointDescription("Show detail command for a specific contact.")]
+        [EndpointSummary("Get contact detail with ways")]
+        [EndpointDescription("Show detail with ways for a specific contact.")]
+        [ProducesResponseType(typeof(Result<ContacDetailWithWaysResponse>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}/detail")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetContactDetailCommandAsync(
+        public async Task<IActionResult> GetContactDetailWithWaysAsync(
             [FromServices] IContactServices contact,
             [FromRoute] Guid contactId
             )
         {
-            var result = await contact.GetContactDetailCommand(contactId);
+            var result = await contact.GetContactDetailWithWaysAsync(contactId);
             return HandleResult(result);
         }
 
 
         [EndpointSummary("Set contact as primary")]
         [EndpointDescription("Changes the specified contact to be the primary contact for their company.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("{contactId:guid}/set-primary")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> SetPrimaryContactAsync(
@@ -154,6 +162,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete contact")]
         [EndpointDescription("Delete an existing contact.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{contactId:guid}")]
         [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> DeleteContactAsync(
@@ -166,6 +175,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change contact owner")]
         [EndpointDescription("Change the owner of a contact.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("change-owner")]
         [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> ChangeContactOwnerAsync(
@@ -179,6 +189,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get available owners")]
         [EndpointDescription("Show all available owners.")]
+        [ProducesResponseType(typeof(Result<List<OwnerResponse>>), StatusCodes.Status200OK)]
         [HttpGet("available-owners")]
         [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> GetAvailableOwnersAsync([FromServices] IUserServices user)
@@ -189,6 +200,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get available contacts to use in create deal")]
         [EndpointDescription("Get available contacts to use in create deal")]
+        [ProducesResponseType(typeof(Result<PagedResult<ContactDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet("to-deals")]
         [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetContactToDealAsync(
@@ -203,6 +215,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get contact tasks")]
         [EndpointDescription("Returns a paginated list of tasks associated with a specific contact.")]
+        [ProducesResponseType(typeof(Result<PagedResult<ContactTaskResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetContactTaskAsync(
@@ -218,6 +231,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add contact tasks")]
         [EndpointDescription("Add task to a specific contact.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{contactId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> AddContactTaskAsync(

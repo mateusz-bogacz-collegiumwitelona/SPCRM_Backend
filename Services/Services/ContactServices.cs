@@ -390,7 +390,7 @@ namespace Services.Services
             }
         }
 
-        public async Task<Result<ContactDetailCommand>> GetContactDetailCommand(Guid contactId)
+        public async Task<Result<ContacDetailWithWaysResponse>> GetContactDetailWithWaysAsync(Guid contactId)
         {
             var contactData = await _context.Contacts
                 .AsNoTracking()
@@ -405,7 +405,7 @@ namespace Services.Services
                     c.OwnerId,
                     Details = c.ContactDetails
                         .Where(cd => !cd.IsDeleted)
-                        .Select(cd => new ContactDetailDetailCommand
+                        .Select(cd => new ContactWayDetailResponse
                         {
                             ContactDetailId = cd.Id,
                             Label = cd.Label ?? string.Empty,
@@ -420,7 +420,7 @@ namespace Services.Services
             if (contactData == null)
             {
                 _logger.LogInformation("Contact with id: {ContactId} doesn't exist.", contactId);
-                return Result<ContactDetailCommand>.Failure(
+                return Result<ContacDetailWithWaysResponse>.Failure(
                     message: "Contact not found",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.ContactNotFound
@@ -433,7 +433,7 @@ namespace Services.Services
                 throw new DataCorruptionException($"Contact '{contactData.Id}' has corrupted company or owner relation.");
             }
 
-            var response = new ContactDetailCommand
+            var response = new ContacDetailWithWaysResponse
             {
                 ContactId = contactData.Id,
                 FirstName = contactData.FirstName,
@@ -442,7 +442,7 @@ namespace Services.Services
                 Details = contactData.Details
             };
 
-            return Result<ContactDetailCommand>.Success(
+            return Result<ContacDetailWithWaysResponse>.Success(
                 message: "Contact detail review successfully",
                 statusCode: StatusCodes.Status200OK,
                 data: response

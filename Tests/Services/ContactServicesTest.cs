@@ -1398,10 +1398,10 @@ namespace Tests.Services
             await Assert.That(addedDetail.Value).IsEqualTo("linkedin.com/in/test");
         }
 
-        // ─── GetContactDetailCommand ──────────────────────────────────────────
+        // ─── GetContactDetailWithWaysAsync ──────────────────────────────────────────
 
         [Test]
-        public async Task GetContactDetailCommand_WhenContactExists_ReturnsContactDetailsSuccessfully()
+        public async Task GetContactDetailWithWaysAsync_WhenContactExists_ReturnsContactDetailsSuccessfully()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1459,7 +1459,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
 
             // Act
-            var result = await _contactServicesMock.GetContactDetailCommand(contactId);
+            var result = await _contactServicesMock.GetContactDetailWithWaysAsync(contactId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -1482,13 +1482,13 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task GetContactDetailCommand_WhenContactDoesNotExist_Returns404NotFound()
+        public async Task GetContactDetailWithWaysAsync_WhenContactDoesNotExist_Returns404NotFound()
         {
             // Arrange
             var nonExistentContactId = Guid.NewGuid();
 
             // Act
-            var result = await _contactServicesMock.GetContactDetailCommand(nonExistentContactId);
+            var result = await _contactServicesMock.GetContactDetailWithWaysAsync(nonExistentContactId);
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();

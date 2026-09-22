@@ -11,19 +11,21 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
+using Services.Response.Company;
+using Services.Response.Contact;
+using Services.Response.Deal;
+using Services.Response.Task;
+using Services.Response.User;
 
 namespace Api.Controllers
 {
     [Route("api/user")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class UserController : BaseControlle
     {
         [EndpointSummary("Get simple list of users")]
         [EndpointDescription("Get list of users without serach, paggination etc. And without admins")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<List<UserSimpleListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple")]
         [Authorize]
         public async Task<IActionResult> GetUserSimpleListAsync(
@@ -36,6 +38,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get list of users")]
         [EndpointDescription("Get list of users with search, paggination etc.")]
+        [ProducesResponseType(typeof(Result<PagedResult<UserListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserListAsync(
@@ -50,6 +53,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add new user")]
         [EndpointDescription("Add new user with role")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("create")]
         [Authorize(Roles = "Admin")]
         [EnableRateLimiting("expensive")]
@@ -65,6 +69,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Confirm email")]
         [EndpointDescription("Confirm email with token")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("confirm-email")]
         [AllowAnonymous]
         [EnableRateLimiting("auth-strict")]
@@ -80,6 +85,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Lock out a user")]
         [EndpointDescription("Locks out a user account until a specified date or indefinitely.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("lockout")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> LockoutUserAsync(
@@ -94,6 +100,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Unlock a user")]
         [EndpointDescription("Unlocks a currently locked user account.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("{id:guid}/unlock")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UnlockUserAsync(
@@ -107,6 +114,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Soft delete a user")]
         [EndpointDescription("Soft-deletes a user account and reassigns active companies, contacts, open deals and tasks to another active user.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUserAsync(
@@ -121,6 +129,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit user details")]
         [EndpointDescription("Updates user profile information such as first name, last name, or email.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> EditUserAsync(
@@ -135,6 +144,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Initiate email change")]
         [EndpointDescription("Admin initiates an email change process for a user. Sends confirmation link to new email and alert to old email.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("change-email")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeUserEmailAsync(
@@ -149,6 +159,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Confirm email change")]
         [EndpointDescription("Confirms user email change using the token sent to the new email address.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("confirm-email-change")]
         [AllowAnonymous]
         [EnableRateLimiting("auth-strict")]
@@ -164,6 +175,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Change user role")]
         [EndpointDescription("Updates user role and invalidates user active security stamp.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("role")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeRoleAsync(
@@ -178,6 +190,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get user detail")]
         [EndpointDescription("Retrieves the details of a specific user.")]
+        [ProducesResponseType(typeof(Result<UserDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{id:guid}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserDetailAsync(
@@ -192,6 +205,7 @@ namespace Api.Controllers
         [EndpointSummary("Get paginated list of companies owned by user")]
         [EndpointDescription("Returns a paginated list of companies assigned to the specified user " +
             "with optional filtering, sorting, and search term.")]
+        [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/companies")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserCompaniesAsync(
@@ -218,6 +232,7 @@ namespace Api.Controllers
         [EndpointSummary("Get paginated list of contacts owned by user")]
         [EndpointDescription("Returns a paginated list of contacts assigned to the specified user " +
             "with optional filtering, sorting, and search term.")]
+        [ProducesResponseType(typeof(Result<PagedResult<ContactsResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/contacts")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserContactsAsync(
@@ -244,6 +259,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get paginated list of sales/deals owned by user")]
         [EndpointDescription("Returns a paginated list of deals assigned to the specified user with optional filtering, sorting, and search term.")]
+        [ProducesResponseType(typeof(Result<PagedResult<UserDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/sales")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserSalesAsync(
@@ -263,6 +279,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get paginated list of tasks assigned to user")]
         [EndpointDescription("Returns a paginated list of tasks assigned to the specified user with optional filtering, sorting, and search term.")]
+        [ProducesResponseType(typeof(Result<PagedResult<UserTaskResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/tasks")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserTasksAsync(
@@ -278,6 +295,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get list of system roles")]
         [EndpointDescription("Returns list of available system roles for filters and selects.")]
+        [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("roles")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetRolesAsync([FromServices] IUserServices userServices)

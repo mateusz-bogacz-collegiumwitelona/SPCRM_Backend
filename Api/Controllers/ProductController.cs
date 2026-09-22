@@ -7,20 +7,19 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Command.Product;
 using Services.Interfaces;
+using Services.Response.Product;
+using Services.Response.SteelGrade;
 
 namespace Api.Controllers
 {
     [Route("api/products")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class ProductController : BaseControlle
     {
 
         [EndpointSummary("Get product list")]
         [EndpointDescription("Get product list with pagination, sorting and filtering.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<ProductResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetProductListAsync(
@@ -38,7 +37,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get product categories")]
         [EndpointDescription("Get a list of all product categories.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<IEnumerable<string>>), StatusCodes.Status200OK)]
         [HttpGet("categories")]
         [Authorize]
         public async Task<IActionResult> GetProductCategoryAsync([FromServices] IProductSevices productServices)
@@ -49,7 +48,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get product steel grades")]
         [EndpointDescription("Get a list of all product steel grades.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<IEnumerable<SteelGradeResponse>>), StatusCodes.Status200OK)]
         [HttpGet("steel-grades")]
         [Authorize]
         public async Task<IActionResult> GetSteelGradesAsync([FromServices] ISteelGradeServices steelGradeServices)
@@ -60,7 +59,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get product details")]
         [EndpointDescription("Get product details by product id.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<ProductDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{productId:guid}")]
         [Authorize]
         public async Task<IActionResult> GetProductDetailsAsync(
@@ -74,7 +73,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Add product")]
         [EndpointDescription("Add a new product.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddProductAsync(
@@ -89,7 +88,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Update product")]
         [EndpointDescription("Update an existing product.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{productId:guid}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateProductAsync(
@@ -105,7 +104,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get product details for editing")]
         [EndpointDescription("Get product details for editing by product id.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<EditProductDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("edit/{productId:guid}")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetProductEditDetailAsync(
@@ -119,7 +118,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete product")]
         [EndpointDescription("Delete a product by product id.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{productId:guid}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteProductAsync(
@@ -131,10 +130,11 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpGet("search")]
-        [Authorize]
         [EndpointSummary("Search products for autocomplete")]
         [EndpointDescription("Returns up to 50 active products matching name or steel grade.")]
+        [ProducesResponseType(typeof(Result<List<ProductAutocompleteResponse>>), StatusCodes.Status200OK)]
+        [HttpGet("search")]
+        [Authorize]
         public async Task<IActionResult> SearchProductsAsync(
             [FromServices] IProductSevices productServices,
             [FromServices] ProductMapper mapper,
@@ -145,10 +145,11 @@ namespace Api.Controllers
             return HandleResult(result);
         }
 
-        [HttpPost("{productId:guid}/stock")]
-        [Authorize]
         [EndpointSummary("Add product stock")]
         [EndpointDescription("Add stock to an existing product.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [HttpPost("{productId:guid}/stock")]
+        [Authorize]
         public async Task<IActionResult> AddProductStockAsync(
             [FromServices] IProductSevices productServices,
             [FromServices] ProductMapper mapper,
@@ -162,6 +163,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get product deals")]
         [EndpointDescription("Get a paginated list of deals associated with a specific product. This endpoint has a search capability.")]
+        [ProducesResponseType(typeof(Result<PagedResult<ProductDealItemResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{productId:guid}/deals")]
         [Authorize]
         public async Task<IActionResult> GetProductDealsAsync(
@@ -177,6 +179,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get product invoices")]
         [EndpointDescription("Get a paginated list of invoices associated with a specific product. This endpoint has a search capability.")]
+        [ProducesResponseType(typeof(Result<PagedResult<ProductInvoiceItemResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{productId:guid}/invoices")]
         [Authorize]
         [ProducesResponseType(typeof(Result<PagedResult<ProductInvoiceItemResponse>>), StatusCodes.Status200OK)]

@@ -5,19 +5,17 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Promotion;
 
 namespace Api.Controllers
 {
     [Route("api/promotion")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class PromotionController : BaseControlle
     {
         [EndpointSummary("Get promotion list")]
         [EndpointDescription("Get promotion list with pagination, sorting and filtering.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PagedResult<PromotionResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetPromotionListAsync(
@@ -32,7 +30,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get promotion detail")]
         [EndpointDescription("Get detailed information about a specific promotion.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result<PromotionDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{promotionId:guid}")]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetPromotionDetailAsync(
@@ -46,7 +44,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Deactivate promotion")]
         [EndpointDescription("Deactivates an active promotion and sets its end date to now.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("{promotionId:guid}/deactivate")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeactivatePromotionAsync(
@@ -60,7 +58,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Activate promotion")]
         [EndpointDescription("Activates an inactive promotion and sets its start date to now.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch("activate")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> ActivatePromotionAsync(
@@ -75,7 +74,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete promotion (Soft delete)")]
         [EndpointDescription("Soft deletes a promotion.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{promotionId:guid}")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeletePromotionAsync(
@@ -89,7 +88,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit promotion")]
         [EndpointDescription("Edits an existing promotion.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch("edit")]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> EditPromotionAsync(
@@ -105,6 +105,7 @@ namespace Api.Controllers
         [EndpointSummary("Create promotion")]
         [EndpointDescription("Creates a new active promotion for a specific product.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> AddPromotionAsync(

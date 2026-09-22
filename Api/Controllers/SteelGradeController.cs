@@ -6,19 +6,18 @@ using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
+using Services.Response.Product;
+using Services.Response.SteelGrade;
 
 namespace Api.Controllers
 {
-
     [Route("api/steel-grade")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class SteelGradeController : BaseControlle
     {
         [EndpointSummary("Get steel grade list")]
         [EndpointDescription("Get steel grade list with pagination, sorting and search.")]
+        [ProducesResponseType(typeof(Result<PagedResult<SteelGradeListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetSteelGradeListAsync(
@@ -33,6 +32,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get associated products for a steel grade")]
         [EndpointDescription("Get a list of products associated with a specific steel grade.")]
+        [ProducesResponseType(typeof(Result<List<ProductSimpleResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{steelGradeId:guid}/products")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAssociatedProductsAsync(
@@ -45,6 +45,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Delete a steel grade")]
         [EndpointDescription("Delete a steel grade and update related products.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{steelGradeId:guid}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteSteelGradeAsync(
@@ -62,6 +63,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit a steel grade")]
         [EndpointDescription("Edit the details of an existing steel grade.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> EditSteelGradeAsync(
@@ -75,6 +78,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Create a new steel grade")]
         [EndpointDescription("Create a new steel grade with the specified details.")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddSteelGradeAsync(

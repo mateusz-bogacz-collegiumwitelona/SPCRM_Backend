@@ -8,19 +8,18 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
+using Services.Response.Contact;
+using Services.Response.Product;
 
 namespace Api.Controllers
 {
     [Route("api/mailing")]
     [ApiController]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status500InternalServerError)]
     public class MailingController : BaseControlle
     {
         [EndpointSummary("Send email to support")]
         [EndpointDescription("Sends an email to the support team with the provided details.")]
-        [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("support")]
         [AllowAnonymous]
         [EnableRateLimiting("auth-strict")]
@@ -38,6 +37,7 @@ namespace Api.Controllers
         [EndpointDescription("Sends promotional product mailing emails to specified clients and automatically creates persistent, " +
             "trackable offer records in the database with their respective quoted prices and expiration details.")]
         [HttpPost("offert")]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [Authorize(Roles = "User,Manager")]
         [EnableRateLimiting("expensive")]
         public async Task<IActionResult> SendProductMailingAsync(
@@ -52,6 +52,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get client data for mailing")]
         [EndpointDescription("Retrieves a list of client contacts for mailing purposes, with optional search and pagination.")]
+        [ProducesResponseType(typeof(Result<PagedResult<MailingClientResponse>>), StatusCodes.Status200OK)]
         [HttpGet("contacts")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetClientDataToMailingAsync(
@@ -66,6 +67,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Get product data for mailing")]
         [EndpointDescription("Retrieves a list of products for mailing purposes, with optional search and pagination.")]
+        [ProducesResponseType(typeof(Result<PagedResult<MailingProductResponse>>), StatusCodes.Status200OK)]
         [HttpGet("products")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetProductDataToMailingAsync(

@@ -84,7 +84,6 @@ namespace Infrastructure.Pdf
                         col.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5)
                             .Text(data.PeriodTitle).Bold().FontSize(12);
 
-                        // Tabela z historią i sumami per waluta
                         col.Item().PaddingTop(10).Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
@@ -108,7 +107,6 @@ namespace Infrastructure.Pdf
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten3).AlignRight().Padding(5).Text(metric.DealsWonCount.ToString());
                             }
 
-                            // Suma łączna walut w stopce tabeli
                             var currencyTotals = (data.HistoryMetrics ?? Enumerable.Empty<HistoryMetricCommand>())
                                 .SelectMany(m => m.Revenue)
                                 .GroupBy(r => new { r.CurrencyCode, r.DecimalPlaces })
@@ -127,7 +125,6 @@ namespace Infrastructure.Pdf
                             table.Cell().BorderTop(1.5f).BorderColor(Colors.Grey.Darken1).AlignRight().Padding(5).Text(totalDeals.ToString()).Bold();
                         });
 
-                        // Diagramy - jeden wykres dla każdej waluty
                         if (data.HistoryMetrics != null && data.HistoryMetrics.Any())
                         {
                             var charts = AnalyticsChartPdfHelper.GenerateRevenueChartsPerCurrency(data.HistoryMetrics);
@@ -266,7 +263,6 @@ namespace Infrastructure.Pdf
                             });
                         }
 
-                        // Wykresy zespołu per waluta
                         if (data.HistoryMetrics is { Count: > 0 })
                         {
                             var charts = AnalyticsChartPdfHelper.GenerateRevenueChartsPerCurrency(data.HistoryMetrics);

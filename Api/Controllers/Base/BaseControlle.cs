@@ -4,6 +4,12 @@ using System.Security.Claims;
 
 namespace Api.Controllers.Base
 {
+    [ProducesResponseType(typeof(Result), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status500InternalServerError)]
     public abstract class BaseControlle : ControllerBase
     {
         protected Guid CurrentUserId

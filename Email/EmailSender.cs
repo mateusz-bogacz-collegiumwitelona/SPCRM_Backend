@@ -34,7 +34,7 @@ namespace Email
                     "report.html",
                     "Zgłoszenie techniczne / Błąd",
                     "pl",
-                    "background-color: #0f172a;"); 
+                    "background-color: #0f172a;");
 
                 template = template
                     .Replace("{{Name}}", report.UserName)
