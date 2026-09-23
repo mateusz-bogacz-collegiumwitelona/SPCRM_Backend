@@ -239,7 +239,17 @@ namespace Services.Services
         }
 
         public async Task<Result<PagedResult<UserTaskResponse>>> GetUserTasksAsync(TaskListCommand command, Guid userId)
-            => await _context.Tasks
+        {
+            if (await _entityAuth.IsAdminAsync(userId))
+            {
+                return Result<PagedResult<UserTaskResponse>>.Success(
+                        message: "No tasks found.",
+                        statusCode: StatusCodes.Status200OK,
+                        data: PaginationHelper.CreateEmptyPagedResult<UserTaskResponse>(command.PageNumber, command.PageSize)
+                    );
+            }
+
+            return await _context.Tasks
                     .AsNoTracking()
                     .Where(t => t.AssignedToId == userId)
                     .ApplySearch(command.SearchTerm ?? string.Empty)
@@ -256,7 +266,7 @@ namespace Services.Services
                         DealName = t.Deal != null ? t.Deal.Name : null
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "user-tasks", _ct);
-
+        }
         public async Task<Result<PagedResult<DealTaskResponse>>> GetDealTasksAsync(
             Guid dealId,
             TaskListCommand command,
@@ -311,6 +321,17 @@ namespace Services.Services
         public async Task<Result> AddTaskAsync(AddTaskCommand command, Guid userId)
         {
             var targetAssigneeId = command.AssignedToId ?? userId;
+
+
+            if (await _entityAuth.IsAdminAsync(targetAssigneeId))
+            {
+                _logger.LogWarning("Attempted to create task assigned to an admin user {TargetAssigneeId}.", targetAssigneeId);
+                return Result.Failure(
+                    message: "Cannot assign a task to an administrator.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
 
             if (targetAssigneeId != userId)
             {
@@ -600,6 +621,16 @@ namespace Services.Services
                     message: "Assigned user not found.",
                     statusCode: StatusCodes.Status404NotFound,
                     errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
+            if (await _entityAuth.IsAdminAsync(newAssignedToUserId))
+            {
+                _logger.LogWarning("Manager {ManagerId} attempted to assign Task {TaskId} to an admin user {UserId}.", managerId, taskId, newAssignedToUserId);
+                return Result.Failure(
+                    message: "Cannot assign a task to an administrator.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
                 );
             }
 

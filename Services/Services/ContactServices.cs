@@ -40,25 +40,36 @@ namespace Services.Services
             _ctAccessor = ctAccessor;
         }
 
-        public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command)
-            => await _context.Contacts
-                    .Include(c => c.Company)
-                    .AsNoTracking()
-                    .ApplyFilter(command.ComapnyName, command.IsPrimary, command.OwnerId)
-                    .ApplySearch(command.SearchTerm ?? string.Empty)
-                    .ApplySorting(command.SortBy, command.SortDescending)
-                    .Select(c => new ContactsResponse
-                    {
-                        Id = c.Id,
-                        FirstName = c.FirstName,
-                        LastName = c.LastName,
-                        JobTitle = c.JobTitle ?? string.Empty,
-                        CompanyName = c.Company.Name,
-                        OwnerFirstName = c.Owner.FirstName,
-                        OwnerLastName = c.Owner.LastName,
-                        IsPrimary = c.IsPrimary
-                    })
-                    .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts", _ct);
+        public async Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command, Guid userId)
+        {
+            if (await _entityAuth.IsAdminAsync(userId))
+            {
+                return Result<PagedResult<ContactsResponse>>.Success(
+                    message: "No companies found.",
+                    statusCode: StatusCodes.Status200OK,
+                    data: PaginationHelper.CreateEmptyPagedResult<ContactsResponse>(command.PageNumber, command.PageSize)
+                );
+            }
+
+            return await _context.Contacts
+                .Include(c => c.Company)
+                .AsNoTracking()
+                .ApplyFilter(command.ComapnyName, command.IsPrimary, command.OwnerId)
+                .ApplySearch(command.SearchTerm ?? string.Empty)
+                .ApplySorting(command.SortBy, command.SortDescending)
+                .Select(c => new ContactsResponse
+                {
+                    Id = c.Id,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName,
+                    JobTitle = c.JobTitle ?? string.Empty,
+                    CompanyName = c.Company.Name,
+                    OwnerFirstName = c.Owner.FirstName,
+                    OwnerLastName = c.Owner.LastName,
+                    IsPrimary = c.IsPrimary
+                })
+                .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contacts", _ct);
+        }
 
 
         public async Task<Result<List<string>>> GetCompaniesAsync()

@@ -9,7 +9,7 @@ namespace Services.Interfaces
 {
     public interface IContactServices
     {
-        Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command);
+        Task<Result<PagedResult<ContactsResponse>>> GetContactsAsync(ContactListCommand command, Guid userId);
         Task<Result<List<string>>> GetCompaniesAsync();
         Task<Result<PagedResult<CompanyContactResponse>>> GetCompanyContactsAsync(CompanyCommand command);
         Task<Result<ContactsResponse>> GetContactDetailAsync(Guid contactId);

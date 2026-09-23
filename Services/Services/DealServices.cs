@@ -58,6 +58,15 @@ namespace Services.Services
         {
             var effectiveOwnerId = forcedOwnerId ?? command.OwnerId;
 
+            if (effectiveOwnerId.HasValue && await _entityAuth.IsAdminAsync(effectiveOwnerId.Value))
+            {
+                return Result<PagedResult<UserDealResponse>>.Success(
+                    message: "No sales found.",
+                    statusCode: StatusCodes.Status200OK,
+                    data: PaginationHelper.CreateEmptyPagedResult<UserDealResponse>(command.PageNumber, command.PageSize)
+                );
+            }
+
             return await _context.Deals
                        .AsNoTracking()
                        .ApplyFilter(

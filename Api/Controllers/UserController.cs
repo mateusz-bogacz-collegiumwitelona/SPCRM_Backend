@@ -47,7 +47,7 @@ namespace Api.Controllers
             [FromQuery] UserListRequest request
             )
         {
-            var result = await user.GetUserListAsync(mapper.MapList(request));
+            var result = await user.GetUserListAsync(mapper.MapList(request), CurrentUserId);
             return HandleResult(result);
         }
 
@@ -253,7 +253,7 @@ namespace Api.Controllers
                 search
             );
 
-            var result = await contactServices.GetContactsAsync(command);
+            var result = await contactServices.GetContactsAsync(command, CurrentUserId);
             return HandleResult(result);
         }
 

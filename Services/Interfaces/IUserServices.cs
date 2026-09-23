@@ -8,7 +8,7 @@ namespace Services.Interfaces
     public interface IUserServices
     {
         Task<Result<List<UserSimpleListResponse>>> GetUserSimpleListAsync();
-        Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command);
+        Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command, Guid userId);
         Task<Result<List<OwnerResponse>>> GetAvailableOwnersAsync();
         Task<Result> CreateUserAsync(AddUserCommand command);
         Task<Result> ConfirmEmailAsync(ConfirmEmailCommand command);

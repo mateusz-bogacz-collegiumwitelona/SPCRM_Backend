@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using Services.Accessors;
 using Services.Command.Note;
+using Services.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
 using Tests.Services.Fakes;
@@ -32,6 +33,8 @@ namespace Tests.Services
         protected RoleManager<IdentityRole<Guid>> _roleManagerMock = null!;
         private string _currentSchema = null!;
         private ICancellationTokenAccessor _ctMock = null!;
+        protected IEntityAuthorizationService _entityAuthMock = null!;
+
 
         [Before(Class)]
         [Obsolete]
@@ -120,10 +123,10 @@ namespace Tests.Services
                 );
 
             _loggerMock = new LoggerFactory().CreateLogger<NoteServices>();
-
+            _entityAuthMock = new EntityAuthorizationService(_contextMock);
             _ctMock = new FakeCancellationTokenAccessor();
 
-            _noteServicesMock = new NoteServices(_contextMock, _loggerMock, _userManagerMock, _ctMock);
+            _noteServicesMock = new NoteServices(_contextMock, _loggerMock, _entityAuthMock, _ctMock);
         }
 
         [After(Test)]

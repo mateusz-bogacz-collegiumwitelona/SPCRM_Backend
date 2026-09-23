@@ -32,7 +32,7 @@ namespace Api.Controllers
             [FromQuery] SearchRequest search
             )
         {
-            var result = await contact.GetContactsAsync(mapper.MapContactList(pagged, filter, sorting, search));
+            var result = await contact.GetContactsAsync(mapper.MapContactList(pagged, filter, sorting, search), CurrentUserId);
             return HandleResult(result);
         }
 

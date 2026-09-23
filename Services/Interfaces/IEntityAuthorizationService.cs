@@ -4,5 +4,6 @@
     {
         Task<bool> CanModifyAsync(Guid currentUserId, Guid resourceOwnerId);
         Task<bool> CanAccessAsync(Guid userId);
+        Task<bool> IsAdminAsync(Guid userId);
     }
 }

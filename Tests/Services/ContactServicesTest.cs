@@ -169,7 +169,7 @@ namespace Tests.Services
             var command = new ContactListCommand { PageNumber = 1, PageSize = 10 };
 
             // Act
-            var result = await _contactServicesMock.GetContactsAsync(command);
+            var result = await _contactServicesMock.GetContactsAsync(command, owner.Id);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
@@ -249,7 +249,7 @@ namespace Tests.Services
             };
 
             // Act
-            var result = await _contactServicesMock.GetContactsAsync(command);
+            var result = await _contactServicesMock.GetContactsAsync(command, owner.Id);
 
             await Assert.That(result.IsSuccess).IsTrue();
             var items = result.Data!.Items;
@@ -329,7 +329,7 @@ namespace Tests.Services
             var command = new ContactListCommand { PageNumber = 1, PageSize = 2 };
 
             // Act
-            var result = await _contactServicesMock.GetContactsAsync(command);
+            var result = await _contactServicesMock.GetContactsAsync(command, owner.Id);
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();

@@ -5,7 +5,6 @@ using Domain.Exceptions.Exception;
 using Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services.Accessors;
@@ -21,8 +20,7 @@ namespace Services.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<NoteServices> _logger;
-        private readonly UserManager<ApplicationUser> _userManager;
-
+        private readonly IEntityAuthorizationService _entityAuth;
         private readonly ICancellationTokenAccessor _ctAccessor;
 
         private CancellationToken _ct => _ctAccessor.Token;
@@ -30,13 +28,13 @@ namespace Services.Services
         public NoteServices(
             AppDbContext context,
             ILogger<NoteServices> logger,
-            UserManager<ApplicationUser> roleManger,
+            IEntityAuthorizationService entityAuth,
             ICancellationTokenAccessor ctAccessor
             )
         {
             _context = context;
             _logger = logger;
-            _userManager = roleManger;
+            _entityAuth = entityAuth;
             _ctAccessor = ctAccessor;
         }
 
@@ -59,7 +57,6 @@ namespace Services.Services
                     UpdateAt = n.UpdateAt,
                     AuthorId = n.Author.Id,
                 }).ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "contact_notes", _ct);
-
 
         public async Task<Result<List<NoteResponse>>> GetDealNotesAsync(Guid dealId)
         {
@@ -149,19 +146,19 @@ namespace Services.Services
                 throw new DataCorruptionException($"Note '{note.Id}' has no valid author.");
             }
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            var userExists = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.Id == userId && !u.IsDeleted);
 
-            if (user == null)
+            if (!userExists)
             {
                 _logger.LogError("Security/Integrity violation: User with ID {UserId} does not exist.", userId);
                 throw new UserNotFoundException(userId);
             }
 
-            var isAuthor = user.Id == note.AuthorId;
+            var isAuthor = userId == note.AuthorId;
 
-
-            if (!isAuthor && !await HasAccessAsync(user))
+            if (!isAuthor && !await HasElevatedAccessAsync(userId))
             {
                 _logger.LogWarning("Security violation: User {UserId} attempted to edit note {NoteId} owned by {AuthorId}.", userId, command.Id, note.AuthorId);
                 throw new ForbiddenException("You are not authorized to edit this note.");
@@ -279,9 +276,11 @@ namespace Services.Services
                 throw new DataCorruptionException($"Note '{note.Id}' has no valid author.");
             }
 
-            var user = await _userManager.FindByIdAsync(userId.ToString());
+            var userExists = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.Id == userId && !u.IsDeleted);
 
-            if (user == null || user.IsDeleted)
+            if (!userExists)
             {
                 _logger.LogError("Security/Integrity violation: User with ID {UserId} does not exist or is deleted.", userId);
                 throw new UserNotFoundException(userId);
@@ -289,7 +288,7 @@ namespace Services.Services
 
             var isAuthor = note.AuthorId == userId;
 
-            if (!isAuthor && !await HasAccessAsync(user))
+            if (!isAuthor && !await HasElevatedAccessAsync(userId))
             {
                 _logger.LogWarning("Security violation: User {UserId} attempted to delete note {NoteId} owned by {AuthorId}.", userId, noteId, note.AuthorId);
                 throw new ForbiddenException("You are not authorized to delete this note.");
@@ -306,8 +305,7 @@ namespace Services.Services
             );
         }
 
-        private async Task<bool> HasAccessAsync(ApplicationUser user)
-            => await _userManager.IsInRoleAsync(user, BusinessConstants.RoleManager) || await _userManager.IsInRoleAsync(user, BusinessConstants.RoleAdmin);
-
+        private async Task<bool> HasElevatedAccessAsync(Guid userId)
+            => await _entityAuth.CanAccessAsync(userId) || await _entityAuth.IsAdminAsync(userId);
     }
 }

@@ -29,7 +29,7 @@ namespace Services.Services
         private readonly ILogger<UserServices> _logger;
         private readonly IEmailSender _emailSender;
         private readonly ICancellationTokenAccessor _ctAccessor;
-
+        private readonly IEntityAuthorizationService _entityAuth;
         private CancellationToken _ct => _ctAccessor.Token;
 
         public UserServices(
@@ -38,7 +38,8 @@ namespace Services.Services
             AppDbContext context,
             ILogger<UserServices> logger,
             IEmailSender emailSender,
-            ICancellationTokenAccessor ctAccessor)
+            ICancellationTokenAccessor ctAccessor,
+            IEntityAuthorizationService entityAuth)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -46,6 +47,7 @@ namespace Services.Services
             _logger = logger;
             _emailSender = emailSender;
             _ctAccessor = ctAccessor;
+            _entityAuth = entityAuth;
         }
 
         public async Task<Result<List<UserSimpleListResponse>>> GetUserSimpleListAsync()
@@ -76,7 +78,7 @@ namespace Services.Services
             );
         }
 
-        public async Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command)
+        public async Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command, Guid userId)
         {
             var hasUsersWithoutRole = await _context.Users
                  .Where(u => !u.IsDeleted)
@@ -87,11 +89,22 @@ namespace Services.Services
                 throw new MissingUserRoleException();
             }
 
+            bool isManager = await _entityAuth.CanAccessAsync(userId);
+
+            var query = _context.Users
+            .AsNoTracking()
+            .Where(u => !u.IsDeleted);
+
+
+            if (isManager)
+            {
+                query = query.Where(u => _context.UserRoles.Any(ur => ur.UserId == u.Id
+                    && _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName != BusinessConstants.AdminNormalized)));
+            }
+
             var now = DateTimeOffset.UtcNow;
 
-            return await _context.Users
-                .AsNoTracking()
-                .Where(u => !u.IsDeleted)
+            return await query
                 .ApplySearch(command.SearchTerm, _context)
                 .ApplyFilter(command.Role, command.IsBlocked, _context)
                 .ApplySorting(command.SortBy, command.SortDescending, _context)

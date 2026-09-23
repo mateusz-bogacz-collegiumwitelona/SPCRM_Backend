@@ -79,9 +79,8 @@ namespace Services.Helpers
             }
         }
 
-        private static PagedResult<T> CreateEmptyPagedResult<T>(int? number, int? size)
-        {
-            return new PagedResult<T>
+        public static PagedResult<T> CreateEmptyPagedResult<T>(int? number, int? size)
+            => new PagedResult<T>
             {
                 Items = new List<T>(),
                 PageNumber = number ?? 1,
@@ -89,6 +88,5 @@ namespace Services.Helpers
                 TotalCount = 0,
                 TotalPages = 0
             };
-        }
     }
 }

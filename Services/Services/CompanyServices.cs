@@ -129,7 +129,18 @@ namespace Services.Services
 
 
         public async Task<Result<PagedResult<CompanyResponse>>> GetCompanyListAsync(CompanyListCommand command)
-            => await _context.Companies
+        {
+            if (await _entityAuth.IsAdminAsync(command.UserId))
+            {
+                return Result<PagedResult<CompanyResponse>>.Success(
+                    message: "No companies found.",
+                    statusCode: StatusCodes.Status200OK,
+                    data: PaginationHelper.CreateEmptyPagedResult<CompanyResponse>(command.PageNumber, command.PageSize)
+                );
+            }
+
+
+            return await _context.Companies
                     .ApplyFiler(command.IsYour, command.CreatedAtFrom, command.CreatedAtTo, command.UserId)
                     .ApplySearch(command.SearchTerm ?? string.Empty)
                     .Where(c => c.CompanyAdresses.Any(ca => ca.AddressType == AddressTypeEnum.Headquarters))
@@ -167,6 +178,7 @@ namespace Services.Services
                         CreatedAt = c.CreatedAt,
                     })
                     .ToPagedResultAsync(command.PageNumber, command.PageSize, _logger, "companies", _ct);
+        }
 
         public async Task<Result<List<CompanySimpleListResponse>>> GetCompanySimpleListAsync()
         {
