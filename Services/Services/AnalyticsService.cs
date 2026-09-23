@@ -129,10 +129,6 @@ namespace Services.Services
 
             var response = new EmployeeKpiSummaryResponse
             {
-                EmployeeId = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email ?? string.Empty,
                 RevenueThisWeek = metrics.RevenueThisWeek,
                 RevenueThisMonth = metrics.RevenueThisMonth,
                 RevenueThisYear = metrics.RevenueThisYear,
@@ -232,6 +228,27 @@ namespace Services.Services
 
         public async Task<Result<PdfFileResponse>> GenerateEmployeeReportPdfAsync(Guid employeeId, AnalyticsChartCommand chartCommand)
         {
+
+            var user = await _context.Users.AsNoTracking()
+                .Where(u => u.Id == employeeId && !u.IsDeleted)
+                .Select(u => new
+                {
+                    u.FirstName,
+                    u.LastName,
+                    Email = u.Email ?? string.Empty
+                })
+                .FirstOrDefaultAsync(_ct);
+
+            if (user == null)
+            {
+                _logger.LogWarning("Employee with ID {EmployeeId} not found for report generation.", employeeId);
+                return Result<PdfFileResponse>.Failure(
+                    message: "Employee not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.UserNotFound
+                );
+            }
+
             var summaryResponse = await GetEmployeeKpiSummaryAsync(employeeId);
 
             if (!summaryResponse.IsSuccess)
@@ -260,14 +277,17 @@ namespace Services.Services
             var historyMetrics = chartResponse.Data ?? new List<AnalyticsChartMetricResponse>();
 
             var reportModel = _mapper.MapToReportModel(
-                 summaryResponse.Data!,
-                 chartResponse.Data ?? new List<AnalyticsChartMetricResponse>(),
-                 chartCommand.Period);
+               user.FirstName,
+               user.LastName,
+               user.Email,
+               summary,
+               historyMetrics,
+               chartCommand.Period);
 
 
             byte[] pdfBytes = _pdf.GenerateEmployeeReportPdf(reportModel);
 
-            var safeLastName = summary.LastName.Replace(" ", "_");
+            var safeLastName = user.LastName.Replace(" ", "_");
             var fileName = $"Raport_{safeLastName}_{chartCommand.Period}_{DateTime.UtcNow:yyyyMMdd}.pdf";
 
             var response = new PdfFileResponse
@@ -329,12 +349,6 @@ namespace Services.Services
             if (currencyId.HasValue)
             {
                 completeDealsQuery = completeDealsQuery.Where(d => d.CurrencyId == currencyId);
-
-                if (completeDealsQuery == null)
-                {
-                    _logger.LogError("Currency with id {CurrencyId} dont exist in deal set.", currencyId);
-                    throw new InvalidOperationException($"Currency with id {currencyId} dont exist in deal set.");
-                } 
             }
 
             var nowUtc = DateTime.UtcNow;

@@ -786,10 +786,6 @@ namespace Tests.Services
 
             var data = result.Data!;
 
-            await Assert.That(data.EmployeeId).IsEqualTo(targetUser.Id);
-            await Assert.That(data.FirstName).IsEqualTo(targetUser.FirstName);
-            await Assert.That(data.LastName).IsEqualTo(targetUser.LastName);
-            await Assert.That(data.Email).IsEqualTo(targetUser.Email);
             await Assert.That(GetAmount(data.RevenueThisWeek)).IsEqualTo(80_000m);
             await Assert.That(GetAmount(data.RevenueThisMonth)).IsEqualTo(120_000m);
             await Assert.That(GetAmount(data.RevenueThisYear)).IsEqualTo(150_000m);

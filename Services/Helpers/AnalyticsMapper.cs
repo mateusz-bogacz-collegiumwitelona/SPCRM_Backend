@@ -7,6 +7,9 @@ namespace Services.Helpers
     public class AnalyticsMapper
     {
         public EmployeeAnalyticsReportCommand MapToReportModel(
+            string firstName,
+            string lastName,
+            string email,
             EmployeeKpiSummaryResponse summary,
             List<AnalyticsChartMetricResponse> historyMetrics,
             AnalyticsPeriodEnum period)
@@ -20,9 +23,9 @@ namespace Services.Helpers
 
             return new EmployeeAnalyticsReportCommand
             {
-                FirstName = summary.FirstName,
-                LastName = summary.LastName,
-                Email = summary.Email,
+                FirstName = firstName,
+                LastName = lastName,
+                Email = email,
                 RevenueThisWeek = MapCurrencies(summary.RevenueThisWeek),
                 RevenueThisMonth = MapCurrencies(summary.RevenueThisMonth),
                 RevenueThisYear = MapCurrencies(summary.RevenueThisYear),

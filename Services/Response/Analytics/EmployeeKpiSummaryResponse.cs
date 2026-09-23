@@ -2,10 +2,6 @@
 {
     public record EmployeeKpiSummaryResponse
     {
-        public Guid EmployeeId { get; init; }
-        public required string FirstName { get; init; }
-        public required string LastName { get; init; }
-        public required string Email { get; init; }
         public List<CurrencyAmountResponse> RevenueThisWeek { get; init; } = new();
         public List<CurrencyAmountResponse> RevenueThisMonth { get; init; } = new();
         public List<CurrencyAmountResponse> RevenueThisYear { get; init; } = new();
