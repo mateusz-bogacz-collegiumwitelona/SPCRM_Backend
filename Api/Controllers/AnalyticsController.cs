@@ -30,7 +30,6 @@ namespace Api.Controllers
         [EndpointSummary("Get team revenue chart data")]
         [EndpointDescription("Returns aggregated revenue and deal counts for charts.")]
         [ProducesResponseType(typeof(Result<List<AnalyticsChartMetricResponse>>), StatusCodes.Status200OK)]
-
         [HttpGet("team/chart")]
         public async Task<IActionResult> GetTeamRevenueChartAsync(
             [FromServices] IAnalyticsService analytics,

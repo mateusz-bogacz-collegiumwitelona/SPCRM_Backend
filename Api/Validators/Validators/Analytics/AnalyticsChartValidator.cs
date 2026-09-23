@@ -9,6 +9,7 @@ namespace Api.Validators.Validators.Analytics
         public AnalyticsChartValidator()
         {
             RuleFor(x => x.Period).ApplyPeriodRules();
+            RuleFor(x => x.CurrencyId).ApplyOptionalGuidRule();
         }
     }
 }

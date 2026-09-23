@@ -91,7 +91,7 @@ namespace Services.Services
                 .AsNoTracking()
                 .Where(d => d.Status == DealsStatusEnum.Complete);
 
-            var chartItems = await BuildRevenueChartAsync(baseQuery, command.Period);
+            var chartItems = await BuildRevenueChartAsync(baseQuery, command.Period, command.CurrencyId);
 
             _logger.LogInformation("Team revenue chart retrieved successfully for period: {Period}.", command.Period.ToString());
 
@@ -324,8 +324,19 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK);
         }
 
-        private async Task<List<AnalyticsChartMetricResponse>> BuildRevenueChartAsync(IQueryable<Deal> completeDealsQuery, AnalyticsPeriodEnum period)
+        private async Task<List<AnalyticsChartMetricResponse>> BuildRevenueChartAsync(IQueryable<Deal> completeDealsQuery, AnalyticsPeriodEnum period, Guid? currencyId = null)
         {
+            if (currencyId.HasValue)
+            {
+                completeDealsQuery = completeDealsQuery.Where(d => d.CurrencyId == currencyId);
+
+                if (completeDealsQuery == null)
+                {
+                    _logger.LogError("Currency with id {CurrencyId} dont exist in deal set.", currencyId);
+                    throw new InvalidOperationException($"Currency with id {currencyId} dont exist in deal set.");
+                } 
+            }
+
             var nowUtc = DateTime.UtcNow;
             var chartItems = new List<AnalyticsChartMetricResponse>();
 
