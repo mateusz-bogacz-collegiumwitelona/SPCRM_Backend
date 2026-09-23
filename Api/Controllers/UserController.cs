@@ -40,7 +40,7 @@ namespace Api.Controllers
         [EndpointDescription("Get list of users with search, paggination etc.")]
         [ProducesResponseType(typeof(Result<PagedResult<UserListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetUserListAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -192,7 +192,7 @@ namespace Api.Controllers
         [EndpointDescription("Retrieves the details of a specific user.")]
         [ProducesResponseType(typeof(Result<UserDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{id:guid}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetUserDetailAsync(
             [FromServices] IUserServices userService,
             [FromRoute] Guid id
@@ -207,7 +207,7 @@ namespace Api.Controllers
             "with optional filtering, sorting, and search term.")]
         [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/companies")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetUserCompaniesAsync(
             [FromRoute] Guid userId,
             [FromServices] CompanyMapper mapper,
@@ -234,7 +234,7 @@ namespace Api.Controllers
             "with optional filtering, sorting, and search term.")]
         [ProducesResponseType(typeof(Result<PagedResult<ContactsResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/contacts")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetUserContactsAsync(
             [FromRoute] Guid userId,
             [FromServices] ContactMapper mapper,
@@ -261,7 +261,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns a paginated list of deals assigned to the specified user with optional filtering, sorting, and search term.")]
         [ProducesResponseType(typeof(Result<PagedResult<UserDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/sales")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetUserSalesAsync(
             [FromRoute] Guid userId,
             [FromServices] IDealServices salesServices,
@@ -281,7 +281,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns a paginated list of tasks assigned to the specified user with optional filtering, sorting, and search term.")]
         [ProducesResponseType(typeof(Result<PagedResult<UserTaskResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/tasks")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetUserTasksAsync(
             [FromRoute] Guid userId,
             [FromServices] ITaskServices taskServices,
@@ -297,7 +297,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns list of available system roles for filters and selects.")]
         [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("roles")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetRolesAsync([FromServices] IUserServices userServices)
         {
             var result = await userServices.GetRolesAsync();

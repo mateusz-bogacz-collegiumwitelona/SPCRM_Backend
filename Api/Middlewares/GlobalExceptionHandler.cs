@@ -21,6 +21,17 @@ namespace Api.Middlewares
             CancellationToken cancellation
             )
         {
+            if (exception is OperationCanceledException || httpContext.RequestAborted.IsCancellationRequested)
+            {
+                _logger.LogInformation("Client cancelled the request: {Method} {Path}",
+                    httpContext.Request.Method,
+                    httpContext.Request.Path);
+                return true;
+            }
+
+            _logger.LogError(exception, "An unexpected application error occurred: {Message}", exception.Message);
+
+
             _logger.LogError(exception, "An unexpected application error occurred: {Message}", exception.Message);
 
             var (statusCode, message, errorCode) = exception switch
