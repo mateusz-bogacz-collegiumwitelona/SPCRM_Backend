@@ -1,10 +1,13 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.List;
 using Api.Request.Unit;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Services.Interfaces;
 using Services.Response.Unit;
 
@@ -19,6 +22,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<UnitSimpleListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple")]
         [Authorize]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.UnitSimple })]
         public async Task<IActionResult> GetSimpleUnitList([FromServices] IUnitServices unit)
         {
             var result = await unit.GetSimpleUnitList();
@@ -30,6 +34,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<UnitListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Admin")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.UnitList })]
         public async Task<IActionResult> GetUnitListAsync(
             [FromServices] IUnitServices unit,
             [FromServices] ApiMapper mapper,
@@ -45,6 +50,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(nameof(CacheTags.UnitAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> AddUnitAsync(
             [FromServices] IUnitServices unit,
             [FromServices] UnitMapper mapper,
@@ -60,6 +66,10 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPut]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(
+            nameof(CacheTags.UnitAll),
+            nameof(CacheTags.PromotionAll), 
+            nameof(CacheTags.OffersAll))]
         public async Task<IActionResult> EditUnitAsync(
             [FromServices] IUnitServices unit,
             [FromServices] UnitMapper mapper,

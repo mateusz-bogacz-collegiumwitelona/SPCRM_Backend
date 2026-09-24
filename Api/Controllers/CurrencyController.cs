@@ -1,10 +1,13 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Currency;
 using Api.Request.List;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Services.Interfaces;
 using Services.Response.Currency;
 
@@ -19,6 +22,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<CurrencyListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple")]
         [Authorize]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CurrencySimple })]
         public async Task<IActionResult> GetCurrencySimpleListAsync([FromServices] ICurrencyServices currency)
         {
             var result = await currency.GetCurrencySimpleListAsync();
@@ -30,6 +34,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<CurrencyListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Admin")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CurrencyList })]
         public async Task<IActionResult> GetCurrenyListAsync(
             [FromServices] ICurrencyServices currency,
             [FromServices] ApiMapper mapper,
@@ -44,6 +49,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(nameof(CacheTags.CurrencyAll), CacheTags.AnalyticsAdminMetrics)]
         public async Task<IActionResult> AddCurrencyAsync(
             [FromServices] ICurrencyServices currency,
             [FromServices] CurrencyMapper mapper,
@@ -57,6 +63,12 @@ namespace Api.Controllers
         [EndpointDescription("Edit currency by id.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [InvalidateCache(
+            nameof(CacheTags.CurrencyAll),
+            nameof(CacheTags.ProductAll),
+            nameof(CacheTags.DealAll),
+            nameof(CacheTags.InvoiceAll),
+            nameof(CacheTags.AnalyticsAll))]
         [HttpPatch]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> EditCurrencyAsync(

@@ -1,9 +1,12 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Promotion;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Services.Interfaces;
 using Services.Response.Promotion;
 
@@ -18,6 +21,8 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<PromotionResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.PromotionsList })]
+
         public async Task<IActionResult> GetPromotionListAsync(
             [FromServices] IPromotionServices promotion,
             [FromServices] PromotionMapper mapper,
@@ -32,6 +37,7 @@ namespace Api.Controllers
         [EndpointDescription("Get detailed information about a specific promotion.")]
         [ProducesResponseType(typeof(Result<PromotionDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{promotionId:guid}")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.PromotionDetails })]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetPromotionDetailAsync(
             [FromServices] IPromotionServices promotion,
@@ -47,6 +53,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("{promotionId:guid}/deactivate")]
         [Authorize(Roles = "Manager")]
+        [InvalidateCache(nameof(CacheTags.PromotionAll), nameof(CacheTags.ProductAll))]
         public async Task<IActionResult> DeactivatePromotionAsync(
             [FromServices] IPromotionServices promotionServices,
             [FromRoute] Guid promotionId
@@ -62,6 +69,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch("activate")]
         [Authorize(Roles = "Manager")]
+        [InvalidateCache(nameof(CacheTags.PromotionAll), nameof(CacheTags.ProductAll))]
         public async Task<IActionResult> ActivatePromotionAsync(
             [FromServices] IPromotionServices promotionServices,
             [FromServices] PromotionMapper mapper,
@@ -77,6 +85,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{promotionId:guid}")]
         [Authorize(Roles = "Manager")]
+        [InvalidateCache(nameof(CacheTags.PromotionAll), nameof(CacheTags.ProductAll))]
         public async Task<IActionResult> DeletePromotionAsync(
             [FromServices] IPromotionServices promotionServices,
             [FromRoute] Guid promotionId
@@ -92,6 +101,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch("edit")]
         [Authorize(Roles = "Manager")]
+        [InvalidateCache(nameof(CacheTags.PromotionAll), nameof(CacheTags.ProductAll))]
         public async Task<IActionResult> EditPromotionAsync(
             [FromServices] IPromotionServices promotionServices,
             [FromServices] PromotionMapper mapper,
@@ -107,6 +117,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
+        [InvalidateCache(nameof(CacheTags.PromotionAll), nameof(CacheTags.ProductAll))]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> AddPromotionAsync(
             [FromServices] IPromotionServices promotionServices,

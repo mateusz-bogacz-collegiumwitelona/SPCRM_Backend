@@ -1,7 +1,9 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Note;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -18,6 +20,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("edit")]
         [Authorize(Roles = "Manager,User")]
+        [InvalidateCache(nameof(CacheTags.NoteAll))]
         public async Task<IActionResult> EditNoteAsync(
             [FromServices] INoteServices note,
             [FromServices] NoteMapper mapper,
@@ -37,6 +40,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "Manager,User")]
+        [InvalidateCache(nameof(CacheTags.NoteAll))]
         public async Task<IActionResult> AddNoteAsync(
             [FromServices] INoteServices note,
             [FromServices] NoteMapper mapper,
@@ -52,6 +56,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete]
         [Authorize(Roles = "Manager,User")]
+        [InvalidateCache(nameof(CacheTags.NoteAll))]
         public async Task<IActionResult> DeleteNoteAsync(
             [FromServices] INoteServices note,
             [FromQuery] Guid id)

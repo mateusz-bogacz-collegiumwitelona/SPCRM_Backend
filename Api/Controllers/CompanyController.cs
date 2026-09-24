@@ -1,10 +1,13 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Company;
 using Api.Request.List;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Company;
@@ -21,6 +24,7 @@ namespace Api.Controllers
         [HttpGet("map")]
         [Authorize(Roles = "Manager,User")]
         [EnableRateLimiting("expensive")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CompaniesMap })]
         public async Task<IActionResult> GetMapAsync(
             [FromServices] ICompanyServices companyServices,
             string? searchTerm = null
@@ -35,6 +39,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<CompanyDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "UserAuthPolicy", Tags = new string[] { CacheTags.CompanyDetails })]
         public async Task<IActionResult> GetCompanyDetailsAsync(
             [FromServices] ICompanyServices companyServices,
             [FromQuery] Guid companyId
@@ -49,6 +54,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<AddressDetailResponse>>), StatusCodes.Status200OK)]
         [HttpGet("addresses")]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CompanyAddresses })]
         public async Task<IActionResult> GetCompanyAddressesAsync(
             [FromServices] CompanyMapper mapper,
             [FromServices] ICompanyServices companyServices,
@@ -66,6 +72,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<CompanyContactResponse>>), StatusCodes.Status200OK)]
         [HttpGet("contacts")]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactsList })]
         public async Task<IActionResult> GetCompanyContactsAsync(
             [FromServices] CompanyMapper mapper,
             [FromServices] IContactServices contactServices,
@@ -82,6 +89,7 @@ namespace Api.Controllers
             "This endpoint return only name, value, close date and status")]
         [ProducesResponseType(typeof(Result<PagedResult<CompanyDealsResponse>>), StatusCodes.Status200OK)]
         [HttpGet("sales")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealsList })]
         public async Task<IActionResult> GetComapanyDealsAsync(
             [FromServices] CompanyMapper mapper,
             [FromServices] IDealServices salesServices,
@@ -98,6 +106,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<CompanyDebtSummaryResponse>>), StatusCodes.Status200OK)]
         [HttpGet("debts/summary")]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CompanyDebts })]
         public async Task<IActionResult> GetCompanyDebtSummaryAsync(
             [FromServices] IInvoiceService debtServices,
             [FromQuery] Guid companyId)
@@ -111,6 +120,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<CompanyDebtDetailResponse>>), StatusCodes.Status200OK)]
         [HttpGet("debts")]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CompanyDebts })]
         public async Task<IActionResult> GetCompanyDebts(
             [FromServices] IInvoiceService debtServices,
             [FromQuery] Guid companyId,
@@ -128,6 +138,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
         [HttpGet("list")]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CompaniesList })]
         public async Task<IActionResult> GetCompanyListAsync(
            [FromServices] CompanyMapper mapper,
            [FromServices] ICompanyServices companyServices,
@@ -151,6 +162,7 @@ namespace Api.Controllers
         [EndpointDescription("Show a simple list of companies with only ID and Name.")]
         [ProducesResponseType(typeof(Result<List<CompanySimpleListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple-list")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.CompaniesList])]
         public async Task<IActionResult> GetCompanySimpleListAsync(
             [FromServices] ICompanyServices companyServices
         )
@@ -163,6 +175,8 @@ namespace Api.Controllers
         [EndpointDescription("Add a new company with its details.")]
         [ProducesResponseType(typeof(Result<Guid>), StatusCodes.Status201Created)]
         [HttpPost]
+        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList, 
+            CacheTags.CompaniesMap, CacheTags.UserDetails)]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> AddCompanyAsync(
             [FromServices] ICompanyServices company,
@@ -178,6 +192,9 @@ namespace Api.Controllers
         [EndpointDescription("Edit an existing company with its details.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch]
+        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList, 
+            CacheTags.CompanyDetails, CacheTags.CompaniesMap, 
+            CacheTags.DealsList, CacheTags.ContactsList)]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> EditCompanyAsync(
             [FromServices] ICompanyServices company,
@@ -194,6 +211,9 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("address")]
         [Authorize(Roles = "Manager,User")]
+        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList,
+            CacheTags.CompanyDetails, CacheTags.CompaniesMap,
+            CacheTags.DealsList, CacheTags.ContactsList)]
         public async Task<IActionResult> EditCompanyAddressAsync(
             [FromServices] ICompanyServices company,
             [FromServices] CompanyMapper mapper,
@@ -209,6 +229,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<Guid>), StatusCodes.Status201Created)]
         [HttpPost("address/{companyId:guid}")]
         [Authorize(Roles = "Manager,User")]
+        [InvalidateCache(CacheTags.CompanyAddresses, CacheTags.CompaniesMap, CacheTags.CompaniesList)]
         public async Task<IActionResult> AddCompanyAddressAsync(
             [FromServices] ICompanyServices company,
             [FromServices] CompanyMapper mapper,
@@ -225,6 +246,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{companyId:guid}")]
         [Authorize(Roles = "Manager")]
+        [InvalidateCache(nameof(CacheTags.CompanyAll), CacheTags.UserDetails)]
         public async Task<IActionResult> DeleteCompanyAsync(
             [FromServices] ICompanyServices company,
             [FromRoute] Guid companyId
@@ -239,6 +261,8 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("address/{addressId:guid}")]
         [Authorize(Roles = "Manager,User")]
+        [InvalidateCache(CacheTags.CompanyAddresses, CacheTags.CompaniesMap)]
+
         public async Task<IActionResult> DeleteCompanyAddressAsync(
             [FromServices] ICompanyServices company,
             [FromRoute] Guid addressId
@@ -253,6 +277,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("change-owner")]
         [Authorize(Roles = "Manager,Admin")]
+        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompanyDetails, CacheTags.UserDetails)]
         public async Task<IActionResult> ChangeCompanyOwnerAsync(
             [FromServices] ICompanyServices company,
             [FromServices] CompanyMapper mapper,
@@ -280,6 +305,7 @@ namespace Api.Controllers
         [EndpointDescription("Get company details (ID, Name, NIP) required for the edit form.")]
         [ProducesResponseType(typeof(Result<EditCompanyDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("edit-detail/{id:guid}")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.CompanyDetails])]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> GetEditCompanyDetailAsync(
             [FromServices] ICompanyServices companyServices,

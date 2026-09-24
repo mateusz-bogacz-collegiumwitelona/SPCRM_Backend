@@ -1,9 +1,12 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Task;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Services.Interfaces;
 using Services.Response.Note;
 using Services.Response.Task;
@@ -20,6 +23,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<TaskCalendarResponse>>), StatusCodes.Status200OK)]
         [HttpGet("calendar")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "UserAuthPolicy", Tags = new string[] { CacheTags.TasksForCalendar })]
         public async Task<IActionResult> GetTasksForCalendarAsync(
             [FromServices] TaskMapper mapper,
             [FromServices] ITaskServices taskServices,
@@ -35,6 +39,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("dictionaries")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.TaskDictionary })]
         public async Task<IActionResult> GetTaskDictionariesAsync([FromServices] ITaskServices taskServices)
         {
             var result = await taskServices.GetTaskDictionariesAsync();
@@ -46,6 +51,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<TaskDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.TaskDetails })]
         public async Task<IActionResult> GetTaskDetailResponse(
             [FromServices] ITaskServices taskServices,
             [FromRoute] Guid taskId
@@ -60,6 +66,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<TaskContactResponse>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}/contact")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.TaskContacs })]
         public async Task<IActionResult> GetTaskContactAsync(
             [FromServices] ITaskServices taskServices,
             [FromRoute] Guid taskId
@@ -74,6 +81,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<TaskDealResponse>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}/deal")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.TaskDeals })]
         public async Task<IActionResult> GetTaskDealAsync(
             [FromServices] ITaskServices taskServices,
             [FromRoute] Guid taskId
@@ -88,6 +96,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<NoteResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{taskId:guid}/notes")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.TaskNotes })]
         public async Task<IActionResult> GetTaskNotesAsync(
             [FromServices] INoteServices note,
             [FromRoute] Guid taskId
@@ -102,6 +111,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{taskId:guid}")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.TaskAll), nameof(CacheTags.AnalyticsAll), nameof(CacheTags.UserAll))]
         public async Task<IActionResult> DeleteTaskAsync(
             [FromServices] ITaskServices task,
             [FromRoute] Guid taskId
@@ -116,6 +126,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{taskId:guid}")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.TaskAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> EditTaskAsync(
             [FromServices] TaskMapper mapper,
             [FromServices] ITaskServices task,
@@ -132,6 +143,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{taskId:guid}/extend-due-date")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.TaskAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> ExtendTaskDueDateAsync(
             [FromServices] TaskMapper mapper,
             [FromServices] ITaskServices task,
@@ -148,6 +160,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{taskId:guid}/change-assigned-user/{assigneeId}")]
         [Authorize(Roles = "Manager")]
+        [InvalidateCache(nameof(CacheTags.TaskAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> ChangeAssignedToUserAsync(
             [FromServices] ITaskServices task,
             [FromRoute] Guid taskId,
@@ -163,6 +176,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("change-status")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.TaskAll), nameof(CacheTags.AnalyticsAll), nameof(CacheTags.UserAll))]
         public async Task<IActionResult> ChangeTaskStatusAsync(
             [FromServices] ITaskServices task,
             [FromServices] TaskMapper mapper,
@@ -178,6 +192,10 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(
+            nameof(CacheTags.TaskAll),
+            CacheTags.UserDetails,
+            nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> AddTaskAsync(
            [FromServices] ITaskServices task,
            [FromServices] TaskMapper mapper,

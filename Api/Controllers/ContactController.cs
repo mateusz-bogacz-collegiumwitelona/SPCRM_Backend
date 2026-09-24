@@ -1,11 +1,14 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Contact;
 using Api.Request.List;
 using Api.Request.Task;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Services.Interfaces;
 using Services.Response.Contact;
 using Services.Response.Note;
@@ -23,6 +26,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<ContactsResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "UserAuthPolicy", Tags = new string[] { CacheTags.ContactsList })]
         public async Task<IActionResult> GetContactsAsync(
             [FromServices] ContactMapper mapper,
             [FromServices] IContactServices contact,
@@ -41,6 +45,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("companies")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactCompanies })]
         public async Task<IActionResult> GetCompaniesAsync([FromServices] IContactServices contact)
         {
             var result = await contact.GetCompaniesAsync();
@@ -52,6 +57,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<ContactsResponse>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactDetails })]
         public async Task<IActionResult> GetContactDetailAsync(
             [FromServices] IContactServices contact,
             [FromRoute] Guid contactId
@@ -66,6 +72,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<ContactWayResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}/ways")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactWays })]
         public async Task<IActionResult> GetContactWaysAsync(
             [FromServices] IContactServices contact,
             [FromRoute] Guid contactId)
@@ -79,6 +86,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<ContactNoteResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}/notes")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactNotes })]
         public async Task<IActionResult> GetContactNotesAsync(
             [FromServices] INoteServices note,
             [FromServices] NoteMapper mapper,
@@ -96,6 +104,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.ContactAll), CacheTags.ClientDataForMailing, CacheTags.UserDetails)]
         public async Task<IActionResult> AddContactAsync(
             [FromServices] IContactServices contact,
             [FromServices] ContactMapper mapper,
@@ -111,6 +120,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("types")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactTypes })]
         public async Task<IActionResult> GetContactTypesAsync([FromServices] IContactServices contact)
         {
             var result = await contact.GetContactTypeAsync();
@@ -122,6 +132,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("edit")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.ContactAll), CacheTags.TaskContacs, CacheTags.DealDetails)]
         public async Task<IActionResult> EditContactAsync(
             [FromServices] IContactServices contact,
             [FromServices] ContactMapper mapper,
@@ -152,6 +163,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("{contactId:guid}/set-primary")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(CacheTags.ContactsList, CacheTags.ContactDetails, CacheTags.ClientDataForMailing)]
         public async Task<IActionResult> SetPrimaryContactAsync(
             [FromServices] IContactServices contact,
             [FromRoute] Guid contactId)
@@ -165,6 +177,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{contactId:guid}")]
         [Authorize(Roles = "Manager,Admin")]
+        [InvalidateCache(nameof(CacheTags.ContactAll), CacheTags.UserDetails)]
         public async Task<IActionResult> DeleteContactAsync(
             [FromServices] IContactServices contact,
             [FromRoute] Guid contactId)
@@ -178,6 +191,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("change-owner")]
         [Authorize(Roles = "Manager,Admin")]
+        [InvalidateCache(nameof(CacheTags.ContactAll), CacheTags.UserDetails)]
         public async Task<IActionResult> ChangeContactOwnerAsync(
             [FromServices] IContactServices contact,
             [FromServices] ContactMapper mapper,
@@ -192,6 +206,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<OwnerResponse>>), StatusCodes.Status200OK)]
         [HttpGet("available-owners")]
         [Authorize(Roles = "Manager,Admin")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.AvailableOwners })]
         public async Task<IActionResult> GetAvailableOwnersAsync([FromServices] IUserServices user)
         {
             var result = await user.GetAvailableOwnersAsync();
@@ -203,6 +218,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<ContactDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet("to-deals")]
         [Authorize(Roles = "User,Admin")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactToDeals })]
         public async Task<IActionResult> GetContactToDealAsync(
             [FromServices] IContactServices contact,
             [FromServices] ApiMapper mapper,
@@ -218,6 +234,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<ContactTaskResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{contactId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "UserAuthPolicy", Tags = new string[] { CacheTags.ContactTasks })]
         public async Task<IActionResult> GetContactTaskAsync(
             [FromServices] ITaskServices task,
             [FromServices] TaskMapper mapper,
@@ -234,6 +251,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{contactId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(
+            nameof(CacheTags.AnalyticsAll),
+            CacheTags.ContactTasks,
+            CacheTags.TasksForCalendar,
+            CacheTags.UserTasks,
+            CacheTags.UserDetails)]
         public async Task<IActionResult> AddContactTaskAsync(
             [FromServices] ITaskServices task,
             [FromServices] TaskMapper mapper,

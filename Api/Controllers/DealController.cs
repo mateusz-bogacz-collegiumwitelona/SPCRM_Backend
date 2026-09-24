@@ -1,4 +1,5 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Deal;
 using Api.Request.List;
@@ -6,8 +7,10 @@ using Api.Request.Product;
 using Api.Request.Sale;
 using Api.Request.Task;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Deal;
@@ -25,6 +28,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<UserDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "UserAuthPolicy", Tags = new string[] { CacheTags.DealsList })]
         public async Task<IActionResult> GetSalesAsync(
             [FromServices] IDealServices deal,
             [FromQuery] PaggedRequest pagged,
@@ -47,6 +51,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("statuses")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealStatuses })]
         public async Task<IActionResult> GetDealsStatuses([FromServices] IDealServices deal)
         {
             var result = await deal.GetDealsStatus();
@@ -58,6 +63,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<DealDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealDetails })]
         public async Task<IActionResult> GetDealDetailAsync(
             [FromServices] IDealServices deal,
             [FromRoute] Guid dealId)
@@ -70,6 +76,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns a paginated list of products associated with a specific deal.")]
         [ProducesResponseType(typeof(Result<PagedResult<DealProductResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/products")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealProducts })]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealProductAsync(
             [FromServices] IDealServices deal,
@@ -89,6 +96,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns a list of notes associated with a specific deal.")]
         [ProducesResponseType(typeof(Result<List<NoteResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/notes")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealNotes })]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealNotesAsync(
             [FromServices] INoteServices note,
@@ -102,6 +110,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns a paginated list of tasks associated with a specific deal.")]
         [ProducesResponseType(typeof(Result<PagedResult<DealTaskResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/tasks")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealTasks })]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetDealTasksAsync(
             [FromServices] ITaskServices task,
@@ -119,6 +128,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(
+            nameof(CacheTags.DealAll),
+            CacheTags.ProductDeals,
+            CacheTags.ProductDetails,
+            CacheTags.UserDetails,
+            nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> AddDealAsync(
             [FromServices] IDealServices deal,
             [FromServices] DealMapper mapper,
@@ -133,6 +148,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{dealId:guid}")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(
+            nameof(CacheTags.DealAll),
+            CacheTags.ProductDeals,
+            CacheTags.UserDetails,
+            nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> DeleteDealAsync(
             [FromServices] IDealServices deal,
             [FromRoute] Guid dealId)
@@ -146,6 +166,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("extend-close-date")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.DealAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> ExtendDealCloseDateAsync(
             [FromServices] IDealServices deal,
             [FromServices] DealMapper mapper,
@@ -160,6 +181,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.DealAll), nameof(CacheTags.ProductAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> AddDealProductAsync(
             [FromServices] IDealServices deal,
             [FromServices] DealMapper mapper,
@@ -175,6 +197,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{dealId:guid}/products/{dealProductId}")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.DealAll), nameof(CacheTags.ProductAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> DeleteDealProductAsync(
             [FromServices] IDealServices deal,
             [FromRoute] Guid dealId,
@@ -189,6 +212,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.DealAll), nameof(CacheTags.ProductAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> EditDealProductAsync(
             [FromServices] IDealServices deal,
             [FromServices] DealMapper mapper,
@@ -204,6 +228,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{dealId:guid}/notes")]
         [Authorize(Roles = "Manager,User")]
+        [InvalidateCache(CacheTags.DealNotes)]
         public async Task<IActionResult> AddDealNoteAsync(
             [FromServices] INoteServices note,
             [FromServices] NoteMapper mapper,
@@ -220,6 +245,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<ChangeDealStatusResponse>), StatusCodes.Status200OK)]
         [HttpPut("{dealId:guid}/status")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(
+            nameof(CacheTags.DealAll), 
+            nameof(CacheTags.ProductAll), 
+            nameof(CacheTags.AnalyticsAll), 
+            CacheTags.UserDetails)]
         [EnableRateLimiting("expensive")]
         public async Task<IActionResult> ChangeDealStatusAsync(
             [FromServices] IDealServices deal,
@@ -236,6 +266,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{dealId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(
+            nameof(CacheTags.DealAll), 
+            nameof(CacheTags.ProductAll), 
+            nameof(CacheTags.AnalyticsAll), 
+            nameof(CacheTags.TaskAll)
+            )]
         public async Task<IActionResult> AddDealTaskAsync(
             [FromServices] ITaskServices task,
             [FromServices] TaskMapper mapper,
@@ -252,6 +288,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPut("{dealId:guid}/contact")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(CacheTags.DealDetails, CacheTags.DealAssignableContacts, CacheTags.DealsList)]
         public async Task<IActionResult> ChangeDealContactAsync(
             [FromServices] IDealServices deal,
             [FromRoute] Guid dealId,
@@ -266,6 +303,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<DealAssignableContactResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{dealId:guid}/assignable-contacts")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealAssignableContacts })]
         public async Task<IActionResult> GetAssignableContactsForDealAsync(
             [FromServices] IDealServices deal,
             [FromRoute] Guid dealId)

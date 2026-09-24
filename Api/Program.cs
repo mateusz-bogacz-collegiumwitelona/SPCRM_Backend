@@ -54,6 +54,9 @@ try
     // Cancellation token 
     builder.Services.AddHttpContextAccessor();
 
+    // cache
+    builder.Services.AddRedisConfiguration(builder.Configuration);
+
     // Add configs
     builder.Services.AddSwaggerConfiguration();
     builder.Services.AddMappers();
@@ -99,6 +102,9 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseRateLimiter();
+
+    app.UseOutputCache();
+
 
     app.MapControllers()
         .RequireAuthorization()

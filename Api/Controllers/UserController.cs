@@ -1,4 +1,5 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Company;
 using Api.Request.Contact;
@@ -7,8 +8,10 @@ using Api.Request.Sale;
 using Api.Request.Task;
 using Api.Request.User;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Company;
@@ -27,6 +30,7 @@ namespace Api.Controllers
         [EndpointDescription("Get list of users without serach, paggination etc. And without admins")]
         [ProducesResponseType(typeof(Result<List<UserSimpleListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.UsersSimpleList })]
         [Authorize]
         public async Task<IActionResult> GetUserSimpleListAsync(
             [FromServices] IUserServices user
@@ -41,6 +45,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<UserListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Admin,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.UsersList })]
         public async Task<IActionResult> GetUserListAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -57,6 +62,7 @@ namespace Api.Controllers
         [HttpPost("create")]
         [Authorize(Roles = "Admin")]
         [EnableRateLimiting("expensive")]
+        [InvalidateCache(nameof(CacheTags.UserAll), CacheTags.AnalyticsAdminMetrics)]
         public async Task<IActionResult> CreateUserAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -73,6 +79,7 @@ namespace Api.Controllers
         [HttpPost("confirm-email")]
         [AllowAnonymous]
         [EnableRateLimiting("auth-strict")]
+        [InvalidateCache(CacheTags.UsersList, CacheTags.UserDetails)]
         public async Task<IActionResult> ConfirmEmailAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -88,6 +95,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("lockout")]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(nameof(CacheTags.UserAll))]
         public async Task<IActionResult> LockoutUserAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -103,6 +111,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPost("{id:guid}/unlock")]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(nameof(CacheTags.UserAll))]
         public async Task<IActionResult> UnlockUserAsync(
             [FromRoute] Guid id,
             [FromServices] IUserServices user
@@ -117,6 +126,13 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(
+            nameof(CacheTags.UserAll),
+            CacheTags.CompaniesList,
+            CacheTags.ContactsList,
+            CacheTags.DealsList,
+            nameof(CacheTags.TaskAll),
+            nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> DeleteUserAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -132,6 +148,14 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(
+            nameof(CacheTags.UserAll),
+            CacheTags.CompaniesList,
+            CacheTags.ContactsList,
+            CacheTags.DealsList,
+            CacheTags.TasksForCalendar,
+            CacheTags.UserTasks,
+            nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> EditUserAsync(
             [FromServices] IUserServices user,
             [FromServices] UserMapper mapper,
@@ -163,6 +187,7 @@ namespace Api.Controllers
         [HttpPost("confirm-email-change")]
         [AllowAnonymous]
         [EnableRateLimiting("auth-strict")]
+        [InvalidateCache(nameof(CacheTags.UserAll))]
         public async Task<IActionResult> ConfirmChangeUserEmailAsync(
             [FromServices] IUserServices userService,
             [FromServices] UserMapper mapper,
@@ -178,6 +203,17 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch("role")]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(
+            nameof(CacheTags.UserAll), 
+            nameof(CacheTags.CompanyAll),
+            nameof(CacheTags.ContactAll),
+            nameof(CacheTags.DealAll),
+            nameof(CacheTags.TaskAll),
+            nameof(CacheTags.InvoiceAll),
+            nameof(CacheTags.NoteAll),
+            nameof(CacheTags.OffersAll),
+            nameof(CacheTags.ProductAll)
+            )]
         public async Task<IActionResult> ChangeRoleAsync(
             [FromServices] IUserServices userService,
             [FromServices] UserMapper mapper,
@@ -193,6 +229,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<UserDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{id:guid}")]
         [Authorize(Roles = "Admin,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.UserDetails })]
         public async Task<IActionResult> GetUserDetailAsync(
             [FromServices] IUserServices userService,
             [FromRoute] Guid id
@@ -208,6 +245,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<CompanyResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/companies")]
         [Authorize(Roles = "Admin,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CompaniesList })]
         public async Task<IActionResult> GetUserCompaniesAsync(
             [FromRoute] Guid userId,
             [FromServices] CompanyMapper mapper,
@@ -235,6 +273,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<ContactsResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/contacts")]
         [Authorize(Roles = "Admin,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactsList })]
         public async Task<IActionResult> GetUserContactsAsync(
             [FromRoute] Guid userId,
             [FromServices] ContactMapper mapper,
@@ -262,6 +301,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<UserDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/sales")]
         [Authorize(Roles = "Admin,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.DealsList })]
         public async Task<IActionResult> GetUserSalesAsync(
             [FromRoute] Guid userId,
             [FromServices] IDealServices salesServices,
@@ -282,6 +322,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<UserTaskResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{userId:guid}/tasks")]
         [Authorize(Roles = "Admin,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.UserTasks })]
         public async Task<IActionResult> GetUserTasksAsync(
             [FromRoute] Guid userId,
             [FromServices] ITaskServices taskServices,
@@ -298,6 +339,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("roles")]
         [Authorize(Roles = "Admin,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.RolesList })]
         public async Task<IActionResult> GetRolesAsync([FromServices] IUserServices userServices)
         {
             var result = await userServices.GetRolesAsync();

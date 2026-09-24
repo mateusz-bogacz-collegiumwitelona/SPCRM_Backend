@@ -1,10 +1,13 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.List;
 using Api.Request.SteelGrade;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Services.Interfaces;
 using Services.Response.Product;
 using Services.Response.SteelGrade;
@@ -20,6 +23,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<SteelGradeListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "Admin")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.SteelGradeList })]
         public async Task<IActionResult> GetSteelGradeListAsync(
             [FromServices] ISteelGradeServices steelGrade,
             [FromServices] ApiMapper mapper,
@@ -35,6 +39,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<ProductSimpleResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{steelGradeId:guid}/products")]
         [Authorize(Roles = "Admin")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.SteelGradeAssociatedProducts })]
         public async Task<IActionResult> GetAssociatedProductsAsync(
             [FromServices] ISteelGradeServices steelGradeServices,
             [FromRoute] Guid steelGradeId)
@@ -48,6 +53,12 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpDelete("{steelGradeId:guid}")]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(
+            nameof(CacheTags.SteelGradeAll),
+            nameof(CacheTags.ProductAll),
+            nameof(CacheTags.PromotionAll),
+            nameof(CacheTags.AnalyticsAll)
+            )]
         public async Task<IActionResult> DeleteSteelGradeAsync(
             [FromServices] ISteelGradeServices steelGradeServices,
             [FromServices] SteelGradeMapper mapper,
@@ -67,6 +78,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(nameof(CacheTags.SteelGradeAll), nameof(CacheTags.ProductAll), nameof(CacheTags.PromotionAll))]
         public async Task<IActionResult> EditSteelGradeAsync(
             [FromServices] ISteelGradeServices steelGradeServices,
             [FromServices] SteelGradeMapper mapper,
@@ -82,6 +94,11 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
+        [InvalidateCache(nameof(CacheTags.SteelGradeAll),
+            nameof(CacheTags.ProductAll), 
+            nameof(CacheTags.PromotionAll),
+            nameof(CacheTags.AnalyticsAll)
+            )]
         public async Task<IActionResult> AddSteelGradeAsync(
             [FromServices] ISteelGradeServices steelGradeServices,
             [FromServices] SteelGradeMapper mapper,

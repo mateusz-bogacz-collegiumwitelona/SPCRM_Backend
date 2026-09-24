@@ -1,11 +1,14 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.List;
 using Api.Request.Mailing;
 using Api.Request.Support;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Contact;
@@ -40,6 +43,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [Authorize(Roles = "User,Manager")]
         [EnableRateLimiting("expensive")]
+        [InvalidateCache(CacheTags.OffersList)]
         public async Task<IActionResult> SendProductMailingAsync(
             [FromServices] IMailingServices mailing,
             [FromServices] MailingMapper mapper,
@@ -55,6 +59,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<MailingClientResponse>>), StatusCodes.Status200OK)]
         [HttpGet("contacts")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ClientDataForMailing })]
         public async Task<IActionResult> GetClientDataToMailingAsync(
             [FromServices] IContactServices contact,
             [FromServices] ApiMapper mapper,
@@ -70,6 +75,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<MailingProductResponse>>), StatusCodes.Status200OK)]
         [HttpGet("products")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ProductMailing })]
         public async Task<IActionResult> GetProductDataToMailingAsync(
             [FromServices] IProductSevices product,
             [FromServices] ApiMapper mapper,

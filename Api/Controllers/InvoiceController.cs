@@ -1,10 +1,13 @@
-﻿using Api.Controllers.Base;
+﻿using Api.Attributes;
+using Api.Controllers.Base;
 using Api.Mappers;
 using Api.Request.Invoice;
 using Api.Request.List;
 using Domain.Common;
+using Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Services.Interfaces;
 using Services.Response.Invoice;
@@ -21,6 +24,8 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<InvoiceResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.InvoicesList })]
+
         public async Task<IActionResult> GetInvoiceListAsync(
             [FromServices] IInvoiceService invoice,
             [FromServices] InvoiceMapper mapper,
@@ -36,6 +41,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<InvoiceDetailResponse>), StatusCodes.Status200OK)]
         [HttpGet("{invoiceId:guid}")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.InvoiceDetails })]
         public async Task<IActionResult> GetInvoiceDetailAsync(
             [FromServices] IInvoiceService invoice,
             [FromRoute] Guid invoiceId
@@ -51,6 +57,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<PagedResult<InvoiceProductsListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("{invoiceId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.InvoiceProducts })]
         public async Task<IActionResult> GetInvoiceProductAsync(
             [FromServices] IInvoiceService invoice,
             [FromServices] ApiMapper mapper,
@@ -67,6 +74,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<InvoicePaymentSummaryResponse>), StatusCodes.Status200OK)]
         [HttpGet("{invoiceId:guid}/payment/summary")]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.InvoicePaymentSummary })]
         public async Task<IActionResult> GetInvoicePaymentSummaryAsync(
             [FromServices] IInvoiceService invoice,
             [FromRoute] Guid invoiceId
@@ -81,6 +89,7 @@ namespace Api.Controllers
         [HttpGet("{invoiceId:guid}/payment")]
         [ProducesResponseType(typeof(Result<PagedResult<InvoicePaymentListResponse>>), StatusCodes.Status200OK)]
         [Authorize(Roles = "User,Manager")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.InvoicePayments })]
         public async Task<IActionResult> GetInvoicePaymentsAsync(
             [FromServices] IInvoiceService invoice,
             [FromServices] ApiMapper mapper,
@@ -97,6 +106,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{invoiceId:guid}/payment")]
         [Authorize(Roles = "User,Manager")]
+        [InvalidateCache(nameof(CacheTags.InvoiceAll),CacheTags.DealDetails)]
         public async Task<IActionResult> AddInvoicePaymentAsync(
             [FromServices] IInvoiceService invoice,
             [FromServices] InvoiceMapper mapper,
