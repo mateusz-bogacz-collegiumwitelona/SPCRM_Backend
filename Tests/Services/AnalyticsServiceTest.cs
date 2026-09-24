@@ -1454,5 +1454,90 @@ namespace Tests.Services
             await Assert.That(pdfResponse.FileName).StartsWith($"Raport_Zespolu_{command.Period}_");
             await Assert.That(pdfResponse.FileName).EndsWith(".pdf");
         }
+
+        // ─── GetAdminMetricsAsync ─────────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetAdminMetricsAsync_WhenDatabaseIsEmpty_ShouldReturnAllZeroes()
+        {
+            // Act
+            var result = await _analyticsServiceMock.GetAdminMetricsAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.TotalUsers).IsEqualTo(0);
+            await Assert.That(data.TotalSteelGrades).IsEqualTo(0);
+            await Assert.That(data.TotalCurrencies).IsEqualTo(0);
+            await Assert.That(data.TotalUnits).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task GetAdminMetricsAsync_WhenEntitiesExist_ShouldReturnCorrectCounts()
+        {
+            // Arrange
+            _contextMock.Users.AddRange(
+                new ApplicationUser { Id = Guid.NewGuid(), FirstName = "Jan", LastName = "Kowalski", Email = "jan@crm.pl", UserName = "jan@crm.pl" },
+                new ApplicationUser { Id = Guid.NewGuid(), FirstName = "Anna", LastName = "Nowak", Email = "anna@crm.pl", UserName = "anna@crm.pl" }
+            );
+
+            _contextMock.Currencies.AddRange(
+                new Currency { Id = Guid.NewGuid(), Name = "Polski Złoty", Code = "PLN", DecimalPlaces = 2 },
+                new Currency { Id = Guid.NewGuid(), Name = "Euro", Code = "EUR", DecimalPlaces = 2 },
+                new Currency { Id = Guid.NewGuid(), Name = "Dolar amerykański", Code = "USD", DecimalPlaces = 2 }
+            );
+
+            _contextMock.SteelGrades.AddRange(
+                new SteelGrade { Id = Guid.NewGuid(), Name = "S235JR" },
+                new SteelGrade { Id = Guid.NewGuid(), Name = "S355J2" }
+            );
+
+            _contextMock.UnitsOfMeasure.AddRange(
+                new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Tona", Symbol = "t" },
+                new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Kilogram", Symbol = "kg" },
+                new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Metr bieżący", Symbol = "mb" },
+                new UnitOfMeasure { Id = Guid.NewGuid(), Name = "Sztuka", Symbol = "szt" }
+            );
+
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _analyticsServiceMock.GetAdminMetricsAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.Data).IsNotNull();
+
+            var data = result.Data!;
+            await Assert.That(data.TotalUsers).IsEqualTo(2);
+            await Assert.That(data.TotalCurrencies).IsEqualTo(3);
+            await Assert.That(data.TotalSteelGrades).IsEqualTo(2);
+            await Assert.That(data.TotalUnits).IsEqualTo(4);
+        }
+
+        [Test]
+        public async Task GetAdminMetricsAsync_WhenSoftDeletedEntitiesExist_ShouldExcludeDeletedFromCount()
+        {
+            // Arrange
+            var activeUser = new ApplicationUser { Id = Guid.NewGuid(), FirstName = "Aktywny", LastName = "User", Email = "aktywny@crm.pl", UserName = "aktywny@crm.pl" };
+            var deletedUser = new ApplicationUser { Id = Guid.NewGuid(), FirstName = "Usunięty", LastName = "User", Email = "usuniety@crm.pl", UserName = "usuniety@crm.pl", IsDeleted = true };
+
+            _contextMock.Users.AddRange(activeUser, deletedUser);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _analyticsServiceMock.GetAdminMetricsAsync();
+
+            // Assert
+            await Assert.That(result.IsSuccess).IsTrue();
+            await Assert.That(result.Data).IsNotNull();
+            await Assert.That(result.Data!.TotalUsers).IsEqualTo(1);
+        }
+
+
     }
 }

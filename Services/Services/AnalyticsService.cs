@@ -304,7 +304,6 @@ namespace Services.Services
                statusCode: StatusCodes.Status200OK);
         }
 
-
         public async Task<Result<PdfFileResponse>> GenerateTeamReportPdfAsync(AnalyticsChartCommand chartCommand)
         {
             var summaryResponse = await GetTeamKpiSummaryAsync();
@@ -342,6 +341,29 @@ namespace Services.Services
                 data: response,
                 message: "Team report generated successfully.",
                 statusCode: StatusCodes.Status200OK);
+        }
+
+        public async Task<Result<AdminMetricsResponse>> GetAdminMetricsAsync()
+        {
+            var totalUsers = await _context.Users.AsNoTracking().Where(u => !u.IsDeleted).CountAsync(_ct);
+            var totalSteelGrades = await _context.SteelGrades.AsNoTracking().CountAsync(_ct);
+            var totalCurrencies = await _context.Currencies.AsNoTracking().CountAsync(_ct);
+            var totalUnits = await _context.UnitsOfMeasure.AsNoTracking().CountAsync(_ct);
+
+            var response = new AdminMetricsResponse
+            {
+                TotalUsers = totalUsers,
+                TotalSteelGrades = totalSteelGrades,
+                TotalCurrencies = totalCurrencies,
+                TotalUnits = totalUnits
+            };
+
+            _logger.LogInformation("Admin metrics retrieved successfully.");
+            return Result<AdminMetricsResponse>.Success(
+                data: response,
+                message: "Admin metrics retrieved successfully.",
+                statusCode: StatusCodes.Status200OK
+            );
         }
 
         private async Task<List<AnalyticsChartMetricResponse>> BuildRevenueChartAsync(IQueryable<Deal> completeDealsQuery, AnalyticsPeriodEnum period, Guid? currencyId = null)
