@@ -11,20 +11,13 @@ namespace Api.Mappers
         public partial PromotionListCommand MapList(PromotionListRequest request);
         public partial ActivatePromotionCommand MapActivate(ActivatePromotionRequest request);
 
-        [MapProperty(nameof(EditPromotionRequest.PromotionalPrice), nameof(EditPromotionCommand.PromotionalPrice), Use = nameof(MapPriceToCents))]
-        [MapProperty(nameof(EditPromotionRequest.MinWeight), nameof(EditPromotionCommand.MinWeight), Use = nameof(MapWeightToGrams))]
         [MapProperty(nameof(EditPromotionRequest.Name), nameof(EditPromotionCommand.Name), Use = nameof(NormalizeName))]
         public partial EditPromotionCommand MapEdit(EditPromotionRequest request);
 
-        [MapProperty(nameof(AddPromotionRequest.PromotionalPrice), nameof(AddPromotionCommand.PromotionalPrice), Use = nameof(MapPriceToCents))]
-        [MapProperty(nameof(AddPromotionRequest.MinWeight), nameof(AddPromotionCommand.MinWeight), Use = nameof(MapWeightToGrams))]
+
         [MapProperty(nameof(AddPromotionRequest.Name), nameof(AddPromotionCommand.Name), Use = nameof(NormalizeName))]
         public partial AddPromotionCommand MapAdd(AddPromotionRequest request);
 
-        private long? MapPriceToCents(decimal? price)
-            => price.HasValue ? (long)Math.Round(price.Value * 10000m) : null;
-        private int? MapWeightToGrams(decimal? weight)
-            => weight.HasValue ? (int)Math.Round(weight.Value * 1000m) : null;
         private string? NormalizeName(string? name) => StringNormalizerHelper.NormalizeName(name);
     }
 }

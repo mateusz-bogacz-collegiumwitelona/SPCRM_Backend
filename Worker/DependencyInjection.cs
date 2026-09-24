@@ -19,7 +19,10 @@ namespace Worker
 
             // Hangfire
             services.AddHangfire(config => config
-                .UsePostgreSqlStorage(configuration.GetConnectionString("DefaultConnection")));
+            .UsePostgreSqlStorage(options =>
+            {
+                options.UseNpgsqlConnection(configuration.GetConnectionString("DefaultConnection"));
+            }));
 
             services.AddHangfireServer();
             return services;

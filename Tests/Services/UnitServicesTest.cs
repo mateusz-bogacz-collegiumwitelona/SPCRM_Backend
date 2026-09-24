@@ -599,9 +599,9 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            await _contextMock.Database.ExecuteSqlRawAsync($@"
+            await _contextMock.Database.ExecuteSqlAsync($@"
                 SET session_replication_role = 'replica';
-                UPDATE ""UnitsOfMeasure"" SET ""Name"" = '' WHERE ""Id"" = '{unit.Id}';
+                UPDATE ""UnitsOfMeasure"" SET ""Name"" = '' WHERE ""Id"" = {unit.Id};
                 SET session_replication_role = 'origin';
             ");
 
@@ -632,9 +632,9 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            await _contextMock.Database.ExecuteSqlRawAsync($@"
+            await _contextMock.Database.ExecuteSqlAsync($@"
                 SET session_replication_role = 'replica';
-                UPDATE ""UnitsOfMeasure"" SET ""Symbol"" = '   ' WHERE ""Id"" = '{unit.Id}';
+                UPDATE ""UnitsOfMeasure"" SET ""Symbol"" = '   ' WHERE ""Id"" = {unit.Id};
                 SET session_replication_role = 'origin';
             ");
 

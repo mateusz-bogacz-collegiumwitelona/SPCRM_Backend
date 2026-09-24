@@ -186,6 +186,9 @@ namespace Tests.Services
                 {
                 }
             }
+
+            _userManagerMock?.Dispose();
+            _roleManagerMock?.Dispose();
         }
 
         // ─── GetUserSimpleListAsync ─────────────────────────────────────────────────

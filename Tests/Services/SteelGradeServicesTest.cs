@@ -644,9 +644,9 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
             _contextMock.ChangeTracker.Clear();
 
-            await _contextMock.Database.ExecuteSqlRawAsync($@"
+            await _contextMock.Database.ExecuteSqlAsync($@"
                 SET session_replication_role = 'replica';
-                UPDATE ""SteelGrades"" SET ""Name"" = '' WHERE ""Id"" = '{steelGrade.Id}';
+                UPDATE ""SteelGrades"" SET ""Name"" = '' WHERE ""Id"" = {steelGrade.Id};
                 SET session_replication_role = 'origin';
             ");
 

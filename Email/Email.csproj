@@ -10,6 +10,7 @@
 	<ItemGroup>
 	  <PackageReference Include="Hangfire" Version="1.8.25" />
 	  <PackageReference Include="Hangfire.Core" Version="1.8.25" />
+	  <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 	  <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
 	</ItemGroup>
 
