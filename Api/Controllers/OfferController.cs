@@ -23,7 +23,7 @@ namespace Api.Controllers
         [EndpointDescription("Get offer list with pagination, sorting and filtering.")]
         [ProducesResponseType(typeof(Result<PagedResult<OfferListResponse>>), StatusCodes.Status200OK)]
         [HttpGet]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.CompaniesMap })]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.OffersList })]
         public async Task<IActionResult> GetOfferListAsync(
             [FromServices] IOfferServices offer,
             [FromServices] OfferMapper mapper,

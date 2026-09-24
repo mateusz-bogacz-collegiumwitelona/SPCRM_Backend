@@ -68,7 +68,8 @@ namespace Api.Controllers
         [Authorize(Roles = "Admin")]
         [InvalidateCache(
             nameof(CacheTags.UnitAll),
-            nameof(CacheTags.PromotionAll), 
+            nameof(CacheTags.ProductAll),
+            nameof(CacheTags.PromotionAll),
             nameof(CacheTags.OffersAll))]
         public async Task<IActionResult> EditUnitAsync(
             [FromServices] IUnitServices unit,

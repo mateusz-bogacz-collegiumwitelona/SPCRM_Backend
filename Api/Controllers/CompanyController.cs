@@ -162,7 +162,7 @@ namespace Api.Controllers
         [EndpointDescription("Show a simple list of companies with only ID and Name.")]
         [ProducesResponseType(typeof(Result<List<CompanySimpleListResponse>>), StatusCodes.Status200OK)]
         [HttpGet("simple-list")]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.CompaniesList])]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.CompaniesSimpleList])]
         public async Task<IActionResult> GetCompanySimpleListAsync(
             [FromServices] ICompanyServices companyServices
         )
@@ -293,6 +293,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<string>>), StatusCodes.Status200OK)]
         [HttpGet("address/types")]
         [Authorize(Roles = "Manager,User")]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.CompanyAddressTypes])]
         public async Task<IActionResult> GetCompanyAddressTypes(
             [FromServices] ICompanyServices companyServices
             )

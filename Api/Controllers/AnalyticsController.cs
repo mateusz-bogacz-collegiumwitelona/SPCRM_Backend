@@ -51,7 +51,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<List<AnalyticsChartMetricResponse>>), StatusCodes.Status200OK)]
         [HttpGet("employees/{employeeId:guid}/chart")]
         [Authorize(Roles = "Manager")]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsTeamKpi])]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsEmployeeChart])]
         public async Task<IActionResult> GetEmployeeRevenueChartAsync(
             [FromRoute] Guid employeeId,
             [FromServices] IAnalyticsService analytics,
@@ -66,7 +66,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns a paginated leaderboard of active sales employees ranked by revenue generated this month.")]
         [ProducesResponseType(typeof(Result<PagedResult<LeaderboardItemResponse>>), StatusCodes.Status200OK)]
         [HttpGet("team/leaderboard")]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsTeamKpi])]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsLeaderboard])]
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> GetTeamLeaderboardAsync(
             [FromServices] IAnalyticsService analytics,
@@ -82,7 +82,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns overall financial, deals, conversion rate, and task performance metrics for a specific employee.")]
         [ProducesResponseType(typeof(Result<EmployeeKpiSummaryResponse>), StatusCodes.Status200OK)]
         [HttpGet("employees/{employeeId:guid}/kpi")]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsTeamKpi])]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsEmployeeKpi])]
         [Authorize(Roles = "Manager")]
 
         public async Task<IActionResult> GetEmployeeKpiSummaryAsync(
@@ -129,7 +129,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns overall financial, deals, conversion rate, and task performance metrics for a specific employee.")]
         [ProducesResponseType(typeof(Result<EmployeeKpiSummaryResponse>), StatusCodes.Status200OK)]
         [HttpGet("me/kpi")]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsTeamKpi])]
+        [OutputCache(PolicyName = "UserAuthPolicy", Tags = [CacheTags.AnalyticsEmployeeKpi])]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetMeKpiSummaryAsync([FromServices] IAnalyticsService analytics)
         {
@@ -141,7 +141,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<AdminMetricsResponse>), StatusCodes.Status200OK)]
         [HttpGet("admin/metrics")]
         [Authorize(Roles = "Admin")]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsTeamKpi])]
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = [CacheTags.AnalyticsAdminMetrics])]
         public async Task<IActionResult> GetAdminMetricsAsync([FromServices] IAnalyticsService analytics)
         {
             var result = await analytics.GetAdminMetricsAsync();
