@@ -13,11 +13,11 @@ namespace Api.Validators.Validators.Company
 
             RuleFor(x => x.Name)
                 .ApplyCompanyNameRules()
-                .When(x => !string.IsNullOrEmpty(x.Name));
+                .When(x => x.Name != null);
 
             RuleFor(x => x.NIP)
                 .ApplyCompanyNipRules()
-                .When(x => !string.IsNullOrEmpty(x.NIP));
+                .When(x => x.NIP != null);
         }
     }
 }

@@ -9,7 +9,7 @@ namespace Api.Validators.Validators.User
         public ChangeUserEmailValidator()
         {
             RuleFor(x => x.UserId).ApplyValidGuidRule();
-            RuleFor(x => x.NewEmail).ApplyUserEmailRules();
+            RuleFor(x => x.NewEmail).ApplyRequiredEmailRules();
         }
     }
 }

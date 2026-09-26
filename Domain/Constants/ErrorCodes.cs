@@ -38,6 +38,7 @@
         public const string NumberInvalid = "VAL_020";
         public const string LinkedInUrlInvalid = "VAL_021";
         public const string LinkedInUrlRequired = "VAL_022";
+        public const string FaxInvalid = "VAL_023";
 
         // Domain / Auth
         public const string UserNotFound = "AUTH_001";
@@ -52,6 +53,7 @@
         public const string NipNotValid = "CAD_002";
         public const string NipRequired = "CAD_011";
 
+
         // Company Address
         public const string AddressAlreadyExists = "CAD_001";
         public const string ZipCodeNotValid = "CAD_003";
@@ -65,6 +67,8 @@
         public const string ZipCodeRequired = "CAD_012";
         public const string AddressNotFound = "CAD_013";
         public const string MissingCoordinates = "CAD_014";
+        public const string LatitudeRequired = "CAD_015";
+        public const string LongitudeRequired = "CAD_016";
 
         // Contact
         public const string InvalidContactDetailType = "CON_001";
@@ -73,6 +77,7 @@
         public const string LatitudeOutOfRange = "CON_004";
         public const string LongitudeOutOfRange = "CON_005";
         public const string AddressTypeNotInvalid = "CON_006";
+        public const string ContactValueRequired = "CON_007";
 
         // Product
         public const string ProductNotFound = "PROD_001";
@@ -95,6 +100,7 @@
         public const string NoteTitleIsNotValid = "NOTE_003";
         public const string NoteContentIsNotValid = "NOTE_004";
         public const string NoteTargetNotFound = "NOTE_005";
+        public const string NoteTypeInvalid = "NOTE_006";
 
         // Mailing
         public const string ClientNotFound = "MAIL_001";
@@ -144,17 +150,24 @@
         public const string OfferNotFound = "OFF_001";
         public const string OfferQuantityInvalid = "OFF_002";
         public const string OfferQuotedPriceInvalid = "OFF_003";
+        public const string OfferProductsRequired = "OFF_004";
 
         // DEAL
         public const string DealNotFound = "DEAL_001";
         public const string DealQuantityInvalid = "DEAL_002";
         public const string DealProductUnitPriceInvalid = "DEAL_003";
         public const string DealNotOwned = "DEAL_004";
+        public const string DealProductsRequired = "DEAL_005";
+        public const string DealStatusInvalid = "DEAL_006";
 
         // TASK
         public const string TaskNotFound = "TASK_001";
         public const string TaskAlreadyAssigned = "TASK_002";
         public const string UserNotOwnThisTask = "TASK_003";
+        public const string TaskTitleInvalid = "TASK_004";
+        public const string TaskDescriptionInvalid = "TASK_005";
+        public const string TaskPriorityInvalid = "TASK_006";
+        public const string TaskStatusInvalid = "TASK_007";
 
         // User
         public const string UserAlreadyExists = "USR_001";

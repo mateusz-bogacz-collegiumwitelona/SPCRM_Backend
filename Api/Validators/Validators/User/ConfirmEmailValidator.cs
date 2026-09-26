@@ -8,13 +8,9 @@ namespace Api.Validators.Validators.User
     {
         public ConfirmEmailValidator()
         {
-            RuleFor(x => x.Email)
-                .NotEmpty()
-                .ApplyUserEmailRules();
+            RuleFor(x => x.Email).ApplyRequiredEmailRules();
 
-            RuleFor(x => x.Token)
-                .NotEmpty()
-                .ApplyValidTokenRule();
+            RuleFor(x => x.Token).ApplyValidTokenRule();
 
             RuleFor(x => x.Password).ApplyPasswordRules();
             RuleFor(x => x.ConfirmPassword).ApplyConfirmPasswordRules(x => x.Password);

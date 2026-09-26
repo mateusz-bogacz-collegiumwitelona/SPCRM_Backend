@@ -10,7 +10,7 @@ namespace Api.Validators.Rule
         public static IRuleBuilderOptions<T, DateTime> ApplyDealCloseDateRules<T>(this IRuleBuilder<T, DateTime> ruleBuilder)
             => ruleBuilder
                 .NotEmpty().WithErrorCode(ErrorCodes.InvalidDate)
-                .GreaterThan(DateTime.UtcNow.AddMinutes(-5)).WithErrorCode(ErrorCodes.InvalidDate);
+                .GreaterThan(_ => DateTime.UtcNow.AddMinutes(-5)).WithErrorCode(ErrorCodes.InvalidDate);
 
         public static IRuleBuilderOptions<T, int> ApplyDealProductQuantityRules<T>(this IRuleBuilder<T, int> ruleBuilder)
             => ruleBuilder
@@ -20,15 +20,22 @@ namespace Api.Validators.Rule
             => ruleBuilder
                 .GreaterThan(0).WithErrorCode(ErrorCodes.DealQuantityInvalid);
 
-        public static IRuleBuilderOptions<T, long> ApplyDealProductUnitPriceRules<T>(this IRuleBuilderOptions<T, long> ruleBuilder)
+        public static IRuleBuilderOptions<T, long> ApplyDealProductUnitPriceRules<T>(this IRuleBuilder<T, long> ruleBuilder)
             => ruleBuilder
-                .GreaterThanOrEqualTo(0)
+                .GreaterThan(0)
+                .WithErrorCode(ErrorCodes.DealProductUnitPriceInvalid);
+
+        public static IRuleBuilderOptions<T, long?> ApplyDealProductUnitPriceRules<T>(this IRuleBuilder<T, long?> ruleBuilder)
+            => ruleBuilder
+                .GreaterThan(0)
                 .WithErrorCode(ErrorCodes.DealProductUnitPriceInvalid);
 
         public static IRuleBuilderOptions<T, string> ApplyDealStatusRules<T>(this IRuleBuilder<T, string> ruleBuilder)
             => ruleBuilder
-                .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
+                .NotEmpty().WithErrorCode(ErrorCodes.DealStatusInvalid)
                 .IsEnumName(typeof(DealsStatusEnum), caseSensitive: false)
-                .WithErrorCode(ErrorCodes.InvalidOperation);
+                .WithErrorCode(ErrorCodes.DealStatusInvalid);
+
+
     }
 }

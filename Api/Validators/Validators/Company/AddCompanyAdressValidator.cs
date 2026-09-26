@@ -4,7 +4,7 @@ using FluentValidation;
 
 namespace Api.Validators.Validators.Company
 {
-    public class AddCompanyAdressValidator : AbstractValidator<AddCompanyAdressRequest>
+    public class AddCompanyAdressValidator : AbstractValidator<AddCompanyAdressesRequest>
     {
         public AddCompanyAdressValidator()
         {

@@ -4,23 +4,23 @@
     {
         public static IServiceCollection AddMappers(this IServiceCollection services)
         {
-            services.AddScoped<AuthMapper>();
-            services.AddScoped<CompanyMapper>();
-            services.AddScoped<ContactMapper>();
-            services.AddScoped<NoteMapper>();
-            services.AddScoped<ProductMapper>();
-            services.AddScoped<DealMapper>();
-            services.AddScoped<MailingMapper>();
-            services.AddScoped<TaskMapper>();
-            services.AddScoped<PromotionMapper>();
-            services.AddScoped<SteelGradeMapper>();
-            services.AddScoped<ApiMapper>();
-            services.AddScoped<CurrencyMapper>();
-            services.AddScoped<UnitMapper>();
-            services.AddScoped<OfferMapper>();
-            services.AddScoped<UserMapper>();
-            services.AddScoped<InvoiceMapper>();
-            services.AddScoped<AnalyticsMapper>();
+            services.AddSingleton<AuthMapper>();
+            services.AddSingleton<CompanyMapper>();
+            services.AddSingleton<ContactMapper>();
+            services.AddSingleton<NoteMapper>();
+            services.AddSingleton<ProductMapper>();
+            services.AddSingleton<DealMapper>();
+            services.AddSingleton<MailingMapper>();
+            services.AddSingleton<TaskMapper>();
+            services.AddSingleton<PromotionMapper>();
+            services.AddSingleton<SteelGradeMapper>();
+            services.AddSingleton<ApiMapper>();
+            services.AddSingleton<CurrencyMapper>();
+            services.AddSingleton<UnitMapper>();
+            services.AddSingleton<OfferMapper>();
+            services.AddSingleton<UserMapper>();
+            services.AddSingleton<InvoiceMapper>();
+            services.AddSingleton<AnalyticsMapper>();
 
             return services;
         }

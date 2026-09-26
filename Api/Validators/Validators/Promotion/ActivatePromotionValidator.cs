@@ -12,9 +12,9 @@ namespace Api.Validators.Validators.Promotion
             RuleFor(x => x.Id).ApplyValidGuidRule();
 
             RuleFor(x => x.EndDate)
-            .NotEmpty()
-            .GreaterThan(DateTime.UtcNow)
-            .WithErrorCode(ErrorCodes.InvalidDate);
+            .NotEmpty().WithErrorCode(ErrorCodes.InvalidDate)
+            .GreaterThan(_ => DateTime.UtcNow).WithErrorCode(ErrorCodes.InvalidDate);
+
         }
     }
 }

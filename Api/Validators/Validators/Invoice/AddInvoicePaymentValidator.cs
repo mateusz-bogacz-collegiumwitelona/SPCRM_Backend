@@ -18,7 +18,7 @@ namespace Api.Validators.Validators.Invoice
                 .LessThanOrEqualTo(_ => DateTime.UtcNow.AddMinutes(5))
                 .WithErrorCode(ErrorCodes.InvalidDate)
                 .GreaterThan(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc))
-                .WithMessage(ErrorCodes.InvalidDate);
+                .WithErrorCode(ErrorCodes.InvalidDate);
 
             RuleFor(x => x.ReferenceNumber)
                 .MaximumLength(100)

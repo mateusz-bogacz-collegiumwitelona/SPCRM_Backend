@@ -11,6 +11,7 @@ namespace Api.Validators.Validators.Note
             RuleFor(x => x.TargetId).ApplyNoteIdRules();
             RuleFor(x => x.Title).ApplyTitleRules();
             RuleFor(x => x.Content).ApplyContentRules();
+            RuleFor(x => x.NoteType).ApplyNoteTypeRules();
         }
     }
 }

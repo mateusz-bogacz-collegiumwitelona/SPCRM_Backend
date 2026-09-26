@@ -5,9 +5,6 @@ namespace Api.Validators.Rule
 {
     public static class PromotionValidatorRules
     {
-        public static IRuleBuilderOptions<T, Guid> ApplyPromotionIdRules<T>(this IRuleBuilder<T, Guid> ruleBuilder)
-            => ruleBuilder.ApplyValidGuidRule();
-
         public static IRuleBuilderOptions<T, string?> ApplyPromotionNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty()
@@ -22,7 +19,7 @@ namespace Api.Validators.Rule
         public static IRuleBuilderOptions<T, long?> ApplyPromotionalPriceRule<T>(this IRuleBuilder<T, long?> ruleBuilder)
             => ruleBuilder
                 .GreaterThan(0)
-                .WithErrorCode(ErrorCodes.InvalidPromotionDiscount);
+                .WithErrorCode(ErrorCodes.InvalidPromotionPrice);
 
         public static IRuleBuilderOptions<T, Guid?> ApplyOptionalGuidRule<T>(this IRuleBuilder<T, Guid?> ruleBuilder)
             => ruleBuilder

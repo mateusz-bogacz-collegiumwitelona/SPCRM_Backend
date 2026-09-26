@@ -1,5 +1,6 @@
 ﻿using Api.Request.Mailing;
 using Api.Validators.Rule;
+using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators.Validators.Mailing
@@ -8,11 +9,21 @@ namespace Api.Validators.Validators.Mailing
     {
         public MailingValidator()
         {
-            RuleForEach(x => x.To).ApplyValidGuidRule();
+            RuleFor(x => x.To)
+                .NotEmpty().WithErrorCode(ErrorCodes.ValidationError);
 
-            RuleForEach(x => x.Products).SetValidator(new MailingProductValidator());
+            RuleForEach(x => x.To)
+                .ApplyValidGuidRule();
 
-            RuleFor(x => x.Language).ApplyLanguageRules();
+            RuleFor(x => x.Products)
+                .NotEmpty().WithErrorCode(ErrorCodes.ValidationError);
+
+            RuleForEach(x => x.Products)
+                .SetValidator(new MailingProductValidator());
+
+            RuleFor(x => x.Language)
+                .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation)
+                .ApplyLanguageRules();
         }
     }
 }

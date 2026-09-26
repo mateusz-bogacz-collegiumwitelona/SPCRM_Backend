@@ -1,6 +1,5 @@
-﻿using System.Security.Claims;
-using Api.Policy;
-using Microsoft.AspNetCore.OutputCaching;
+﻿using Api.Policy;
+using System.Security.Claims;
 
 namespace Api.Configuration
 {

@@ -13,10 +13,7 @@ namespace Api.Validators.Validators.Promotion
 
             RuleFor(x => x.Name).ApplyPromotionNameRules();
 
-            RuleFor(x => x)
-            .Must(x => (x.DiscountPercentage.HasValue && !x.PromotionalPrice.HasValue)
-                    || (!x.DiscountPercentage.HasValue && x.PromotionalPrice.HasValue))
-            .WithErrorCode(ErrorCodes.DiscountPercentageAndPriceCannotBothChoice);
+            RuleFor(x => x).ApplyAddPromotionDiscountExclusiveRule();
 
             RuleFor(x => x.DiscountPercentage).ApplyDiscountPercentageRule();
 

@@ -1,4 +1,4 @@
-﻿namespace Api.Request.Contract
+﻿namespace Api.Request.Product.Contract
 {
     public interface IProductDimensionsContract<TDiameter, TDimension>
     {

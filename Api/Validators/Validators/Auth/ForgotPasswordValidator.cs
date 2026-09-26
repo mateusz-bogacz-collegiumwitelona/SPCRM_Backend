@@ -8,7 +8,7 @@ namespace Api.Validators.Validators.Auth
     {
         public ForgotPasswordValidator()
         {
-            RuleFor(x => x.Email).ApplyUserEmailRules();
+            RuleFor(x => x.Email).ApplyRequiredEmailRules();
         }
     }
 }

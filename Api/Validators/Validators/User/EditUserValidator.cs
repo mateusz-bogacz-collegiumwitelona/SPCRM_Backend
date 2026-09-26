@@ -9,8 +9,8 @@ namespace Api.Validators.Validators.User
         public EditUserValidator()
         {
             RuleFor(x => x.UserId).ApplyValidGuidRule();
-            RuleFor(x => x.FirstName).ApplyFirstNameRules();
-            RuleFor(x => x.LastName).ApplyLastNameRules();
+            RuleFor(x => x.FirstName).ApplyFirstNameRules().When(x => x.FirstName != null); ;
+            RuleFor(x => x.LastName).ApplyLastNameRules().When(x => x.LastName != null); ;
         }
     }
 }

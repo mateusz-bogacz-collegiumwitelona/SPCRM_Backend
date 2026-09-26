@@ -95,7 +95,7 @@ namespace Api.Controllers
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [InvalidateCache(nameof(CacheTags.SteelGradeAll),
-            nameof(CacheTags.ProductAll), 
+            nameof(CacheTags.ProductAll),
             nameof(CacheTags.PromotionAll),
             nameof(CacheTags.AnalyticsAll)
             )]

@@ -15,7 +15,6 @@ namespace Api.Validators.Validators.Deal
                 .ApplyDealProductQuantityRules();
 
             RuleFor(x => x.UnitPrice)
-                .NotNull()
                 .ApplyDealProductUnitPriceRules();
         }
     }

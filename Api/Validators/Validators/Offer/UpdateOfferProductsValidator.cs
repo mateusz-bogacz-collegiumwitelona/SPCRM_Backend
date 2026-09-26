@@ -10,26 +10,14 @@ namespace Api.Validators.Validators.Offer
         public UpdateOfferProductsValidator()
         {
             RuleFor(x => x.OfferId)
-                .ApplyValidGuidRule();
+             .ApplyOfferIdRules();
 
             RuleFor(x => x.Items)
                 .NotEmpty()
-                .WithMessage("Offer must contain at least one product.")
-                .WithErrorCode(ErrorCodes.InvalidOperation);
+                .WithErrorCode(ErrorCodes.OfferProductsRequired);
 
-            RuleForEach(x => x.Items).ChildRules(item =>
-            {
-                item.RuleFor(i => i.ProductId)
-                    .ApplyValidGuidRule();
-
-                item.RuleFor(i => i.Quantity)
-                    .GreaterThan(0)
-                    .WithErrorCode(ErrorCodes.InvalidOperation);
-
-                item.RuleFor(i => i.QuotedPrice)
-                    .GreaterThan(0)
-                    .WithErrorCode(ErrorCodes.InvalidOperation);
-            });
+            RuleForEach(x => x.Items)
+                .SetValidator(new OfferProductItemValidator());
         }
     }
 }

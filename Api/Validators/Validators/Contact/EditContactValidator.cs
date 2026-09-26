@@ -10,12 +10,12 @@ namespace Api.Validators.Validators.Contact
         {
             RuleFor(x => x.ContactId).ApplyValidGuidRule();
 
-            When(x => !string.IsNullOrEmpty(x.FirstName), () =>
+            When(x => x.FirstName != null, () =>
             {
                 RuleFor(x => x.FirstName).ApplyNameRules();
             });
 
-            When(x => !string.IsNullOrEmpty(x.LastName), () =>
+            When(x => x.LastName != null, () =>
             {
                 RuleFor(x => x.LastName).ApplyNameRules();
             });

@@ -13,7 +13,7 @@ namespace Api.Validators.Validators.Product
 
             RuleFor(x => x.Name)
                 .ApplyProductNameRules()
-                .When(x => !string.IsNullOrWhiteSpace(x.Name));
+                .When(x => x.Name != null);
 
             RuleFor(x => x.SteelGradeId)
                 .ApplyValidGuidRule()
@@ -47,7 +47,7 @@ namespace Api.Validators.Validators.Product
 
             RuleFor(x => x.Category)
                 .ApplyProductCategoryRule()
-                .When(x => !string.IsNullOrWhiteSpace(x.Category));
+                .When(x => x.Name != null);
 
             this.ApplyEditProductCategoryDimensionsRules();
         }

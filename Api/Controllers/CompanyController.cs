@@ -175,7 +175,7 @@ namespace Api.Controllers
         [EndpointDescription("Add a new company with its details.")]
         [ProducesResponseType(typeof(Result<Guid>), StatusCodes.Status201Created)]
         [HttpPost]
-        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList, 
+        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList,
             CacheTags.CompaniesMap, CacheTags.UserDetails)]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> AddCompanyAsync(
@@ -192,8 +192,8 @@ namespace Api.Controllers
         [EndpointDescription("Edit an existing company with its details.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [HttpPatch]
-        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList, 
-            CacheTags.CompanyDetails, CacheTags.CompaniesMap, 
+        [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList,
+            CacheTags.CompanyDetails, CacheTags.CompaniesMap,
             CacheTags.DealsList, CacheTags.ContactsList)]
         [Authorize(Roles = "Manager,User")]
         public async Task<IActionResult> EditCompanyAsync(
@@ -233,7 +233,7 @@ namespace Api.Controllers
         public async Task<IActionResult> AddCompanyAddressAsync(
             [FromServices] ICompanyServices company,
             [FromServices] CompanyMapper mapper,
-            [FromBody] AddCompanyAdressRequest request,
+            [FromBody] AddCompanyAdressesRequest request,
             [FromRoute] Guid companyId
             )
         {

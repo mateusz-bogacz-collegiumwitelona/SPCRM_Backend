@@ -9,19 +9,25 @@ namespace Api.Validators.Validators.Mailing
     {
         public MailingProductValidator()
         {
-            RuleFor(x => x.ProductId).ApplyValidGuidRule();
-            RuleFor(x => x.CurrencyCode)
-                .ApplyCurrencyCodeRules()
-                .When(x => x.CurrencyCode != null);
+            RuleFor(x => x.ProductId)
+                .ApplyValidGuidRule();
 
             RuleFor(x => x.Price)
-                .GreaterThan(0)
-                .When(x => x.Price.HasValue)
-                .WithErrorCode(ErrorCodes.InvalidMalingPrice);
+                .GreaterThan(0).WithErrorCode(ErrorCodes.InvalidMalingPrice)
+                .When(x => x.Price.HasValue);
+
+            RuleFor(x => x.CurrencyCode)
+                .NotEmpty().WithErrorCode(ErrorCodes.CodeRequired)
+                .ApplyCurrencyCodeRules()
+                .When(x => x.Price.HasValue);
+
+            RuleFor(x => x.CurrencyCode)
+                .ApplyCurrencyCodeRules()
+                .When(x => x.CurrencyCode != null && !x.Price.HasValue);
 
             RuleFor(x => x.Quantity)
-            .GreaterThan(0)
-            .WithErrorCode(ErrorCodes.InvalidMalingQuantity);
+                .GreaterThan(0)
+                .WithErrorCode(ErrorCodes.InvalidMalingQuantity);
         }
     }
 }

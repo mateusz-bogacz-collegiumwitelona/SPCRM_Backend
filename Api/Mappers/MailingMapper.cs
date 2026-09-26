@@ -8,17 +8,13 @@ using Services.Command.Support;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class MailingMapper
+    public partial class MailingMapper : BaseMapper
     {
         [MapProperty(nameof(SupportEmailRequest.Email), nameof(SupportEmailCommand.Email), Use = nameof(NormalizeEmail))]
-        [MapProperty(nameof(SupportEmailRequest.Title), nameof(SupportEmailCommand.Title), Use = nameof(NormalizeTitle))]
-        [MapProperty(nameof(SupportEmailRequest.Message), nameof(SupportEmailCommand.Message), Use = nameof(TrimMessage))]
+        [MapProperty(nameof(SupportEmailRequest.Title), nameof(SupportEmailCommand.Title), Use = nameof(NormalizeName))]
+        [MapProperty(nameof(SupportEmailRequest.Message), nameof(SupportEmailCommand.Message), Use = nameof(Trim))]
         public partial SupportEmailCommand MapEmail(SupportEmailRequest request);
 
         public partial MailingCommand MapProductMailing(MailingRequest request);
-
-        private string? NormalizeEmail(string? email) => StringNormalizerHelper.TrimAndLower(email);
-        private string? NormalizeTitle(string? title) => StringNormalizerHelper.NormalizeName(title);
-        private string? TrimMessage(string? message) => StringNormalizerHelper.Trim(message);
     }
 }

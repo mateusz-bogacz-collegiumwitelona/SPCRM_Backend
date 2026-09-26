@@ -7,9 +7,9 @@ namespace Api.Validators.Rule
     public static class ContactValidationRules
     {
         public static IRuleBuilderOptions<T, string?> ApplyNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
-              => ruleBuilder
-                  .Length(5, 100)
-                  .WithErrorCode(ErrorCodes.NameLengthInvalid);
+            => ruleBuilder
+                .Length(1, 100)
+                .WithErrorCode(ErrorCodes.NameLengthInvalid);
 
         public static IRuleBuilderOptions<T, string?> ApplyTypeRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
@@ -31,6 +31,11 @@ namespace Api.Validators.Rule
                 .Must(BeAValidPhoneNumber)
                 .WithErrorCode(ErrorCodes.NumberInvalid);
 
+        public static IRuleBuilderOptions<T, string?> ApplyFaxRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
+            => ruleBuilder
+                .Must(BeAValidPhoneNumber)
+                .WithErrorCode(ErrorCodes.FaxInvalid);
+
         public static IRuleBuilderOptions<T, string?> ApplyLinkedInRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .Must(BeAValidLinkedInUrl)
@@ -39,8 +44,10 @@ namespace Api.Validators.Rule
         public static bool IsPhoneType(string? type) =>
             !string.IsNullOrEmpty(type) && (
             type.Equals("PHONE", StringComparison.OrdinalIgnoreCase) ||
-            type.Equals("PHONE_MOBILE", StringComparison.OrdinalIgnoreCase) ||
-            type.Equals("FAX", StringComparison.OrdinalIgnoreCase));
+            type.Equals("PHONE_MOBILE", StringComparison.OrdinalIgnoreCase));
+
+        public static bool IsFaxType(string? type) =>
+            !string.IsNullOrEmpty(type) && type.Equals("FAX", StringComparison.OrdinalIgnoreCase);
 
         private static bool BeAValidPhoneNumber(string? value)
         {

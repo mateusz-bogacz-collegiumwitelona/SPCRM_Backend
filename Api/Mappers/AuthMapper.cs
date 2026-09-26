@@ -6,7 +6,7 @@ using Services.Command.Auth;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class AuthMapper
+    public partial class AuthMapper : BaseMapper
     {
         public LoginCommand MapLogin(LoginRequest request)
             => new LoginCommand
@@ -25,7 +25,5 @@ namespace Api.Mappers
                 Token = request.Token,
                 Password = request.Password
             };
-
-        private string NormalizeEmail(string email) => StringNormalizerHelper.NormalizeEmail(email);
     }
 }

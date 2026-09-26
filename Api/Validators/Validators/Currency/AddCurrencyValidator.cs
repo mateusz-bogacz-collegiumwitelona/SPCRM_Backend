@@ -9,15 +9,12 @@ namespace Api.Validators.Validators.Currency
         public AddCurrencyValidator()
         {
             RuleFor(x => x.Name)
-                .ApplyCurrencyNameRules()
-                .When(x => !string.IsNullOrWhiteSpace(x.Name));
+                .ApplyCurrencyNameRules();
 
             RuleFor(x => x.Code)
-                .ApplyCurrencyCodeRules()
-                .When(x => !string.IsNullOrWhiteSpace(x.Code));
+                .ApplyCurrencyCodeRules();
 
-            RuleFor(x => x.DecimalPlaces)
-                .ApplyCurrencyDecimalPlacesRules();
+            RuleFor(x => x.DecimalPlaces);
         }
     }
 }

@@ -54,7 +54,7 @@ namespace Api.Validators.Rule
         public static IRuleBuilderOptions<T, string?> ApplyCompanyAddressTypeRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty().WithErrorCode(ErrorCodes.AddressTypeRequired)
-                .Must(type => Enum.TryParse<AddressTypeEnum>(type, true, out _))
+                .IsEnumName(typeof(AddressTypeEnum), caseSensitive: false)
                 .WithErrorCode(ErrorCodes.AddressTypeNotInvalid);
 
         private static bool BeValidNipChecksum(string? nip)

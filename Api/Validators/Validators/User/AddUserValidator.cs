@@ -11,7 +11,7 @@ namespace Api.Validators.Validators.User
         {
             RuleFor(x => x.FirstName).ApplyFirstNameRules();
             RuleFor(x => x.LastName).ApplyLastNameRules();
-            RuleFor(x => x.Email).ApplyUserEmailRules();
+            RuleFor(x => x.Email).ApplyRequiredEmailRules();
             RuleFor(x => x.Role).ApplyRoleRules(roleManager);
         }
     }

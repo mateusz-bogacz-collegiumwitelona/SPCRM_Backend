@@ -7,7 +7,7 @@ using Services.Command.Task;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class TaskMapper
+    public partial class TaskMapper : BaseMapper
     {
         public TaskCalendarCommand MapUserCalendar(Guid userId, TaskCalendarRequest request)
             => new TaskCalendarCommand
@@ -63,8 +63,8 @@ namespace Api.Mappers
             {
                 TaskId = taskId,
                 UserId = userId,
-                Title = request.Title != null ? NormalizeName(request.Title) : null,
-                Description = request.Description != null ? Trim(request.Description) : null,
+                Title = NormalizeNullableName(request.Title),
+                Description = Trim(request.Description),
                 Priority = ParseTaskPriority(request.Priority)
             };
 
@@ -85,21 +85,23 @@ namespace Api.Mappers
             };
 
         private TaskStatusEnum? ParseTaskStatus(string? status)
-            => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed) ? parsed : null;
+            => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed)
+                ? parsed
+                : null;
 
         private TaskStatusEnum ParseTaskStatusNotNull(string status)
-            => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed) ? parsed : (TaskStatusEnum)(-1);
+            => Enum.TryParse<TaskStatusEnum>(status, true, out var parsed)
+                ? parsed
+                : throw new ArgumentException($"Invalid task status: '{status}'");
 
         private TaskPriorityEnum? ParseTaskPriority(string? priority)
-            => Enum.TryParse<TaskPriorityEnum>(priority, true, out var parsed) ? parsed : null;
+            => Enum.TryParse<TaskPriorityEnum>(priority, true, out var parsed)
+                ? parsed
+                : null;
 
         private TaskPriorityEnum ParseTaskPriorityNotNull(string priority)
-            => Enum.TryParse<TaskPriorityEnum>(priority, true, out var parsed) ? parsed : (TaskPriorityEnum)(-1);
-
-        private string NormalizeName(string? value)
-            => StringNormalizerHelper.NormalizeName(value) ?? string.Empty;
-
-        public string Trim(string? value)
-            => StringNormalizerHelper.Trim(value) ?? string.Empty;
+            => Enum.TryParse<TaskPriorityEnum>(priority, true, out var parsed)
+                ? parsed
+                : throw new ArgumentException($"Invalid task priority: '{priority}'");
     }
 }

@@ -5,28 +5,28 @@ using System.Linq.Expressions;
 
 namespace Api.Validators.Rule
 {
-    public static class UserValiadtionRules
+    public static class UserValidationRules
     {
         public static IRuleBuilderOptions<T, string?> ApplyFirstNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
-            => ruleBuilder
-                .Must(name => name == null || !string.IsNullOrWhiteSpace(name))
-                .WithErrorCode(ErrorCodes.InvalidFirstName)
-                .MaximumLength(50)
-                .WithErrorCode(ErrorCodes.InvalidFirstName);
+          => ruleBuilder
+              .NotEmpty().WithErrorCode(ErrorCodes.InvalidFirstName)
+              .MaximumLength(50).WithErrorCode(ErrorCodes.InvalidFirstName);
 
         public static IRuleBuilderOptions<T, string?> ApplyLastNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
-                .Must(name => name == null || !string.IsNullOrWhiteSpace(name))
-                .WithErrorCode(ErrorCodes.InvalidLastName)
-                .MaximumLength(50)
-                .WithErrorCode(ErrorCodes.InvalidLastName);
+                .NotEmpty().WithErrorCode(ErrorCodes.InvalidLastName)
+                .MaximumLength(50).WithErrorCode(ErrorCodes.InvalidLastName);
 
-        public static IRuleBuilderOptions<T, string?> ApplyUserEmailRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
+        public static IRuleBuilderOptions<T, string?> ApplyRequiredEmailRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
+          => ruleBuilder
+              .NotEmpty()
+              .WithErrorCode(ErrorCodes.EmailRequired)
+              .EmailAddress()
+              .WithErrorCode(ErrorCodes.InvalidEmail);
+
+        public static IRuleBuilderOptions<T, string?> ApplyOptionalEmailRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
-                .Must(email => email == null || !string.IsNullOrWhiteSpace(email))
-                .WithErrorCode(ErrorCodes.InvalidEmail)
-                .EmailAddress()
-                .When(x => true, ApplyConditionTo.CurrentValidator)
+                .Must(email => string.IsNullOrWhiteSpace(email) || BeValidEmail(email))
                 .WithErrorCode(ErrorCodes.InvalidEmail);
 
         public static IRuleBuilderOptions<T, string> ApplyPasswordRules<T>(this IRuleBuilder<T, string> ruleBuilder)
@@ -66,5 +66,7 @@ namespace Api.Validators.Rule
                 .NotEmpty()
                 .WithErrorCode(ErrorCodes.TokenInvalid);
 
+        private static bool BeValidEmail(string email)
+           => new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email);
     }
 }

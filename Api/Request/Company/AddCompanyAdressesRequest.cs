@@ -1,6 +1,6 @@
 ﻿namespace Api.Request.Company
 {
-    public class AddCompanyAdressRequest
+    public class AddCompanyAdressesRequest
     {
         public required string Street { get; init; }
         public required string City { get; init; }

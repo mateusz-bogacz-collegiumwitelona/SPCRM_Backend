@@ -204,7 +204,7 @@ namespace Api.Controllers
         [HttpPatch("role")]
         [Authorize(Roles = "Admin")]
         [InvalidateCache(
-            nameof(CacheTags.UserAll), 
+            nameof(CacheTags.UserAll),
             nameof(CacheTags.CompanyAll),
             nameof(CacheTags.ContactAll),
             nameof(CacheTags.DealAll),

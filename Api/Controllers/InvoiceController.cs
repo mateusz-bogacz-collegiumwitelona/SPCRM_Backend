@@ -106,7 +106,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
         [HttpPost("{invoiceId:guid}/payment")]
         [Authorize(Roles = "User,Manager")]
-        [InvalidateCache(nameof(CacheTags.InvoiceAll),CacheTags.DealDetails)]
+        [InvalidateCache(nameof(CacheTags.InvoiceAll), CacheTags.DealDetails)]
         public async Task<IActionResult> AddInvoicePaymentAsync(
             [FromServices] IInvoiceService invoice,
             [FromServices] InvoiceMapper mapper,

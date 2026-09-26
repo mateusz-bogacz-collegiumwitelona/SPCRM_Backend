@@ -11,15 +11,15 @@ namespace Api.Validators.Validators.Task
 
             RuleFor(x => x.Title)
                 .ApplyTaskTitleRules()
-                .When(x => !string.IsNullOrEmpty(x.Title), ApplyConditionTo.CurrentValidator);
+                .When(x => x.Title != null);
 
             RuleFor(x => x.Description)
                 .ApplyTaskDescriptionRules()
-                .When(x => !string.IsNullOrEmpty(x.Description), ApplyConditionTo.CurrentValidator);
+                .When(x => x.Description != null);
 
             RuleFor(x => x.Priority)
                 .ApplyTaskPriorityRules()
-                .When(x => x.Priority != null, ApplyConditionTo.CurrentValidator);
+                .When(x => x.Priority != null);
         }
     }
 }

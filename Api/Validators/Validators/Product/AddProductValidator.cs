@@ -32,6 +32,15 @@ namespace Api.Validators.Validators.Product
             RuleFor(x => x.Category)
                 .ApplyProductCategoryRule();
 
+            RuleFor(x => x.Width)
+                .ApplyProductDimmensionRule();
+
+            RuleFor(x => x.Length)
+                .ApplyProductDimmensionRule();
+
+            RuleFor(x => x.CurrencyId)
+                .ApplyValidGuidRule();
+
             this.ApplyProductCategoryDimensionsRules();
         }
     }

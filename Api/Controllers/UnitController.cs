@@ -74,7 +74,7 @@ namespace Api.Controllers
         public async Task<IActionResult> EditUnitAsync(
             [FromServices] IUnitServices unit,
             [FromServices] UnitMapper mapper,
-            [FromBody] EditUnitReqeust request)
+            [FromBody] EditUnitRequest request)
         {
             var result = await unit.EditUnitAsync(mapper.MapEdit(request));
             return HandleResult(result);

@@ -9,7 +9,9 @@ namespace Api.Validators.Validators.Promotion
     {
         public EditPromotionValidator()
         {
-            RuleFor(x => x.Id).ApplyPromotionIdRules();
+            RuleFor(x => x.Id).ApplyValidGuidRule();
+
+            RuleFor(x => x).ApplyEditPromotionDiscountExclusiveRule();
 
             RuleFor(x => x.Name!)
                 .ApplyPromotionNameRules()

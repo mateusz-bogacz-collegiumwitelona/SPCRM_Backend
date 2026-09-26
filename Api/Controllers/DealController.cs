@@ -246,9 +246,9 @@ namespace Api.Controllers
         [HttpPut("{dealId:guid}/status")]
         [Authorize(Roles = "User,Manager")]
         [InvalidateCache(
-            nameof(CacheTags.DealAll), 
-            nameof(CacheTags.ProductAll), 
-            nameof(CacheTags.AnalyticsAll), 
+            nameof(CacheTags.DealAll),
+            nameof(CacheTags.ProductAll),
+            nameof(CacheTags.AnalyticsAll),
             CacheTags.UserDetails)]
         [EnableRateLimiting("expensive")]
         public async Task<IActionResult> ChangeDealStatusAsync(
@@ -267,9 +267,9 @@ namespace Api.Controllers
         [HttpPost("{dealId:guid}/tasks")]
         [Authorize(Roles = "User,Manager")]
         [InvalidateCache(
-            nameof(CacheTags.DealAll), 
-            nameof(CacheTags.ProductAll), 
-            nameof(CacheTags.AnalyticsAll), 
+            nameof(CacheTags.DealAll),
+            nameof(CacheTags.ProductAll),
+            nameof(CacheTags.AnalyticsAll),
             nameof(CacheTags.TaskAll)
             )]
         public async Task<IActionResult> AddDealTaskAsync(

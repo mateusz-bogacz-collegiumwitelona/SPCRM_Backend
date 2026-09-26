@@ -36,7 +36,7 @@ namespace Api.Mappers
             {
                 DealId = dealId,
                 UserId = userId,
-                TargetStatus = PareseDealStatus(request.TargetStatus),
+                TargetStatus = ParseDealStatus(request.TargetStatus),
                 Language = request.Language,
                 CustomRecipientEmail = request.CustomRecipientEmail
             };
@@ -49,7 +49,7 @@ namespace Api.Mappers
 
         public partial EditDealProductCommand MapEditProduct(EditDealProductRequest request);
 
-        public DealsStatusEnum PareseDealStatus(string status)
+        public DealsStatusEnum ParseDealStatus(string status)
             => Enum.TryParse<DealsStatusEnum>(status, true, out var result) ? result : throw new ArgumentException($"Invalid status value: {status}");
     }
 }

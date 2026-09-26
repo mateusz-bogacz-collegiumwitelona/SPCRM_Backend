@@ -19,7 +19,11 @@ namespace Api.Validators.Validators.Promotion
 
             RuleFor(x => x.DiscountPrecentageTo)
                 .LessThanOrEqualTo(100)
-                .GreaterThanOrEqualTo(x => x.DiscountPrecentageFrom ?? 0)
+                .When(x => x.DiscountPrecentageTo.HasValue)
+                .WithErrorCode(ErrorCodes.InvalidPromotionDiscount);
+
+            RuleFor(x => x.DiscountPrecentageTo)
+                .GreaterThanOrEqualTo(x => x.DiscountPrecentageFrom!.Value)
                 .When(x => x.DiscountPrecentageTo.HasValue && x.DiscountPrecentageFrom.HasValue)
                 .WithErrorCode(ErrorCodes.InvalidPromotionDiscount);
 
@@ -29,7 +33,12 @@ namespace Api.Validators.Validators.Promotion
                 .WithErrorCode(ErrorCodes.InvalidPromotionPrice);
 
             RuleFor(x => x.PromotionPriceTo)
-                .GreaterThanOrEqualTo(x => x.PromotionPriceFrom ?? 0)
+                 .GreaterThanOrEqualTo(0)
+                 .When(x => x.PromotionPriceTo.HasValue)
+                 .WithErrorCode(ErrorCodes.InvalidPromotionPrice);
+
+            RuleFor(x => x.PromotionPriceTo)
+                .GreaterThanOrEqualTo(x => x.PromotionPriceFrom!.Value)
                 .When(x => x.PromotionPriceTo.HasValue && x.PromotionPriceFrom.HasValue)
                 .WithErrorCode(ErrorCodes.InvalidPromotionPrice);
 

@@ -14,8 +14,8 @@ namespace Api.Validators.Rule
 
         public static IRuleBuilderOptions<T, string?> ApplyUnitSymbolRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
-                .NotEmpty()
-                .WithErrorCode(ErrorCodes.InvalidUnitSymbol);
+                .NotEmpty().WithErrorCode(ErrorCodes.InvalidUnitSymbol)
+                .MaximumLength(20).WithErrorCode(ErrorCodes.InvalidUnitSymbol);
 
         public static IRuleBuilderOptions<T, int> ApplyUnitBaseMultiplierRules<T>(this IRuleBuilder<T, int> ruleBuilder)
            => ruleBuilder

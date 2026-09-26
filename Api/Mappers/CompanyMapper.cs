@@ -9,7 +9,7 @@ using Services.Command.Company;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class CompanyMapper
+    public partial class CompanyMapper : BaseMapper
     {
         public CompanyCommand MapBasic(Guid companyId, PaggedRequest request)
             => new CompanyCommand
@@ -43,7 +43,7 @@ namespace Api.Mappers
         [MapProperty(nameof(AddCompanyRequest.Addresses), nameof(AddCompanyCommand.Adresses))]
         public partial AddCompanyCommand MapAdd(AddCompanyRequest request);
 
-        public AddCompanyAdressCommand MapAddAddress(AddCompanyAdressRequest request)
+        public AddCompanyAdressCommand MapAddAddress(AddCompanyAdressesRequest request)
             => new AddCompanyAdressCommand
             {
                 Street = NormalizeName(request.Street),
@@ -53,6 +53,9 @@ namespace Api.Mappers
                            ?? throw new ArgumentException("Localization coordinates are required for new address."),
                 Type = ParseAddressType(request.Type) ?? AddressTypeEnum.Branch
             };
+
+        [MapProperty(nameof(EditCompanyRequest.Name), nameof(EditCompanyCommand.Name), Use = nameof(NormalizeNullableName))]
+        [MapProperty(nameof(EditCompanyRequest.NIP), nameof(EditCompanyCommand.NIP), Use = nameof(NormalizeNip))]
 
         public partial EditCompanyCommand MapEdit(EditCompanyRequest request);
 
@@ -88,8 +91,6 @@ namespace Api.Mappers
                 SearchTerm = search?.SearchTerm
             };
 
-        private string NormalizeName(string? name)
-            => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
 
         private string NormalizeNip(string? nip)
         {

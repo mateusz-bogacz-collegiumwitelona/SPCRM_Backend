@@ -6,9 +6,9 @@ using Services.Command.User;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class UserMapper
+    public partial class UserMapper : BaseMapper
     {
-        [MapProperty(nameof(UserListRequest.Role), nameof(UserListRequest.Role), Use = nameof(NormalizeNullableName))]
+        [MapProperty(nameof(UserListRequest.Role), nameof(UserListCommand.Role), Use = nameof(NormalizeNullableName))]
         public partial UserListCommand MapList(UserListRequest request);
 
         public ConfirmEmailCommand MapConfirmEmail(ConfirmEmailRequest request)
@@ -19,8 +19,8 @@ namespace Api.Mappers
                 Password = request.Password
             };
 
-        [MapProperty(nameof(AddUserRequest.FirstName), nameof(AddUserCommand.FirstName), Use = nameof(NormalizeRequiredName))]
-        [MapProperty(nameof(AddUserRequest.LastName), nameof(AddUserCommand.LastName), Use = nameof(NormalizeRequiredName))]
+        [MapProperty(nameof(AddUserRequest.FirstName), nameof(AddUserCommand.FirstName), Use = nameof(NormalizeName))]
+        [MapProperty(nameof(AddUserRequest.LastName), nameof(AddUserCommand.LastName), Use = nameof(NormalizeName))]
         [MapProperty(nameof(AddUserRequest.Email), nameof(AddUserCommand.Email), Use = nameof(NormalizeEmail))]
         public partial AddUserCommand MapAdd(AddUserRequest request);
 
@@ -43,11 +43,5 @@ namespace Api.Mappers
             };
 
         public partial ChangeRoleCommand MapChangeRole(ChangeRoleRequest request);
-
-        private string NormalizeRequiredName(string name) => StringNormalizerHelper.NormalizeName(name) ?? string.Empty;
-
-        private string? NormalizeNullableName(string? name) => StringNormalizerHelper.NormalizeName(name);
-
-        private string NormalizeEmail(string email) => StringNormalizerHelper.NormalizeEmail(email);
     }
 }

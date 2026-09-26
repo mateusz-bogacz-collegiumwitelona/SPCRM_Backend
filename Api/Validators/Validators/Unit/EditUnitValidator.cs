@@ -4,7 +4,7 @@ using FluentValidation;
 
 namespace Api.Validators.Validators.Unit
 {
-    public class EditUnitValidator : AbstractValidator<EditUnitReqeust>
+    public class EditUnitValidator : AbstractValidator<EditUnitRequest>
     {
         public EditUnitValidator()
         {
@@ -12,13 +12,16 @@ namespace Api.Validators.Validators.Unit
                 .ApplyValidGuidRule();
 
             RuleFor(x => x.Name)
-                .ApplyUnitNameRules();
+                .ApplyUnitNameRules()
+                .When(x => x.Name != null);
 
             RuleFor(x => x.Symbol)
-                .ApplyUnitSymbolRules();
+                .ApplyUnitSymbolRules()
+                .When(x => x.Symbol != null);
 
             RuleFor(x => x.BaseMultiplier)
-                .ApplyUnitBaseMultiplierRules();
+                .ApplyUnitBaseMultiplierRules()
+                .When(x => x.BaseMultiplier.HasValue);
         }
     }
 }

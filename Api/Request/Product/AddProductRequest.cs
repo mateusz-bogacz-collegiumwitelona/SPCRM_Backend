@@ -1,4 +1,4 @@
-﻿using Api.Request.Contract;
+﻿using Api.Request.Product.Contract;
 
 namespace Api.Request.Product
 {

@@ -9,8 +9,14 @@ namespace Api.Validators.Validators.Note
         public NoteEditValidator()
         {
             RuleFor(x => x.Id).ApplyNoteIdRules();
-            RuleFor(x => x.Title).ApplyTitleRules();
-            RuleFor(x => x.Content).ApplyContentRules();
+
+            RuleFor(x => x.Title)
+            .ApplyTitleRules()
+            .When(x => x.Title != null);
+
+            RuleFor(x => x.Content)
+                .ApplyContentRules()
+                .When(x => x.Content != null);
         }
     }
 }

@@ -23,7 +23,7 @@ namespace Api.Validators.Validators.Deal
                 .ApplyValidGuidRule();
 
             RuleFor(x => x.Products)
-                .NotEmpty().WithErrorCode(ErrorCodes.InvalidOperation);
+                .NotEmpty().WithErrorCode(ErrorCodes.DealProductsRequired);
 
             RuleForEach(x => x.Products).SetValidator(new AddDealProductValidator());
         }

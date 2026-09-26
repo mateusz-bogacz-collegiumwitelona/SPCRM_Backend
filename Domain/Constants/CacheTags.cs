@@ -172,7 +172,7 @@
         public const string TaskNotes = "note_details";
         public static readonly string[] NoteAll =
         {
-            TaskNotes, 
+            TaskNotes,
             DealNotes,
             ContactNotes
         };

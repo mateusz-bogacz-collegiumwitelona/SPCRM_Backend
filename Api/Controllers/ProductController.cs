@@ -56,7 +56,7 @@ namespace Api.Controllers
         [ProducesResponseType(typeof(Result<IEnumerable<SteelGradeResponse>>), StatusCodes.Status200OK)]
         [HttpGet("steel-grades")]
         [Authorize]
-        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ProductSteelGrades })]   
+        [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ProductSteelGrades })]
         public async Task<IActionResult> GetSteelGradesAsync([FromServices] ISteelGradeServices steelGradeServices)
         {
             var result = await steelGradeServices.GetSteelGradesAsync();

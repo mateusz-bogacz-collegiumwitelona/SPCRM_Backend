@@ -8,27 +8,32 @@ namespace Api.Validators.Validators.Contact
     {
         public EditContactDetailValidator()
         {
-            When(x => !string.IsNullOrEmpty(x.Type), () =>
+            When(x => x.Type != null, () =>
             {
                 RuleFor(x => x.Type).ApplyTypeRules();
             });
 
-            When(x => !string.IsNullOrEmpty(x.Label), () =>
+            When(x => x.Label != null, () =>
             {
                 RuleFor(x => x.Label).ApplyLabelRules();
             });
 
-            When(x => !string.IsNullOrEmpty(x.Type) && string.Equals(x.Type, "EMAIL", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(x.Value), () =>
+            When(x => x.Type != null && string.Equals(x.Type, "EMAIL", StringComparison.OrdinalIgnoreCase) && x.Value != null, () =>
             {
                 RuleFor(x => x.Value).ApplyEmailRules();
             });
 
-            When(x => ContactValidationRules.IsPhoneType(x.Type) && !string.IsNullOrEmpty(x.Value), () =>
+            When(x => ContactValidationRules.IsPhoneType(x.Type) && x.Value != null, () =>
             {
                 RuleFor(x => x.Value).ApplyPhoneRules();
             });
 
-            When(x => !string.IsNullOrEmpty(x.Type) && string.Equals(x.Type, "LINKEDIN", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(x.Value), () =>
+            When(x => ContactValidationRules.IsFaxType(x.Type) && x.Value != null, () =>
+            {
+                RuleFor(x => x.Value).ApplyFaxRules();
+            });
+
+            When(x => x.Type != null && string.Equals(x.Type, "LINKEDIN", StringComparison.OrdinalIgnoreCase) && x.Value != null, () =>
             {
                 RuleFor(x => x.Value).ApplyLinkedInRules();
             });

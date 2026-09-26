@@ -7,7 +7,7 @@ using Services.Command.Contact;
 namespace Api.Mappers
 {
     [Mapper]
-    public partial class ContactMapper
+    public partial class ContactMapper : BaseMapper
     {
         public ContactListCommand MapContactList(
             PaggedRequest pagged,
@@ -32,16 +32,16 @@ namespace Api.Mappers
         [MapProperty(nameof(AddContactRequest.JobTitle), nameof(AddContactCommand.JobTitle), Use = nameof(NormalizeName))]
         public partial AddContactCommand MapAdd(AddContactRequest request);
 
-        [MapProperty(nameof(EditContactRequest.FirstName), nameof(EditContactCommand.FirstName), Use = nameof(NormalizeName))]
-        [MapProperty(nameof(EditContactRequest.LastName), nameof(EditContactCommand.LastName), Use = nameof(NormalizeName))]
-        [MapProperty(nameof(EditContactRequest.JobTitle), nameof(EditContactCommand.JobTitle), Use = nameof(NormalizeName))]
+        [MapProperty(nameof(EditContactRequest.FirstName), nameof(EditContactCommand.FirstName), Use = nameof(NormalizeNullableName))]
+        [MapProperty(nameof(EditContactRequest.LastName), nameof(EditContactCommand.LastName), Use = nameof(NormalizeNullableName))]
+        [MapProperty(nameof(EditContactRequest.JobTitle), nameof(EditContactCommand.JobTitle), Use = nameof(NormalizeNullableName))]
         public partial EditContactCommand MapEdit(EditContactRequest request);
 
         [MapProperty(nameof(AddContactDetailRequest.Label), nameof(AddContactDetailCommand.Label), Use = nameof(NormalizeName))]
         [MapProperty(nameof(AddContactDetailRequest.Value), nameof(AddContactDetailCommand.Value), Use = nameof(Trim))]
         private partial AddContactDetailCommand MapAddDetail(AddContactDetailRequest request);
 
-        [MapProperty(nameof(EditContactDetailRequest.Label), nameof(EditContactDetailCommand.Label), Use = nameof(NormalizeName))]
+        [MapProperty(nameof(EditContactDetailRequest.Label), nameof(EditContactDetailCommand.Label), Use = nameof(NormalizeNullableName))]
         [MapProperty(nameof(EditContactDetailRequest.Value), nameof(EditContactDetailCommand.Value), Use = nameof(Trim))]
         private partial EditContactDetailCommand MapEditDetail(EditContactDetailRequest request);
 
@@ -65,7 +65,5 @@ namespace Api.Mappers
             OwnerId = userId
         };
 
-        private string? NormalizeName(string? value) => StringNormalizerHelper.NormalizeName(value);
-        private string? Trim(string? value) => StringNormalizerHelper.Trim(value);
     }
 }

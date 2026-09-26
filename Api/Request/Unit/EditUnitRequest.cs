@@ -1,6 +1,6 @@
 ﻿namespace Api.Request.Unit
 {
-    public record EditUnitReqeust
+    public record EditUnitRequest
     {
         public required Guid UnitId { get; init; }
         public string? Name { get; init; }

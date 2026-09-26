@@ -1,4 +1,5 @@
 ﻿using Domain.Constants;
+using Domain.Enum;
 using FluentValidation;
 
 namespace Api.Validators.Rule
@@ -17,5 +18,10 @@ namespace Api.Validators.Rule
             => ruleBuilder
                 .Length(1, 500)
                 .WithErrorCode(ErrorCodes.NoteContentIsNotValid);
+
+        public static IRuleBuilderOptions<T, NoteTypeEnum> ApplyNoteTypeRules<T>(this IRuleBuilder<T, NoteTypeEnum> ruleBuilder)
+            => ruleBuilder
+                .IsInEnum()
+                .WithErrorCode(ErrorCodes.NoteTypeInvalid);
     }
 }

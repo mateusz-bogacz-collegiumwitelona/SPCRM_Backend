@@ -1,6 +1,8 @@
-﻿namespace Api.Request.Promotion
+﻿using Api.Request.Promotion.Contract;
+
+namespace Api.Request.Promotion
 {
-    public record EditPromotionRequest
+    public record EditPromotionRequest : IPromotionDiscountContract
     {
         public required Guid Id { get; init; }
         public string? Name { get; init; }

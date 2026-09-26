@@ -1,5 +1,6 @@
 ﻿using Api.Request.Company;
 using Api.Validators.Rule;
+using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators.Validators.Company
@@ -9,31 +10,33 @@ namespace Api.Validators.Validators.Company
         public EditCompanyAddressValidator()
         {
             RuleFor(x => x.AddressId)
-                .ApplyValidGuidRule();
+                 .ApplyValidGuidRule();
 
             RuleFor(x => x.Street)
                 .ApplyCompanyStreetRules()
-                .When(x => !string.IsNullOrEmpty(x.Street));
+                .When(x => x.Street != null);
 
             RuleFor(x => x.City)
                 .ApplyCompanyCityRules()
-                .When(x => !string.IsNullOrEmpty(x.City));
+                .When(x => x.City != null);
 
             RuleFor(x => x.ZipCode)
                 .ApplyCompanyZipCodeRules()
-                .When(x => !string.IsNullOrEmpty(x.ZipCode));
+                .When(x => x.ZipCode != null);
 
             RuleFor(x => x.Latitude)
+                .NotNull().WithErrorCode(ErrorCodes.LatitudeRequired)
                 .ApplyCompanyLatitudeRules()
-                .When(x => x.Latitude.HasValue);
+                .When(x => x.Longitude.HasValue);
 
             RuleFor(x => x.Longitude)
+                .NotNull().WithErrorCode(ErrorCodes.LongitudeRequired)
                 .ApplyCompanyLongitudeRules()
-                .When(x => x.Longitude.HasValue);
+                .When(x => x.Latitude.HasValue);
 
             RuleFor(x => x.Type)
                 .ApplyCompanyAddressTypeRules()
-                .When(x => !string.IsNullOrEmpty(x.Type));
+                .When(x => x.Type != null);
         }
     }
 }
