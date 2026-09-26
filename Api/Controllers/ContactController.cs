@@ -217,7 +217,7 @@ namespace Api.Controllers
         [EndpointDescription("Get available contacts to use in create deal")]
         [ProducesResponseType(typeof(Result<PagedResult<ContactDealResponse>>), StatusCodes.Status200OK)]
         [HttpGet("to-deals")]
-        [Authorize(Roles = "User,Admin")]
+        [Authorize(Roles = "User,Manager")]
         [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ContactToDeals })]
         public async Task<IActionResult> GetContactToDealAsync(
             [FromServices] IContactServices contact,
