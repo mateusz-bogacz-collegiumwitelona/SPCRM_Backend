@@ -14,18 +14,15 @@ namespace Services.Services
     public class AuthServices : IAuthServices
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly TokenServices _token;
         private readonly ILogger<AuthServices> _logger;
         private readonly SignInManager<ApplicationUser> _signInManager;
         public AuthServices(
             UserManager<ApplicationUser> userManager,
-            TokenServices token,
             ILogger<AuthServices> logger,
             SignInManager<ApplicationUser> signInManager
             )
         {
             _userManager = userManager;
-            _token = token;
             _logger = logger;
             _signInManager = signInManager;
         }

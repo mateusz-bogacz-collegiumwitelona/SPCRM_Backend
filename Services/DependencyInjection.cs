@@ -17,7 +17,6 @@ namespace Services
             services.AddScoped<ICancellationTokenAccessor, HttpCancellationTokenAccessor>();
 
             // Services
-            services.AddScoped<TokenServices>();
             services.AddScoped<IAuthServices, AuthServices>();
             services.AddScoped<IMailingServices, MailingServices>();
             services.AddScoped<ICompanyServices, CompanyServices>();

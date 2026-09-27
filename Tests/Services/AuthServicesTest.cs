@@ -30,7 +30,6 @@ namespace Tests.Services
         private static string _connectionString = null!;
 
         protected AuthServices _authServicesMock = null!;
-        protected TokenServices _tokenServicesMock = null!;
         protected SignInManager<ApplicationUser> _signInManagerMock = null!;
 
         [Before(Class)]
@@ -140,13 +139,12 @@ namespace Tests.Services
                 );
 
             _loggerMock = Mock.Of<ILogger<AuthServices>>().Object;
-            _tokenServicesMock = Mock.Of<TokenServices>(configuration).Object;
 
             var fakeSignInManager = new FakeSignInManager(_userManagerMock);
 
             _signInManagerMock = fakeSignInManager;
 
-            _authServicesMock = new AuthServices(_userManagerMock, _tokenServicesMock, _loggerMock, fakeSignInManager);
+            _authServicesMock = new AuthServices(_userManagerMock, _loggerMock, fakeSignInManager);
         }
 
         [After(Test)]

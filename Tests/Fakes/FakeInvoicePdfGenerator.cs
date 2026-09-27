@@ -1,8 +1,5 @@
 ﻿using Domain.Models;
 using Infrastructure.Pdf.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Tests.Fakes
 {

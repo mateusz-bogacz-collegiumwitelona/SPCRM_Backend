@@ -196,7 +196,7 @@ namespace Tests.Handler
             {
                 Id = Guid.NewGuid(),
                 Name = $"D/2026/09/{unique}",
-                Value = (2L * 25000) + (3L * 40000), 
+                Value = (2L * 25000) + (3L * 40000),
                 Status = DealsStatusEnum.Complete,
                 CloseDate = DateTime.UtcNow,
                 CompanyId = company.Id,

@@ -356,7 +356,7 @@ namespace Tests.Handler
                     Id = Guid.NewGuid(),
                     OfferId = offer.Id,
                     ProductId = productAvailable.Id,
-                    Quantity = 5, 
+                    Quantity = 5,
                     QuotedPrice = 10000
                 },
                 new OfferProducts
@@ -364,7 +364,7 @@ namespace Tests.Handler
                     Id = Guid.NewGuid(),
                     OfferId = offer.Id,
                     ProductId = productShortage.Id,
-                    Quantity = 10, 
+                    Quantity = 10,
                     QuotedPrice = 20000
                 }
             );

@@ -1,9 +1,7 @@
 ﻿using Domain.Enum;
 using Domain.Models;
-using Email.Interfaces;
 using Infrastructure;
 using Infrastructure.Interceptors;
-using Infrastructure.Pdf.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -338,7 +336,7 @@ namespace Tests.Workers
         public async Task GenerateAndSendInvoiceEmailAsync_PassesGeneratedBytesDirectlyToSmtpAttachment()
         {
             // Arrange
-            var expectedBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; 
+            var expectedBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
             _pdfGeneratorFake.FakePdfBytes = expectedBytes;
 
             var (_, _, invoice) = await SeedInvoiceGraphAsync(invoiceNumber: "FV/BYTES/01");
@@ -360,5 +358,5 @@ namespace Tests.Workers
 
 
 
-   
+
 }
