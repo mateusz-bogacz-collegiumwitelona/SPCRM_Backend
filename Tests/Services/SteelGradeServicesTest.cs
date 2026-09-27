@@ -14,7 +14,7 @@ using Services.Command.Product;
 using Services.Command.SteelGrade;
 using Services.Services;
 using Testcontainers.PostgreSql;
-using Tests.Services.Fakes;
+using Tests.Fakes;
 
 namespace Tests.Services
 {

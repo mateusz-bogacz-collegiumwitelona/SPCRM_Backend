@@ -38,7 +38,7 @@ namespace Api.Controllers
         [EndpointDescription("Returns available statuses and priorities for frontend dropdowns.")]
         [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
         [HttpGet("dictionaries")]
-        [Authorize(Roles = "User,Manager")]
+        [Authorize]
         [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.TaskDictionary })]
         public async Task<IActionResult> GetTaskDictionariesAsync([FromServices] ITaskServices taskServices)
         {

@@ -1,7 +1,7 @@
 ﻿using Domain.Comunication;
 using Services.Interfaces;
 
-namespace Tests.Services.Fakes
+namespace Tests.Fakes
 {
     public class FakeEmailSender : IEmailSender
     {

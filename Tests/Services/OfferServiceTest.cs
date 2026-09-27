@@ -15,7 +15,7 @@ using Services.Factory;
 using Services.Factory.Interfaces;
 using Services.Services;
 using Testcontainers.PostgreSql;
-using Tests.Services.Fakes;
+using Tests.Fakes;
 
 namespace Tests.Services
 {

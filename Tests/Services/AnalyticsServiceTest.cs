@@ -16,7 +16,7 @@ using Services.Response.Analytics;
 using Services.Services;
 using System.Globalization;
 using Testcontainers.PostgreSql;
-using Tests.Services.Fakes;
+using Tests.Fakes;
 
 namespace Tests.Services
 {

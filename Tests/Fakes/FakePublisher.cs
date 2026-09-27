@@ -1,6 +1,6 @@
 ﻿using MediatR;
 
-namespace Tests.Services.Fakes
+namespace Tests.Fakes
 {
     public class FakePublisher : IPublisher
     {

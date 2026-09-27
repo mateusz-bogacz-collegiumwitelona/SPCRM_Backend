@@ -21,7 +21,7 @@ using Services.Interfaces;
 using Services.Services;
 using System.Text;
 using Testcontainers.PostgreSql;
-using Tests.Services.Fakes;
+using Tests.Fakes;
 
 namespace Tests.Services
 {

@@ -1,6 +1,6 @@
 ﻿using Services.Accessors;
 
-namespace Tests.Services.Fakes
+namespace Tests.Fakes
 {
     internal class FakeCancellationTokenAccessor : ICancellationTokenAccessor
     {

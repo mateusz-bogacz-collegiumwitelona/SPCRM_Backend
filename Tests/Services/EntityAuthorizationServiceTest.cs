@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Constants;
+using Domain.Models;
 using Infrastructure;
 using Infrastructure.Interceptors;
 using Microsoft.AspNetCore.Identity;
@@ -330,6 +331,126 @@ namespace Tests.Services
 
             // Act
             var result = await _entityAuthMock.CanAccessAsync(randomUserId);
+
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
+
+        // ─── IsAdminAsync ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task IsAdminAsync_WhenUserIsAdmin_ReturnsTrue()
+        {
+            // Arrange
+            var adminId = Guid.NewGuid();
+
+            var admin = new ApplicationUser
+            {
+                Id = adminId,
+                UserName = "AdminUser",
+                Email = "admin@test.pl",
+                FirstName = "Jan",
+                LastName = "Administrator"
+            };
+
+            var adminRole = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Admin",
+                NormalizedName = BusinessConstants.AdminNormalized
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = adminId,
+                RoleId = adminRole.Id
+            };
+
+            _contextMock.Users.Add(admin);
+            _contextMock.Roles.Add(adminRole);
+            _contextMock.UserRoles.Add(userRole);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _entityAuthMock.IsAdminAsync(adminId);
+
+            // Assert
+            await Assert.That(result).IsTrue();
+        }
+
+        [Test]
+        public async Task IsAdminAsync_WhenUserHasDifferentRole_ReturnsFalse()
+        {
+            // Arrange
+            var managerId = Guid.NewGuid();
+
+            var manager = new ApplicationUser
+            {
+                Id = managerId,
+                UserName = "ManagerNotAdminUser",
+                Email = "manager_not_admin@test.pl",
+                FirstName = "Adam",
+                LastName = "Manager"
+            };
+
+            var managerRole = new IdentityRole<Guid>
+            {
+                Id = Guid.NewGuid(),
+                Name = "Manager",
+                NormalizedName = BusinessConstants.ManagerNormalized
+            };
+
+            var userRole = new IdentityUserRole<Guid>
+            {
+                UserId = managerId,
+                RoleId = managerRole.Id
+            };
+
+            _contextMock.Users.Add(manager);
+            _contextMock.Roles.Add(managerRole);
+            _contextMock.UserRoles.Add(userRole);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _entityAuthMock.IsAdminAsync(managerId);
+
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
+
+        [Test]
+        public async Task IsAdminAsync_WhenUserHasNoRoles_ReturnsFalse()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+
+            var user = new ApplicationUser
+            {
+                Id = userId,
+                UserName = "NoRoleAdminCheckUser",
+                Email = "norole_admin@test.pl",
+                FirstName = "Piotr",
+                LastName = "Nowak"
+            };
+
+            _contextMock.Users.Add(user);
+            await _contextMock.SaveChangesAsync();
+
+            // Act
+            var result = await _entityAuthMock.IsAdminAsync(userId);
+
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
+
+        [Test]
+        public async Task IsAdminAsync_WhenUserDoesNotExist_ReturnsFalse()
+        {
+            // Arrange
+            var randomUserId = Guid.NewGuid();
+
+            // Act
+            var result = await _entityAuthMock.IsAdminAsync(randomUserId);
 
             // Assert
             await Assert.That(result).IsFalse();
