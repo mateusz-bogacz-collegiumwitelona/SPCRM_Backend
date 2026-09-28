@@ -272,7 +272,7 @@ namespace Tests.Handler
             var recipientEmail = "odbiorca@faktury.pl";
             var notification = new DealCompletedEvent(deal.Id, recipientEmail, "en");
 
-            var expectedTotalAmount = (2L * 25000) + (3L * 40000); // 170000
+            var expectedTotalAmount = (2L * 25000) + (3L * 40000);
             var expectedGrossAmount = expectedTotalAmount / BusinessConstants.CurrencyScaleFactor;
 
             // Act

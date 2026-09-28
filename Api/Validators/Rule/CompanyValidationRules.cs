@@ -43,11 +43,13 @@ namespace Api.Validators.Rule
 
         public static IRuleBuilderOptions<T, float?> ApplyCompanyLatitudeRules<T>(this IRuleBuilder<T, float?> ruleBuilder)
             => ruleBuilder
+                .NotNull().WithErrorCode(ErrorCodes.LatitudeRequired)
                 .InclusiveBetween(-90f, 90f)
                 .WithErrorCode(ErrorCodes.LatitudeOutOfRange);
 
         public static IRuleBuilderOptions<T, float?> ApplyCompanyLongitudeRules<T>(this IRuleBuilder<T, float?> ruleBuilder)
             => ruleBuilder
+                .NotNull().WithErrorCode(ErrorCodes.LongitudeRequired)
                 .InclusiveBetween(-180f, 180f)
                 .WithErrorCode(ErrorCodes.LongitudeOutOfRange);
 

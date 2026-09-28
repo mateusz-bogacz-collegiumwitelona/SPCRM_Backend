@@ -13,7 +13,7 @@ namespace Api.Validators.Validators.Promotion
 
             RuleFor(x => x).ApplyEditPromotionDiscountExclusiveRule();
 
-            RuleFor(x => x.Name!)
+            RuleFor(x => x.Name)
                 .ApplyPromotionNameRules()
                 .When(x => x.Name != null);
 

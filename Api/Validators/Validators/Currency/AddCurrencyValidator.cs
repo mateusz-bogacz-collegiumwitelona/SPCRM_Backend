@@ -14,7 +14,7 @@ namespace Api.Validators.Validators.Currency
             RuleFor(x => x.Code)
                 .ApplyCurrencyCodeRules();
 
-            RuleFor(x => x.DecimalPlaces);
+            RuleFor(x => x.DecimalPlaces).ApplyCurrencyDecimalPlacesRules();
         }
     }
 }

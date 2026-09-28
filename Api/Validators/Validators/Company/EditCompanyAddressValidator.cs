@@ -1,6 +1,5 @@
 ﻿using Api.Request.Company;
 using Api.Validators.Rule;
-using Domain.Constants;
 using FluentValidation;
 
 namespace Api.Validators.Validators.Company
@@ -25,12 +24,10 @@ namespace Api.Validators.Validators.Company
                 .When(x => x.ZipCode != null);
 
             RuleFor(x => x.Latitude)
-                .NotNull().WithErrorCode(ErrorCodes.LatitudeRequired)
                 .ApplyCompanyLatitudeRules()
                 .When(x => x.Longitude.HasValue);
 
             RuleFor(x => x.Longitude)
-                .NotNull().WithErrorCode(ErrorCodes.LongitudeRequired)
                 .ApplyCompanyLongitudeRules()
                 .When(x => x.Latitude.HasValue);
 

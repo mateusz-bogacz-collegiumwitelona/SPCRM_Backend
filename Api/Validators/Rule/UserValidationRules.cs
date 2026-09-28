@@ -32,7 +32,9 @@ namespace Api.Validators.Rule
         public static IRuleBuilderOptions<T, string> ApplyPasswordRules<T>(this IRuleBuilder<T, string> ruleBuilder)
             => ruleBuilder
                 .NotEmpty()
+                .WithErrorCode(ErrorCodes.InvalidPassword)
                 .MinimumLength(8)
+                .WithErrorCode(ErrorCodes.InvalidPassword)
                 .Matches(@"[^a-zA-Z0-9]")
                 .WithErrorCode(ErrorCodes.InvalidPassword);
 

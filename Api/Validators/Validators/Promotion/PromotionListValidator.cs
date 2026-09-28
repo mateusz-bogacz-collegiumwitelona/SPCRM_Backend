@@ -46,11 +46,6 @@ namespace Api.Validators.Validators.Promotion
                 .GreaterThanOrEqualTo(x => x.FromDate)
                 .When(x => x.ToDate.HasValue && x.FromDate.HasValue)
                 .WithErrorCode(ErrorCodes.InvalidDate);
-
-            var allowedSortColumns = new[] { "name", "startdate", "enddate", "discountpercentage", "promotionalprice" };
-            RuleFor(x => x.SortBy)
-                .Must(x => string.IsNullOrWhiteSpace(x) || allowedSortColumns.Contains(x.ToLower()))
-                .WithErrorCode(ErrorCodes.InvalidSortColumn);
         }
     }
 }

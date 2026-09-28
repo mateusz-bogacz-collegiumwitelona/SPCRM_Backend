@@ -35,6 +35,7 @@ namespace Api.Validators.Rule
             string errorCode = ErrorCodes.ValidationError)
                 => ruleBuilder
                     .GreaterThan(0)
+            .WithErrorCode(ErrorCodes.PageSizeInvalid)
                     .LessThanOrEqualTo(100)
                     .WithErrorCode(ErrorCodes.PageSizeInvalid);
 

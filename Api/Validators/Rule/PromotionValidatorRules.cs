@@ -8,6 +8,7 @@ namespace Api.Validators.Rule
         public static IRuleBuilderOptions<T, string?> ApplyPromotionNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty()
+                .WithErrorCode(ErrorCodes.InvalidPromotionName)
                 .MaximumLength(150)
                 .WithErrorCode(ErrorCodes.InvalidPromotionName);
 

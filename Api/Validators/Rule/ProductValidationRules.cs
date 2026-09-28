@@ -15,12 +15,14 @@ namespace Api.Validators.Rule
         public static IRuleBuilderOptions<T, string?> ApplyProductNameRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty()
+                .WithErrorCode(ErrorCodes.InvalidProductName)
                 .MaximumLength(150)
                 .WithErrorCode(ErrorCodes.InvalidProductName);
 
         public static IRuleBuilderOptions<T, string?> ApplyProductSteelGradeRules<T>(this IRuleBuilder<T, string?> ruleBuilder)
             => ruleBuilder
                 .NotEmpty()
+                .WithErrorCode(ErrorCodes.InvalidProductSteelGrade)
                 .MaximumLength(50)
                 .WithErrorCode(ErrorCodes.InvalidProductSteelGrade);
 
@@ -96,6 +98,7 @@ namespace Api.Validators.Rule
         {
             validator.RuleFor(x => x.Diameter)
                 .NotNull()
+                .WithErrorCode(ErrorCodes.InvalidProductDimmension)
                 .GreaterThan(0)
                 .WithErrorCode(ErrorCodes.InvalidProductDimmension)
                 .When(x => string.Equals(x.Category, ProductCategoryEnum.Pipe.ToString(), StringComparison.OrdinalIgnoreCase) ||
@@ -112,6 +115,7 @@ namespace Api.Validators.Rule
         {
             validator.RuleFor(x => x.Diameter)
                 .NotNull()
+                .WithErrorCode(ErrorCodes.DiameterIsRequiredForPipeAndWire)
                 .GreaterThan(0)
                 .WithErrorCode(ErrorCodes.DiameterIsRequiredForPipeAndWire)
                 .When(x => string.Equals(x.Category, ProductCategoryEnum.Pipe.ToString(), StringComparison.OrdinalIgnoreCase) ||
