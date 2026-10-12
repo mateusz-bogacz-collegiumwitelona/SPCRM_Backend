@@ -566,7 +566,7 @@ namespace Services.Services
                 );
             }
 
-           return await ValidateForeignKeysAsync(command.UnitId, command.SteelGradeId, command.CurrencyId);
+            return await ValidateForeignKeysAsync(command.UnitId, command.SteelGradeId, command.CurrencyId);
         }
 
         private async Task<Result> ValidateForeignKeysAsync(Guid? unitId, Guid? steelGradeId, Guid? currencyId)
@@ -581,8 +581,8 @@ namespace Services.Services
                 {
                     _logger.LogWarning("Unit of measure with ID {UnitId} not found.", unitId.Value);
                     return Result.Failure(
-                        message: "Unit of measure not found.", 
-                        statusCode: StatusCodes.Status404NotFound, 
+                        message: "Unit of measure not found.",
+                        statusCode: StatusCodes.Status404NotFound,
                         errorCode: ErrorCodes.NotFound
                         );
                 }
@@ -598,8 +598,8 @@ namespace Services.Services
                 {
                     _logger.LogWarning("Steel grade with ID {SteelGradeId} not found.", steelGradeId.Value);
                     return Result.Failure(
-                        message: "Steel grade not found.", 
-                        statusCode: StatusCodes.Status404NotFound, 
+                        message: "Steel grade not found.",
+                        statusCode: StatusCodes.Status404NotFound,
                         errorCode: ErrorCodes.NotFound
                     );
                 }
@@ -615,15 +615,15 @@ namespace Services.Services
                 {
                     _logger.LogWarning("Currency with ID {CurrencyId} not found.", currencyId.Value);
                     return Result.Failure(
-                        message: "Currency not found.", 
-                        statusCode: StatusCodes.Status404NotFound, 
+                        message: "Currency not found.",
+                        statusCode: StatusCodes.Status404NotFound,
                         errorCode: ErrorCodes.NotFound
                     );
                 }
             }
 
             return Result.Success(
-                message: "Everything is fine.", 
+                message: "Everything is fine.",
                 statusCode: StatusCodes.Status200OK
                 );
         }
