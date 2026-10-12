@@ -58,9 +58,7 @@ namespace Email
         {
             try
             {
-                string language = domain.Language.ToLower() == "en" ? "en" : "pl";
-                string title = language == "en" ? "Steel Products Quotation" : "Oferta wyrobów hutniczych";
-                string subject = language == "en" ? "New Product Offer" : "Nowa oferta produktów";
+                var (language, title, subject) = ResolveMailingLocalization(domain.Language);
 
                 var template = await GetTemplateWithLayoutAsync(
                     Path.Combine("Product-Offert", $"product-offert-{language}.html"),
@@ -68,44 +66,8 @@ namespace Email
                     language
                 );
 
-                var sb = new System.Text.StringBuilder();
-
-                foreach (var p in domain.Products)
-                {
-                    decimal actualWeight = p.Weight / BusinessConstants.WeightScaleFactor;
-                    decimal formattedFinalPrice = p.FinalPrice / BusinessConstants.CurrencyScaleFactor;
-
-                    string nameCell = p.ProductName;
-                    if (p.IsPromoted)
-                    {
-                        nameCell += " <span style='color: white; background-color: #e74c3c; padding: 2px 6px; font-size: 11px; font-weight: bold; border-radius: 4px; margin-left: 5px;'>HIT</span>";
-                    }
-
-                    string priceCell = $"{formattedFinalPrice:0.00} {p.CurrencyCode}";
-                    if (p.OriginalPrice.HasValue)
-                    {
-                        decimal formattedOriginalPrice = p.OriginalPrice.Value / BusinessConstants.CurrencyScaleFactor;
-
-                        priceCell = $"<s style='color: #7f8c8d; font-size: 12px;'>{formattedOriginalPrice:0.00}</s><br/>"
-                                  + $"<strong style='color: #27ae60; font-size: 14px;'>{formattedFinalPrice:0.00} {p.CurrencyCode}</strong>";
-
-                        if (p.DiscountPercentage.HasValue)
-                        {
-                            priceCell += $"<br/><span style='font-size: 11px; color: #e74c3c; font-weight: bold;'>-{p.DiscountPercentage:0.##}%</span>";
-                        }
-                    }
-
-                    sb.AppendLine("<tr>");
-                    sb.AppendLine($"<td>{nameCell}</td>");
-                    sb.AppendLine($"<td>{p.SteelGrade}</td>");
-                    sb.AppendLine($"<td>{p.FormattedDimensions}</td>");
-                    sb.AppendLine($"<td>{actualWeight:0.##} kg</td>");
-                    sb.AppendLine($"<td>{p.Quantity} {p.UnitSymbol}</td>");
-                    sb.AppendLine($"<td>{priceCell}</td>");
-                    sb.AppendLine("</tr>");
-                }
-
-                string finalizedHtmlTemplate = template.Replace("{{ProductRows}}", sb.ToString());
+                string rowsHtml = BuildProductTableRows(domain.Products);
+                string finalizedHtmlTemplate = template.Replace("{{ProductRows}}", rowsHtml);
 
                 foreach (var email in domain.BccEmails)
                 {
@@ -349,6 +311,59 @@ namespace Email
                 .Replace("{{HeaderStyle}}", headerStyle ?? "background-color: #004a8f;")
                 .Replace("{{FooterText}}", footerText)
                 .Replace("{{Content}}", contentHtml);
+        }
+
+
+        private static (string Language, string Title, string Subject) ResolveMailingLocalization(string? rawLanguage)
+        {
+            bool isEnglish = string.Equals(rawLanguage, "en", StringComparison.OrdinalIgnoreCase);
+            string language = isEnglish ? "en" : "pl";
+            string title = isEnglish ? "Steel Products Quotation" : "Oferta wyrobów hutniczych";
+            string subject = isEnglish ? "New Product Offer" : "Nowa oferta produktów";
+
+            return (language, title, subject);
+        }
+
+        private static string BuildProductTableRows(IEnumerable<MailingProductItemDomain> products)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            foreach (var p in products)
+            {
+                decimal actualWeight = p.Weight / BusinessConstants.WeightScaleFactor;
+                decimal formattedFinalPrice = p.FinalPrice / BusinessConstants.CurrencyScaleFactor;
+
+                string nameCell = p.ProductName;
+                if (p.IsPromoted)
+                {
+                    nameCell += " <span style='color: white; background-color: #e74c3c; padding: 2px 6px; font-size: 11px; font-weight: bold; border-radius: 4px; margin-left: 5px;'>HIT</span>";
+                }
+
+                string priceCell = $"{formattedFinalPrice:0.00} {p.CurrencyCode}";
+                if (p.OriginalPrice.HasValue)
+                {
+                    decimal formattedOriginalPrice = p.OriginalPrice.Value / BusinessConstants.CurrencyScaleFactor;
+
+                    priceCell = $"<s style='color: #7f8c8d; font-size: 12px;'>{formattedOriginalPrice:0.00}</s><br/>"
+                              + $"<strong style='color: #27ae60; font-size: 14px;'>{formattedFinalPrice:0.00} {p.CurrencyCode}</strong>";
+
+                    if (p.DiscountPercentage.HasValue)
+                    {
+                        priceCell += $"<br/><span style='font-size: 11px; color: #e74c3c; font-weight: bold;'>-{p.DiscountPercentage:0.##}%</span>";
+                    }
+                }
+
+                sb.AppendLine("<tr>");
+                sb.AppendLine($"<td>{nameCell}</td>");
+                sb.AppendLine($"<td>{p.SteelGrade}</td>");
+                sb.AppendLine($"<td>{p.FormattedDimensions}</td>");
+                sb.AppendLine($"<td>{actualWeight:0.##} kg</td>");
+                sb.AppendLine($"<td>{p.Quantity} {p.UnitSymbol}</td>");
+                sb.AppendLine($"<td>{priceCell}</td>");
+                sb.AppendLine("</tr>");
+            }
+
+            return sb.ToString();
         }
     }
 }
