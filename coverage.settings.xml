@@ -3,6 +3,10 @@
   <CodeCoverage>
     <Functions>
       <Exclude>
+        <!-- Program.cs -->
+        <Function>^Program(\..*)?$</Function>
+        <Function>.*Program\..*</Function>
+
         <!-- Api -->
         <Function>.*Api\.Configuration\..*</Function>
         <Function>.*Api\.Mappers\..*</Function>
@@ -12,7 +16,7 @@
         <Function>.*Api\.Transformers\..*</Function>
         <Function>.*Api\.Controllers\..*</Function>
         <Function>.*Api\.Factory\..*</Function>
-        <Function>.*Api\.Program.*</Function>
+
         <!-- Domain -->
         <Function>.*Domain\.Common\..*</Function>
         <Function>.*Domain\.Constants\..*</Function>
