@@ -298,26 +298,48 @@ namespace Email
         }
 
         private async Task<string> GetTemplateWithLayoutAsync(
-          string relativePath,
-          string title,
-          string language = "pl",
-          string? headerStyle = null)
+            string relativePath,
+            string title,
+            string language = "pl",
+            string? headerStyle = null)
+        {
+            var (layoutPath, templatePath) = ResolveTemplatePaths(relativePath);
+
+            var layoutHtml = await File.ReadAllTextAsync(layoutPath);
+            var contentHtml = await File.ReadAllTextAsync(templatePath);
+
+            return BuildMergedTemplate(layoutHtml, contentHtml, title, language, headerStyle);
+        }
+
+        private static (string LayoutPath, string TemplatePath) ResolveTemplatePaths(string relativePath)
         {
             var templatesDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
             var layoutPath = Path.Combine(templatesDir, "_layout.html");
             var templatePath = Path.Combine(templatesDir, relativePath);
 
             if (!File.Exists(layoutPath))
+            {
                 throw new FileNotFoundException($"Layout template not found at: {layoutPath}");
+            }
 
             if (!File.Exists(templatePath))
+            {
                 throw new FileNotFoundException($"Email template not found at: {templatePath}");
+            }
 
-            var layoutHtml = await File.ReadAllTextAsync(layoutPath);
-            var contentHtml = await File.ReadAllTextAsync(templatePath);
+            return (layoutPath, templatePath);
+        }
 
-            var lang = language.ToLower() == "en" ? "en" : "pl";
-            var footerText = lang == "en"
+        private static string BuildMergedTemplate(
+            string layoutHtml,
+            string contentHtml,
+            string title,
+            string language,
+            string? headerStyle)
+        {
+            var isEnglish = string.Equals(language, "en", StringComparison.OrdinalIgnoreCase);
+            var lang = isEnglish ? "en" : "pl";
+            var footerText = isEnglish
                 ? "This message was generated automatically by SPCRM. Please do not reply."
                 : "Wiadomość wygenerowana automatycznie przez system SPCRM. Prosimy na nią nie odpowiadać.";
 
