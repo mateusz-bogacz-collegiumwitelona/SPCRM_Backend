@@ -1,25 +1,13 @@
 using Api.Configuration;
 using Api.Mappers;
 using Api.Middlewares;
-using Api.Validators.Validators.Auth;
-using Domain.Models;
 using Email;
-using FluentValidation;
 using Infrastructure;
-using Infrastructure.Seeders;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Services;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using Worker;
 
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
-    .WriteTo.Console()
-    .CreateLogger();
+SerilogConfiguration.InitBootstrapLogger();
 
 try
 {
@@ -27,88 +15,55 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog();
+    builder.ConfigureSerilog();
 
     // Add services to the container.
     builder.Services.AddControllers();
-
-    builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
-
-    builder.Services.AddFluentValidationAutoValidation(configuration =>
-    {
-        configuration.OverrideDefaultResultFactoryWith<ValidationResultFactory>();
-    });
-
-    builder.Services.AddCors(options =>
-    {
-        String frontendUrl = builder.Configuration["FRONTEND:URL"] ?? "http://localhost:5173";
-        options.AddPolicy("AllowSPCRMFrontend", policy =>
-        {
-            policy.WithOrigins(frontendUrl)
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        });
-    });
-
-    // Cancellation token 
     builder.Services.AddHttpContextAccessor();
 
-    // cache
+    // Add app configuration
+    builder.Services.AddCorsConfiguration(builder.Configuration);
+    builder.Services.AddFluentValidationConfiguration();
+    builder.Services.AddForwardedHeadersConfiguration();
+    builder.Services.AddSwaggerConfiguration();
+    builder.Services.AddRateLimitingConfiguration();
     builder.Services.AddRedisConfiguration(builder.Configuration);
 
-    // Add configs
-    builder.Services.AddSwaggerConfiguration();
-    builder.Services.AddMappers();
+    // Add application services
     builder.Services.AddInfrastructure(builder.Configuration);
-    builder.Services.AddCookieAuthentication(builder.Configuration);
     builder.Services.AddApplicationServices(builder.Configuration);
+    builder.Services.AddMappers();
     builder.Services.AddEmailModule(builder.Configuration);
+    builder.Services.AddWorkerServices(builder.Configuration);
+
+    // Auth & Error Handling
+    builder.Services.AddCookieAuthentication(builder.Configuration);
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
-    builder.Services.AddWorkerServices(builder.Configuration);
-    builder.Services.AddRateLimitingConfiguration();
-
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    });
 
     var app = builder.Build();
 
-    // Auto-migrate database on startup
-    using (var scope = app.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
 
-        var dbContext = services.GetRequiredService<AppDbContext>();
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    // Migration and seeding
+    await app.ApplyMigrationsAndSeedAsync();
 
-        await dbContext.Database.MigrateAsync();
-
-        var seeder = new DataSeeder(roleManager, userManager, dbContext);
-        await seeder.InitAsync();
-    }
+    // HTTP (Middleware)
+    app.UseForwardedHeadersConfiguration();
+    app.UseExceptionHandler();
 
     app.UseSwaggerUIConfiguration();
 
-    //app.UseHttpsRedirection();
-    app.UseExceptionHandler();
-
     app.UseRouting();
-    app.UseCors("AllowSPCRMFrontend");
+    app.UseCorsConfiguration();
 
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseRateLimiter();
-
     app.UseOutputCache();
-
 
     app.MapControllers()
         .RequireAuthorization()
-        .RequireRateLimiting("per-user"); ;
+        .RequireRateLimiting("per-user");
 
     app.UseHangfirePipeline();
 
