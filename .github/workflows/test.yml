@@ -2,9 +2,15 @@ name: Run Tests
 
 on:
   push:
-    branches: [ "main", "stage" ]
+    branches: 
+      - '**'
   pull_request:
-    branches: [ "main" ]
+    branches: 
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -21,6 +27,9 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore SPCRM_Backend.slnx  
+
+      - name: Linter / Code Formatting Check
+        run: dotnet format Map-API.slnx --verify-no-changes --verbosity normal
 
       - name: Build
         run: dotnet build  SPCRM_Backend.slnx --no-restore --configuration Release

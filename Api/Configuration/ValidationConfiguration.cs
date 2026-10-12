@@ -1,5 +1,4 @@
-﻿using Api.Factory;
-using Api.Validators.Validators.Auth;
+﻿using Api.Validators.Validators.Auth;
 using FluentValidation;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 
@@ -13,7 +12,7 @@ namespace Api.Configuration
 
             services.AddFluentValidationAutoValidation(configuration =>
             {
-                configuration.OverrideDefaultResultFactoryWith<ValidationResultFactory>();
+                configuration.OverrideDefaultResultFactoryWith<Api.Factory.ValidationResultFactory>();
             });
 
             return services;
