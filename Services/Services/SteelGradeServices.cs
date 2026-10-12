@@ -107,106 +107,18 @@ namespace Services.Services
 
             if (affectedProducts.Count > 0)
             {
-                var corruptedProduct = affectedProducts.FirstOrDefault(p => p.CurrencyId == Guid.Empty || p.UnitId == Guid.Empty);
-                if (corruptedProduct != null)
+                EnsureProductsNotCorrupted(affectedProducts, id);
+
+                var validationResult = await ValidateReassignmentsAsync(id, affectedProducts, reassignments ?? new());
+                if (!validationResult.IsSuccess)
                 {
-                    _logger.LogError("Critical data corruption: Product {ProductId} associated with SteelGrade {SteelGradeId} is corrupted.", corruptedProduct.Id, id);
-                    throw new DataCorruptionException($"Product '{corruptedProduct.Id}' linked to steel grade has corrupted state.");
+                    return validationResult;
                 }
 
-                reassignments ??= new List<ProductReassignmentCommand>();
-
-                var duplicateProductIds = reassignments
-                    .GroupBy(r => r.ProductId)
-                    .Where(g => g.Count() > 1)
-                    .Select(g => g.Key)
-                    .ToList();
-
-                if (duplicateProductIds.Any())
-                {
-                    _logger.LogWarning("Duplicate reassignment entries provided for product IDs: {ProductIds}", string.Join(", ", duplicateProductIds));
-                    return Result.Failure(
-                        message: "Duplicate product reassignments provided.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.InvalidOperation
-                    );
-                }
-
-                var missingProductIds = affectedProducts
-                    .Select(p => p.Id)
-                    .Except(reassignments.Select(r => r.ProductId))
-                    .ToList();
-
-                if (missingProductIds.Count > 0)
-                {
-                    _logger.LogWarning("Not all products have a choice of new steel grade. Missing product IDs: {MissingProductIds}", string.Join(", ", missingProductIds));
-                    return Result.Failure(
-                        message: $"Not all products have a choice of new steel grade (remaining: {missingProductIds.Count}).",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.SteelGradeInUse
-                    );
-                }
-
-                if (reassignments.Any(r => r.NewSteelGradeId == id))
-                {
-                    _logger.LogWarning("The target steel grade cannot be the steel grade being removed. Steel grade ID: {SteelGradeId}", id);
-                    return Result.Failure(
-                        message: "The target steel grade cannot be the one being removed.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.InvalidOperation
-                    );
-                }
-
-                var targetGradeIds = reassignments.Select(r => r.NewSteelGradeId).Distinct().ToList();
-
-                var existingGradesCount = await _context.SteelGrades
-                    .AsNoTracking()
-                    .CountAsync(s => targetGradeIds.Contains(s.Id));
-
-                if (existingGradesCount != targetGradeIds.Count)
-                {
-                    _logger.LogWarning("One or more selected target steel grades do not exist.");
-                    return Result.Failure(
-                        message: "One or more selected target steel grades do not exist.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.BadRequest
-                    );
-                }
-
-                var reassignmentMap = reassignments.ToDictionary(r => r.ProductId, r => r.NewSteelGradeId);
-                var now = DateTime.UtcNow;
-
-                foreach (var product in affectedProducts)
-                {
-                    if (reassignmentMap.TryGetValue(product.Id, out var newGradeId))
-                    {
-                        product.SteelGradeId = newGradeId;
-                        product.UpdateAt = now;
-                    }
-                }
+                ReassignProducts(affectedProducts, reassignments!);
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync();
-
-            try
-            {
-                _context.SteelGrades.Remove(steelGrade);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                _logger.LogInformation("Steel grade {SteelGradeId} deleted successfully and {ProductCount} products reassigned.", id, affectedProducts.Count);
-
-                return Result.Success(
-                    message: "The steel grade has been removed, and the related products have been updated.",
-                    statusCode: StatusCodes.Status200OK
-                );
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Transaction failed while deleting steel grade {SteelGradeId}", id);
-                throw;
-            }
+            return await ExecuteDeletionTransactionAsync(steelGrade, affectedProducts.Count);
         }
 
         public async Task<Result> EditSteelGradeAsync(EditSteelGradeCommand command)
@@ -310,6 +222,123 @@ namespace Services.Services
                 message: "Steel grade added successfully",
                 statusCode: StatusCodes.Status201Created
             );
+        }
+
+        private void EnsureProductsNotCorrupted(List<Product> products, Guid steelGradeId)
+        {
+            var corruptedProduct = products.FirstOrDefault(p => p.CurrencyId == Guid.Empty || p.UnitId == Guid.Empty);
+            if (corruptedProduct != null)
+            {
+                _logger.LogError("Critical data corruption: Product {ProductId} associated with SteelGrade {SteelGradeId} is corrupted.", corruptedProduct.Id, steelGradeId);
+                throw new DataCorruptionException($"Product '{corruptedProduct.Id}' linked to steel grade has corrupted state.");
+            }
+        }
+
+        private async Task<Result> ValidateReassignmentsAsync(
+            Guid currentGradeId,
+            List<Product> affectedProducts,
+            List<ProductReassignmentCommand> reassignments)
+        {
+            var duplicateIds = reassignments
+                .GroupBy(r => r.ProductId)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (duplicateIds.Count > 0)
+            {
+                _logger.LogWarning("Duplicate reassignment entries provided for product IDs: {ProductIds}", string.Join(", ", duplicateIds));
+                return Result.Failure(
+                    message: "Duplicate product reassignments provided.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var missingProductIds = affectedProducts
+                .Select(p => p.Id)
+                .Except(reassignments.Select(r => r.ProductId))
+                .ToList();
+
+            if (missingProductIds.Count > 0)
+            {
+                _logger.LogWarning("Not all products have a choice of new steel grade. Missing product IDs: {MissingProductIds}", string.Join(", ", missingProductIds));
+                return Result.Failure(
+                    message: $"Not all products have a choice of new steel grade (remaining: {missingProductIds.Count}).",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.SteelGradeInUse
+                );
+            }
+
+            if (reassignments.Any(r => r.NewSteelGradeId == currentGradeId))
+            {
+                _logger.LogWarning("The target steel grade cannot be the steel grade being removed. Steel grade ID: {SteelGradeId}", currentGradeId);
+                return Result.Failure(
+                    message: "The target steel grade cannot be the one being removed.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var targetGradeIds = reassignments.Select(r => r.NewSteelGradeId).Distinct().ToList();
+            var existingGradesCount = await _context.SteelGrades
+                .AsNoTracking()
+                .CountAsync(s => targetGradeIds.Contains(s.Id));
+
+            if (existingGradesCount != targetGradeIds.Count)
+            {
+                _logger.LogWarning("One or more selected target steel grades do not exist.");
+                return Result.Failure(
+                    message: "One or more selected target steel grades do not exist.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.BadRequest
+                    );
+            }
+
+            return Result.Success(
+                message: "The steel grade can be deleted and the products can be reassigned.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        private static void ReassignProducts(List<Product> affectedProducts, List<ProductReassignmentCommand> reassignments)
+        {
+            var reassignmentMap = reassignments.ToDictionary(r => r.ProductId, r => r.NewSteelGradeId);
+            var now = DateTime.UtcNow;
+
+            foreach (var product in affectedProducts)
+            {
+                if (reassignmentMap.TryGetValue(product.Id, out var newGradeId))
+                {
+                    product.SteelGradeId = newGradeId;
+                    product.UpdateAt = now;
+                }
+            }
+        }
+
+        private async Task<Result> ExecuteDeletionTransactionAsync(SteelGrade steelGrade, int affectedProductCount)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                _context.SteelGrades.Remove(steelGrade);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("Steel grade {SteelGradeId} deleted successfully and {ProductCount} products reassigned.", steelGrade.Id, affectedProductCount);
+
+                return Result.Success(
+                    message: "The steel grade has been removed, and the related products have been updated.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Transaction failed while deleting steel grade {SteelGradeId}", steelGrade.Id);
+                throw;
+            }
         }
     }
 }
