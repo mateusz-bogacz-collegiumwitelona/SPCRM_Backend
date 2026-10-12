@@ -1288,7 +1288,7 @@ namespace Tests.Services
             var command = new EditPromotionCommand
             {
                 Id = promo2.Id,
-                Name = "Unikalna Promocja" 
+                Name = "Unikalna Promocja"
             };
 
             // Act
@@ -1325,7 +1325,7 @@ namespace Tests.Services
             {
                 Id = promotion.Id,
                 PromotionalPrice = 50000,
-                CurrencyId = null 
+                CurrencyId = null
             };
 
             // Act
