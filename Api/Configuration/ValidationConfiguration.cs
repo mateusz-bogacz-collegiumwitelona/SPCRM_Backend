@@ -1,4 +1,5 @@
-﻿using Api.Validators.Validators.Auth;
+﻿using Api.Factory;
+using Api.Validators.Validators.Auth;
 using FluentValidation;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 
