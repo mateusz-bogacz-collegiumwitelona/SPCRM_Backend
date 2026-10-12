@@ -32,7 +32,33 @@ jobs:
         run: dotnet format SPCRM_Backend.slnx --verify-no-changes --verbosity normal
 
       - name: Build
-        run: dotnet build  SPCRM_Backend.slnx --no-restore --configuration Release
+        run: dotnet build SPCRM_Backend.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet run --project Tests/Tests.csproj --no-build --configuration Release --verbosity normal --property:TestingPlatformDotnetTestSupport=true
+        run: >
+          dotnet run --project Tests/Tests.csproj
+          --no-build
+          --configuration Release
+          --verbosity normal
+          --property:TestingPlatformDotnetTestSupport=true
+          --
+          --coverage
+          --coverage-settings coverage.settings.xml
+          --coverage-output-format cobertura
+          --coverage-output coverage.cobertura.xml
+
+      - name: Generate Coverage Report
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        with:
+          reports: 'coverage.cobertura.xml'
+          targetdir: 'coverage-report'
+          reporttypes: 'MarkdownSummaryGithub;HtmlInline'
+
+      - name: Add Coverage Summary to Job
+        run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload HTML Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
