@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Results;
 
-namespace Api.Configuration
+namespace Api.Factory
 {
     public class ValidationResultFactory : IFluentValidationAutoValidationResultFactory
     {

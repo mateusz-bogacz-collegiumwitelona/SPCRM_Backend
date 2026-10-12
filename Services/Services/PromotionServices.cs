@@ -251,13 +251,7 @@ namespace Services.Services
                 );
             }
 
-            if (promotion.ProductId == Guid.Empty ||
-                (promotion.PromotionalPrice.HasValue && (!promotion.CurrencyId.HasValue || promotion.PromotionalPrice.Value < 0)) ||
-                (promotion.DiscountPercentage.HasValue && (promotion.DiscountPercentage.Value < 0 || promotion.DiscountPercentage.Value > 100)))
-            {
-                _logger.LogError("Critical data corruption: Promotion {PromotionId} has missing ProductId or invalid pricing/currency.", promotion.Id);
-                throw new DataCorruptionException($"Promotion '{promotion.Id}' has corrupted pricing, currency, or product linkage.");
-            }
+            EnsurePromotionNotCorrupted(promotion);
 
             if (promotion.IsActive)
             {
@@ -333,12 +327,7 @@ namespace Services.Services
                 );
             }
 
-            if (promotion.ProductId == Guid.Empty ||
-                (promotion.PromotionalPrice.HasValue && !promotion.CurrencyId.HasValue))
-            {
-                _logger.LogError("Critical data corruption: Promotion {PromotionId} has missing ProductId or missing currency for PromotionalPrice.", promotionId);
-                throw new DataCorruptionException($"Promotion '{promotionId}' has corrupted product or currency linkage.");
-            }
+            EnsurePromotionNotCorrupted(promotion);
 
             _context.Promotions.Remove(promotion);
             await _context.SaveChangesAsync();
@@ -353,7 +342,7 @@ namespace Services.Services
 
         public async Task<Result> EditPromotionAsync(EditPromotionCommand command)
         {
-            var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.Id == command.Id);
+            var promotion = await _context.Promotions.FirstOrDefaultAsync(p => p.Id == command.Id, _ct);
 
             if (promotion == null)
             {
@@ -365,31 +354,22 @@ namespace Services.Services
                 );
             }
 
-            if (promotion.ProductId == Guid.Empty ||
-                (promotion.PromotionalPrice.HasValue && (!promotion.CurrencyId.HasValue || promotion.PromotionalPrice.Value < 0)) ||
-                (promotion.DiscountPercentage.HasValue && (promotion.DiscountPercentage.Value < 0 || promotion.DiscountPercentage.Value > 100)))
-            {
-                _logger.LogError("Critical data corruption: Promotion {PromotionId} has missing ProductId or invalid pricing/currency.", promotion.Id);
-                throw new DataCorruptionException($"Promotion '{promotion.Id}' contains corrupted state or broken product/currency linkage.");
-            }
+            EnsurePromotionNotCorrupted(promotion);
 
             if (!string.IsNullOrWhiteSpace(command.Name))
             {
-                var isNameExist = await _context.Promotions
-                    .AsNoTracking()
-                    .AnyAsync(p => p.Id != command.Id && p.Name == command.Name.Trim());
-
+                string trimName = command.Name.Trim();
+                var isNameExist = await _context.Promotions.AsNoTracking().AnyAsync(p => p.Id != command.Id && p.Name == trimName, _ct);
                 if (isNameExist)
                 {
-                    _logger.LogWarning("Promotion name '{PromotionName}' already exists.", command.Name.Trim());
+                    _logger.LogWarning("Promotion name '{PromotionName}' already exists.", trimName);
                     return Result.Failure(
                         message: "Promotion name already exists.",
                         statusCode: StatusCodes.Status409Conflict,
                         errorCode: ErrorCodes.PromotionNameAlreadyExists
                     );
                 }
-
-                promotion.Name = command.Name.Trim();
+                promotion.Name = trimName;
             }
 
             if (command.StartDate.HasValue)
@@ -401,19 +381,23 @@ namespace Services.Services
             {
                 var newEndDate = DateTime.SpecifyKind(command.EndDate.Value, DateTimeKind.Utc);
                 var effectiveStartDate = promotion.StartDate ?? promotion.CreatedAt;
-
                 if (newEndDate < effectiveStartDate)
                 {
-                    _logger.LogWarning("The end date {EndDate} cannot be earlier than start date {StartDate} for promotion {PromotionId}.",
-                        newEndDate, effectiveStartDate, command.Id);
+                    _logger.LogWarning("The end date {EndDate} cannot be earlier than start date {StartDate}.", newEndDate, effectiveStartDate);
                     return Result.Failure(
                         message: "The end date cannot be earlier than the start date of the promotion.",
                         statusCode: StatusCodes.Status400BadRequest,
                         errorCode: ErrorCodes.InvalidDate
                     );
                 }
-
                 promotion.EndDate = newEndDate;
+            }
+
+            var currencyToValidate = command.PromotionalPrice.HasValue ? (command.CurrencyId ?? promotion.CurrencyId) : null;
+            var relationsValidation = await ValidatePromotionRelationsAsync(command.PromotionalPrice, currencyToValidate, command.ContactId);
+            if (!relationsValidation.IsSuccess)
+            {
+                return relationsValidation;
             }
 
             if (command.DiscountPercentage.HasValue)
@@ -424,75 +408,19 @@ namespace Services.Services
             }
             else if (command.PromotionalPrice.HasValue)
             {
-                if (command.CurrencyId.HasValue)
-                {
-                    var currencyExists = await _context.Currencies
-                        .AsNoTracking()
-                        .AnyAsync(c => c.Id == command.CurrencyId.Value);
-
-                    if (!currencyExists)
-                    {
-                        _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId.Value);
-                        return Result.Failure(
-                            message: "Currency not found.",
-                            statusCode: StatusCodes.Status400BadRequest,
-                            errorCode: ErrorCodes.CurrencyNotFound
-                        );
-                    }
-                    promotion.CurrencyId = command.CurrencyId.Value;
-                }
-                else if (!promotion.CurrencyId.HasValue)
-                {
-                    _logger.LogWarning("Attempt to set PromotionalPrice for promotion {PromotionId} without specifying CurrencyId.", command.Id);
-                    return Result.Failure(
-                        message: "Currency must be specified when setting promotional price.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.InvalidOperation
-                    );
-                }
-
                 promotion.PromotionalPrice = command.PromotionalPrice.Value;
+                promotion.CurrencyId = currencyToValidate;
                 promotion.DiscountPercentage = null;
             }
 
-            if (command.ContactId.HasValue)
-            {
-                var contactExists = await _context.Contacts
-                    .AsNoTracking()
-                    .AnyAsync(c => c.Id == command.ContactId.Value);
-
-                if (!contactExists)
-                {
-                    _logger.LogWarning("Contact with ID {ContactId} not found.", command.ContactId.Value);
-                    return Result.Failure(
-                        message: "Contact not found.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.ContactNotFound
-                    );
-                }
-                promotion.ContactId = command.ContactId.Value;
-            }
-
-            if (command.MinQuantity.HasValue)
-            {
-                promotion.MinQuantity = command.MinQuantity.Value;
-            }
-
-            if (command.MinWeight.HasValue)
-            {
-                promotion.MinWeight = command.MinWeight.Value;
-            }
-
+            if (command.ContactId.HasValue) promotion.ContactId = command.ContactId.Value;
+            if (command.MinQuantity.HasValue) promotion.MinQuantity = command.MinQuantity.Value;
+            if (command.MinWeight.HasValue) promotion.MinWeight = command.MinWeight.Value;
             promotion.UpdateAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
-
+            await _context.SaveChangesAsync(_ct);
             _logger.LogInformation("Promotion {PromotionId} updated successfully.", promotion.Id);
-
-            return Result.Success(
-                message: "Promotion updated successfully.",
-                statusCode: StatusCodes.Status200OK
-            );
+            return Result.Success("Promotion updated successfully.", StatusCodes.Status200OK);
         }
 
         public async Task<Result> AddPromotionAsync(AddPromotionCommand command)
@@ -500,15 +428,8 @@ namespace Services.Services
             var product = await _context.Products
                 .AsNoTracking()
                 .Where(p => p.Id == command.ProductId)
-                .Select(p => new
-                {
-                    p.Id,
-                    p.PricePerUnit,
-                    p.CurrencyId,
-                    p.SteelGradeId,
-                    p.UnitId
-                })
-                .FirstOrDefaultAsync();
+                .Select(p => new { p.Id, p.PricePerUnit, p.CurrencyId, p.SteelGradeId, p.UnitId })
+                .FirstOrDefaultAsync(_ct);
 
             if (product == null)
             {
@@ -522,73 +443,28 @@ namespace Services.Services
 
             if (product.PricePerUnit < 0 || product.CurrencyId == Guid.Empty || product.SteelGradeId == Guid.Empty || product.UnitId == Guid.Empty)
             {
-                _logger.LogError("Critical data corruption: Product {ProductId} has corrupted pricing or dictionary linkages.", product.Id);
+                _logger.LogError("Critical data corruption: Product {ProductId} has corrupted state.", product.Id);
                 throw new DataCorruptionException($"Product '{product.Id}' contains corrupted state.");
             }
 
-            if (command.PromotionalPrice.HasValue)
+            var dictionaryValidation = await ValidatePromotionRelationsAsync(command.PromotionalPrice, command.CurrencyId, command.ContactId);
+            if (!dictionaryValidation.IsSuccess)
             {
-                if (!command.CurrencyId.HasValue)
-                {
-                    _logger.LogWarning("Attempt to create promotion with PromotionalPrice without specifying CurrencyId.");
-                    return Result.Failure(
-                        message: "Currency must be specified when setting promotional price.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.InvalidOperation
-                    );
-                }
-
-                var currencyExists = await _context.Currencies
-                    .AsNoTracking()
-                    .AnyAsync(c => c.Id == command.CurrencyId.Value);
-
-                if (!currencyExists)
-                {
-                    _logger.LogWarning("Currency with ID {CurrencyId} not found.", command.CurrencyId.Value);
-                    return Result.Failure(
-                        message: "Currency not found.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.CurrencyNotFound
-                    );
-                }
-            }
-
-            if (command.ContactId.HasValue)
-            {
-                var contactExists = await _context.Contacts
-                    .AsNoTracking()
-                    .AnyAsync(c => c.Id == command.ContactId.Value);
-
-                if (!contactExists)
-                {
-                    _logger.LogWarning("Contact with ID {ContactId} not found.", command.ContactId.Value);
-                    return Result.Failure(
-                        message: "Contact not found.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.ContactNotFound
-                    );
-                }
+                return dictionaryValidation;
             }
 
             var now = DateTime.UtcNow;
-            var startDate = command.StartDate.HasValue
-                ? DateTime.SpecifyKind(command.StartDate.Value, DateTimeKind.Utc)
-                : now;
+            var startDate = command.StartDate.HasValue ? DateTime.SpecifyKind(command.StartDate.Value, DateTimeKind.Utc) : now;
+            DateTime? endDate = command.EndDate.HasValue ? DateTime.SpecifyKind(command.EndDate.Value, DateTimeKind.Utc) : null;
 
-            DateTime? endDate = null;
-            if (command.EndDate.HasValue)
+            if (endDate.HasValue && endDate.Value < startDate)
             {
-                var utcEndDate = DateTime.SpecifyKind(command.EndDate.Value, DateTimeKind.Utc);
-                if (utcEndDate < startDate)
-                {
-                    _logger.LogWarning("Promotion end date {EndDate} is earlier than start date {StartDate}.", utcEndDate, startDate);
-                    return Result.Failure(
-                        message: "The end date cannot be earlier than the start date.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.InvalidDate
-                    );
-                }
-                endDate = utcEndDate;
+                _logger.LogWarning("Promotion end date {EndDate} is earlier than start date {StartDate}.", endDate, startDate);
+                return Result.Failure(
+                    message: "The end date cannot be earlier than the start date.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidDate
+                );
             }
 
             var hasConflict = await _context.Promotions
@@ -597,13 +473,13 @@ namespace Services.Services
                     p.ProductId == command.ProductId &&
                     p.IsActive &&
                     p.ContactId == command.ContactId &&
-                    (!p.EndDate.HasValue || p.EndDate.Value > now)
+                    (!p.EndDate.HasValue || p.EndDate.Value > now),
+                    _ct
                 );
 
             if (hasConflict)
             {
-                _logger.LogWarning("Active promotion collision detected for Product {ProductId} and Contact scope {ContactId}.",
-                    command.ProductId, command.ContactId);
+                _logger.LogWarning("Active promotion collision detected for Product {ProductId} and Contact scope {ContactId}.", command.ProductId, command.ContactId);
                 return Result.Failure(
                     message: "An active promotion for this product already exists for the specified audience.",
                     statusCode: StatusCodes.Status409Conflict,
@@ -627,14 +503,66 @@ namespace Services.Services
             };
 
             _context.Promotions.Add(promotion);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(_ct);
 
-            _logger.LogInformation("Promotion {PromotionId} ('{PromotionName}') added successfully for Product {ProductId}.",
-                promotion.Id, promotion.Name, promotion.ProductId);
+            _logger.LogInformation("Promotion {PromotionId} added successfully.", promotion.Id);
+            return Result.Success("Promotion added successfully.", StatusCodes.Status201Created);
+        }
+
+        private void EnsurePromotionNotCorrupted(Promotion promotion)
+        {
+            if (promotion.ProductId == Guid.Empty ||
+                (promotion.PromotionalPrice.HasValue && (!promotion.CurrencyId.HasValue || promotion.PromotionalPrice.Value < 0)) ||
+                (promotion.DiscountPercentage.HasValue && (promotion.DiscountPercentage.Value < 0 || promotion.DiscountPercentage.Value > 100)))
+            {
+                _logger.LogError("Critical data corruption: Promotion {PromotionId} has missing ProductId or invalid pricing/currency.", promotion.Id);
+                throw new DataCorruptionException($"Promotion '{promotion.Id}' contains corrupted state or broken product/currency linkage.");
+            }
+        }
+
+        private async Task<Result> ValidatePromotionRelationsAsync(long? promotionalPrice, Guid? currencyId, Guid? contactId)
+        {
+            if (promotionalPrice.HasValue)
+            {
+                if (!currencyId.HasValue)
+                {
+                    _logger.LogWarning("Attempt to set PromotionalPrice without specifying CurrencyId.");
+                    return Result.Failure(
+                        message: "Currency must be specified when setting promotional price.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.InvalidOperation
+                    );
+                }
+
+                var currencyExists = await _context.Currencies.AsNoTracking().AnyAsync(c => c.Id == currencyId.Value, _ct);
+                if (!currencyExists)
+                {
+                    _logger.LogWarning("Currency with ID {CurrencyId} not found.", currencyId.Value);
+                    return Result.Failure(
+                        message: "Currency not found.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.CurrencyNotFound
+                    );
+                }
+            }
+
+            if (contactId.HasValue)
+            {
+                var contactExists = await _context.Contacts.AsNoTracking().AnyAsync(c => c.Id == contactId.Value, _ct);
+                if (!contactExists)
+                {
+                    _logger.LogWarning("Contact with ID {ContactId} not found.", contactId.Value);
+                    return Result.Failure(
+                        message: "Contact not found.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        errorCode: ErrorCodes.ContactNotFound
+                    );
+                }
+            }
 
             return Result.Success(
-                message: "Promotion added successfully.",
-                statusCode: StatusCodes.Status201Created
+                message: "All validation checks passed.",
+                statusCode: StatusCodes.Status200OK
             );
         }
     }

@@ -6,6 +6,7 @@ using Domain.Enum.Triggers;
 using Domain.Events;
 using Domain.Exceptions.Exception;
 using Domain.Models;
+using Domain.State;
 using Infrastructure;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -246,11 +247,7 @@ namespace Services.Services
                 );
             }
 
-            if (offer.ContactId == Guid.Empty || offer.CreatedByUserId == Guid.Empty || offer.CurrencyId == Guid.Empty)
-            {
-                _logger.LogError("Critical data corruption: Offer {OfferId} has missing critical foreign keys.", offer.Id);
-                throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
-            }
+            EnsureOfferNotCorrupted(offer);
 
             var targetDate = command.NewValidUntil.HasValue
                 ? DateTime.SpecifyKind(command.NewValidUntil.Value, DateTimeKind.Utc)
@@ -298,22 +295,9 @@ namespace Services.Services
                 );
             }
 
-            if (offer.Contact == null ||
-                offer.Contact.CompanyId == Guid.Empty ||
-                offer.CreatedByUserId == Guid.Empty ||
-                offer.CurrencyId == Guid.Empty)
-            {
-                _logger.LogError("Critical data corruption: Offer {OfferId} has corrupted Contact, Company, User or Currency linkage.", offer.Id);
-                throw new DataCorruptionException($"Offer '{offer.Id}' is missing essential relational data to proceed with status transition.");
-            }
+            EnsureOfferNotCorrupted(offer);
 
-            var trigger = command.NewStatus switch
-            {
-                OfferStatusEnum.Accepted => OfferTriggerEnum.Accept,
-                OfferStatusEnum.Rejected => OfferTriggerEnum.Reject,
-                _ => (OfferTriggerEnum?)null
-            };
-
+            var trigger = MapStatusToTrigger(command.NewStatus);
             if (!trigger.HasValue)
             {
                 return Result.Failure(
@@ -324,13 +308,12 @@ namespace Services.Services
             }
 
             var stateMachine = _state.Create(offer);
-
             if (!stateMachine.CanFire(trigger.Value))
             {
                 _logger.LogWarning("Invalid status transition for Offer {OfferId} from {CurrentStatus} to {NewStatus}.",
                     offer.Id, offer.Status, command.NewStatus);
 
-                return Result<Guid?>.Failure(
+                return Result.Failure(
                     message: $"Cannot transition offer from status '{offer.Status}' to '{command.NewStatus}'.",
                     statusCode: StatusCodes.Status400BadRequest,
                     errorCode: ErrorCodes.InvalidOperation
@@ -339,61 +322,14 @@ namespace Services.Services
 
             if (command.NewStatus == OfferStatusEnum.Accepted)
             {
-                if (!offer.Products.Any())
+                var acceptanceValidation = ValidateOfferForAcceptance(offer);
+                if (!acceptanceValidation.IsSuccess)
                 {
-                    _logger.LogWarning("Cannot accept offer {OfferId}: no products associated.", offer.Id);
-                    return Result.Failure(
-                        message: "Cannot accept an offer without any products.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        errorCode: ErrorCodes.InvalidOperation
-                    );
-                }
-
-                var hasCorruptedProducts = offer.Products.Any(p => p.Quantity <= 0 || p.QuotedPrice < 0 || p.ProductId == Guid.Empty);
-                if (hasCorruptedProducts)
-                {
-                    _logger.LogError("Critical data corruption: Offer {OfferId} contains products with invalid quantity, price or missing ProductId.", offer.Id);
-                    throw new DataCorruptionException($"Offer '{offer.Id}' contains corrupted product line items.");
+                    return acceptanceValidation;
                 }
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync();
-
-            try
-            {
-                var fireResult = stateMachine.Fire(trigger.Value);
-                if (!fireResult.IsSuccess)
-                {
-                    return Result<Guid?>.Failure(
-                        fireResult.Message ?? "An error occurred while transitioning the offer status.",
-                        fireResult.ErrorCode ?? ErrorCodes.InternalError,
-                        fireResult.StatusCode);
-                }
-
-                offer.UpdateAt = DateTime.UtcNow;
-
-                if (command.NewStatus == OfferStatusEnum.Accepted)
-                {
-                    await _publisher.Publish(new OfferAcceptedEvent(offer.Id));
-                }
-
-                await transaction.CommitAsync();
-
-                _logger.LogInformation("Offer {OfferId} status changed to {NewStatus}.", offer.Id, command.NewStatus);
-
-                return Result.Success(
-                    message: command.NewStatus == OfferStatusEnum.Accepted
-                        ? "Offer accepted and converted to sale deal successfully."
-                        : "Offer status updated successfully.",
-                    statusCode: StatusCodes.Status200OK
-                );
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Transaction failed while changing offer status for Offer {OfferId} to {NewStatus}", command.OfferId, command.NewStatus);
-                throw;
-            }
+            return await ExecuteStatusTransitionTransactionAsync(offer, stateMachine, trigger.Value, command.NewStatus);
         }
 
         public async Task<Result> UpdateOfferProductsAsync(UpdateOfferProductsCommand command)
@@ -412,11 +348,7 @@ namespace Services.Services
                 );
             }
 
-            if (offer.CurrencyId == Guid.Empty || offer.ContactId == Guid.Empty || offer.CreatedByUserId == Guid.Empty)
-            {
-                _logger.LogError("Critical data corruption: Offer {OfferId} has missing critical foreign keys.", offer.Id);
-                throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
-            }
+            EnsureOfferNotCorrupted(offer);
 
             var stateCheck = _state.Create(offer).CanEditProducts();
             if (!stateCheck.IsSuccess)
@@ -553,14 +485,10 @@ namespace Services.Services
                 return statusCheck;
             }
 
-            if (offer.Products == null || !offer.Products.Any())
+            var productsValidation = ValidateOfferProducts(offer.Products, "resend email for");
+            if (!productsValidation.IsSuccess)
             {
-                _logger.LogWarning("Attempt to resend email for offer {OfferId} with no products.", command.OfferId);
-                return Result.Failure(
-                    message: "Cannot resend an offer without any products.",
-                    statusCode: StatusCodes.Status400BadRequest,
-                    errorCode: ErrorCodes.InvalidOperation
-                );
+                return productsValidation;
             }
 
             var clientEmails = offer.Contact.ContactDetails
@@ -578,13 +506,6 @@ namespace Services.Services
                     statusCode: StatusCodes.Status400BadRequest,
                     errorCode: ErrorCodes.InvalidOperation
                 );
-            }
-
-            var corruptedItem = offer.Products.FirstOrDefault(op => op.Product == null || op.Quantity <= 0 || op.QuotedPrice < 0);
-            if (corruptedItem != null)
-            {
-                _logger.LogError("Critical data corruption: Offer {OfferId} contains corrupted line items or missing products.", offer.Id);
-                throw new DataCorruptionException($"Offer '{offer.Id}' contains corrupted product items.");
             }
 
             var mailingItems = offer.Products.Select(op => new MailingProductItemDomain
@@ -643,11 +564,7 @@ namespace Services.Services
                 );
             }
 
-            if (offer.CurrencyId == Guid.Empty || offer.ContactId == Guid.Empty || offer.CreatedByUserId == Guid.Empty)
-            {
-                _logger.LogError("Critical data corruption: Offer {OfferId} has missing critical foreign keys.", offer.Id);
-                throw new DataCorruptionException($"Offer '{offer.Id}' has corrupted relational integrity.");
-            }
+            EnsureOfferNotCorrupted(offer);
 
             var stateCheck = _state.Create(offer).CanDelete();
             if (!stateCheck.IsSuccess)
@@ -725,5 +642,120 @@ namespace Services.Services
                 statusCode: StatusCodes.Status200OK,
                 data: Enum.GetNames<OfferStatusEnum>().ToList()
             );
+
+        private void EnsureOfferNotCorrupted(Offer offer)
+        {
+            if (offer.ContactId == Guid.Empty ||
+                offer.CreatedByUserId == Guid.Empty ||
+                offer.CurrencyId == Guid.Empty ||
+                (offer.Contact != null && offer.Contact.CompanyId == Guid.Empty))
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} has corrupted Contact, Company, User or Currency linkage.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' is missing essential relational data.");
+            }
+        }
+
+        private static OfferTriggerEnum? MapStatusToTrigger(OfferStatusEnum newStatus) => newStatus switch
+        {
+            OfferStatusEnum.Accepted => OfferTriggerEnum.Accept,
+            OfferStatusEnum.Rejected => OfferTriggerEnum.Reject,
+            _ => null
+        };
+
+        private Result ValidateOfferForAcceptance(Offer offer)
+        {
+            if (!offer.Products.Any())
+            {
+                _logger.LogWarning("Cannot accept offer {OfferId}: no products associated.", offer.Id);
+                return Result.Failure(
+                    message: "Cannot accept an offer without any products.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var hasCorruptedProducts = offer.Products.Any(p => p.Quantity <= 0 || p.QuotedPrice < 0 || p.ProductId == Guid.Empty);
+            if (hasCorruptedProducts)
+            {
+                _logger.LogError("Critical data corruption: Offer {OfferId} contains products with invalid quantity, price or missing ProductId.", offer.Id);
+                throw new DataCorruptionException($"Offer '{offer.Id}' contains corrupted product line items.");
+            }
+
+            return Result.Success(
+                message: "Offer is valid for acceptance.",
+                statusCode: StatusCodes.Status200OK
+            );
+        }
+
+        private async Task<Result> ExecuteStatusTransitionTransactionAsync(
+            Offer offer,
+            OfferStateMachine stateMachine,
+            OfferTriggerEnum trigger,
+            OfferStatusEnum newStatus)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var fireResult = stateMachine.Fire(trigger);
+                if (!fireResult.IsSuccess)
+                {
+                    return Result.Failure(
+                        message: fireResult.Message ?? "An error occurred while transitioning the offer status.",
+                        statusCode: fireResult.StatusCode,
+                        errorCode: fireResult.ErrorCode ?? ErrorCodes.InternalError
+                    );
+                }
+
+                offer.UpdateAt = DateTime.UtcNow;
+
+                if (newStatus == OfferStatusEnum.Accepted)
+                {
+                    await _publisher.Publish(new OfferAcceptedEvent(offer.Id));
+                }
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("Offer {OfferId} status changed to {NewStatus}.", offer.Id, newStatus);
+
+                return Result.Success(
+                    message: newStatus == OfferStatusEnum.Accepted
+                        ? "Offer accepted and converted to sale deal successfully."
+                        : "Offer status updated successfully.",
+                    statusCode: StatusCodes.Status200OK
+                );
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Transaction failed while changing offer status for Offer {OfferId} to {NewStatus}", offer.Id, newStatus);
+                throw;
+            }
+        }
+
+        private Result ValidateOfferProducts(ICollection<OfferProducts>? products, string actionName)
+        {
+            if (products == null || !products.Any())
+            {
+                _logger.LogWarning("Cannot {Action} offer: no products associated.", actionName);
+                return Result.Failure(
+                    message: $"Cannot {actionName} an offer without any products.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
+            var hasCorruptedProducts = products.Any(p => p.Quantity <= 0 || p.QuotedPrice < 0 || p.ProductId == Guid.Empty);
+            if (hasCorruptedProducts)
+            {
+                _logger.LogError("Critical data corruption: Offer contains products with invalid quantity, price or missing ProductId.");
+                throw new DataCorruptionException("Offer contains corrupted product line items.");
+            }
+
+            return Result.Success(
+                message: "Offer products validated successfully.",
+                statusCode: StatusCodes.Status200OK
+                );
+        }
     }
 }
