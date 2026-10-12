@@ -43,9 +43,9 @@ jobs:
           --property:TestingPlatformDotnetTestSupport=true
           --
           --coverage
-          --coverage-settings coverage.settings.xml
+          --coverage-settings ${{ github.workspace }}/coverage.settings.xml
           --coverage-output-format cobertura
-          --coverage-output coverage.cobertura.xml
+          --coverage-output ${{ github.workspace }}/coverage.cobertura.xml
 
       - name: Generate Coverage Report
         uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4

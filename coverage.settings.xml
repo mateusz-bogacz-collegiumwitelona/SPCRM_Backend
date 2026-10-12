@@ -12,13 +12,15 @@
         <Function>.*Api\.Transformers\..*</Function>
         <Function>.*Api\.Controllers\..*</Function>
         <Function>.*Api\.Factory\..*</Function>
-
+        <Function>.*Api\.Program.*</Function>
         <!-- Domain -->
         <Function>.*Domain\.Common\..*</Function>
         <Function>.*Domain\.Constants\..*</Function>
         <Function>.*Domain\.Domain\..*</Function>
         <Function>.*Domain\.Enum\..*</Function>
         <Function>.*Domain\.Models\..*</Function>
+        <Function>.*Domain\.Comunication\..*</Function>
+        <Function>.*Domain\.Exceptions\..*</Function>
 
         <!-- Email -->
         <Function>.*Email\.Templates\..*</Function>
@@ -37,6 +39,7 @@
         <Function>.*Services\.Interfaces\..*</Function>
         <Function>.*Services\.Response\..*</Function>
         <Function>.*Services\.DependencyInjection.*</Function>
+        <Function>.*Services\.Accessors\..*</Function>
 
         <!-- Worker -->
         <Function>.*Worker\.DependencyInjection.*</Function>
