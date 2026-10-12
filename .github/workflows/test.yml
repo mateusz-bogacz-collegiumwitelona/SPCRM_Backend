@@ -29,7 +29,7 @@ jobs:
         run: dotnet restore SPCRM_Backend.slnx  
 
       - name: Linter / Code Formatting Check
-        run: dotnet format Map-API.slnx --verify-no-changes --verbosity normal
+        run: dotnet format SPCRM_Backend.slnx --verify-no-changes --verbosity normal
 
       - name: Build
         run: dotnet build  SPCRM_Backend.slnx --no-restore --configuration Release
