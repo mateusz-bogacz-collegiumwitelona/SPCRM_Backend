@@ -19,7 +19,7 @@ namespace Api.Controllers
 {
     [Route("api/contacts")]
     [ApiController]
-    public class ContactController : BaseControlle
+    public class ContactController : BaseController
     {
         [EndpointSummary("Get contacts")]
         [EndpointDescription("Show all contacts.")]

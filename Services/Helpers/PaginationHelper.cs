@@ -16,67 +16,51 @@ namespace Services.Helpers
            CancellationToken cancellationToken = default
            )
         {
-            try
+
+            if (source == null) throw new ArgumentNullException(nameof(source));
+
+            int pageNumber = Math.Max(number ?? 1, 1);
+            int pageSize = Math.Clamp(size ?? 10, 1, 100);
+
+            int totalCount = await source.CountAsync(cancellationToken);
+
+            if (totalCount == 0)
             {
-                if (source == null) throw new ArgumentNullException(nameof(source));
-
-                int pageNumber = number ?? 1;
-                int pageSize = size ?? 10;
-
-                int totalCount = await source.CountAsync(cancellationToken);
-
-                if (totalCount == 0)
-                {
-                    var emptyPage = CreateEmptyPagedResult<T>(number, size);
-
-                    return Result<PagedResult<T>>.Success(
-                        message: $"No {entityName} found.",
-                        statusCode: StatusCodes.Status200OK,
-                        data: emptyPage
-                        );
-                }
-
-                int totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-
-                if (pageNumber > totalPages && totalPages > 0)
-                {
-                    pageNumber = totalPages;
-                }
-
-                var items = await source
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync(cancellationToken);
-
-                var pagedResult = new PagedResult<T>
-                {
-                    Items = items,
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalCount = totalCount,
-                    TotalPages = totalPages
-                };
+                var emptyPage = CreateEmptyPagedResult<T>(number, size);
 
                 return Result<PagedResult<T>>.Success(
-                    message: $"{entityName} retrieved successfully.",
+                    message: $"No {entityName} found.",
                     statusCode: StatusCodes.Status200OK,
-                    data: pagedResult
+                    data: emptyPage
                     );
             }
-            catch (OperationCanceledException)
-            {
-                logger.LogInformation("Pagination for {EntityName} was cancelled by the client.", entityName);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error while paginating {EntityName}", entityName);
 
-                return Result<PagedResult<T>>.Failure(
-                    "An error occurred while processing your request.",
-                    StatusCodes.Status500InternalServerError,
-                    new List<string> { $"{ex.Message} | {ex.InnerException?.Message}" });
+            int totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            if (pageNumber > totalPages && totalPages > 0)
+            {
+                pageNumber = totalPages;
             }
+
+            var items = await source
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var pagedResult = new PagedResult<T>
+            {
+                Items = items,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages
+            };
+
+            return Result<PagedResult<T>>.Success(
+                message: $"{entityName} retrieved successfully.",
+                statusCode: StatusCodes.Status200OK,
+                data: pagedResult
+                );
         }
 
         public static PagedResult<T> CreateEmptyPagedResult<T>(int? number, int? size)

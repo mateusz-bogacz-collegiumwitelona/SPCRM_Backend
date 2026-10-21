@@ -14,7 +14,7 @@ namespace Api.Controllers
 {
     [Route("api/promotion")]
     [ApiController]
-    public class PromotionController : BaseControlle
+    public class PromotionController : BaseController
     {
         [EndpointSummary("Get promotion list")]
         [EndpointDescription("Get promotion list with pagination, sorting and filtering.")]

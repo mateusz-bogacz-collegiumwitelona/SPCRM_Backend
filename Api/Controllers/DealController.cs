@@ -21,7 +21,7 @@ namespace Api.Controllers
 {
     [Route("api/sales")]
     [ApiController]
-    public class DealController : BaseControlle
+    public class DealController : BaseController
     {
         [EndpointSummary("Get user deals")]
         [EndpointDescription("Show data of deals. Regular users only see their own deals, managers can see all or filter by OwnerId.")]

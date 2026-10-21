@@ -17,7 +17,7 @@ namespace Api.Controllers
 {
     [Route("api/invoice")]
     [ApiController]
-    public class InvoiceController : BaseControlle
+    public class InvoiceController : BaseController
     {
         [EndpointSummary("Get invoice list")]
         [EndpointDescription("Get invoice list with pagination, sorting, filtering and search")]

@@ -12,7 +12,7 @@ namespace Api.Controllers
 {
     [Route("api/note")]
     [ApiController]
-    public class NoteController : BaseControlle
+    public class NoteController : BaseController
     {
 
         [EndpointSummary("Edit note")]

@@ -15,7 +15,7 @@ namespace Api.Controllers
 {
     [Route("api/currency")]
     [ApiController]
-    public class CurrencyController : BaseControlle
+    public class CurrencyController : BaseController
     {
         [EndpointSummary("Get currency list")]
         [EndpointDescription("Get simple currency list with no pagination, sorting and filtering.")]
