@@ -63,49 +63,6 @@ namespace Api.Configuration
                 };
             });
 
-            services.AddAuthentication()
-                .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
-                {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        ValidIssuer = configuration?["JWT:ISSUER"] ?? configuration?["JWT__ISSUER"] ?? "TestIssuer",
-                        ValidAudience = configuration?["JWT:AUDIENCE"] ?? configuration?["JWT__AUDIENCE"] ?? "TestAudience",
-                        IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(configuration?["JWT:KEY"] ?? configuration?["JWT__KEY"]
-                            ?? "SuperTajnyKluczTestowyOodpowiedniejDlugosci123!"
-                            ))
-                    };
-
-                    options.Events = new JwtBearerEvents
-                    {
-                        OnChallenge = context =>
-                        {
-                            context.HandleResponse();
-                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                            context.Response.ContentType = "application/json";
-                            return System.Text.Json.JsonSerializer.SerializeAsync(context.Response.Body, new
-                            {
-                                success = false,
-                                message = "Unauthorized",
-                                errors = new[] { "You are not authorized to access this resource." },
-
-                            });
-                        }
-                    };
-                });
-
-            services.AddAuthorization(options =>
-            {
-                options.DefaultPolicy = new AuthorizationPolicyBuilder()
-                    .AddAuthenticationSchemes("Identity.Application", JwtBearerDefaults.AuthenticationScheme)
-                    .RequireAuthenticatedUser()
-                    .Build();
-            });
-
             return services;
         }
     }
