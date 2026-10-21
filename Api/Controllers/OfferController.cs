@@ -17,7 +17,7 @@ namespace Api.Controllers
     [Route("api/offer")]
     [ApiController]
     [Authorize(Roles = "Manager,User")]
-    public class OfferController : BaseControlle
+    public class OfferController : BaseController
     {
         [EndpointSummary("Get offer list")]
         [EndpointDescription("Get offer list with pagination, sorting and filtering.")]

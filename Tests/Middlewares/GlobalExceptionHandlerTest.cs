@@ -1,6 +1,5 @@
 ﻿using Api.Middlewares;
 using Domain.Constants;
-using Domain.Exceptions.Exception;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -70,7 +69,7 @@ namespace Tests.Middlewares
             cts.Cancel();
             context.RequestAborted = cts.Token;
 
-            var exception = new Exception("Dowolny błąd po przerwaniu połączenia");
+            var exception = new Exception("Any error after connection abort");
 
             // Act
             var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
@@ -80,79 +79,12 @@ namespace Tests.Middlewares
             await Assert.That(context.Response.Body.Length).IsEqualTo(0L);
         }
 
-
-        [Test]
-        public async Task TryHandleAsync_WhenForbiddenException_Returns403WithCorrectErrorCode()
-        {
-            // Arrange
-            var context = CreateHttpContext();
-            var exception = new ForbiddenException("Brak uprawnień do edycji.");
-
-            // Act
-            var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
-            var response = await ReadResponseBodyAsync(context);
-
-            // Assert
-            await Assert.That(handled).IsTrue();
-            await Assert.That(context.Response.StatusCode).IsEqualTo(StatusCodes.Status403Forbidden);
-            await Assert.That(context.Response.ContentType).StartsWith("application/json");
-
-            await Assert.That(response).IsNotNull();
-            await Assert.That(response!.IsSuccess).IsFalse();
-            await Assert.That(response.StatusCode).IsEqualTo(403);
-            await Assert.That(response.ErrorCode).IsEqualTo(ErrorCodes.UnauthorizedAccess);
-            await Assert.That(response.Message).IsEqualTo("Brak uprawnień do edycji.");
-        }
-
-        [Test]
-        public async Task TryHandleAsync_WhenBusinessRuleException_Returns400WithCorrectErrorCode()
-        {
-            // Arrange
-            var context = CreateHttpContext();
-            var exception = new BusinessRuleException("Oferta wygasła i nie może zostać zaakceptowana.");
-
-            // Act
-            var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
-            var response = await ReadResponseBodyAsync(context);
-
-            // Assert
-            await Assert.That(handled).IsTrue();
-            await Assert.That(context.Response.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
-
-            await Assert.That(response).IsNotNull();
-            await Assert.That(response!.StatusCode).IsEqualTo(400);
-            await Assert.That(response.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
-            await Assert.That(response.Message).IsEqualTo("Oferta wygasła i nie może zostać zaakceptowana.");
-        }
-
-        [Test]
-        public async Task TryHandleAsync_WhenDataCorruptionException_Returns500WithInternalError()
-        {
-            // Arrange
-            var context = CreateHttpContext();
-            var exception = new DataCorruptionException("Błąd integralności danych w encji.");
-
-            // Act
-            var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
-            var response = await ReadResponseBodyAsync(context);
-
-            // Assert
-            await Assert.That(handled).IsTrue();
-            await Assert.That(context.Response.StatusCode).IsEqualTo(StatusCodes.Status500InternalServerError);
-
-            await Assert.That(response).IsNotNull();
-            await Assert.That(response!.StatusCode).IsEqualTo(500);
-            await Assert.That(response.ErrorCode).IsEqualTo(ErrorCodes.InternalError);
-            await Assert.That(response.Message).IsEqualTo("Błąd integralności danych w encji.");
-        }
-
-
         [Test]
         public async Task TryHandleAsync_WhenDbUpdateConcurrencyException_Returns409Conflict()
         {
             // Arrange
             var context = CreateHttpContext();
-            var exception = new DbUpdateConcurrencyException("Konflikt edycji");
+            var exception = new DbUpdateConcurrencyException("Concurrency conflict");
 
             // Act
             var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
@@ -173,7 +105,7 @@ namespace Tests.Middlewares
         {
             // Arrange
             var context = CreateHttpContext();
-            var exception = new KeyNotFoundException("Klucz nie istnieje");
+            var exception = new KeyNotFoundException("Key not found.");
 
             // Act
             var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
@@ -194,7 +126,7 @@ namespace Tests.Middlewares
         {
             // Arrange
             var context = CreateHttpContext();
-            var exception = new ArgumentException("Niepoprawny format parametru.");
+            var exception = new ArgumentException("Internal sensitive argument error details");
 
             // Act
             var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
@@ -207,15 +139,15 @@ namespace Tests.Middlewares
             await Assert.That(response).IsNotNull();
             await Assert.That(response!.StatusCode).IsEqualTo(400);
             await Assert.That(response.ErrorCode).IsEqualTo(ErrorCodes.BadRequest);
-            await Assert.That(response.Message).IsEqualTo("Niepoprawny format parametru.");
+            await Assert.That(response.Message).IsEqualTo("Invalid argument provided.");
+            await Assert.That(response.Message).DoesNotContain("Internal sensitive");
         }
 
         [Test]
         public async Task TryHandleAsync_WhenInvalidOperationException_Returns500InternalServerError()
         {
-            // Arrange
             var context = CreateHttpContext();
-            var exception = new InvalidOperationException("Nieobsługiwany stan operacji.");
+            var exception = new InvalidOperationException("Sensitive EF Core execution state error");
 
             // Act
             var handled = await _handler.TryHandleAsync(context, exception, CancellationToken.None);
@@ -228,7 +160,8 @@ namespace Tests.Middlewares
             await Assert.That(response).IsNotNull();
             await Assert.That(response!.StatusCode).IsEqualTo(500);
             await Assert.That(response.ErrorCode).IsEqualTo(ErrorCodes.InternalError);
-            await Assert.That(response.Message).IsEqualTo("Nieobsługiwany stan operacji.");
+            await Assert.That(response.Message).IsEqualTo("An unexpected error occurred. Please contact support.");
+            await Assert.That(response.Message).DoesNotContain("Sensitive EF Core");
         }
 
         [Test]

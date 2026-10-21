@@ -24,7 +24,7 @@ namespace Api.Controllers
 {
     [Route("api/user")]
     [ApiController]
-    public class UserController : BaseControlle
+    public class UserController : BaseController
     {
         [EndpointSummary("Get simple list of users")]
         [EndpointDescription("Get list of users without serach, paggination etc. And without admins")]

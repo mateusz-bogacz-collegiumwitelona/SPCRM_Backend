@@ -15,7 +15,7 @@ namespace Api.Controllers
 {
     [Route("api/tasks")]
     [ApiController]
-    public class TaskController : BaseControlle
+    public class TaskController : BaseController
     {
         [EndpointSummary("Get tasks for calendar")]
         [EndpointDescription("Show tasks for calendar view. " +

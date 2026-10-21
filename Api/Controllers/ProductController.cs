@@ -17,7 +17,7 @@ namespace Api.Controllers
 {
     [Route("api/products")]
     [ApiController]
-    public class ProductController : BaseControlle
+    public class ProductController : BaseController
     {
 
         [EndpointSummary("Get product list")]

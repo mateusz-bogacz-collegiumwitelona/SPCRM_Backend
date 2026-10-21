@@ -16,7 +16,7 @@ namespace Api.Controllers
 {
     [Route("api/company")]
     [ApiController]
-    public class CompanyController : BaseControlle
+    public class CompanyController : BaseController
     {
         [EndpointSummary("Get data to global map")]
         [EndpointDescription("Show data of every company on the global map.")]

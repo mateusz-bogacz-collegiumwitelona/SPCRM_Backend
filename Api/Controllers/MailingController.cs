@@ -18,7 +18,7 @@ namespace Api.Controllers
 {
     [Route("api/mailing")]
     [ApiController]
-    public class MailingController : BaseControlle
+    public class MailingController : BaseController
     {
         [EndpointSummary("Send email to support")]
         [EndpointDescription("Sends an email to the support team with the provided details.")]

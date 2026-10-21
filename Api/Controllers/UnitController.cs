@@ -15,7 +15,7 @@ namespace Api.Controllers
 {
     [Route("api/unit")]
     [ApiController]
-    public class UnitController : BaseControlle
+    public class UnitController : BaseController
     {
         [EndpointSummary("Get simple list of unit")]
         [EndpointDescription("Get list of unit without serach, paggination etc.")]

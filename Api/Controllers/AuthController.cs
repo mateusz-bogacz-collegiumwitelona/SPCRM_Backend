@@ -14,7 +14,7 @@ namespace Api.Controllers
     [Route("api/auth")]
     [Tags("Authentication")]
     [EnableRateLimiting("auth-strict")]
-    public class AuthController : BaseControlle
+    public class AuthController : BaseController
     {
         [EndpointSummary("Authenticate user (Login Step 1)")]
         [EndpointDescription("Authenticates a user using their email and password. " +

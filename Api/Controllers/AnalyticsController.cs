@@ -16,7 +16,7 @@ namespace Api.Controllers
 {
     [Route("api/analytics")]
     [ApiController]
-    public class AnalyticsController : BaseControlle
+    public class AnalyticsController : BaseController
     {
         [EndpointSummary("Get team KPI summary")]
         [EndpointDescription("Returns overall financial, deals, and task performance metrics for the whole team.")]

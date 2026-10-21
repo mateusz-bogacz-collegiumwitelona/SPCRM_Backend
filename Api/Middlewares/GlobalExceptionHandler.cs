@@ -15,7 +15,7 @@ namespace Api.Middlewares
             _logger = logger;
         }
 
-        public async ValueTask<Boolean> TryHandleAsync(
+        public async ValueTask<bool> TryHandleAsync(
             HttpContext httpContext,
             Exception exception,
             CancellationToken cancellation
@@ -31,27 +31,23 @@ namespace Api.Middlewares
 
             _logger.LogError(exception, "An unexpected application error occurred: {Message}", exception.Message);
 
-
-            _logger.LogError(exception, "An unexpected application error occurred: {Message}", exception.Message);
-
             var (statusCode, message, errorCode) = exception switch
             {
                 AppException appEx => (appEx.StatusCode, appEx.Message, appEx.ErrorCode),
                 DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "The data has been modified by another user. Please refresh and try again.", ErrorCodes.InvalidOperation),
                 KeyNotFoundException => (StatusCodes.Status404NotFound, "Resource not found.", ErrorCodes.NotFound),
-                ArgumentException argEx => (StatusCodes.Status400BadRequest, argEx.Message, ErrorCodes.BadRequest),
-                InvalidOperationException invEx => (StatusCodes.Status500InternalServerError, invEx.Message, ErrorCodes.InternalError),
+                ArgumentException => (StatusCodes.Status400BadRequest, "Invalid argument provided.", ErrorCodes.BadRequest),
+                InvalidOperationException => (StatusCodes.Status500InternalServerError, "An unexpected error occurred. Please contact support.", ErrorCodes.InternalError),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred. Please contact support.", ErrorCodes.InternalError)
             };
 
-            var result = Result<object>.Failure(
+            var result = Result.Failure(
                 message: message,
-                statusCode: statusCode,
-                errorCode: errorCode
-                );
+                errorCode: errorCode,
+                statusCode: statusCode
+            );
 
             httpContext.Response.StatusCode = statusCode;
-            httpContext.Response.ContentType = "application/json";
 
             await httpContext.Response.WriteAsJsonAsync(result, cancellation);
 

@@ -16,7 +16,7 @@ namespace Api.Controllers
 {
     [Route("api/steel-grade")]
     [ApiController]
-    public class SteelGradeController : BaseControlle
+    public class SteelGradeController : BaseController
     {
         [EndpointSummary("Get steel grade list")]
         [EndpointDescription("Get steel grade list with pagination, sorting and search.")]
