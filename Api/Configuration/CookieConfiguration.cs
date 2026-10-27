@@ -1,10 +1,6 @@
 ﻿using Infrastructure;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
-using System.Text;
 
 namespace Api.Configuration
 {

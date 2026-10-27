@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Common.Intefaces;
 using Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -160,23 +161,25 @@ namespace Infrastructure
             {
                 if (entityType.BaseType != null) continue;
 
-                if (entityType.ClrType == typeof(ApplicationUser)) continue;
+                var clrType = entityType.ClrType;
 
-                var updateAtProp = entityType.FindProperty("UpdateAt");
-                if (updateAtProp != null)
+                if (typeof(IAuditableEntity).IsAssignableFrom(clrType))
                 {
-                    updateAtProp.IsConcurrencyToken = false;
+                    var updateAtProp = entityType.FindProperty(nameof(IAuditableEntity.UpdateAt));
+                    if (updateAtProp != null)
+                    {
+                        updateAtProp.IsConcurrencyToken = false;
+                    }
                 }
 
-                var isDeletedProperty = entityType.ClrType.GetProperty("IsDeleted");
-                if (isDeletedProperty != null && isDeletedProperty.PropertyType == typeof(bool))
+                if (typeof(ISoftDeletable).IsAssignableFrom(clrType))
                 {
-                    var parameter = Expression.Parameter(entityType.ClrType, "e");
-                    var property = Expression.Property(parameter, isDeletedProperty);
+                    var parameter = Expression.Parameter(clrType, "e");
+                    var property = Expression.Property(parameter, nameof(ISoftDeletable.IsDeleted));
                     var condition = Expression.Equal(property, Expression.Constant(false));
                     var lambda = Expression.Lambda(condition, parameter);
 
-                    builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+                    builder.Entity(clrType).HasQueryFilter(lambda);
                 }
             }
         }
