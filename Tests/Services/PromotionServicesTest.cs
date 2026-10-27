@@ -152,7 +152,7 @@ namespace Tests.Services
             return product;
         }
 
-        // ─── GetPromotionListAsync ─────────────────────────────────────────────────
+        #region GetPromotionListAsync 
 
         [Test]
         public async Task GetPromotionListAsync_WhenNoFiltersApplied_ReturnsAllPromotionsAndMapsProperly()
@@ -442,7 +442,9 @@ namespace Tests.Services
             await Assert.That(items[2].Name).IsEqualTo("A Promo");
         }
 
-        // ─── GetPromotionDetailAsync ───────────────────────────────────────────────
+        #endregion
+
+        #region GetPromotionDetailAsync 
 
         [Test]
         public async Task GetPromotionDetailAsync_WhenPromotionExistsWithFullData_ReturnsSuccessWithMappedDetails()
@@ -692,8 +694,9 @@ namespace Tests.Services
             await Assert.That(async () => await _promotionServicesMock.GetPromotionDetailAsync(corruptedPromotion.Id))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── DeactivatePromotionAsync ───────────────────────────────────────────────
+        #region DeactivatePromotionAsync
         [Test]
         public async Task DeactivatePromotionAsync_WhenPromotionExistsAndIsActive_Return200()
         {
@@ -762,8 +765,9 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(404);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.PromotionNotFound);
         }
+        #endregion
 
-        // ─── ActivatePromotionAsync ─────────────────────────────────────────────────
+        #region ActivatePromotionAsync
 
         [Test]
         public async Task ActivatePromotionAsync_WhenPromotionExistsAndIsInactive_ActivatesPromotionAndSetsDates()
@@ -930,8 +934,9 @@ namespace Tests.Services
             await Assert.That(async () => await _promotionServicesMock.ActivatePromotionAsync(command))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── DeletePromotionAsync ───────────────────────────────────────────────────
+        #region DeletePromotionAsync
 
         [Test]
         public async Task DeletePromotionAsync_WhenPromotionExists_SoftDeletesPromotionAndHidesItFromQueries()
@@ -1009,8 +1014,9 @@ namespace Tests.Services
             await Assert.That(async () => await _promotionServicesMock.DeletePromotionAsync(corruptedPromotion.Id))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── EditPromotionAsync ───────────────────────────────────────────────────
+        #region EditPromotionAsync 
 
         [Test]
         public async Task EditPromotionAsync_WhenUpdatingOnlyBasicFields_UpdatesOnlySpecifiedFields()
@@ -1336,7 +1342,9 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
-        // ─── AddPromotionAsync ────────────────────────────────────────────────────
+        #endregion
+
+        #region AddPromotionAsync 
 
         [Test]
         public async Task AddPromotionAsync_WhenDataIsValid_CreatesPromotionAndReturnsCreated()
@@ -1504,5 +1512,6 @@ namespace Tests.Services
             await Assert.That(async () => await _promotionServicesMock.AddPromotionAsync(command))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
     }
 }

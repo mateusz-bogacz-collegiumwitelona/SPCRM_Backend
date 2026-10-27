@@ -1,6 +1,8 @@
-﻿namespace Domain.Common
+﻿using Domain.Common.Intefaces;
+
+namespace Domain.Common
 {
-    public abstract class BaseEntity
+    public abstract class BaseEntity : IAuditableEntity, ISoftDeletable
     {
         public Guid Id { get; set; } = Guid.CreateVersion7();
 

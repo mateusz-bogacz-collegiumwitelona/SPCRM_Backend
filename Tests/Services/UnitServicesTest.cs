@@ -105,7 +105,7 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // ─── GetSimpleUnitList ─────────────────────────────────────────────────
+        #region GetSimpleUnitList 
         [Test]
         public async Task GetSimpleUnitList_ReturnsUnitsSuccessfully()
         {
@@ -155,7 +155,9 @@ namespace Tests.Services
             await Assert.That(result.Data!).IsEmpty();
         }
 
-        // ─── GetUnitListAsync ──────────────────────────────────────────────────
+        #endregion
+
+        #region GetUnitListAsync
         [Test]
         public async Task GetUnitListAsync_ReturnsPagedUnitsSuccessfully()
         {
@@ -286,7 +288,9 @@ namespace Tests.Services
             await Assert.That(pagedResult.Items).Count().IsEqualTo(5);
         }
 
-        // ─── AddUnitAsync ──────────────────────────────────────────────────────
+        #endregion
+
+        #region AddUnitAsync
         [Test]
         public async Task AddUnitAsync_AddsUnitSuccessfully_WhenValidDataProvided()
         {
@@ -381,7 +385,9 @@ namespace Tests.Services
             await Assert.That(count).IsEqualTo(1);
         }
 
-        // ─── EditUnitAsync ─────────────────────────────────────────────────────
+        #endregion
+
+        #region EditUnitAsync
         [Test]
         public async Task EditUnitAsync_UpdatesAllFieldsSuccessfully_WhenValidDataProvided()
         {
@@ -648,5 +654,6 @@ namespace Tests.Services
             await Assert.That(async () => await _unitServicesMok.EditUnitAsync(command))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
     }
 }

@@ -21,7 +21,7 @@ namespace Tests.State
             return new OfferStateMachine(offer);
         }
 
-        // ─── Constructor / EnsureFreshExpirationStatus ─────────────────
+        #region Constructor / EnsureFreshExpirationStatus 
 
         [Test]
         public async Task Constructor_SentAndExpired_SetsStatusToExpired()
@@ -60,8 +60,9 @@ namespace Tests.State
             await Assert.That(offer.Status).IsEqualTo(OfferStatusEnum.Expired);
         }
 
-        // ─── CanFire ─────────────────────────────────────────────────
+        #endregion
 
+        #region CanFire 
         [Test]
         [Arguments(OfferStatusEnum.Sent, OfferTriggerEnum.Accept, true)]
         [Arguments(OfferStatusEnum.Sent, OfferTriggerEnum.Reject, true)]
@@ -94,7 +95,9 @@ namespace Tests.State
             await Assert.That(machine.CanFire(trigger)).IsFalse();
         }
 
-        // ─── Fire ─────────────────────────────────────────────────
+        #endregion
+
+        #region Fire
 
         [Test]
         [Arguments(OfferTriggerEnum.Accept, OfferStatusEnum.Accepted)]
@@ -176,7 +179,9 @@ namespace Tests.State
             }
         }
 
-        // ─── CanEditProducts ─────────────────────────────────────────
+        #endregion
+
+        #region CanEditProducts
 
         [Test]
         public async Task CanEditProducts_SentStatus_ReturnsSuccess()
@@ -224,8 +229,9 @@ namespace Tests.State
                 await Assert.That(result.Message).Contains(OfferStatusEnum.Expired.ToString());
             }
         }
+        #endregion
 
-        // ─── CanResendEmail ─────────────────────────────────────────
+        #region CanResendEmail 
 
         [Test]
         public async Task CanResendEmail_SentAndNotExpired_ReturnsSuccess()
@@ -274,7 +280,9 @@ namespace Tests.State
             }
         }
 
-        // ─── CanExtendValidity ─────────────────────────────────────────
+        #endregion
+
+        #region CanExtendValidity
 
         [Test]
         [Arguments(OfferStatusEnum.Sent)]
@@ -352,8 +360,9 @@ namespace Tests.State
             }
         }
 
-        // ─── CanDelete ─────────────────────────────────────────────────
+        #endregion
 
+        #region CanDelete
         [Test]
         [Arguments(OfferStatusEnum.Sent)]
         [Arguments(OfferStatusEnum.Expired)]
@@ -397,5 +406,7 @@ namespace Tests.State
 
             await Assert.That(result.IsSuccess).IsTrue();
         }
+
+        #endregion
     }
 }

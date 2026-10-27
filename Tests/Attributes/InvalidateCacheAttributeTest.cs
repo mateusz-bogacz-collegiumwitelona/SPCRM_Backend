@@ -65,7 +65,7 @@ namespace Tests.Attributes
             };
         }
 
-        // ─── OnActionExecutionAsync ──────────────────────────────
+        #region OnActionExecutionAsync
 
         [Test]
         public async Task OnActionExecutionAsync_WhenSingleDirectTagProvided_EvictsThatTag()
@@ -211,5 +211,6 @@ namespace Tests.Attributes
             // Assert
             await Assert.That(_cacheStore.EvictedTags).IsEmpty();
         }
+        #endregion
     }
 }

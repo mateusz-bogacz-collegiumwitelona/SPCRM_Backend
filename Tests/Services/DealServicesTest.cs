@@ -203,7 +203,7 @@ namespace Tests.Services
             return (company, user, currency, contact);
         }
 
-        // ─── GetDealsAsync ─────────────────────────────────────────────────
+        #region GetDealsAsync 
 
         [Test]
         public async Task GetDealsAsync_FiltersByOwnerAndMapsPropertiesCorrectly()
@@ -350,8 +350,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items).IsEmpty();
         }
+        #endregion
 
-        // ─── GetDealsStatus ─────────────────────────────────────────────────
+        #region GetDealsStatus 
 
         [Test]
         public async Task GetDealsStatus_ReturnsAllEnumValues()
@@ -377,7 +378,9 @@ namespace Tests.Services
             }
         }
 
-        // ─── GetComapanyDealsAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetComapanyDealsAsync
 
         [Test]
         public async Task GetComapanyDealsAsync_FiltersByCompanyAndMapsPropertiesCorrectly()
@@ -647,7 +650,9 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).IsEmpty();
         }
 
-        // ─── GetDealDetailAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetDealDetailAsync 
 
         [Test]
         public async Task GetSaleDetailAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -1262,8 +1267,9 @@ namespace Tests.Services
             await Assert.That(async () => await _dealServicesMock.GetDealDetailAsync(deal.Id, unauthorizedUserId))
                 .Throws<ForbiddenException>();
         }
+        #endregion
 
-        // ─── GetDealProductAsync ─────────────────────────────────────────────────
+        #region GetDealProductAsync 
 
         [Test]
         public async Task GetDealProductAsync_MapsDeepRelationsAndCalculatesTotalsCorrectly()
@@ -1715,7 +1721,9 @@ namespace Tests.Services
                 .Throws<ForbiddenException>();
         }
 
-        // ─── AddDealAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region AddDealAsync
 
         [Test]
         public async Task AddDealAsync_ThrowsUserNotFoundException_WhenUserDoesNotExist()
@@ -2131,7 +2139,9 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Contact does not belong to the specified company.");
         }
 
-        // ─── DeleteDealAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region DeleteDealAsync
 
         [Test]
         public async Task DeleteDealAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -2284,7 +2294,9 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Deal is already in status 'Cancelled'.");
         }
 
-        // ─── ExtendDealCloseDateAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region ExtendDealCloseDateAsync
 
         [Test]
         public async Task ExtendDealCloseDateAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -2469,7 +2481,9 @@ namespace Tests.Services
             await Assert.That(difference < TimeSpan.FromSeconds(1)).IsTrue();
         }
 
-        // ─── AddDealProductAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region AddDealProductAsync
 
         [Test]
         public async Task AddDealProductAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -2850,7 +2864,9 @@ namespace Tests.Services
             await Assert.That(result.Message).Contains($"Insufficient stock ({product.Name}).  Available for booking: {product.StockQuantity}.");
         }
 
-        // ─── DeleteDealProductAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region DeleteDealProductAsync 
 
         [Test]
         public async Task DeleteDealProductAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -3171,7 +3187,9 @@ namespace Tests.Services
             await Assert.That(removedExistsInDb).IsFalse();
         }
 
-        // ─── EditDealProductAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region EditDealProductAsync
 
         [Test]
         public async Task EditDealProductAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -3546,7 +3564,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
 
-        // ─── ChangeDealStatusAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region ChangeDealStatusAsync
 
         [Test]
         public async Task ChangeDealStatusAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -3905,7 +3925,9 @@ namespace Tests.Services
             await Assert.That(dbDeal!.Status).IsEqualTo(DealsStatusEnum.InProgress);
         }
 
-        // ─── ChangeDealContactAsync ───────────────────────────────────────────────
+        #endregion
+
+        #region ChangeDealContactAsync 
 
         [Test]
         public async Task ChangeDealContactAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -4238,8 +4260,9 @@ namespace Tests.Services
             await Assert.That(dbDeal!.ContactId).IsEqualTo(newValidContact.Id);
             await Assert.That(dbDeal.UpdateAt).IsNotNull();
         }
+        #endregion
 
-        // ─── GetAssignableContactsForDealAsync ───────────────────────────────────
+        #region GetAssignableContactsForDealAsync
 
         [Test]
         public async Task GetAssignableContactsForDealAsync_WhenDealDoesNotExist_Returns404NotFound()
@@ -4486,7 +4509,9 @@ namespace Tests.Services
             await Assert.That(items[1].IsPrimary).IsFalse();
         }
 
-        // ─── GetProductDealsAsync ───────────────────────────────────────────
+        #endregion
+
+        #region GetProductDealsAsync
 
         [Test]
         public async Task GetProductDealsAsync_WhenNoDealsContainProduct_ReturnsEmptyPagedResultWithSuccess()
@@ -4718,5 +4743,7 @@ namespace Tests.Services
             await Assert.That(searchByCompanyResult.Data!.Items).Count().IsEqualTo(1);
             await Assert.That(searchByCompanyResult.Data.Items[0].DealId).IsEqualTo(deal2.Id);
         }
+
+        #endregion
     }
 }

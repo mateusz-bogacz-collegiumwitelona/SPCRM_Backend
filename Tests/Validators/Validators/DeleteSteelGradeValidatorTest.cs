@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly DeleteSteelGradeValidator _validator = new();
 
-        // ─── Reassignments ────────────────────────────────────────────────────
+        #region Reassignments 
 
         [Test]
         public async Task Validate_WhenReassignmentsIsEmpty_ShouldNotHaveValidationError()
@@ -91,5 +91,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.DuplicateProductReassignment);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

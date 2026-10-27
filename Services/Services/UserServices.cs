@@ -58,7 +58,6 @@ namespace Services.Services
                 .AsNoTracking()
                 .Where(u => u.EmailConfirmed
                          && (u.LockoutEnd == null || u.LockoutEnd <= now)
-                         && !u.IsDeleted
                          && _context.UserRoles.Any(ur => ur.UserId == u.Id
                              && _context.Roles.Any(r => r.Id == ur.RoleId && r.Name != BusinessConstants.RoleAdmin)))
                 .OrderBy(u => u.LastName)
@@ -81,7 +80,6 @@ namespace Services.Services
         public async Task<Result<PagedResult<UserListResponse>>> GetUserListAsync(UserListCommand command, Guid userId)
         {
             var hasUsersWithoutRole = await _context.Users
-                 .Where(u => !u.IsDeleted)
                  .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id), _ct);
 
             if (hasUsersWithoutRole)
@@ -92,9 +90,7 @@ namespace Services.Services
             bool isManager = await _entityAuth.CanAccessAsync(userId);
 
             var query = _context.Users
-            .AsNoTracking()
-            .Where(u => !u.IsDeleted);
-
+                .AsNoTracking();
 
             if (isManager)
             {
@@ -128,7 +124,6 @@ namespace Services.Services
 
             var hasUsersWithoutRole = await _context.Users
                 .AsNoTracking()
-                .Where(u => !u.IsDeleted)
                 .AnyAsync(u => !_context.UserRoles.Any(ur => ur.UserId == u.Id), _ct);
 
             if (hasUsersWithoutRole)
@@ -139,7 +134,7 @@ namespace Services.Services
 
             var owners = await _context.Users
                 .AsNoTracking()
-                .Where(u => !u.IsDeleted && (u.LockoutEnd == null || u.LockoutEnd <= now))
+                .Where(u => (u.LockoutEnd == null || u.LockoutEnd <= now))
                 .Where(u => _context.UserRoles
                     .Any(ur => ur.UserId == u.Id && _context.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName != BusinessConstants.AdminNormalized)))
                 .OrderBy(u => u.LastName)
@@ -430,7 +425,8 @@ namespace Services.Services
             }
 
             var userToDelete = await _userManager.FindByIdAsync(command.UserId.ToString());
-            if (userToDelete == null || userToDelete.IsDeleted)
+
+            if (userToDelete == null)
             {
                 _logger.LogWarning("User with ID {UserId} not found or already deleted.", command.UserId);
                 return Result.Failure(
@@ -452,7 +448,7 @@ namespace Services.Services
 
             var targetUser = await _userManager.FindByIdAsync(command.ReassignToUserId.ToString());
 
-            if (targetUser == null || targetUser.IsDeleted)
+            if (targetUser == null)
             {
                 _logger.LogWarning("Target user for reassignment {TargetUserId} not found or inactive.", command.ReassignToUserId);
                 return Result.Failure(
@@ -552,7 +548,7 @@ namespace Services.Services
         {
             var user = await _userManager.FindByIdAsync(command.UserId.ToString());
 
-            if (user == null || user.IsDeleted)
+            if (user == null)
             {
                 _logger.LogWarning("User with ID {UserId} not found or is deleted.", command.UserId);
                 return Result.Failure(
@@ -594,7 +590,7 @@ namespace Services.Services
         {
             var user = await _userManager.FindByIdAsync(command.UserId.ToString());
 
-            if (user == null || user.IsDeleted)
+            if (user == null)
             {
                 _logger.LogWarning("Admin {AdminId} attempted to change email for non-existent or deleted user {UserId}.",
                     adminId, command.UserId);
@@ -620,8 +616,7 @@ namespace Services.Services
 
             bool emailOccupied = await _context.Users
                 .AsNoTracking()
-                .AnyAsync(u => !u.IsDeleted &&
-                               u.Id != user.Id &&
+                .AnyAsync(u => u.Id != user.Id &&
                                (u.NormalizedEmail == normalizedNewEmail ||
                                 (u.PendingEmail != null && u.PendingEmail.ToUpper() == normalizedNewEmail)));
 
@@ -684,7 +679,7 @@ namespace Services.Services
         {
             var user = await _userManager.FindByIdAsync(command.UserId.ToString());
 
-            if (user == null || user.IsDeleted)
+            if (user == null)
             {
                 _logger.LogWarning("Email change confirmation failed: User {UserId} not found or deleted.", command.UserId);
                 return Result.Failure(
@@ -751,7 +746,7 @@ namespace Services.Services
         {
             var user = await _userManager.FindByEmailAsync(command.Email);
 
-            if (user == null || user.IsDeleted || !user.EmailConfirmed)
+            if (user == null || !user.EmailConfirmed)
             {
                 _logger.LogInformation("Password reset requested for non-existing, unconfirmed or deleted email: {Email}", command.Email);
                 return Result.Success(
@@ -794,7 +789,7 @@ namespace Services.Services
         {
             var user = await _userManager.FindByIdAsync(command.UserId.ToString());
 
-            if (user == null || user.IsDeleted)
+            if (user == null)
             {
                 _logger.LogWarning("Password reset attempt for non-existent or deleted user {UserId}.", command.UserId);
                 return Result.Failure(
@@ -846,7 +841,7 @@ namespace Services.Services
         {
             var user = await _userManager.FindByIdAsync(command.UserId.ToString());
 
-            if (user == null || user.IsDeleted)
+            if (user == null)
             {
                 _logger.LogWarning("Admin {AdminId} attempted to change role for non-existent or deleted user {UserId}.",
                     adminId, command.UserId);
@@ -927,7 +922,7 @@ namespace Services.Services
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
 
-            if (user == null || user.IsDeleted)
+            if (user == null)
             {
                 _logger.LogWarning("User with ID {UserId} not found or is deleted.", userId);
                 return Result<UserDetailResponse>.Failure(

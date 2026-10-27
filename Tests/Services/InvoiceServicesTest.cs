@@ -235,7 +235,7 @@ namespace Tests.Services
             return product;
         }
 
-        // ─── GetCompanyDebtSummaryAsync ─────────────────────────────────────────────────
+        #region GetCompanyDebtSummaryAsync 
 
         [Test]
         public async Task GetCompanyDebtSummaryAsync_GroupsByCurrencyAndCalculatesCorrectAmount()
@@ -418,8 +418,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
+        #endregion
 
-        // ─── GetCompanyDebtSummaryAsync ─────────────────────────────────────────────────
+        #region GetCompanyDebtsAsync
 
         [Test]
         public async Task GetCompanyDebtsAsync_MapsDataAndCalculatesDaysOverdueCorrectly()
@@ -558,9 +559,9 @@ namespace Tests.Services
             await Assert.That(async () => await _invoiceServicesMock.GetCompanyDebtsAsync(command))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-
-        // ─── GetInvoiceListAsync ───────────────────────────────────────────────────
+        #region GetInvoiceListAsync 
 
         [Test]
         public async Task GetInvoiceListAsync_MapsAllFieldsAndCalculatesAmountsCorrectly()
@@ -878,7 +879,9 @@ namespace Tests.Services
             await Assert.That(items.First().CompanyName).IsEqualTo("Hurtownia Żelazo Stal");
         }
 
-        // ─── GetInvoiceDetailAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetInvoiceDetailAsync
 
         [Test]
         public async Task GetInvoiceDetailAsync_WhenInvoiceExistsWithDeal_ReturnsFullDetails()
@@ -1006,7 +1009,9 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Invoice not found.");
         }
 
-        // ─── GetInvoiceProductAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetInvoiceProductAsync
 
         [Test]
         public async Task GetInvoiceProductAsync_MapsAllFieldsCorrectly()
@@ -1255,8 +1260,9 @@ namespace Tests.Services
             await Assert.That(items.First().InvoiceProductId).IsEqualTo(matchedProduct.Id);
             await Assert.That(items.First().ProductName).IsEqualTo("Płaskownik Żelazny");
         }
+        #endregion
 
-        // ─── GetInvoicePaymentSummaryAsync ─────────────────────────────────────────────────
+        #region GetInvoicePaymentSummaryAsync 
 
         [Test]
         public async Task GetInvoicePaymentSummaryAsync_WhenInvoiceExistsWithPayments_MapsAllFieldsCorrectly()
@@ -1383,8 +1389,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvoiceNotFound);
             await Assert.That(result.Message).IsEqualTo("Invoice not found.");
         }
+        #endregion
 
-        // ─── GetInvoicePaymentsAsync ───────────────────────────────────────────────────
+        #region GetInvoicePaymentsAsync 
 
         [Test]
         public async Task GetInvoicePaymentsAsync_MapsAllFieldsCorrectly_IncludingUserAndNullUser()
@@ -1631,7 +1638,9 @@ namespace Tests.Services
             await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
 
-        // ─── AddInvoicePaymentAsync ───────────────────────────────────────────────────
+        #endregion
+
+        #region AddInvoicePaymentAsync 
 
         [Test]
         public async Task AddInvoicePaymentAsync_WhenInvoiceNotFound_Returns404NotFound()
@@ -1867,8 +1876,9 @@ namespace Tests.Services
             await Assert.That(payment!.Amount).IsEqualTo(1500000L);
             await Assert.That(payment.CreatedById).IsEqualTo(managerId);
         }
+        #endregion
 
-        // ─── DownloadInvoicePdfAsync ───────────────────────────────────────────────────
+        #region DownloadInvoicePdfAsync 
 
         [Test]
         public async Task DownloadInvoicePdfAsync_WhenInvoiceExists_GeneratesPdfAndSetsPolishFilenameByDefault()
@@ -1969,7 +1979,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNull();
         }
 
-        // ─── GetProductInvoicesAsync ───────────────────────────────────────────────────
+        #endregion
+
+        #region GetProductInvoicesAsync
 
         [Test]
         public async Task GetProductInvoicesAsync_WhenNoInvoicesContainProduct_ReturnsEmptyPagedResultWithSuccess()
@@ -2222,5 +2234,6 @@ namespace Tests.Services
             await Assert.That(items[0].InvoiceNumber).IsEqualTo("FV/SORT/NEWEST");
             await Assert.That(items[1].InvoiceNumber).IsEqualTo("FV/SORT/MIDDLE");
         }
+        #endregion
     }
 }

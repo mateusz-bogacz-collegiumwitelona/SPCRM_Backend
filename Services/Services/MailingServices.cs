@@ -42,7 +42,7 @@ namespace Services.Services
         {
             var user = await _context.Users
                 .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email == command.Email && !u.IsDeleted);
+                .FirstOrDefaultAsync(u => u.Email == command.Email);
 
             if (user == null)
             {
@@ -78,7 +78,7 @@ namespace Services.Services
         {
             var authorExists = await _context.Users
                 .AsNoTracking()
-                .AnyAsync(u => u.Id == authorId && !u.IsDeleted);
+                .AnyAsync(u => u.Id == authorId);
 
             if (!authorExists)
             {

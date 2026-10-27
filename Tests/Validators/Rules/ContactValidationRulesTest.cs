@@ -35,7 +35,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestContactModelValidator _validator = new();
 
-        // ─── ApplyNameRules ──────────────────────────────────────────────────
+        #region ApplyNameRules 
 
         [Test]
         [Arguments("Jan")]
@@ -83,8 +83,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.NameLengthInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyTypeRules ──────────────────────────────────────────────────
+        #region ApplyTypeRules 
 
         [Test]
         public async Task ApplyTypeRules_WhenValidEnumName_ShouldNotHaveValidationError()
@@ -129,7 +130,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyLabelRules ─────────────────────────────────────────────────
+        #endregion
+
+        #region ApplyLabelRules
 
         [Test]
         [Arguments("Biuro")]
@@ -178,7 +181,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyEmailRules ─────────────────────────────────────────────────
+        #endregion
+
+        #region ApplyEmailRules 
 
         [Test]
         [Arguments("test@spcrm.pl")]
@@ -216,7 +221,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyPhoneRules ─────────────────────────────────────────────────
+        #endregion
+
+        #region ApplyPhoneRules
 
         [Test]
         [Arguments("+48 123 456 789")]
@@ -259,7 +266,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyFaxRules ───────────────────────────────────────────────────
+        #endregion
+
+        #region ApplyFaxRules
 
         [Test]
         [Arguments("+48 22 123 45 67")]
@@ -296,7 +305,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyLinkedInRules ──────────────────────────────────────────────
+        #endregion
+
+        #region ApplyLinkedInRules
 
         [Test]
         [Arguments("https://www.linkedin.com/in/jan-kowalski")]
@@ -338,7 +349,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── IsPhoneType ─────────────────────────────────────────────────────
+        #endregion
+
+        #region IsPhoneType
 
         [Test]
         [Arguments("PHONE", true)]
@@ -358,7 +371,9 @@ namespace Tests.Validators.Rules
             await Assert.That(result).IsEqualTo(expected);
         }
 
-        // ─── IsFaxType ───────────────────────────────────────────────────────
+        #endregion
+
+        #region IsFaxType
 
         [Test]
         [Arguments("FAX", true)]
@@ -376,5 +391,6 @@ namespace Tests.Validators.Rules
             // Assert
             await Assert.That(result).IsEqualTo(expected);
         }
+        #endregion
     }
 }

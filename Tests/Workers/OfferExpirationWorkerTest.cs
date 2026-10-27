@@ -174,7 +174,7 @@ namespace Tests.Workers
             return offer;
         }
 
-        // ─── ExpireOldOffersAsync ────────────────────────────────────────────────────────────
+        #region ExpireOldOffersAsync 
 
         [Test]
         public async Task ExpireOldOffersAsync_WhenOfferIsSentAndValidUntilPassed_MarksOfferAsExpired()
@@ -324,5 +324,6 @@ namespace Tests.Workers
             await Assert.That(offerInDb).IsNotNull();
             await Assert.That(offerInDb!.Status).IsEqualTo(OfferStatusEnum.Sent);
         }
+        #endregion
     }
 }

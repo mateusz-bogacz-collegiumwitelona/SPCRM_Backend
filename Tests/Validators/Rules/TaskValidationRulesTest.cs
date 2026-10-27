@@ -31,7 +31,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestTaskModelValidator _validator = new();
 
-        // ─── ApplyTaskTitleRules ─────────────────────────────────────────────
+        #region ApplyTaskTitleRules 
 
         [Test]
         [Arguments("Spotkanie z klientem")]
@@ -82,7 +82,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyTaskDescriptionRules ───────────────────────────────────────
+        #endregion
+
+        #region ApplyTaskDescriptionRules 
 
         [Test]
         [Arguments("Szczegóły dotyczące zamówienia")]
@@ -132,7 +134,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyTaskDueAtRules ─────────────────────────────────────────────
+        #endregion
+
+        #region ApplyTaskDueAtRules
 
         [Test]
         public async Task ApplyTaskDueAtRules_WhenDateIsInFuture_ShouldNotHaveValidationError()
@@ -177,8 +181,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidDate);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyTaskPriorityRules ──────────────────────────────────────────
+        #region ApplyTaskPriorityRules 
 
         [Test]
         public async Task ApplyTaskPriorityRules_WhenValidEnumName_ShouldNotHaveValidationError()
@@ -222,8 +227,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.TaskPriorityInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyTaskStatusRules ────────────────────────────────────────────
+        #region ApplyTaskStatusRules 
 
         [Test]
         public async Task ApplyTaskStatusRules_WhenValidEnumName_ShouldNotHaveValidationError()
@@ -267,5 +273,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.TaskStatusInvalid);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly AddContactDetailValidator _validator = new();
 
-        // ─── Type ────────────────────────────────────────────────────────────
+        #region Type 
 
         [Test]
         public async Task Validate_WhenTypeIsValid_ShouldNotHaveValidationError()
@@ -51,8 +51,9 @@ namespace Tests.Validators
             result.ShouldHaveValidationErrorFor(x => x.Type);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Label ───────────────────────────────────────────────────────────
+        #region Label 
 
         [Test]
         public async Task Validate_WhenLabelIsValid_ShouldNotHaveValidationError()
@@ -96,7 +97,9 @@ namespace Tests.Validators
             await Task.CompletedTask;
         }
 
-        // ─── Value (General & Conditional) ───────────────────────────────────
+        #endregion
+
+        #region Value 
 
         [Test]
         [Arguments("")]
@@ -212,5 +215,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.LinkedInUrlRequired);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

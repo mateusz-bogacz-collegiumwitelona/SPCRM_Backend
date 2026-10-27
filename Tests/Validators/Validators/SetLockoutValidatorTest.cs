@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly SetLockoutValidator _validator = new();
 
-        // ─── UserId ──────────────────────────────────────────────────────────
+        #region UserId 
 
         [Test]
         public async Task Validate_WhenUserIdIsValid_ShouldNotHaveValidationError()
@@ -46,8 +46,9 @@ namespace Tests.Validators
             result.ShouldHaveValidationErrorFor(x => x.UserId);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── LockoutEnd ──────────────────────────────────────────────────────
+        #region LockoutEnd 
 
         [Test]
         public async Task Validate_WhenLockoutEndIsNull_ShouldNotHaveValidationError()
@@ -103,5 +104,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.InvalidDate);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

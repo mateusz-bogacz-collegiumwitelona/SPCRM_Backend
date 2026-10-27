@@ -106,7 +106,7 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // ─── ValidateStockAvailabilityAsync ───────────────────────────────────
+        #region ValidateStockAvailabilityAsync 
 
         [Test]
         public async Task ValidateStockAvailabilityAsync_WhenProductDoesNotExist_Returns404NotFound()
@@ -304,7 +304,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
 
-        // ─── DeductStockForDealAsync ──────────────────────────────────────────
+        #endregion
+
+        #region DeductStockForDealAsync
 
         [Test]
         public async Task DeductStockForDealAsync_WhenProductNotFound_Returns404NotFound()
@@ -412,5 +414,7 @@ namespace Tests.Services
             var updatedProduct = await _contextMock.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == product.Id);
             await Assert.That(updatedProduct!.StockQuantity).IsEqualTo(35);
         }
+
+        #endregion
     }
 }

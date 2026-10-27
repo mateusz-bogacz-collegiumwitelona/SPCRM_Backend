@@ -1,9 +1,10 @@
 ﻿using Domain.Common;
+using Domain.Common.Intefaces;
 using Microsoft.AspNetCore.Identity;
 
 namespace Domain.Models
 {
-    public class ApplicationUser : IdentityUser<Guid>
+    public class ApplicationUser : IdentityUser<Guid>, IAuditableEntity, ISoftDeletable
     {
         public required string FirstName { get; set; }
         public required string LastName { get; set; }

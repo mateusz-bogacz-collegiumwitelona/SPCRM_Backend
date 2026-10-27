@@ -120,7 +120,7 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // ─── SendEmailToSupport ─────────────────────────────────────────────────
+        #region SendEmailToSupport 
 
         [Test]
         public async Task SendEmailToSupport_WhenUserDoesNotExist_Returns404NotFound()
@@ -189,7 +189,9 @@ namespace Tests.Services
             await Assert.That(sentReport.SupportEmail).IsEqualTo("support@mojafirma.pl");
             await Assert.That(sentReport.Time).IsNotNull();
         }
+        #endregion
 
+        #region SendProductMailingAsync
         [Test]
         public async Task SendProductMailingAsync_WhenClientOrProductMissing_Returns404NotFound()
         {
@@ -527,5 +529,6 @@ namespace Tests.Services
             await Assert.That(async () => await _supportServicesMock.SendProductMailingAsync(command, author.Id))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
     }
 }

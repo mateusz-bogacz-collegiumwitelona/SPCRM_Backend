@@ -9,7 +9,6 @@ namespace Tests.Validators
     {
         private readonly AddPromotionValidator _validator = new();
 
-        // ─── ProductId ───────────────────────────────────────────────────────
 
         [Test]
         public async Task Validate_WhenProductIdIsValid_ShouldNotHaveValidationError()
@@ -29,7 +28,6 @@ namespace Tests.Validators
             await Task.CompletedTask;
         }
 
-        // ─── CurrencyId ──────────────────────────────────────────────────────
 
         [Test]
         public async Task Validate_WhenPromotionalPriceHasValueAndCurrencyIdIsNull_ShouldHaveGuidRequiredErrorCode()
@@ -91,8 +89,6 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.CurrencyId);
             await Task.CompletedTask;
         }
-
-        // ─── Dates (StartDate & EndDate) ─────────────────────────────────────
 
         [Test]
         public async Task Validate_WhenEndDateIsAfterStartDate_ShouldNotHaveValidationError()
@@ -156,8 +152,6 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x);
             await Task.CompletedTask;
         }
-
-        // ─── Optional Fields (ContactId, MinQuantity, MinWeight) ─────────────
 
         [Test]
         public async Task Validate_WhenOptionalFieldsAreNull_ShouldNotHaveValidationError()

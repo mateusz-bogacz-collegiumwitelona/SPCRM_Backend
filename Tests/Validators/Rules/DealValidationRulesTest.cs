@@ -33,7 +33,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestDealModelValidator _validator = new();
 
-        // ─── ApplyDealCloseDateRules ─────────────────────────────────────────
+        #region ApplyDealCloseDateRules 
 
         [Test]
         public async Task ApplyDealCloseDateRules_WhenDateIsInFuture_ShouldNotHaveValidationError()
@@ -79,7 +79,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyDealProductQuantityRules ───────────────────────────────────
+        #endregion
+
+        #region ApplyDealProductQuantityRules 
 
         [Test]
         [Arguments(1)]
@@ -134,7 +136,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyDealProductUnitPriceRules ──────────────────────────────────
+        #endregion
+
+        #region ApplyDealProductUnitPriceRules
 
         [Test]
         [Arguments(1L)]
@@ -189,7 +193,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyDealStatusRules ────────────────────────────────────────────
+        #endregion
+
+        #region ApplyDealStatusRules
 
         [Test]
         public async Task ApplyDealStatusRules_WhenValidEnumName_ShouldNotHaveValidationError()
@@ -232,5 +238,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.DealStatusInvalid);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly EditPromotionValidator _validator = new();
 
-        // ─── Id ──────────────────────────────────────────────────────────────
+        #region Id 
 
         [Test]
         public async Task Validate_WhenIdIsValid_ShouldNotHaveValidationError()
@@ -27,8 +27,9 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.Id);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── DiscountPercentage & PromotionalPrice ───────────────────────────
+        #region DiscountPercentage & PromotionalPrice 
 
         [Test]
         public async Task Validate_WhenBothDiscountAndPriceAreNull_ShouldNotHaveValidationErrorForExclusiveRule()
@@ -108,8 +109,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.DiscountPercentageAndPriceCannotBothChoice);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── CurrencyId ──────────────────────────────────────────────────────
+        #region CurrencyId 
 
         [Test]
         public async Task Validate_WhenPromotionalPriceHasValueAndCurrencyIdIsNull_ShouldHaveGuidRequiredErrorCode()
@@ -149,8 +151,9 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.CurrencyId);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Optional Fields (Name, ContactId, MinQuantity, MinWeight) ───────
+        #region Optional Fields (Name, ContactId, MinQuantity, MinWeight) 
 
         [Test]
         public async Task Validate_WhenOptionalFieldsAreNull_ShouldNotHaveValidationError()
@@ -175,5 +178,6 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.MinWeight);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

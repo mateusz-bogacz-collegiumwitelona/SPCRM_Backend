@@ -21,7 +21,7 @@ namespace Tests.Pdf
             _generator = new AnalyticsPdfGenerator();
         }
 
-        // ─── GenerateEmployeeReportPdf ──────────────────────────────────────────
+        #region GenerateEmployeeReportPdf 
 
         [Test]
         public async Task GenerateEmployeeReportPdf_WhenFullDataProvided_GeneratesValidPdfBytes()
@@ -161,8 +161,9 @@ namespace Tests.Pdf
             await Assert.That(pdfBytes.Length).IsGreaterThan(2000);
             await Assert.That(pdfBytes[..4]).IsEquivalentTo(PdfHeaderBytes);
         }
+        #endregion
 
-        // ─── GenerateTeamReportPdf ──────────────────────────────────────────────
+        #region GenerateTeamReportPdf 
 
         [Test]
         public async Task GenerateTeamReportPdf_WhenFullDataWithTopPerformersAndHistory_GeneratesValidPdfBytes()
@@ -272,5 +273,6 @@ namespace Tests.Pdf
             await Assert.That(pdfBytes.Length).IsGreaterThan(0);
             await Assert.That(pdfBytes[..4]).IsEquivalentTo(PdfHeaderBytes);
         }
+        #endregion
     }
 }

@@ -30,7 +30,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestGlobalModelValidator _validator = new();
 
-        // ─── ApplyValidGuidRule ──────────────────────────────────────────────
+        #region ApplyValidGuidRule 
 
         [Test]
         public async Task ApplyValidGuidRule_WhenGuidIsValid_ShouldNotHaveValidationError()
@@ -99,7 +99,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyPageNumberRules ────────────────────────────────────────────
+        #endregion
+
+        #region ApplyPageNumberRules
 
         [Test]
         [Arguments(1)]
@@ -135,7 +137,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyPageSizeRules ──────────────────────────────────────────────
+        #endregion
+
+        #region ApplyPageSizeRules
 
         [Test]
         [Arguments(1)]
@@ -174,7 +178,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyLanguageRules ──────────────────────────────────────────────
+        #endregion
+
+        #region ApplyLanguageRules
 
         [Test]
         [Arguments("pl")]
@@ -216,5 +222,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidOperation);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

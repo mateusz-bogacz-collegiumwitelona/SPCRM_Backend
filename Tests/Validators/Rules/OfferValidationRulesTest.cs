@@ -27,7 +27,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestOfferModelValidator _validator = new();
 
-        // ─── ApplyOfferIdRules ───────────────────────────────────────────────
+        #region ApplyOfferIdRules 
 
         [Test]
         public async Task ApplyOfferIdRules_WhenGuidIsValid_ShouldNotHaveValidationError()
@@ -57,7 +57,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyNewValidUntilRules ─────────────────────────────────────────
+        #endregion
+
+        #region ApplyNewValidUntilRules 
 
         [Test]
         public async Task ApplyNewValidUntilRules_WhenDateIsInFuture_ShouldNotHaveValidationError()
@@ -102,7 +104,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyOfferStatusRules ───────────────────────────────────────────
+        #endregion
+
+        #region ApplyOfferStatusRules 
 
         [Test]
         public async Task ApplyOfferStatusRules_WhenValidEnumName_ShouldNotHaveValidationError()
@@ -161,5 +165,6 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.Status);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

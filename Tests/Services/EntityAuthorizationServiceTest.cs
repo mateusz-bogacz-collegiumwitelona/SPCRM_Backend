@@ -93,7 +93,7 @@ namespace Tests.Services
         }
 
 
-        // ─── CanModifyAsync ─────────────────────────────────────────────────
+        #region CanModifyAsync 
 
         [Test]
         public async Task CanModifyAsync_WhenUserIsResourceOwner_ReturnsTrue()
@@ -216,7 +216,9 @@ namespace Tests.Services
             await Assert.That(result).IsFalse();
         }
 
-        // ─── CanAccessAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region CanAccessAsync
 
         [Test]
         public async Task CanAccessAsync_WhenUserIsManager_ReturnsTrue()
@@ -335,8 +337,9 @@ namespace Tests.Services
             // Assert
             await Assert.That(result).IsFalse();
         }
+        #endregion
 
-        // ─── IsAdminAsync ───────────────────────────────────────────────────
+        #region IsAdminAsync 
 
         [Test]
         public async Task IsAdminAsync_WhenUserIsAdmin_ReturnsTrue()
@@ -455,5 +458,7 @@ namespace Tests.Services
             // Assert
             await Assert.That(result).IsFalse();
         }
+
+        #endregion
     }
 }

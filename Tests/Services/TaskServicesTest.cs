@@ -184,7 +184,7 @@ namespace Tests.Services
             await _contextMock.SaveChangesAsync();
         }
 
-        // ─── GetTasksForCalendarAsync ─────────────────────────────────────────────────
+        #region GetTasksForCalendarAsync    
 
         [Test]
         public async Task GetTasksForCalendarAsync_FiltersByDateRangeUserAndDeletedStatus()
@@ -497,8 +497,9 @@ namespace Tests.Services
             await Assert.That(tasks[1].Id).IsEqualTo(taskDay15.Id);
             await Assert.That(tasks[2].Id).IsEqualTo(taskDay30.Id);
         }
+        #endregion
 
-        // ─── GetTaskDictionariesAsync ─────────────────────────────────────────────────
+        #region GetTaskDictionariesAsync 
 
         [Test]
         public async Task GetTaskDictionariesAsync_ReturnsCorrectDictionaries()
@@ -533,8 +534,9 @@ namespace Tests.Services
             var enumPriorityCount = Enum.GetNames(typeof(TaskPriorityEnum)).Length;
             await Assert.That(priorityCount).IsEqualTo(enumPriorityCount);
         }
+        #endregion
 
-        // ─── GetTaskDetailResponse ─────────────────────────────────────────────────
+        #region GetTaskDetailResponse
 
         [Test]
         public async Task GetTaskDetailResponse_WhenTaskExists_ReturnsCorrectDetails()
@@ -723,8 +725,9 @@ namespace Tests.Services
             await Assert.That(async () => await _taskServicesMock.GetTaskDealAsync(taskId))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── GetTaskContactAsync ─────────────────────────────────────────────────
+        #region GetTaskContactAsync 
 
         [Test]
         public async Task GetTaskContactAsync_ReturnsContactDetailsWithValidWays()
@@ -1006,7 +1009,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
-        // ─── GetTaskDealAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetTaskDealAsync
 
         [Test]
         public async Task GetTaskDealAsync_ReturnsDealDetailsCorrectly()
@@ -1243,7 +1248,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
-        // ─── GetUserTasksAsync ──────────────────────────────────────────────────────
+        #endregion
+
+        #region GetUserTasksAsync 
 
         [Test]
         public async Task GetUserTasksAsync_FiltersByUserAndSoftDelete()
@@ -1740,7 +1747,9 @@ namespace Tests.Services
             await Assert.That(paged.Items[1].Title).IsEqualTo("Task_4");
         }
 
-        // ─── GetDealTasksAsync ──────────────────────────────────────────────────────
+        #endregion
+
+        #region GetDealTasksAsync 
 
         [Test]
         public async Task GetDealTasksAsync_MapsRelationsAndAppliesPaginationCorrectly()
@@ -2157,8 +2166,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items).IsEmpty();
         }
+        #endregion
 
-        // ─── AddTaskAsync ────────────────────────────────────────────────────────────
+        #region AddTaskAsync 
 
         [Test]
         public async Task AddTaskAsync_WhenAssigningToAnotherUserWithoutManagerRole_ThrowsForbiddenException()
@@ -2495,8 +2505,9 @@ namespace Tests.Services
             await Assert.That(task).IsNotNull();
             await Assert.That(task!.AssignedToId).IsEqualTo(employee.Id);
         }
+        #endregion
 
-        // ─── DeleteTaskAsync ─────────────────────────────────────────────────────────
+        #region DeleteTaskAsync
 
         [Test]
         public async Task DeleteTaskAsync_WhenTaskDoesNotExist_Returns404NotFound()
@@ -2743,8 +2754,9 @@ namespace Tests.Services
             var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == task.Id);
             await Assert.That(taskInDb).IsNotNull();
         }
+        #endregion
 
-        // ─── EditTaskAsync ───────────────────────────────────────────────────────────
+        #region EditTaskAsync 
 
         [Test]
         public async Task EditTaskAsync_WhenTaskDoesNotExist_Returns404NotFound()
@@ -3176,8 +3188,9 @@ namespace Tests.Services
             await Assert.That(updatedTask.Title).IsEqualTo("Tytuł zadania");
             await Assert.That(updatedTask.Description).IsEqualTo("Opis zadania");
         }
+        #endregion
 
-        // ─── ExtendTaskDueDateAsync ──────────────────────────────────────────────────
+        #region ExtendTaskDueDateAsync
 
         [Test]
         public async Task ExtendTaskDueDateAsync_WhenTaskDoesNotExist_Returns404NotFound()
@@ -3433,7 +3446,9 @@ namespace Tests.Services
             await Assert.That(taskInDb.DueAt).IsEqualTo(extendedDue).Within(TimeSpan.FromSeconds(1));
         }
 
-        // ─── ChangeAssignedToUserAsync ───────────────────────────────────────────────
+        #endregion
+
+        #region ChangeAssignedToUserAsync 
 
         [Test]
         public async Task ChangeAssignedToUserAsync_WhenTaskNotFound_Returns404NotFound()
@@ -3694,7 +3709,9 @@ namespace Tests.Services
             await Assert.That(taskInDb!.AssignedToId).IsEqualTo(manager.Id);
         }
 
-        // ─── ChangeTaskStatusAsync ───────────────────────────────────────────────────
+        #endregion
+
+        #region ChangeTaskStatusAsync 
 
         [Test]
         public async Task ChangeTaskStatusAsync_WhenTaskNotFound_Returns404NotFound()
@@ -3896,8 +3913,9 @@ namespace Tests.Services
             var taskInDb = await _contextMock.Tasks.AsNoTracking().FirstAsync(t => t.Id == task.Id);
             await Assert.That(taskInDb.Status).IsEqualTo(TaskStatusEnum.Complete);
         }
+        #endregion
 
-        // ─── GetContactTaskAsync ───────────────────────────────────────────────────
+        #region GetContactTaskAsync 
 
         [Test]
         public async Task GetContactTaskAsync_ReturnsTasksOnlyForSpecifiedContact()
@@ -4369,5 +4387,6 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).Count().IsEqualTo(1);
             await Assert.That(result.Data.Items[0].Id).IsEqualTo(taskForCurrentUser.Id);
         }
+        #endregion
     }
 }

@@ -28,7 +28,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestCurrencyModelValidator _validator = new();
 
-        // ─── ApplyCurrencyDecimalPlacesRules ─────────────────────────────────
+        #region ApplyCurrencyDecimalPlacesRules 
 
         [Test]
         [Arguments(0)]
@@ -84,7 +84,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyCurrencyCodeRules ──────────────────────────────────────────
+        #endregion
+
+        #region ApplyCurrencyCodeRules
 
         [Test]
         [Arguments("PLN")]
@@ -142,7 +144,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyCurrencyNameRules ──────────────────────────────────────────
+        #endregion
+
+        #region ApplyCurrencyNameRules
 
         [Test]
         [Arguments("Polski Złoty")]
@@ -192,5 +196,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.NameLengthInvalid);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

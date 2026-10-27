@@ -227,7 +227,7 @@ namespace Services.Services
                 );
             }
 
-            var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (owner == null)
             {
                 _logger.LogError("Critical data inconsistency: Attempt to add contact by non-existent user {UserId}", userId);
@@ -581,7 +581,7 @@ namespace Services.Services
                 throw new DataCorruptionException($"Contact '{contact.Id}' has corrupted relations.");
             }
 
-            var newOwner = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.NewOwnerId && !u.IsDeleted);
+            var newOwner = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.NewOwnerId);
 
             if (newOwner == null)
             {

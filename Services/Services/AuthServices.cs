@@ -32,8 +32,8 @@ namespace Services.Services
             var normalizedInput = command.Name.Trim().ToUpperInvariant();
 
             var user = await _userManager.Users.FirstOrDefaultAsync(u =>
-                !u.IsDeleted &&
-                (u.NormalizedEmail == normalizedInput || u.NormalizedUserName == normalizedInput)
+                u.NormalizedEmail == normalizedInput ||
+                u.NormalizedUserName == normalizedInput
             );
 
             if (user == null)

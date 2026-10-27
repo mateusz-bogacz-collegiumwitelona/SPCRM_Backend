@@ -11,6 +11,20 @@ namespace Tests.Helpers
         private PaginationTestDbContext _context = null!;
         private ILogger _logger = null!;
 
+        private class TestItem
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+        }
+
+        private class PaginationTestDbContext : DbContext
+        {
+            public PaginationTestDbContext(DbContextOptions<PaginationTestDbContext> options)
+                : base(options) { }
+
+            public DbSet<TestItem> Items => Set<TestItem>();
+        }
+
 
         [Before(Test)]
         public async Task SetupAsync()
@@ -226,20 +240,6 @@ namespace Tests.Helpers
             var paged = result.Data!;
 
             await Assert.That(paged.PageSize).IsEqualTo(100);
-        }
-
-        public class TestItem
-        {
-            public int Id { get; set; }
-            public string Name { get; set; } = string.Empty;
-        }
-
-        private class PaginationTestDbContext : DbContext
-        {
-            public PaginationTestDbContext(DbContextOptions<PaginationTestDbContext> options)
-                : base(options) { }
-
-            public DbSet<TestItem> Items => Set<TestItem>();
         }
     }
 }

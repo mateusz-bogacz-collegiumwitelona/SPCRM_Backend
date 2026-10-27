@@ -1,4 +1,4 @@
-﻿using Domain.Common;
+﻿using Domain.Common.Intefaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -11,7 +11,7 @@ namespace Infrastructure.Interceptors
             InterceptionResult<int> result
             )
         {
-            ApplySoftDelete(eventData.Context);
+            ApplyAuditAndSoftDelete(eventData.Context);
             return base.SavingChanges(eventData, result);
         }
 
@@ -21,34 +21,42 @@ namespace Infrastructure.Interceptors
             CancellationToken cancellationToken = default
             )
         {
-            ApplySoftDelete(eventData.Context);
+            ApplyAuditAndSoftDelete(eventData.Context);
             return base.SavingChangesAsync(eventData, result, cancellationToken);
         }
 
-        private void ApplySoftDelete(DbContext? context)
+        private void ApplyAuditAndSoftDelete(DbContext? context)
         {
             if (context is null) return;
 
             var now = DateTime.UtcNow;
 
-            foreach (var entry in context.ChangeTracker.Entries<BaseEntity>().ToList())
+            foreach (var entry in context.ChangeTracker.Entries())
             {
-                switch (entry.State)
+                if (entry.State == EntityState.Deleted && entry.Entity is ISoftDeletable softDeletable)
                 {
-                    case EntityState.Added:
-                        entry.Property(e => e.CreatedAt).CurrentValue = DateTime.SpecifyKind(now, DateTimeKind.Utc);
-                        break;
+                    entry.State = EntityState.Modified;
+                    softDeletable.IsDeleted = true;
 
-                    case EntityState.Modified:
-                        entry.Property(e => e.UpdateAt).CurrentValue = DateTime.SpecifyKind(now, DateTimeKind.Utc);
-                        break;
+                    if (entry.Entity is IAuditableEntity auditableOnDelete)
+                    {
+                        auditableOnDelete.UpdateAt = now;
+                    }
+                    continue;
+                }
 
-                    case EntityState.Deleted:
-                        entry.State = EntityState.Unchanged;
-                        entry.Entity.IsDeleted = true;
-                        entry.Entity.UpdateAt = DateTime.SpecifyKind(now, DateTimeKind.Utc);
-                        entry.State = EntityState.Modified;
-                        break;
+                if (entry.Entity is IAuditableEntity auditable)
+                {
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            auditable.CreatedAt = now;
+                            break;
+
+                        case EntityState.Modified:
+                            auditable.UpdateAt = now;
+                            break;
+                    }
                 }
             }
         }

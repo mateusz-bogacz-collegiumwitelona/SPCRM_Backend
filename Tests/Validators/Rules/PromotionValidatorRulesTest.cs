@@ -32,7 +32,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestPromotionModelValidator _validator = new();
 
-        // ─── ApplyPromotionNameRules ─────────────────────────────────────────
+        #region ApplyPromotionNameRules 
 
         [Test]
         [Arguments("Wiosenna Promocja")]
@@ -81,8 +81,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidPromotionName);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyDiscountPercentageRule ─────────────────────────────────────
+        #region ApplyDiscountPercentageRule 
 
         [Test]
         [Arguments(1.0)]
@@ -120,8 +121,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidPromotionDiscount);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyPromotionalPriceRule ───────────────────────────────────────
+        #region ApplyPromotionalPriceRule 
 
         [Test]
         [Arguments(1L)]
@@ -156,8 +158,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidPromotionPrice);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyOptionalGuidRule ───────────────────────────────────────────
+        #region ApplyOptionalGuidRule
 
         [Test]
         public async Task ApplyOptionalGuidRule_WhenGuidIsValidOrNull_ShouldNotHaveValidationError()
@@ -190,8 +193,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.GuidInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyMinQuantityRules ───────────────────────────────────────────
+        #region ApplyMinQuantityRules 
 
         [Test]
         [Arguments(1)]
@@ -226,8 +230,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidPromotioMinQuantity);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyMinWeightRules ─────────────────────────────────────────────
+        #region ApplyMinWeightRules
 
         [Test]
         [Arguments(1)]
@@ -262,5 +267,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidPromotioMinWeight);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

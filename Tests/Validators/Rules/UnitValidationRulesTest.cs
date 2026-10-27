@@ -28,7 +28,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestUnitModelValidator _validator = new();
 
-        // ─── ApplyUnitNameRules ──────────────────────────────────────────────
+        #region ApplyUnitNameRules 
 
         [Test]
         [Arguments("Sztuka")]
@@ -79,8 +79,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidUnitName);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyUnitSymbolRules ────────────────────────────────────────────
+        #region ApplyUnitSymbolRules 
 
         [Test]
         [Arguments("szt.")]
@@ -131,8 +132,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidUnitSymbol);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyUnitBaseMultiplierRules ────────────────────────────────────
+        #region ApplyUnitBaseMultiplierRules 
 
         [Test]
         [Arguments(1)]
@@ -200,5 +202,7 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidUnitBaseMultiplier);
             await Task.CompletedTask;
         }
+
+        #endregion
     }
 }

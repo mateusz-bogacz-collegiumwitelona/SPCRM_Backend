@@ -105,7 +105,7 @@ namespace Services.Services
         public async Task<Result<EmployeeKpiSummaryResponse>> GetEmployeeKpiSummaryAsync(Guid employeeId)
         {
             var user = await _context.Users.AsNoTracking()
-                .Where(u => u.Id == employeeId && !u.IsDeleted)
+                .Where(u => u.Id == employeeId)
                 .Select(u => new
                 {
                     u.Id,
@@ -153,7 +153,7 @@ namespace Services.Services
         public async Task<Result<List<AnalyticsChartMetricResponse>>> GetEmployeeRevenueChartAsync(Guid employeeId, AnalyticsChartCommand command)
         {
             var user = await _context.Users.AsNoTracking()
-                .Where(u => u.Id == employeeId && !u.IsDeleted)
+                .Where(u => u.Id == employeeId)
                 .AnyAsync(_ct);
 
             if (!user)
@@ -187,7 +187,6 @@ namespace Services.Services
 
             return await _context.Users
                 .AsNoTracking()
-                .Where(u => !u.IsDeleted)
                 .OrderByDescending(u => u.Deals.Count(d => d.Status == DealsStatusEnum.Complete && d.CloseDate >= periods.StartOfMonthUtc))
                 .ThenBy(u => u.LastName)
                 .Select(u => new LeaderboardItemResponse
@@ -230,7 +229,7 @@ namespace Services.Services
         {
 
             var user = await _context.Users.AsNoTracking()
-                .Where(u => u.Id == employeeId && !u.IsDeleted)
+                .Where(u => u.Id == employeeId)
                 .Select(u => new
                 {
                     u.FirstName,
@@ -345,7 +344,7 @@ namespace Services.Services
 
         public async Task<Result<AdminMetricsResponse>> GetAdminMetricsAsync()
         {
-            var totalUsers = await _context.Users.AsNoTracking().Where(u => !u.IsDeleted).CountAsync(_ct);
+            var totalUsers = await _context.Users.AsNoTracking().CountAsync(_ct);
             var totalSteelGrades = await _context.SteelGrades.AsNoTracking().CountAsync(_ct);
             var totalCurrencies = await _context.Currencies.AsNoTracking().CountAsync(_ct);
             var totalUnits = await _context.UnitsOfMeasure.AsNoTracking().CountAsync(_ct);

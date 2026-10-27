@@ -119,7 +119,7 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // ─── GetContactsAsync ─────────────────────────────────────────────────
+        #region GetContactsAsync 
 
         [Test]
         public async Task GetContactsAsync_MapsPropertiesAndNavigationsCorrectly()
@@ -336,7 +336,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
         }
 
-        // ─── GetContactsAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetContactsAsync 
 
         [Test]
         public async Task GetCompaniesAsync_ReturnsDistinctCompanyNamesFromContactsOnly()
@@ -442,8 +444,9 @@ namespace Tests.Services
             var containsEmptyCompany = companyNames.Contains(emptyCompany.Name);
             await Assert.That(containsEmptyCompany).IsFalse();
         }
+        #endregion
 
-        // ─── GetCompanyContactsAsync ─────────────────────────────────────────────────
+        #region GetCompanyContactsAsync
 
         [Test]
         public async Task GetCompanyContactsAsync_FiltersByCompanyAndMapsPropertiesCorrectly()
@@ -643,8 +646,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.Items).IsEmpty();
         }
+        #endregion
 
-        // ─── GetContactDetailAsync ─────────────────────────────────────────────────
+        #region GetContactDetailAsync
 
         [Test]
         public async Task GetContactDetailAsync_WhenContactExist_Return200()
@@ -722,7 +726,9 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Contact not found");
         }
 
-        // ─── GetClientDataToMailingAsync ───────────────────────────────────────
+        #endregion
+
+        #region GetClientDataToMailingAsync 
 
         [Test]
         public async Task GetClientDataToMailingAsync_FiltersPrimaryContactsAndMapsPropertiesCorrectly()
@@ -890,7 +896,9 @@ namespace Tests.Services
             await Assert.That(items.First().CompanyName).Contains("Katowice");
         }
 
-        // ─── AddContactAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region AddContactAsync 
 
         [Test]
         public async Task AddContactAsync_WhenCompanyDoesntExist_Return404()
@@ -1108,7 +1116,9 @@ namespace Tests.Services
             await Assert.That(newContact!.IsPrimary).IsFalse();
         }
 
-        // ─── GetContactTypeAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetContactTypeAsync 
 
         [Test]
         public async Task GetContactTypeAsync_ReturnsAllEnumNamesAndStatus200()
@@ -1131,7 +1141,9 @@ namespace Tests.Services
             await Assert.That(containsEmail).IsTrue();
         }
 
-        // ─── EditContactAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region EditContactAsync
 
         [Test]
         public async Task EditContactAsync_WhenContactNotFound_Returns404()
@@ -1398,7 +1410,9 @@ namespace Tests.Services
             await Assert.That(addedDetail.Value).IsEqualTo("linkedin.com/in/test");
         }
 
-        // ─── GetContactDetailWithWaysAsync ──────────────────────────────────────────
+        #endregion
+
+        #region GetContactDetailWithWaysAsync
 
         [Test]
         public async Task GetContactDetailWithWaysAsync_WhenContactExists_ReturnsContactDetailsSuccessfully()
@@ -1497,7 +1511,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNull();
         }
 
-        // ─── SetPrimaryContactAsync ──────────────────────────────────────────
+        #endregion
+
+        #region SetPrimaryContactAsync 
 
         [Test]
         public async Task SetPrimaryContactAsync_WhenContactNotFound_Returns404()
@@ -1685,7 +1701,9 @@ namespace Tests.Services
             await Assert.That(updatedNewPrimary!.IsPrimary).IsTrue();
         }
 
-        // ─── DeleteContactAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region DeleteContactAsync 
 
         [Test]
         public async Task DeleteContactAsync_WhenContactExists_SoftDeletesContactAndReturns200()
@@ -1770,7 +1788,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
         }
 
-        // ─── ChangeContactOwnerAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region ChangeContactOwnerAsync
 
         [Test]
         public async Task ChangeContactOwnerAsync_WhenContactNotFound_Returns404()
@@ -1946,7 +1966,9 @@ namespace Tests.Services
             await Assert.That(updatedContact!.OwnerId).IsEqualTo(newOwnerId);
         }
 
-        // ─── GetContactToDealAsync ───────────────────────────────────────────
+        #endregion
+
+        #region GetContactToDealAsync
 
         [Test]
         public async Task GetContactToDealAsync_FiltersOnlyContactsWithEmailAndMapsPropertiesCorrectly()
@@ -2162,5 +2184,6 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items).IsEmpty();
             await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
+        #endregion
     }
 }

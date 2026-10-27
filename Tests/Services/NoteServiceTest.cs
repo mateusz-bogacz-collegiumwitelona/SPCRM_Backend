@@ -145,7 +145,7 @@ namespace Tests.Services
         }
 
 
-        // ─── GetContactNoteAsync ─────────────────────────────────────────────────
+        #region GetContactNoteAsync 
 
         [Test]
         public async Task GetContactNoteAsync_FiltersDeletedAndOtherTypes_AndMapsCorrectly()
@@ -497,9 +497,10 @@ namespace Tests.Services
             await Assert.That(items).Count().IsEqualTo(1);
             await Assert.That(items.First().Id).IsEqualTo(targetNote.Id);
         }
+        #endregion
 
 
-        // ─── GetTaskNotesAsync ─────────────────────────────────────────────────
+        #region GetTaskNotesAsync 
 
         [Test]
         public async Task GetTaskNotesAsync_WhenTaskDoesNotExist_Returns404()
@@ -600,8 +601,9 @@ namespace Tests.Services
             await Assert.That(notes[0].AuthorFirstName).IsEqualTo("Anna");
             await Assert.That(notes[1].NoteId).IsEqualTo(note1.Id);
         }
+        #endregion
 
-        // ─── GetDealNotesAsync ─────────────────────────────────────────────────
+        #region GetDealNotesAsync
 
         [Test]
         public async Task GetDealNotesAsync_FiltersDeletedAndOtherTypes_AndMapsCorrectly()
@@ -891,8 +893,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!).IsEmpty();
         }
+        #endregion
 
-        // ─── EditNoteAsync ─────────────────────────────────────────────────
+        #region EditNoteAsync 
 
         [Test]
         public async Task EditNoteAsync_WhenNoteDoesNotExist_Returns404()
@@ -1122,7 +1125,9 @@ namespace Tests.Services
 
         }
 
-        // ─── AddNoteAsync ──────────────────────────────────────────────────────
+        #endregion
+
+        #region AddNoteAsync 
 
         [Test]
         public async Task AddNoteAsync_WhenUserDoesNotExist_ThrowsUserNotFoundException()
@@ -1281,7 +1286,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
         }
 
-        // ─── DeleteNoteAsync ──────────────────────────────────────────────────────
+        #endregion
+
+        #region DeleteNoteAsync
 
         [Test]
         public async Task DeleteNoteAsync_WhenNoteDoesNotExist_Return404()
@@ -1552,5 +1559,6 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Message).IsEqualTo("Note deleted successfully");
         }
+        #endregion
     }
 }

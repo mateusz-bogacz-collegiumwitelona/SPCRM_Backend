@@ -201,7 +201,7 @@ namespace Services.Services
         {
             var userExists = await _context.Users
                 .AsNoTracking()
-                .AnyAsync(u => u.Id == userId && !u.IsDeleted);
+                .AnyAsync(u => u.Id == userId);
 
             if (!userExists)
             {
@@ -685,7 +685,7 @@ namespace Services.Services
                 throw new DataCorruptionException($"Company '{company.Id}' has no assigned owner.");
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.UserId && !u.IsDeleted);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == command.UserId);
 
             if (user == null)
             {

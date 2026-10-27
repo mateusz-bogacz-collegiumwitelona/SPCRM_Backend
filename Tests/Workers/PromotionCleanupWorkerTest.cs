@@ -170,7 +170,7 @@ namespace Tests.Workers
             return promotion;
         }
 
-        // ─── CleanupExpiredPromotionsAsync ────────────────────────────────────────────────────────────
+        #region CleanupExpiredPromotionsAsync 
 
         [Test]
         public async Task CleanupExpiredPromotionsAsync_WhenPromotionIsActiveAndEndDatePassed_DeactivatesPromotion()
@@ -329,5 +329,6 @@ namespace Tests.Workers
             await Assert.That(promoInDb).IsNotNull();
             await Assert.That(promoInDb!.IsActive).IsTrue();
         }
+        #endregion
     }
 }

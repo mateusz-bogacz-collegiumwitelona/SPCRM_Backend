@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly SupportEmailValidator _validator = new();
 
-        // ─── Email ───────────────────────────────────────────────────────────
+        #region Email 
 
         [Test]
         public async Task Validate_WhenEmailIsValid_ShouldNotHaveValidationError()
@@ -69,8 +69,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.EmailInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Title ───────────────────────────────────────────────────────────
+        #region Title 
 
         [Test]
         public async Task Validate_WhenTitleIsValid_ShouldNotHaveValidationError()
@@ -150,8 +151,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.TitleLengthInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Message ─────────────────────────────────────────────────────────
+        #region Message
 
         [Test]
         public async Task Validate_WhenMessageIsValid_ShouldNotHaveValidationError()
@@ -231,5 +233,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.MessageLengthInvalid);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }
