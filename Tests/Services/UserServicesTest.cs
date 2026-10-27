@@ -1741,6 +1741,8 @@ namespace Tests.Services
                 ReassignToUserId = deletedTargetUser.Id
             };
 
+            _contextMock.ChangeTracker.Clear();
+
             // Act
             var resultNonExistent = await _userServicesMock.DeleteUserAsync(commandWithNonExistent, Guid.NewGuid());
             var resultDeletedTarget = await _userServicesMock.DeleteUserAsync(commandWithDeletedTarget, Guid.NewGuid());
@@ -1975,6 +1977,8 @@ namespace Tests.Services
                 UserId = deletedUser.Id,
                 FirstName = "ProbaZmiany"
             };
+
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var result = await _userServicesMock.EditUserAsync(command, Guid.NewGuid());
@@ -2611,6 +2615,8 @@ namespace Tests.Services
                 Password = "NewPassword123!"
             };
 
+            _contextMock.ChangeTracker.Clear();
+
             // Act
             var result = await _userServicesMock.ResetPasswordAsync(command);
 
@@ -2813,6 +2819,8 @@ namespace Tests.Services
                 UserId = deletedUser.Id,
                 Role = "Manager"
             };
+
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var result = await _userServicesMock.ChangeRoleAsync(command, Guid.NewGuid());
@@ -3149,6 +3157,7 @@ namespace Tests.Services
         {
             // Arrange
             var nonExistentUserId = Guid.NewGuid();
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var result = await _userServicesMock.GetUserDetailAsync(nonExistentUserId);
@@ -3179,6 +3188,8 @@ namespace Tests.Services
             };
 
             await _userManagerMock.CreateAsync(user, "Password123!");
+
+            _contextMock.ChangeTracker.Clear();
 
             // Act
             var result = await _userServicesMock.GetUserDetailAsync(user.Id);

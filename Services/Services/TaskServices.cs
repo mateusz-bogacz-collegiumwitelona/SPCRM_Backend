@@ -349,7 +349,7 @@ namespace Services.Services
 
             var existingUserIds = await _context.Users
                 .AsNoTracking()
-                .Where(u => requiredUserIds.Contains(u.Id) && !u.IsDeleted)
+                .Where(u => requiredUserIds.Contains(u.Id))
                 .Select(u => u.Id)
                 .ToListAsync();
 

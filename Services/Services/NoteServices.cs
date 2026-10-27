@@ -148,7 +148,7 @@ namespace Services.Services
 
             var userExists = await _context.Users
                 .AsNoTracking()
-                .AnyAsync(u => u.Id == userId && !u.IsDeleted);
+                .AnyAsync(u => u.Id == userId);
 
             if (!userExists)
             {
@@ -182,7 +182,7 @@ namespace Services.Services
         public async Task<Result> AddNoteAsync(NoteAddCommand command)
         {
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == command.AuthorId && !u.IsDeleted);
+                .FirstOrDefaultAsync(u => u.Id == command.AuthorId);
 
             if (user == null)
             {
@@ -278,7 +278,7 @@ namespace Services.Services
 
             var userExists = await _context.Users
                 .AsNoTracking()
-                .AnyAsync(u => u.Id == userId && !u.IsDeleted);
+                .AnyAsync(u => u.Id == userId);
 
             if (!userExists)
             {
