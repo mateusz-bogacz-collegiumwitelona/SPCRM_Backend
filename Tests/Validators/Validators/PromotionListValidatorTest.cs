@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly PromotionListValidator _validator = new();
 
-        // ─── DiscountPrecentage ──────────────────────────────────────────────
+        #region DiscountPrecentage 
 
         [Test]
         public async Task Validate_WhenDiscountPrecentageFromIsNegative_ShouldHaveInvalidPromotionDiscountErrorCode()
@@ -84,8 +84,9 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.DiscountPrecentageTo);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── PromotionPrice ──────────────────────────────────────────────────
+        #region PromotionPrice
 
         [Test]
         public async Task Validate_WhenPromotionPriceFromIsNegative_ShouldHaveInvalidPromotionPriceErrorCode()
@@ -160,8 +161,9 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.PromotionPriceTo);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Dates (FromDate & ToDate) ───────────────────────────────────────
+        #region Dates (FromDate & ToDate) 
 
         [Test]
         public async Task Validate_WhenToDateIsBeforeFromDate_ShouldHaveInvalidDateErrorCode()
@@ -217,5 +219,6 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.ToDate);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

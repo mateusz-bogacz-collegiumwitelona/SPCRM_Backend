@@ -177,7 +177,7 @@ namespace Tests.Services
             return product;
         }
 
-        // ─── GetSteelGradesAsync ─────────────────────────────────────────────────
+        #region GetSteelGradesAsync 
 
         [Test]
         public async Task GetSteelGradesAsync_WhenExist_ReturnsSuccessStatusAndNotNullData()
@@ -210,7 +210,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsEmpty();
         }
 
-        // ─── GetSteelGradeListAsync ──────────────────────────────────────────────
+        #endregion
+
+        #region GetSteelGradeListAsync
 
         [Test]
         public async Task GetSteelGradeList_WhenStandardRequest_ReturnsPagedResult()
@@ -293,7 +295,9 @@ namespace Tests.Services
             await Assert.That(items.Last().Name).IsEqualTo($"LowDensity_{uniqueSuffix}".ToUpper());
         }
 
-        // ─── GetAssociatedProductsAsync ──────────────────────────────────────────
+        #endregion
+
+        #region GetAssociatedProductsAsync
 
         [Test]
         public async Task GetAssociatedProductsAsync_WhenProductsExist_ReturnsListOfProducts()
@@ -333,7 +337,9 @@ namespace Tests.Services
             await Assert.That(result.Data!.Count).IsEqualTo(0);
         }
 
-        // ─── DeleteSteelGradeAsync ───────────────────────────────────────────────
+        #endregion
+
+        #region DeleteSteelGradeAsync
 
         [Test]
         public async Task DeleteSteelGradeAsync_WhenGradeExistsWithoutProducts_DeletesSuccessfully()
@@ -509,8 +515,9 @@ namespace Tests.Services
             await Assert.That(async () => await _steelGradeServicesMock.DeleteSteelGradeAsync(steelGrade.Id, null))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── EditSteelGradeAsync ─────────────────────────────────────────────────
+        #region EditSteelGradeAsync 
 
         [Test]
         public async Task EditSteelGradeAsync_WhenAllFieldsProvided_UpdatesSuccessfully()
@@ -661,8 +668,9 @@ namespace Tests.Services
             await Assert.That(async () => await _steelGradeServicesMock.EditSteelGradeAsync(command))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── AddSteelGradeAsync ─────────────────────────────────────────────────
+        #region AddSteelGradeAsync
 
         [Test]
         public async Task AddSteelGradeAsync_WhenValidDataProvided_CreatesSteelGradeAndReturns201Created()
@@ -738,5 +746,6 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.SteelGradeAlreadyExist);
         }
+        #endregion
     }
 }

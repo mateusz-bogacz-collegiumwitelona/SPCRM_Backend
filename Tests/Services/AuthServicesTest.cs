@@ -162,6 +162,8 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
+        #region LoginAsync
+
         [Test]
         public async Task LoginAsync_WhenEmailIsNotConfirmed_Returns401()
         {
@@ -274,7 +276,9 @@ namespace Tests.Services
             // Assert
             await Assert.That(result).IsEqualTo(StatusCodes.Status204NoContent);
         }
+        #endregion
 
+        #region LogoutAsync
         [Test]
         public async Task LogoutAsync_WhenCalled_Returns204AndSignsOut()
         {
@@ -288,7 +292,9 @@ namespace Tests.Services
 
             await Assert.That(fakeSignInManager.SignOutCalled).IsTrue();
         }
+        #endregion
 
+        #region GetUserDataAsync
         [Test]
         public async Task GetUserDataAsync_WhenUserIsntLogin_Return404()
         {
@@ -368,6 +374,8 @@ namespace Tests.Services
             await Assert.That(result.Data!.UserName).IsEqualTo(user.UserName);
             await Assert.That(result.Data!.Roles).Contains(roleName);
         }
+
+        #endregion
     }
 
     public class DummyClaimsFactory : IUserClaimsPrincipalFactory<ApplicationUser>

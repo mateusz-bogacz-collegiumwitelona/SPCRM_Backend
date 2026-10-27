@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly TaskCalendarValidator _validator = new();
 
-        // ─── DateTo / DateFrom ────────────────────────────────────────────────
+        #region DateTo / DateFrom 
 
         [Test]
         public async Task Validate_WhenDateToIsAfterDateFrom_ShouldNotHaveValidationError()
@@ -72,8 +72,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.InvalidDate);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── TaskPriority ─────────────────────────────────────────────────────
+        #region TaskPriority
 
         [Test]
         public async Task Validate_WhenTaskPriorityIsNull_ShouldNotHaveValidationError()
@@ -94,8 +95,9 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.TaskPriority);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── TaskStatus ───────────────────────────────────────────────────────
+        #region TaskStatus
 
         [Test]
         public async Task Validate_WhenTaskStatusIsNull_ShouldNotHaveValidationError()
@@ -116,5 +118,6 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.TaskStatus);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

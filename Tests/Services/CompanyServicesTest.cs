@@ -122,7 +122,7 @@ namespace Tests.Services
             }
         }
 
-        // ─── GetMapAsync ─────────────────────────────────────────────────
+        #region GetMapAsync 
 
         [Test]
         public async Task GetMapAsync_WhenSearchTermIsNull_ReturnsCompaniesWithMappedCoordinates()
@@ -242,8 +242,9 @@ namespace Tests.Services
             await Assert.That(result.Data.Any(c => c.Name == companyToFind.Name)).IsTrue();
             await Assert.That(result.Data.Any(c => c.Name == companyToIgnore.Name)).IsFalse();
         }
+        #endregion
 
-        // ─── GetCompanyDetailsAsync ─────────────────────────────────────────────────
+        #region GetCompanyDetailsAsync 
 
         [Test]
         public async Task GetCompanyDetailsAsync_WhenCompanyDoesNotExist_Returns404NotFound()
@@ -305,7 +306,9 @@ namespace Tests.Services
             await Assert.That(result.Data.Name).IsEqualTo(company.Name);
         }
 
-        // ─── GetCompanyAddressesAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetCompanyAddressesAsync
 
         [Test]
         public async Task GetCompanyAddressesAsync_WhenCompanyHasAddresses_ReturnsMappedCoordinatesAndFiltersProperly()
@@ -465,7 +468,9 @@ namespace Tests.Services
             await Assert.That(result.Data.TotalCount).IsEqualTo(3);
         }
 
-        // ─── GetCompanyListAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetCompanyListAsync
 
         [Test]
         public async Task GetCompanyListAsync_ValidatesHeadquartersAndOwnerVisibility()
@@ -983,7 +988,9 @@ namespace Tests.Services
             await Assert.That(foundCompany!.Name).IsEqualTo(company.Name);
         }
 
-        // ─── GetCompanySimpleListAsync ──────────────────────────────────────────
+        #endregion
+
+        #region GetCompanySimpleListAsync
 
         [Test]
         public async Task GetCompanySimpleListAsync_ReturnsAllCompanies_SortedByNameAlphabetically()
@@ -1119,7 +1126,9 @@ namespace Tests.Services
             await Assert.That(result.Data!.Count).IsEqualTo(0);
         }
 
-        // ─── AddCompanyAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region AddCompanyAsync
 
         [Test]
         public async Task AddCompanyAsync_WhenDataIsValid_CreatesCompanyWithAddressesAndReturnsCreated()
@@ -1438,7 +1447,9 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("Cannot add duplicate addresses for the same company.");
         }
 
-        // ─── EditCompanyAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region EditCompanyAsync
 
         [Test]
         public async Task EditCompanyAsync_WhenCompanyNotFound_Returns404NotFound()
@@ -1794,8 +1805,9 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Message).IsEqualTo("Company updated successfully.");
         }
+        #endregion
 
-        // ─── EditCompanyAddressAsync ─────────────────────────────────────────
+        #region EditCompanyAddressAsync 
 
         [Test]
         public async Task EditCompanyAddressAsync_WhenAddressNotFound_Returns404NotFound()
@@ -2183,7 +2195,9 @@ namespace Tests.Services
             await Assert.That(updatedAddress!.Street).IsEqualTo("Modyfikacja Managera");
         }
 
-        // ─── AddCompanyAddressAsync ──────────────────────────────────────────
+        #endregion
+
+        #region AddCompanyAddressAsync
 
         [Test]
         public async Task AddCompanyAddressAsync_WhenCompanyNotFound_Returns404NotFound()
@@ -2530,7 +2544,9 @@ namespace Tests.Services
             await Assert.That(createdAddress!.Street).IsEqualTo("Oddział Managera 1");
         }
 
-        // ─── DeleteCompanyAsync ──────────────────────────────────────────────
+        #endregion
+
+        #region DeleteCompanyAsync
 
         [Test]
         public async Task DeleteCompanyAsync_WhenCompanyNotFound_Returns404NotFound()
@@ -2838,8 +2854,9 @@ namespace Tests.Services
             await Assert.That(softDeletedCompany).IsNotNull();
             await Assert.That(softDeletedCompany!.IsDeleted).IsTrue();
         }
+        #endregion
 
-        // ─── DeleteCompanyAddressAsync ───────────────────────────────────────
+        #region DeleteCompanyAddressAsync
 
         [Test]
         public async Task DeleteCompanyAddressAsync_WhenAddressNotFound_Returns404NotFound()
@@ -3206,8 +3223,9 @@ namespace Tests.Services
             await Assert.That(softDeletedAddress).IsNotNull();
             await Assert.That(softDeletedAddress!.IsDeleted).IsTrue();
         }
+        #endregion
 
-        // ─── ChangeCompanyOwnerAsync ─────────────────────────────────────────
+        #region ChangeCompanyOwnerAsync
 
         [Test]
         public async Task ChangeCompanyOwnerAsync_WhenCompanyNotFound_Returns404NotFound()
@@ -3465,7 +3483,9 @@ namespace Tests.Services
             await Assert.That(updatedCompany!.OwnerId).IsEqualTo(newOwnerId);
         }
 
-        // ─── GetCompanyAddressTypes ──────────────────────────────────────────
+        #endregion
+
+        #region GetCompanyAddressTypes
 
         [Test]
         public async Task GetCompanyAddressTypes_ReturnsAllEnumNamesSuccessfully()
@@ -3496,7 +3516,9 @@ namespace Tests.Services
             await Assert.That(result.Data!).Contains("Branch");
         }
 
-        // ─── GetEditCompanyDetailAsync ────────────────────────────────────────
+        #endregion
+
+        #region GetEditCompanyDetailAsync 
 
         [Test]
         public async Task GetEditCompanyDetailAsync_WhenCompanyNotFound_Returns404NotFound()
@@ -3557,5 +3579,6 @@ namespace Tests.Services
             await Assert.That(result.Data!.Name).IsEqualTo(company.Name);
             await Assert.That(result.Data!.NIP).IsEqualTo(company.NIP);
         }
+        #endregion
     }
 }

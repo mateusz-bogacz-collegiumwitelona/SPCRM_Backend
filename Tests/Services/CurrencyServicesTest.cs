@@ -103,7 +103,7 @@ namespace Tests.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // ─── GetCurrencySimpleListAsync ──────────────────────────────────────────
+        #region GetCurrencySimpleListAsync 
 
         [Test]
         public async Task GetCurrencySimpleListAsync_WhenCurrenciesExist_ReturnsAllMappedCurrencies()
@@ -239,7 +239,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
-        // ─── GetCurrenyListAsync ────────────────────────────────────────────────
+        #endregion
+
+        #region GetCurrenyListAsync 
 
         [Test]
         public async Task GetCurrenyListAsync_WhenStandardRequest_ReturnsPagedResult()
@@ -386,7 +388,9 @@ namespace Tests.Services
             await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
 
-        // ─── AddCurrencyAsync ───────────────────────────────────────────────────
+        #endregion
+
+        #region AddCurrencyAsync
 
         [Test]
         public async Task AddCurrencyAsync_WhenValidDataProvided_CreatesCurrencyAndReturns201Created()
@@ -476,7 +480,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyAlreadyExists);
         }
 
-        // ─── EditCurrencyAsync ──────────────────────────────────────────────────
+        #endregion
+
+        #region EditCurrencyAsync
 
         [Test]
         public async Task EditCurrencyAsync_WhenCurrencyExistsAndDataIsValid_UpdatesFieldsAndReturns200OK()
@@ -716,5 +722,7 @@ namespace Tests.Services
             await Assert.That(async () => await _currencyServicesMock.EditCurrencyAsync(command))
                 .Throws<DataCorruptionException>();
         }
+
+        #endregion
     }
 }

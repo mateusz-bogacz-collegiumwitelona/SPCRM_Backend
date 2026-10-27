@@ -6,7 +6,7 @@ namespace Tests.Pdf
 {
     public class AnalyticsChartPdfHelperTest
     {
-        // ─── GenerateRevenueChartsPerCurrency ─────────────────────────────────────────────────
+        #region GenerateRevenueChartsPerCurrency 
 
         [Test]
         public async Task GenerateRevenueChartsPerCurrency_WhenHistoryCommandIsNull_ReturnsEmptyList()
@@ -210,5 +210,6 @@ namespace Tests.Pdf
             await Assert.That(result[0].svg).Contains("<svg");
             await Assert.That(result[0].svg).Contains("</svg>");
         }
+        #endregion
     }
 }

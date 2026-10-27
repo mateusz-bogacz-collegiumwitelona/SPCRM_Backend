@@ -133,7 +133,7 @@ namespace Tests.Services
             return currency;
         }
 
-        // ─── GetProductListAsync ─────────────────────────────────────────────────
+        #region GetProductListAsync 
 
         [Test]
         public async Task GetProductListAsync_WhenNoProductsMatch_ReturnsEmptyListWithSuccessStatus()
@@ -390,8 +390,9 @@ namespace Tests.Services
             await Assert.That(items[0].Id).IsEqualTo(p1.Id);
             await Assert.That(items[1].Id).IsEqualTo(p2.Id);
         }
+        #endregion
 
-        // ─── GetProductCategoryAsync ─────────────────────────────────────────────────
+        #region GetProductCategoryAsync 
 
         [Test]
         public async Task GetProductCategoryAsync_ReturnsAllEnumValues()
@@ -425,9 +426,9 @@ namespace Tests.Services
             await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
             await Assert.That(result.Data).IsNotNull();
         }
+        #endregion
 
-
-        // ───  GetProductDetailsAsync ─────────────────────────────────────────────────
+        #region  GetProductDetailsAsync 
 
         [Test]
         public async Task GetProductDetailsAsync_WhenProductExist_Return200()
@@ -545,7 +546,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
-        // ─── GetMailingProductsAsync ───────────────────────────────────────────
+        #endregion
+
+        #region GetMailingProductsAsync
 
         [Test]
         public async Task GetMailingProductsAsync_MapsPropertiesAndDimensionsCorrectly()
@@ -686,8 +689,10 @@ namespace Tests.Services
             await Assert.That(items.First().ProductId).IsEqualTo(targetProduct.Id);
             await Assert.That(items.First().Name).Contains("Specjalny");
         }
+        #endregion
 
-        // ─── AddProductAsync ───────────────────────────────────────────
+        #region AddProductAsync 
+
         [Test]
         public async Task AddProductAsync_SuccessfullyAddsProduct_WhenDataIsValid()
         {
@@ -880,7 +885,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidCategory);
         }
 
-        // ─── EditProductAsync ───────────────────────────────────────────
+        #endregion
+
+        #region EditProductAsync
 
         [Test]
         public async Task EditProductAsync_SuccessfullyUpdatesAllFields_WhenDataIsValid()
@@ -1309,7 +1316,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
-        // ─── GetProductEditDetailAsync ──────────────────────────────────
+        #endregion
+
+        #region GetProductEditDetailAsync
 
         [Test]
         public async Task GetProductEditDetailAsync_WhenProductExists_ReturnsSuccessAndScalesValuesCorrectly()
@@ -1438,7 +1447,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNull();
         }
 
-        // ─── DeleteProductAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region DeleteProductAsync
 
         [Test]
         public async Task DeleteProductAsync_WhenProductExists_AppliesSoftDeleteAndSetsCorrectFlags()
@@ -1608,9 +1619,9 @@ namespace Tests.Services
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
             await Assert.That(result.Message).IsEqualTo("Cannot delete product that is assigned to active deals.");
         }
+        #endregion
 
-
-        // ─── SearchProductsAutocompleteAsync ─────────────────────────────────────────────────
+        #region SearchProductsAutocompleteAsync 
 
         [Test]
         [Arguments(null)]
@@ -1799,8 +1810,9 @@ namespace Tests.Services
             await Assert.That(result.IsSuccess).IsTrue();
             await Assert.That(result.Data!.Count).IsEqualTo(50);
         }
+        #endregion
 
-        // ─── AddProductStockAsync ───────────────────────────────────────────
+        #region AddProductStockAsync 
 
         [Test]
         public async Task AddProductStockAsync_WhenProductDoesNotExist_Returns404NotFound()
@@ -1920,5 +1932,6 @@ namespace Tests.Services
             await Assert.That(updatedProduct.UpdateAt).IsNotNull();
             await Assert.That(updatedProduct.UpdateAt!.Value).IsGreaterThanOrEqualTo(beforeUpdate);
         }
+        #endregion
     }
 }

@@ -10,7 +10,6 @@ namespace Tests.Validators
     {
         private readonly AddCompanyValidator _validator = new();
 
-        // Metoda pomocnicza ułatwiająca tworzenie poprawnego pod kątem kompilatora obiektu adresu
         private static AddCompanyAdressesRequest CreateAddress(string type) => new()
         {
             Type = type,
@@ -21,8 +20,7 @@ namespace Tests.Validators
             Latitude = 0f
         };
 
-        // ─── Addresses (Headquarters Rule) ───────────────────────────────────
-
+        #region Addresses 
         [Test]
         public async Task Validate_WhenAddressesHasExactlyOneHeadquarters_ShouldNotHaveValidationError()
         {
@@ -161,5 +159,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.HeadquartersAddressRequired);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

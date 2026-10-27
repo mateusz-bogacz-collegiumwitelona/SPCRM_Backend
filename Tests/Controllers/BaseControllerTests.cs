@@ -11,6 +11,21 @@ namespace Tests.Controllers
     {
         private TestController _sut = null!;
 
+        private class TestPayload
+        {
+            public int OrderId { get; set; }
+            public decimal Total { get; set; }
+        }
+
+        private class TestController : BaseController
+        {
+            public Guid ExposedCurrentUserId => CurrentUserId;
+
+            public IActionResult ExecuteHandleResult<T>(Result<T> result) => HandleResult(result);
+
+            public IActionResult ExecuteHandleResult(Result result) => HandleResult(result);
+        }
+
         [Before(Test)]
         public void Setup()
         {
@@ -23,7 +38,7 @@ namespace Tests.Controllers
             };
         }
 
-        // ─── CurrentUserId ─────────────────────────────
+        #region CurrentUserId 
 
         [Test]
         public async Task CurrentUserId_WhenClaimExists_ReturnsParsedGuid()
@@ -53,8 +68,10 @@ namespace Tests.Controllers
             // Act & Assert
             await Assert.That(() => _sut.ExposedCurrentUserId).Throws<ArgumentNullException>();
         }
+        #endregion
 
-        // ─── HandleResult(Result) ──────────────
+
+        #region HandleResult(Result) 
 
         [Test]
         public async Task HandleResult_WhenResultIsNull_Returns500WithMessage()
@@ -118,8 +135,9 @@ namespace Tests.Controllers
             await Assert.That(actualResult.Errors!.Count).IsEqualTo(2);
             await Assert.That(actualResult.Errors).Contains("Field is required");
         }
+        #endregion
 
-        // ─── HandleResult<T>(Result<T>) ───
+        #region HandleResult<T>(Result<T>) 
 
         [Test]
         public async Task HandleResultGeneric_WhenSuccess_ReturnsDataPayload()
@@ -164,21 +182,6 @@ namespace Tests.Controllers
             await Assert.That(actualResult.ErrorCode).IsEqualTo("NOT_FOUND");
             await Assert.That(actualResult.Data).IsNull();
         }
-
-
-        private class TestPayload
-        {
-            public int OrderId { get; set; }
-            public decimal Total { get; set; }
-        }
-
-        private class TestController : BaseController
-        {
-            public Guid ExposedCurrentUserId => CurrentUserId;
-
-            public IActionResult ExecuteHandleResult<T>(Result<T> result) => HandleResult(result);
-
-            public IActionResult ExecuteHandleResult(Result result) => HandleResult(result);
-        }
+        #endregion
     }
 }

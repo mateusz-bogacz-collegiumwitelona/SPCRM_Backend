@@ -31,8 +31,8 @@ namespace Services.Services
         {
             var normalizedInput = command.Name.Trim().ToUpperInvariant();
 
-            var user = await _userManager.Users.FirstOrDefaultAsync(u => 
-                u.NormalizedEmail == normalizedInput || 
+            var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+                u.NormalizedEmail == normalizedInput ||
                 u.NormalizedUserName == normalizedInput
             );
 

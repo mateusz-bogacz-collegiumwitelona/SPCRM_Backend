@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly MailingProductValidator _validator = new();
 
-        // ─── ProductId ───────────────────────────────────────────────────────
+        #region ProductId 
 
         [Test]
         public async Task Validate_WhenProductIdIsValid_ShouldNotHaveValidationError()
@@ -46,8 +46,11 @@ namespace Tests.Validators
             result.ShouldHaveValidationErrorFor(x => x.ProductId);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Quantity ────────────────────────────────────────────────────────
+
+
+        #region Quantity 
 
         [Test]
         public async Task Validate_WhenQuantityIsGreaterThanZero_ShouldNotHaveValidationError()
@@ -87,8 +90,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.InvalidMalingQuantity);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Price ───────────────────────────────────────────────────────────
+        #region Price 
 
         [Test]
         public async Task Validate_WhenPriceIsNull_ShouldNotHaveValidationErrorForPrice()
@@ -150,8 +154,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.InvalidMalingPrice);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── CurrencyCode ────────────────────────────────────────────────────
+        #region CurrencyCode 
 
         [Test]
         public async Task Validate_WhenPriceHasValueAndCurrencyCodeIsNull_ShouldHaveCodeRequiredErrorCode()
@@ -213,5 +218,6 @@ namespace Tests.Validators
             result.ShouldNotHaveValidationErrorFor(x => x.CurrencyCode);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

@@ -44,7 +44,7 @@ namespace Tests.Validators.Rules
             _validator = new TestUserModelValidator(fakeRoleManager);
         }
 
-        // ─── ApplyFirstNameRules ─────────────────────────────────────────────
+        #region ApplyFirstNameRules 
 
         [Test]
         [Arguments("Jan")]
@@ -91,8 +91,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.FirstName)
                   .WithErrorCode(ErrorCodes.InvalidFirstName);
         }
+        #endregion
 
-        // ─── ApplyLastNameRules ──────────────────────────────────────────────
+        #region ApplyLastNameRules 
 
         [Test]
         [Arguments("Kowalski")]
@@ -138,8 +139,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.LastName)
                   .WithErrorCode(ErrorCodes.InvalidLastName);
         }
+        #endregion
 
-        // ─── ApplyRequiredEmailRules ─────────────────────────────────────────
+        #region ApplyRequiredEmailRules 
 
         [Test]
         [Arguments("test@spcrm.pl")]
@@ -189,8 +191,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.RequiredEmail)
                   .WithErrorCode(ErrorCodes.InvalidEmail);
         }
+        #endregion
 
-        // ─── ApplyOptionalEmailRules ─────────────────────────────────────────
+        #region ApplyOptionalEmailRules 
 
         [Test]
         [Arguments("opcjonalny@spcrm.pl")]
@@ -224,8 +227,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.OptionalEmail)
                   .WithErrorCode(ErrorCodes.InvalidEmail);
         }
+        #endregion
 
-        // ─── ApplyPasswordRules ──────────────────────────────────────────────
+        #region ApplyPasswordRules 
 
         [Test]
         [Arguments("Password123!")]
@@ -257,8 +261,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.Password)
                   .WithErrorCode(ErrorCodes.InvalidPassword);
         }
+        #endregion
 
-        // ─── ApplyConfirmPasswordRules ───────────────────────────────────────
+        #region ApplyConfirmPasswordRules 
 
         [Test]
         public async Task ApplyConfirmPasswordRules_WhenPasswordsMatch_ShouldNotHaveValidationError()
@@ -294,8 +299,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.ConfirmPassword)
                   .WithErrorCode(ErrorCodes.PassowrdMismatch);
         }
+        #endregion
 
-        // ─── ApplyRoleRules ──────────────────────────────────────────────────
+        #region ApplyRoleRules 
 
         [Test]
         [Arguments("Admin")]
@@ -328,8 +334,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.Role)
                   .WithErrorCode(ErrorCodes.InvalidRole);
         }
+        #endregion
 
-        // ─── ApplyValidTokenRule ─────────────────────────────────────────────
+        #region ApplyValidTokenRule 
 
         [Test]
         public async Task ApplyValidTokenRule_WhenTokenIsNotEmpty_ShouldNotHaveValidationError()
@@ -359,8 +366,7 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.Token)
                   .WithErrorCode(ErrorCodes.TokenInvalid);
         }
-
-        // ─── Fakes dla RoleManager ───────────────────────────────────────────
+        #endregion
 
         private class FakeRoleManager : RoleManager<IdentityRole<Guid>>
         {

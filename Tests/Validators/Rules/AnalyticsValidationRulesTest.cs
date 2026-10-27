@@ -23,7 +23,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestModelValidator _validator = new();
 
-        // ─── ApplyPeriodRules ─────────────────────────────
+        #region ApplyPeriodRules 
 
         [Test]
         public async Task ApplyPeriodRules_WhenValidEnumNamesProvided_ShouldNotHaveValidationErrors()
@@ -71,5 +71,6 @@ namespace Tests.Validators.Rules
 
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

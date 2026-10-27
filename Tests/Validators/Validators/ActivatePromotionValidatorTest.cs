@@ -9,7 +9,8 @@ namespace Tests.Validators
     {
         private readonly ActivatePromotionValidator _validator = new();
 
-        // ─── Id ──────────────────────────────────────────────────────────────
+
+        #region Id
 
         [Test]
         public async Task Validate_WhenIdIsValid_ShouldNotHaveValidationError()
@@ -47,7 +48,9 @@ namespace Tests.Validators
             await Task.CompletedTask;
         }
 
-        // ─── EndDate ─────────────────────────────────────────────────────────
+        #endregion
+
+        #region EndDate 
 
         [Test]
         public async Task Validate_WhenEndDateIsInFuture_ShouldNotHaveValidationError()
@@ -104,5 +107,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.InvalidDate);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

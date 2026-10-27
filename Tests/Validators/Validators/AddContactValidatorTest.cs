@@ -9,8 +9,6 @@ namespace Tests.Validators
     {
         private readonly AddContactValidator _validator = new();
 
-        // ─── Details (IsPrimary Rule) ────────────────────────────────────────
-
         [Test]
         public async Task Validate_WhenDetailsHasExactlyOnePrimary_ShouldNotHaveValidationErrorForPrimaryRule()
         {

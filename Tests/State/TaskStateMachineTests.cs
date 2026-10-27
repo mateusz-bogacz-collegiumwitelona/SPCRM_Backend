@@ -15,7 +15,7 @@ namespace Tests.State
             return new TaskStateMachine(task);
         }
 
-        // ─── CanFire ─────────────────────────────────────────────────
+        #region CanFire 
 
         [Test]
         [Arguments(TaskStatusEnum.ToDo, TaskTriggerEnum.Start, true)]
@@ -38,7 +38,9 @@ namespace Tests.State
             await Assert.That(machine.CanFire(trigger)).IsEqualTo(expected);
         }
 
-        // ─── Fire ─────────────────────────────────────────────────
+        #endregion
+
+        #region Fire 
 
         [Test]
         [Arguments(TaskStatusEnum.ToDo, TaskTriggerEnum.Start, TaskStatusEnum.InProgress)]
@@ -87,8 +89,9 @@ namespace Tests.State
                 await Assert.That(task.Status).IsEqualTo(initial);
             }
         }
+        #endregion
 
-        // ─── TransitionTo ─────────────────────────────────────────────
+        #region TransitionTo 
 
         [Test]
         [Arguments(TaskStatusEnum.ToDo, TaskStatusEnum.InProgress)]
@@ -193,7 +196,9 @@ namespace Tests.State
             }
         }
 
-        // ─── CanModify ─────────────────────────────────────────────
+        #endregion
+
+        #region CanModify
 
         [Test]
         [Arguments(TaskStatusEnum.ToDo)]
@@ -227,5 +232,6 @@ namespace Tests.State
                 await Assert.That(result.Message).Contains("completed");
             }
         }
+        #endregion
     }
 }

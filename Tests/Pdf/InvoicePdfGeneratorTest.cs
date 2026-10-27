@@ -81,7 +81,7 @@ namespace Tests.Pdf
         }
 
 
-        // ─── GenerateInvoicePdf ──────────────────────────────────────────────
+        #region GenerateInvoicePdf 
 
 
         [Test]
@@ -182,5 +182,6 @@ namespace Tests.Pdf
             await Assert.That(pdfBytes.Length).IsGreaterThan(0);
             await Assert.That(pdfBytes[..4]).IsEquivalentTo(PdfHeaderBytes);
         }
+        #endregion
     }
 }

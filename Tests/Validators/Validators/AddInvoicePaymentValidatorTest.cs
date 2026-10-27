@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly AddInvoicePaymentValidator _validator = new();
 
-        // ─── Amount ──────────────────────────────────────────────────────────
+        #region Amount 
 
         [Test]
         public async Task Validate_WhenAmountIsGreaterThanZero_ShouldNotHaveValidationError()
@@ -49,8 +49,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.InvoicePaymentInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── PaymentDate ─────────────────────────────────────────────────────
+        #region PaymentDate 
 
         [Test]
         public async Task Validate_WhenPaymentDateIsValid_ShouldNotHaveValidationError()
@@ -126,8 +127,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.InvalidDate);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ReferenceNumber ─────────────────────────────────────────────────
+        #region ReferenceNumber
 
         [Test]
         public async Task Validate_WhenReferenceNumberIsValidLength_ShouldNotHaveValidationError()
@@ -167,8 +169,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.PaymentReferenceNumberInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── Note ────────────────────────────────────────────────────────────
+        #region Note 
 
         [Test]
         public async Task Validate_WhenNoteIsValidLength_ShouldNotHaveValidationError()
@@ -208,5 +211,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.PaymentNoteInvalid);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

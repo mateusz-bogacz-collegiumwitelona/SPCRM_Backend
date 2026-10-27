@@ -42,7 +42,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestCompanyModelValidator _validator = new();
 
-        // ─── NIP ─────────────────────────────────────────────────────────────
+        #region NIP 
 
         [Test]
         [Arguments("7740001454")]
@@ -101,7 +101,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ZipCodeRule ──────────────────────────────────────────
+        #endregion
+
+        #region ZipCodeRule
 
         [Test]
         [Arguments("00-950")]
@@ -156,7 +158,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── CompanyNameRule ───────────────────────────────────────
+        #endregion
+
+        #region CompanyNameRule
 
         [Test]
         public async Task CompanyNameRule_WhenValidLength_ShouldNotHaveValidationError()
@@ -204,8 +208,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.NameLengthInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── StreetRule ──────────────────────────────────
+        #region StreetRule 
 
         [Test]
         public async Task StreetRule_WhenExceeds200Characters_ShouldHaveStreetLengthInvalidErrorCode()
@@ -222,7 +227,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── CityRule ──────────────────────────────────
+        #endregion
+
+        #region CityRule 
 
 
         [Test]
@@ -240,7 +247,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── LatitudeRule ──────────────────────────
+        #endregion
+
+        #region LatitudeRule 
 
         [Test]
         [Arguments(-90f)]
@@ -280,8 +289,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.LatitudeOutOfRange);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── LongitudeRule ──────────────────────────
+        #region LongitudeRule 
 
         [Test]
         [Arguments(-180f)]
@@ -321,8 +331,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.LongitudeOutOfRange);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── AddressTypeRule ────────────────────────────────────────
+        #region AddressTypeRule 
 
         [Test]
         public async Task AddressTypeRule_WhenValidEnumName_ShouldNotHaveValidationError()
@@ -377,5 +388,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.AddressTypeRequired);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

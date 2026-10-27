@@ -15,8 +15,7 @@ namespace Tests.State
             return new DealStateMachine(deal);
         }
 
-        // ─── CanFire ─────────────────────────────────────────────────
-
+        #region CanFire 
         [Test]
         [Arguments(DealsStatusEnum.ToDo, DealTriggerEnum.Start, true)]
         [Arguments(DealsStatusEnum.ToDo, DealTriggerEnum.Complete, true)]
@@ -38,7 +37,9 @@ namespace Tests.State
             await Assert.That(machine.CanFire(trigger)).IsEqualTo(expected);
         }
 
-        // ─── Fire ─────────────────────────────────────────────────
+        #endregion
+
+        #region Fire
 
         [Test]
         [Arguments(DealsStatusEnum.ToDo, DealTriggerEnum.Start, DealsStatusEnum.InProgress)]
@@ -87,9 +88,9 @@ namespace Tests.State
                 await Assert.That(deal.Status).IsEqualTo(initial);
             }
         }
+        #endregion
 
-
-        // ─── TransitionTo ─────────────────────────────────────────────────
+        #region TransitionTo
 
         [Test]
         [Arguments(DealsStatusEnum.ToDo, DealsStatusEnum.InProgress)]
@@ -191,8 +192,9 @@ namespace Tests.State
             }
         }
 
-        // ─── CanModify ─────────────────────────────────────────────────
+        #endregion
 
+        #region CanModify
         [Test]
         [Arguments(DealsStatusEnum.ToDo)]
         [Arguments(DealsStatusEnum.InProgress)]
@@ -226,5 +228,7 @@ namespace Tests.State
                 await Assert.That(result.Message).Contains(status.ToString());
             }
         }
+
+        #endregion
     }
 }

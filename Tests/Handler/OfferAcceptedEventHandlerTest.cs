@@ -112,7 +112,6 @@ namespace Tests.Handler
             await cmd.ExecuteNonQueryAsync();
         }
 
-
         private async Task<(Company Company, Contact Contact, Currency Currency, ApplicationUser Owner, SteelGrade SteelGrade, UnitOfMeasure Unit)> SeedBaseGraphAsync()
         {
             var user = new ApplicationUser
@@ -194,7 +193,7 @@ namespace Tests.Handler
             return product;
         }
 
-        // ─── Handle ────────────────────────────────────────────────────────────
+        #region Handle 
 
         [Test]
         public async Task Handle_WhenOfferNotFound_ThrowsInvalidOperationException()
@@ -381,5 +380,7 @@ namespace Tests.Handler
             var dealExists = await _contextMock.Deals.AnyAsync(d => d.Name == $"SE/{offer.Name}");
             await Assert.That(dealExists).IsFalse();
         }
+
+        #endregion
     }
 }

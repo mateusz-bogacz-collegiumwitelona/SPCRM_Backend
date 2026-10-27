@@ -9,7 +9,7 @@ namespace Tests.Validators
     {
         private readonly OfferProductItemValidator _validator = new();
 
-        // ─── ProductId ───────────────────────────────────────────────────────
+        #region ProductId 
 
         [Test]
         public async Task Validate_WhenProductIdIsValid_ShouldNotHaveValidationError()
@@ -49,7 +49,9 @@ namespace Tests.Validators
             await Task.CompletedTask;
         }
 
-        // ─── Quantity ────────────────────────────────────────────────────────
+        #endregion ProductId
+
+        #region Quantity 
 
         [Test]
         public async Task Validate_WhenQuantityIsGreaterThanZero_ShouldNotHaveValidationError()
@@ -91,8 +93,9 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.OfferQuantityInvalid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── QuotedPrice ─────────────────────────────────────────────────────
+        #region QuotedPrice 
 
         [Test]
         public async Task Validate_WhenQuotedPriceIsGreaterThanZero_ShouldNotHaveValidationError()
@@ -134,5 +137,6 @@ namespace Tests.Validators
                   .WithErrorCode(ErrorCodes.OfferQuotedPriceInvalid);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

@@ -219,7 +219,7 @@ namespace Tests.Workers
             return (company, currency, invoice);
         }
 
-        // ─── GenerateAndSendInvoiceEmailAsync ────────────────────────────────────────────────────────────
+        #region GenerateAndSendInvoiceEmailAsync 
 
         [Test]
         public async Task GenerateAndSendInvoiceEmailAsync_WhenInvoiceDoesNotExist_AbortsWithoutGeneratingPdfOrSendingEmail()
@@ -353,10 +353,6 @@ namespace Tests.Workers
             var sent = _smtpServiceFake.SentEmails.First();
             await Assert.That(sent.AttachmentBytes).IsEqualTo(expectedBytes);
         }
+        #endregion
     }
-
-
-
-
-
 }

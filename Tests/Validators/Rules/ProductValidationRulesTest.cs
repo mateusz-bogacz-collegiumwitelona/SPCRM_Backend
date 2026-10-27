@@ -105,7 +105,8 @@ namespace Tests.Validators.Rules
         private readonly TestAddProductDimensionsValidator _addDimensionsValidator = new();
         private readonly TestEditProductDimensionsValidator _editDimensionsValidator = new();
 
-        // ─── ApplyProductIdRules ─────────────────────────────────────────────
+
+        #region ApplyProductIdRules
 
         [Test]
         public async Task ApplyProductIdRules_WhenValidGuid_ShouldNotHaveValidationError()
@@ -120,8 +121,9 @@ namespace Tests.Validators.Rules
             result.ShouldNotHaveValidationErrorFor(x => x.ProductId);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyProductNameRules ───────────────────────────────────────────
+        #region ApplyProductNameRules
 
         [Test]
         public async Task ApplyProductNameRules_WhenValidLength_ShouldNotHaveValidationError()
@@ -169,8 +171,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidProductName);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyProductSteelGradeRules ─────────────────────────────────────
+        #region ApplyProductSteelGradeRules
 
         [Test]
         public async Task ApplyProductSteelGradeRules_WhenValid_ShouldNotHaveValidationError()
@@ -219,7 +222,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyProductCategoryRule ────────────────────────────────────────
+        #endregion
+
+        #region ApplyProductCategoryRule
 
         [Test]
         public async Task ApplyProductCategoryRule_WhenValidCategoryEnum_ShouldNotHaveValidationError()
@@ -264,7 +269,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyProductDimmensionRule ──────────────────────────────────────
+        #endregion
+
+        #region ApplyProductDimmensionRule
 
         [Test]
         [Arguments(1)]
@@ -310,7 +317,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyProductWeightRule ──────────────────────────────────────────
+        #endregion
+
+        #region ApplyProductWeightRule
 
         [Test]
         [Arguments(1)]
@@ -356,7 +365,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyProductPricePerUnitRule ────────────────────────────────────
+        #endregion
+
+        #region ApplyProductPricePerUnitRule
 
         [Test]
         [Arguments(1L)]
@@ -402,7 +413,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyProductStockQuantityRule ───────────────────────────────────
+        #endregion
+
+        #region ApplyProductStockQuantityRule
 
         [Test]
         [Arguments(0)]
@@ -437,7 +450,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyAddPromotionDiscountExclusiveRule ──────────────────────────
+        #endregion
+
+        #region ApplyAddPromotionDiscountExclusiveRule
 
         [Test]
         public async Task ApplyAddPromotionDiscountExclusiveRule_WhenOnlyDiscountPercentageProvided_ShouldNotHaveValidationError()
@@ -485,8 +500,9 @@ namespace Tests.Validators.Rules
                          .WithErrorCode(ErrorCodes.DiscountPercentageAndPriceCannotBothChoice);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyEditPromotionDiscountExclusiveRule ─────────────────────────
+        #region ApplyEditPromotionDiscountExclusiveRule 
 
         [Test]
         public async Task ApplyEditPromotionDiscountExclusiveRule_WhenNeitherOrOnlyOneProvided_ShouldNotHaveValidationError()
@@ -518,7 +534,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyProductCategoryDimensionsRules ─────────────────────────────
+        #endregion
+
+        #region ApplyProductCategoryDimensionsRules
 
         [Test]
         [Arguments("Pipe")]
@@ -594,7 +612,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplyEditProductCategoryDimensionsRules ─────────────────────────
+        #endregion
+
+        #region ApplyEditProductCategoryDimensionsRules
 
         [Test]
         [Arguments("Pipe")]
@@ -631,5 +651,6 @@ namespace Tests.Validators.Rules
             result.ShouldNotHaveValidationErrorFor(x => x);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

@@ -246,7 +246,8 @@ namespace Tests.Handler
             return (company, currency, deal, productA, productB);
         }
 
-        // ─── Handle ────────────────────────────────────────────────────────────
+
+        #region Handle 
 
         [Test]
         public async Task Handle_WhenDealNotFound_LogsErrorAndAbortsWithoutCreatingInvoiceOrSendingEmail()
@@ -407,5 +408,7 @@ namespace Tests.Handler
             await Assert.That(_emailSenderMock.SentInvoiceEmails.Count).IsEqualTo(1);
             await Assert.That(_emailSenderMock.LasInvoiceEmailDomain!.Language).IsEqualTo("pl");
         }
+
+        #endregion
     }
 }

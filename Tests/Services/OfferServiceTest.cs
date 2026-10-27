@@ -177,7 +177,7 @@ namespace Tests.Services
             return (company, contact, currency);
         }
 
-        // ─── GetOfferListAsync ─────────────────────────────────────────────────
+        #region GetOfferListAsync 
 
 
         [Test]
@@ -483,7 +483,9 @@ namespace Tests.Services
             await Assert.That(result.Data.Items.First().IsExpired).IsTrue();
         }
 
-        // ─── GetOfferListAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetOfferListAsync 
 
         [Test]
         public async Task GetOfferDetailAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -591,8 +593,9 @@ namespace Tests.Services
             await Assert.That(async () => await _offerServicesMock.GetOfferDetailAsync(offer.Id))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── GetOfferClientDetailAsync ──────────────────────────────────────────
+        #region GetOfferClientDetailAsync 
 
         [Test]
         public async Task GetOfferClientDetailAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -744,7 +747,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
-        // ─── GetOfferProductsAsync ──────────────────────────────────────────────
+        #endregion
+
+        #region GetOfferProductsAsync
 
         [Test]
         public async Task GetOfferProductsAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -1101,8 +1106,9 @@ namespace Tests.Services
             await Assert.That(result.Data!.Items.Count).IsEqualTo(0);
             await Assert.That(result.Data.TotalCount).IsEqualTo(0);
         }
+        #endregion
 
-        // ─── ExtendOfferValidityAsync ──────────────────────────────────────────
+        #region ExtendOfferValidityAsync 
 
         [Test]
         public async Task ExtendOfferValidityAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -1282,8 +1288,9 @@ namespace Tests.Services
             var diff = Math.Abs((updatedOffer!.ValidUntil - expectedDate).TotalSeconds);
             await Assert.That(diff < 2).IsTrue();
         }
+        #endregion
 
-        // ─── ChangeOfferStatusAsync ──────────────────────────────────────────
+        #region ChangeOfferStatusAsync
 
         [Test]
         public async Task ChangeOfferStatusAsync_PublishesOfferAcceptedEvent_WhenAccepted()
@@ -1451,8 +1458,9 @@ namespace Tests.Services
             await Assert.That(async () => await _offerServicesMock.ChangeOfferStatusAsync(command))
                 .Throws<DataCorruptionException>();
         }
+        #endregion
 
-        // ─── UpdateOfferProductsAsync ──────────────────────────────────────────
+        #region UpdateOfferProductsAsync 
 
         [Test]
         public async Task UpdateOfferProductsAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -1768,7 +1776,9 @@ namespace Tests.Services
             await Assert.That(updatedItems[1].QuotedPrice).IsEqualTo(270000);
         }
 
-        // ─── ResendOfferEmailAsync ─────────────────────────────────────────────
+        #endregion
+
+        #region ResendOfferEmailAsync
 
         [Test]
         public async Task ResendOfferEmailAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -2023,7 +2033,9 @@ namespace Tests.Services
                 .Throws<DataCorruptionException>();
         }
 
-        // ─── DeleteOfferAsync ──────────────────────────────────────────────────
+        #endregion
+
+        #region DeleteOfferAsync
 
         [Test]
         public async Task DeleteOfferAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -2136,7 +2148,9 @@ namespace Tests.Services
             await Assert.That(deletedProducts.All(p => p.IsDeleted)).IsTrue();
         }
 
-        // ─── GetOfferAllowedActionsAsync ───────────────────────────────────────
+        #endregion
+
+        #region GetOfferAllowedActionsAsync
 
         [Test]
         public async Task GetOfferAllowedActionsAsync_ReturnsNotFound_WhenOfferDoesNotExist()
@@ -2262,9 +2276,9 @@ namespace Tests.Services
             await Assert.That(actions.CanExtendValidity).IsFalse();
             await Assert.That(actions.AllowedStatusTransitions.Count).IsEqualTo(0);
         }
+        #endregion
 
-
-        // ─── GetOfferStatus ────────────────────────────────────────────────────
+        #region GetOfferStatus 
 
         [Test]
         public async Task GetOfferStatus_ReturnsAllEnumNames()
@@ -2282,6 +2296,6 @@ namespace Tests.Services
             await Assert.That(result.Data).Contains("Rejected");
             await Assert.That(result.Data).Contains("Expired");
         }
+        #endregion
     }
-
 }

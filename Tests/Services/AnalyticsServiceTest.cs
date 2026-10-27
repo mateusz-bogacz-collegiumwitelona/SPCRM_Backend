@@ -169,7 +169,7 @@ namespace Tests.Services
             return (user, currency, company, contact);
         }
 
-        // ─── GetTeamKpiSummaryAsync ─────────────────────────────────────────────────
+        #region GetTeamKpiSummaryAsync
 
         [Test]
         public async Task GetTeamKpiSummaryAsync_WhenDatabaseIsEmpty_ShouldReturnZeroes()
@@ -436,8 +436,9 @@ namespace Tests.Services
             await Assert.That(data.PendingTasksCount).IsEqualTo(0);
             await Assert.That(data.OverdueTasksCount).IsEqualTo(0);
         }
+        #endregion
 
-        // ─── GetTeamRevenueChartAsync ─────────────────────────────────────────────────
+        #region GetTeamRevenueChartAsync
 
         [Test]
         public async Task GetTeamRevenueChartAsync_WhenHalfYearPeriod_ShouldReturnSixMonthsAndAggregateCorrectly()
@@ -603,7 +604,9 @@ namespace Tests.Services
             await Assert.That(firstWeek.DealsWonCount).IsEqualTo(1);
         }
 
-        // ─── GetEmployeeKpiSummaryAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region  GetEmployeeKpiSummaryAsync 
 
         [Test]
         public async Task GetEmployeeKpiSummaryAsync_WhenUserDoesNotExist_ShouldReturnNotFound()
@@ -816,8 +819,9 @@ namespace Tests.Services
             await Assert.That(data.WinRatePercentageThisMonth).IsEqualTo(0m);
             await Assert.That(data.ActiveDealsPipelineValue).IsEmpty();
         }
+        #endregion
 
-        // ─── GetEmployeeRevenueChartAsync ─────────────────────────────────────────────────
+        #region GetEmployeeRevenueChartAsync 
 
         [Test]
         public async Task GetEmployeeRevenueChartAsync_WhenUserDoesNotExist_ShouldReturnNotFound()
@@ -1000,7 +1004,9 @@ namespace Tests.Services
             await Assert.That(firstInterval.DealsWonCount).IsEqualTo(1);
         }
 
-        // ─── GetTeamLeaderboardAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetTeamLeaderboardAsync
 
         [Test]
         public async Task GetTeamLeaderboardAsync_WhenUsersExist_ShouldRankByRevenueDescendingAndCalculateMetrics()
@@ -1229,7 +1235,9 @@ namespace Tests.Services
             await Assert.That(data.TotalPages).IsEqualTo(3);
         }
 
-        // ─── GenerateEmployeeReportPdfAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GenerateEmployeeReportPdfAsync 
 
         [Test]
         public async Task GenerateEmployeeReportPdfAsync_WhenUserDoesNotExist_ShouldReturnNotFound()
@@ -1322,7 +1330,9 @@ namespace Tests.Services
             await Assert.That(pdfResponse.FileName).EndsWith(".pdf");
         }
 
-        // ─── GenerateTeamReportPdfAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GenerateTeamReportPdfAsync
 
         [Test]
         public async Task GenerateTeamReportPdfAsync_WhenDatabaseIsEmpty_ShouldGeneratePdfSuccessfullyWithZeroes()
@@ -1455,7 +1465,9 @@ namespace Tests.Services
             await Assert.That(pdfResponse.FileName).EndsWith(".pdf");
         }
 
-        // ─── GetAdminMetricsAsync ─────────────────────────────────────────────────────
+        #endregion
+
+        #region GetAdminMetricsAsync 
 
         [Test]
         public async Task GetAdminMetricsAsync_WhenDatabaseIsEmpty_ShouldReturnAllZeroes()
@@ -1537,7 +1549,6 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.TotalUsers).IsEqualTo(1);
         }
-
-
+        #endregion
     }
 }

@@ -29,7 +29,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestNoteModelValidator _validator = new();
 
-        // ─── ApplyNoteIdRules ────────────────────────────────────────────────
+        #region ApplyNoteIdRules 
 
         [Test]
         public async Task ApplyNoteIdRules_WhenGuidIsValid_ShouldNotHaveValidationError()
@@ -58,8 +58,9 @@ namespace Tests.Validators.Rules
             result.ShouldHaveValidationErrorFor(x => x.NoteId);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyTitleRules ─────────────────────────────────────────────────
+        #region ApplyTitleRules 
 
         [Test]
         [Arguments("A")]
@@ -120,8 +121,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.NoteTitleIsNotValid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyContentRules ───────────────────────────────────────────────
+        #region ApplyContentRules 
 
         [Test]
         [Arguments("Krótka treść")]
@@ -181,8 +183,9 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.NoteContentIsNotValid);
             await Task.CompletedTask;
         }
+        #endregion
 
-        // ─── ApplyNoteTypeRules ──────────────────────────────────────────────
+        #region ApplyNoteTypeRules 
 
         [Test]
         public async Task ApplyNoteTypeRules_WhenValidEnumValue_ShouldNotHaveValidationError()
@@ -218,5 +221,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.NoteTypeInvalid);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }

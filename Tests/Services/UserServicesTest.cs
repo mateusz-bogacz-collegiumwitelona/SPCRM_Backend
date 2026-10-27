@@ -191,7 +191,7 @@ namespace Tests.Services
             _roleManagerMock?.Dispose();
         }
 
-        // ─── GetUserSimpleListAsync ─────────────────────────────────────────────────
+        #region GetUserSimpleListAsync 
 
         [Test]
         public async Task GetUserSimpleListAsync_ReturnsOnlyConfirmedActiveNonAdminUsersSorted()
@@ -401,7 +401,9 @@ namespace Tests.Services
             await Assert.That(found).IsTrue();
         }
 
-        // ─── GetUserListAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region GetUserListAsync
 
         [Test]
         public async Task GetUserListAsync_MapsPropertiesAndRolesCorrectly()
@@ -705,8 +707,9 @@ namespace Tests.Services
             await Assert.That(items.Any(u => u.Id == regularUser.Id)).IsTrue();
             await Assert.That(items.Any(u => u.Id == adminUser.Id)).IsFalse();
         }
+        #endregion
 
-        // ─── GetAvailableOwnersAsync ─────────────────────────────────────────────────
+        #region GetAvailableOwnersAsync
 
         [Test]
         public async Task GetAvailableOwnersAsync_ExcludesAdminsAndMapsRolesCorrectly()
@@ -830,7 +833,9 @@ namespace Tests.Services
                 .Throws<MissingUserRoleException>();
         }
 
-        // ─── CreateUserAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region CreateUserAsync 
 
         [Test]
         public async Task CreateUserAsync_WhenValidData_CreatesUserWithoutPasswordAssignsRoleAndQueuesEmail()
@@ -930,7 +935,9 @@ namespace Tests.Services
             await Assert.That(_emailSenderMock.SentCreateUserEmails).IsEmpty();
         }
 
-        // ─── ConfirmEmailAsync ───────────────────────────────────────────────────
+        #endregion
+
+        #region ConfirmEmailAsync 
 
         [Test]
         public async Task ConfirmEmailAsync_WhenValidTokenAndPasswordProvided_ConfirmsEmailAndSetsPassword()
@@ -1125,8 +1132,9 @@ namespace Tests.Services
             await Assert.That(refreshedUser!.EmailConfirmed).IsFalse();
             await Assert.That(await _userManagerMock.HasPasswordAsync(refreshedUser)).IsFalse();
         }
+        #endregion
 
-        // ─── LockoutUserAsync ───────────────────────────────────────────────────
+        #region LockoutUserAsync 
 
         [Test]
         public async Task LockoutUserAsync_WhenValidRequestWithSpecificDate_LocksUserAndSendsEmail()
@@ -1295,7 +1303,9 @@ namespace Tests.Services
             await Assert.That(_emailSenderMock.SentLockoutEmails).IsEmpty();
         }
 
-        // ─── UnlockUserAsync ────────────────────────────────────────────────────
+        #endregion
+
+        #region UnlockUserAsync 
 
         [Test]
         public async Task UnlockUserAsync_WhenUserIsLockedOut_ClearsLockoutEndAndSendsEmail()
@@ -1427,8 +1437,9 @@ namespace Tests.Services
             await Assert.That(result.Message).IsEqualTo("User is not locked out.");
             await Assert.That(_emailSenderMock.SentUnlockEmails).IsEmpty();
         }
+        #endregion
 
-        // ─── DeleteUserAsync ────────────────────────────────────────────────────
+        #region DeleteUserAsync
 
         [Test]
         public async Task DeleteUserAsync_WhenValidRequest_ReassignsActiveResourcesPreservesCompletedAndReleasesEmail()
@@ -1837,8 +1848,9 @@ namespace Tests.Services
                 _userManagerMock.UserValidators.Add(new UserValidator<ApplicationUser>());
             }
         }
+        #endregion
 
-        // ─── EditUserAsync ──────────────────────────────────────────────────────
+        #region EditUserAsync
 
         [Test]
         public async Task EditUserAsync_WhenValidFullUpdate_UpdatesUserFieldsAndNormalizesEmail()
@@ -2030,8 +2042,9 @@ namespace Tests.Services
                 _userManagerMock.UserValidators.Add(new UserValidator<ApplicationUser>());
             }
         }
+        #endregion
 
-        // ─── ChangeUserEmailAsync ──────────────────────────────────────────────
+        #region ChangeUserEmailAsync
 
         [Test]
         public async Task ChangeUserEmailAsync_WhenValidRequest_SetsPendingEmailAndSendsEmails()
@@ -2219,8 +2232,9 @@ namespace Tests.Services
                 _userManagerMock.UserValidators.Add(new UserValidator<ApplicationUser>());
             }
         }
+        #endregion
 
-        // ─── ConfirmChangeUserEmailAsync ───────────────────────────────────────
+        #region ConfirmChangeUserEmailAsync
 
         [Test]
         public async Task ConfirmChangeUserEmailAsync_WhenTokenValid_UpdatesEmailAndClearsPendingEmail()
@@ -2349,7 +2363,9 @@ namespace Tests.Services
             await Assert.That(refreshedUser.PendingEmail).IsEqualTo(newEmail);
         }
 
-        // ─── ForgotPasswordAsync ────────────────────────────────────────────────
+        #endregion
+
+        #region ForgotPasswordAsync
 
         [Test]
         public async Task ForgotPasswordAsync_WhenUserExistsAndConfirmed_GeneratesTokenAndSendsEmail()
@@ -2513,7 +2529,9 @@ namespace Tests.Services
             await Assert.That(_emailSenderMock.SentResetPasswordEmails).IsEmpty();
         }
 
-        // ─── ResetPasswordAsync ─────────────────────────────────────────────────
+        #endregion
+
+        #region ResetPasswordAsync
 
         [Test]
         public async Task ResetPasswordAsync_WhenValidToken_ResetsPasswordAndInvalidatesOldPassword()
@@ -2668,8 +2686,9 @@ namespace Tests.Services
             var refreshedUser = await _userManagerMock.FindByIdAsync(user.Id.ToString());
             await Assert.That(await _userManagerMock.CheckPasswordAsync(refreshedUser!, currentPassword)).IsTrue();
         }
+        #endregion
 
-        // ─── ChangeRoleAsync ───────────────────────────────────────────────────
+        #region ChangeRoleAsync
 
         [Test]
         public async Task ChangeRoleAsync_WhenValidRequest_ReplacesOldRolesWithNewRoleAndUpdatesSecurityStamp()
@@ -2919,8 +2938,9 @@ namespace Tests.Services
             await Assert.That(roles).Count().IsEqualTo(1);
             await Assert.That(roles[0]).IsEqualTo(existingRole);
         }
+        #endregion
 
-        // ─── GetUserDetailAsync ─────────────────────────────────────────────────
+        #region GetUserDetailAsync
 
         [Test]
         public async Task GetUserDetailAsync_WhenUserExists_ReturnsMappedDetailsAndCorrectCounters()
@@ -3230,8 +3250,9 @@ namespace Tests.Services
             await Assert.That(result.Data).IsNotNull();
             await Assert.That(result.Data!.IsLocked).IsFalse();
         }
+        #endregion
 
-        // ─── GetRolesAsync ──────────────────────────────────────────────────────────
+        #region GetRolesAsync
 
         [Test]
         public async Task GetRolesAsync_WhenRolesExist_ReturnsSortedRoleNames()
@@ -3304,6 +3325,7 @@ namespace Tests.Services
             await Assert.That(result.Data!).Count().IsEqualTo(1);
             await Assert.That(result.Data![0]).IsEqualTo("ValidRole");
         }
+        #endregion
 
         private class FailingUserValidator : IUserValidator<ApplicationUser>
         {

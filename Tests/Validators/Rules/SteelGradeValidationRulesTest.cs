@@ -28,7 +28,7 @@ namespace Tests.Validators.Rules
 
         private readonly TestSteelGradeModelValidator _validator = new();
 
-        // ─── ApplySteelGradeNameRules ────────────────────────────────────────
+        #region ApplySteelGradeNameRules 
 
         [Test]
         [Arguments("1.4301")]
@@ -80,7 +80,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplySteelGradeStandardRules ────────────────────────────────────
+        #endregion
+
+        #region ApplySteelGradeStandardRules 
 
         [Test]
         [Arguments("EN 10088-3")]
@@ -115,7 +117,9 @@ namespace Tests.Validators.Rules
             await Task.CompletedTask;
         }
 
-        // ─── ApplySteelGradeDensityRules ─────────────────────────────────────
+        #endregion
+
+        #region ApplySteelGradeDensityRules
 
         [Test]
         [Arguments(7900.0)]
@@ -184,5 +188,6 @@ namespace Tests.Validators.Rules
                   .WithErrorCode(ErrorCodes.InvalidSteelGradeDensity);
             await Task.CompletedTask;
         }
+        #endregion
     }
 }
