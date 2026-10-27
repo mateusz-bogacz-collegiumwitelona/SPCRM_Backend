@@ -60,7 +60,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("AuthorId");
 
-                    b.ToTable("Notes");
+                    b.ToTable("Notes", (string)null);
 
                     b.HasDiscriminator<string>("NoteType").HasValue("Note");
 
@@ -186,7 +186,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Companies");
+                    b.ToTable("Companies", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.CompanyAdress", b =>
@@ -230,7 +230,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.ToTable("CompanyAdresses");
+                    b.ToTable("CompanyAdresses", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Contact", b =>
@@ -274,7 +274,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Contacts");
+                    b.ToTable("Contacts", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.ContactDetail", b =>
@@ -313,7 +313,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ContactId");
 
-                    b.ToTable("ContactDetails");
+                    b.ToTable("ContactDetails", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Currency", b =>
@@ -344,7 +344,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Currencies");
+                    b.ToTable("Currencies", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Deal", b =>
@@ -398,7 +398,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Deals");
+                    b.ToTable("Deals", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.DealProduct", b =>
@@ -434,7 +434,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("DealProducts");
+                    b.ToTable("DealProducts", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Invoice", b =>
@@ -491,7 +491,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("InvoiceNumber")
                         .IsUnique();
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.InvoicePayment", b =>
@@ -533,7 +533,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("InvoicePayments");
+                    b.ToTable("InvoicePayments", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.InvoiceProducts", b =>
@@ -580,7 +580,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("InvoiceProducts");
+                    b.ToTable("InvoiceProducts", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Offer", b =>
@@ -624,7 +624,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("CurrencyId");
 
-                    b.ToTable("Offers");
+                    b.ToTable("Offers", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.OfferProducts", b =>
@@ -660,7 +660,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OfferProducts");
+                    b.ToTable("OfferProducts", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Product", b =>
@@ -730,7 +730,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Promotion", b =>
@@ -790,7 +790,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("Promotions");
+                    b.ToTable("Promotions", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.SteelGrade", b =>
@@ -823,7 +823,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("SteelGrades");
+                    b.ToTable("SteelGrades", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Tasks", b =>
@@ -887,7 +887,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("DealId");
 
-                    b.ToTable("Tasks");
+                    b.ToTable("Tasks", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.UnitOfMeasure", b =>
@@ -918,7 +918,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("UnitsOfMeasure");
+                    b.ToTable("UnitsOfMeasure", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>

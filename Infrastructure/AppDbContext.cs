@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Infrastructure
 {
@@ -32,131 +33,21 @@ namespace Infrastructure
         public DbSet<SteelGrade> SteelGrades { get; set; }
         public DbSet<InvoiceProducts> InvoiceProducts { get; set; }
         public DbSet<InvoicePayment> InvoicePayments { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
+            builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
             builder.HasPostgresExtension("postgis");
             builder.HasPostgresExtension("unaccent");
 
-            builder.Entity<SteelGrade>()
-                .HasIndex(s => s.Name)
-                .IsUnique();
+            ConfigureGlobalConventions(builder);
+        }
 
-            builder.Entity<CompanyAdress>()
-                .Property(sa => sa.Location)
-                .HasColumnType("geometry(Point, 4326)");
-
-            builder.Entity<ApplicationUser>().ToTable("User");
-
-            builder.Entity<Deal>()
-                .HasOne(d => d.Owner)
-                .WithMany(u => u.Deals)
-                .HasForeignKey(d => d.OwnerId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<Tasks>()
-                .HasOne(t => t.AssignedTo)
-                .WithMany(u => u.Tasks)
-                .HasForeignKey(t => t.AssignedToId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<ContactDetail>()
-                .HasOne(d => d.Contact)
-                .WithMany(c => c.ContactDetails)
-                .HasForeignKey(d => d.ContactId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Entity<CompanyAdress>()
-                .Property(a => a.AddressType)
-                .HasConversion<string>();
-
-            builder.Entity<Deal>()
-                .Property(d => d.Status)
-                .HasConversion<string>();
-
-            builder.Entity<Tasks>()
-                .Property(t => t.Priority)
-                .HasConversion<string>();
-
-            builder.Entity<Tasks>()
-                .Property(t => t.Status)
-                .HasConversion<string>();
-
-            builder.Entity<ContactDetail>()
-                .Property(t => t.Type)
-                .HasConversion<string>();
-
-            builder.Entity<Note>()
-                .HasDiscriminator<string>("NoteType")
-                .HasValue<ContactNote>("Contact")
-                .HasValue<DealNote>("Deal")
-                .HasValue<TaskNote>("Task");
-
-            builder.Entity<Product>()
-                .Property(p => p.Category)
-                .HasConversion<string>();
-
-            builder.Entity<Offer>()
-                .Property(o => o.Status)
-                .HasConversion<string>();
-
-            builder.Entity<ContactDetail>()
-                .Property(d => d.UpdateAt)
-                .IsConcurrencyToken(false);
-
-            builder.Entity<Invoice>()
-                .HasOne(i => i.Deal)
-                .WithMany(d => d.Invoices)
-                .HasForeignKey(i => i.DealId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<Invoice>()
-                .HasIndex(i => i.InvoiceNumber)
-                .IsUnique();
-
-            builder.Entity<InvoiceProducts>()
-                .HasOne(ip => ip.Invoice)
-                .WithMany(i => i.InvoiceProducts)
-                .HasForeignKey(ip => ip.InvoiceId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Entity<InvoiceProducts>()
-                .HasOne(ip => ip.Product)
-                .WithMany()
-                .HasForeignKey(ip => ip.ProductId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            builder.Entity<ApplicationUser>(b =>
-            {
-                b.HasIndex(u => u.PendingEmail)
-                    .IsUnique()
-                    .HasFilter("\"PendingEmail\" IS NOT NULL");
-            });
-
-            builder.Entity<Deal>()
-                .HasOne(d => d.Contact)
-                .WithMany(c => c.Deals)
-                .HasForeignKey(d => d.ContactId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            builder.Entity<Product>()
-                .Property(p => p.Version)
-                .IsRowVersion();
-
-            builder.Entity<InvoicePayment>()
-                .HasOne(p => p.Invoice)
-                .WithMany(i => i.Payments)
-                .HasForeignKey(p => p.InvoiceId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Entity<InvoicePayment>()
-                .HasOne(p => p.CreatedBy)
-                .WithMany()
-                .HasForeignKey(p => p.CreatedById)
-                .OnDelete(DeleteBehavior.SetNull)
-                .IsRequired(false);
-
+        private static void ConfigureGlobalConventions(ModelBuilder builder)
+        {
             foreach (var entityType in builder.Model.GetEntityTypes())
             {
                 if (entityType.BaseType != null) continue;
