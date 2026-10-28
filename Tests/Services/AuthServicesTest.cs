@@ -276,6 +276,82 @@ namespace Tests.Services
             // Assert
             await Assert.That(result).IsEqualTo(StatusCodes.Status204NoContent);
         }
+
+        [Test]
+        public async Task LoginAsync_WhenRememberMeIsTrue_PassesPersistentTrueToSignInManager()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                UserName = "TestRememberTrue",
+                NormalizedUserName = "TESTREMEMBERTRUE",
+                FirstName = "Jan",
+                LastName = "Kowalski",
+                Email = "remember_true@test.pl",
+                NormalizedEmail = "REMEMBER_TRUE@TEST.PL",
+                EmailConfirmed = true
+            };
+
+            await _userManagerMock.CreateAsync(user, "GoodPassword123!");
+
+            var roleName = "Role_" + Guid.NewGuid().ToString("N");
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = roleName, NormalizedName = roleName.ToUpper() });
+            await _userManagerMock.AddToRoleAsync(user, roleName);
+
+            var request = new LoginCommand
+            {
+                Name = "remember_true@test.pl",
+                Password = "GoodPassword123!",
+                RememberMe = true 
+            };
+
+            // Act
+            var result = await _authServicesMock.LoginAsync(request);
+
+            // Assert
+            await Assert.That(result).IsEqualTo(StatusCodes.Status204NoContent);
+
+            var fakeSignInManager = (FakeSignInManager)_signInManagerMock;
+            await Assert.That(fakeSignInManager.LastIsPersistent).IsTrue();
+        }
+
+        [Test]
+        public async Task LoginAsync_WhenRememberMeIsFalse_PassesPersistentFalseToSignInManager()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                UserName = "TestRememberFalse",
+                NormalizedUserName = "TESTREMEMBERFALSE",
+                FirstName = "Anna",
+                LastName = "Nowak",
+                Email = "remember_false@test.pl",
+                NormalizedEmail = "REMEMBER_FALSE@TEST.PL",
+                EmailConfirmed = true
+            };
+
+            await _userManagerMock.CreateAsync(user, "GoodPassword123!");
+
+            var roleName = "Role_" + Guid.NewGuid().ToString("N");
+            await _roleManagerMock.CreateAsync(new IdentityRole<Guid> { Name = roleName, NormalizedName = roleName.ToUpper() });
+            await _userManagerMock.AddToRoleAsync(user, roleName);
+
+            var request = new LoginCommand
+            {
+                Name = "remember_false@test.pl",
+                Password = "GoodPassword123!",
+                RememberMe = false
+            };
+
+            // Act
+            var result = await _authServicesMock.LoginAsync(request);
+
+            // Assert
+            await Assert.That(result).IsEqualTo(StatusCodes.Status204NoContent);
+
+            var fakeSignInManager = (FakeSignInManager)_signInManagerMock;
+            await Assert.That(fakeSignInManager.LastIsPersistent).IsFalse();
+        }
         #endregion
 
         #region LogoutAsync
@@ -387,6 +463,7 @@ namespace Tests.Services
     public class FakeSignInManager : SignInManager<ApplicationUser>
     {
         public bool SignOutCalled { get; private set; } = false;
+        public bool? LastIsPersistent { get; private set; }
 
         public FakeSignInManager(UserManager<ApplicationUser> userManager)
             : base(userManager,
@@ -399,9 +476,12 @@ namespace Tests.Services
         {
         }
 
-        public override Task<Microsoft.AspNetCore.Identity.SignInResult> PasswordSignInAsync(
-            string userName, string password, bool isPersistent, bool lockoutOnFailure)
-            => Task.FromResult(Microsoft.AspNetCore.Identity.SignInResult.Success);
+        public override Task<SignInResult> PasswordSignInAsync(
+                string userName, string password, bool isPersistent, bool lockoutOnFailure)
+        {
+            LastIsPersistent = isPersistent; 
+            return Task.FromResult(SignInResult.Success);
+        }
 
         public override Task SignOutAsync()
         {

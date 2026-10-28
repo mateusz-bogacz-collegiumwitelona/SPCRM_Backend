@@ -60,7 +60,7 @@ namespace Services.Services
             var signInResult = await _signInManager.PasswordSignInAsync(
                 userName,
                 command.Password,
-                isPersistent: false,
+                isPersistent: command.RememberMe,
                 lockoutOnFailure: false
             );
 
@@ -87,7 +87,7 @@ namespace Services.Services
 
         public async Task<Result<AuthResponse>> GetUserDataAsync(Guid userId)
         {
-            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
 
             if (user == null)
             {
