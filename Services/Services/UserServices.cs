@@ -171,7 +171,7 @@ namespace Services.Services
                 return Result.Failure(
                     message: "A user with this email already exists.",
                     errorCode: ErrorCodes.UserAlreadyExists,
-                    statusCode: StatusCodes.Status400BadRequest
+                    statusCode: StatusCodes.Status409Conflict
                 );
             }
 
@@ -628,7 +628,7 @@ namespace Services.Services
                 return Result.Failure(
                     message: "A user with this email address already exists or has a pending change.",
                     errorCode: ErrorCodes.UserAlreadyExists,
-                    statusCode: StatusCodes.Status400BadRequest
+                    statusCode: StatusCodes.Status409Conflict
                 );
             }
 

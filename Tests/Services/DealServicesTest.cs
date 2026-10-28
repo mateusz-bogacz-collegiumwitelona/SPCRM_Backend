@@ -2585,7 +2585,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddDealProductAsync_WhenProductAlreadyExistsInDeal_ReturnsBadRequest()
+        public async Task AddDealProductAsync_WhenProductAlreadyExistsInDeal_Returns409Conflict()
         {
             // Arrange
             var (company, owner, currency, contact) = await SeedCompanyAndUserAsync();
@@ -2649,7 +2649,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidOperation);
             await Assert.That(result.Message).IsEqualTo("Product already exists in the deal.");
         }
@@ -2784,7 +2784,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsTrue();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status201Created);
 
             var dbDeal = await _contextMock.Deals
                 .Include(d => d.DealProducts)

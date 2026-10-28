@@ -879,7 +879,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task CreateUserAsync_WhenEmailAlreadyExists_ReturnsBadRequest()
+        public async Task CreateUserAsync_WhenEmailAlreadyExists_Returns409Conflict()
         {
             // Arrange
             var existingEmail = "duplicate@example.com";
@@ -909,7 +909,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserAlreadyExists);
             await Assert.That(_emailSenderMock.SentCreateUserEmails).IsEmpty();
         }
@@ -2138,7 +2138,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task ChangeUserEmailAsync_WhenEmailOccupiedAsPendingByAnotherUser_ReturnsBadRequest()
+        public async Task ChangeUserEmailAsync_WhenEmailOccupiedAsPendingByAnotherUser_Returns409Conflict()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -2185,7 +2185,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.UserAlreadyExists);
         }
 

@@ -1194,7 +1194,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task EditPromotionAsync_WhenCurrencyDoesNotExist_Returns400BadRequest()
+        public async Task EditPromotionAsync_WhenCurrencyDoesNotExist_Returns404NotFound()
         {
             // Arrange
             var product = await CreateDummyProductAsync();
@@ -1223,12 +1223,12 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNotFound);
         }
 
         [Test]
-        public async Task EditPromotionAsync_WhenContactDoesNotExist_Returns400BadRequest()
+        public async Task EditPromotionAsync_WhenContactDoesNotExist_Returns404NotFound()
         {
             // Arrange
             var product = await CreateDummyProductAsync();
@@ -1256,7 +1256,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
         }
 
@@ -1427,7 +1427,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddPromotionAsync_WhenCurrencyDoesNotExist_Returns400BadRequest()
+        public async Task AddPromotionAsync_WhenCurrencyDoesNotExist_Returns404NotFound()
         {
             // Arrange
             var product = await CreateDummyProductAsync();
@@ -1444,12 +1444,12 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyNotFound);
         }
 
         [Test]
-        public async Task AddPromotionAsync_WhenContactDoesNotExist_Returns400BadRequest()
+        public async Task AddPromotionAsync_WhenContactDoesNotExist_Returns404NotFound()
         {
             // Arrange
             var product = await CreateDummyProductAsync();
@@ -1466,7 +1466,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status404NotFound);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.ContactNotFound);
         }
 

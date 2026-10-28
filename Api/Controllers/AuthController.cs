@@ -33,9 +33,12 @@ namespace Api.Controllers
             var command = mapper.MapLogin(request);
             var statusCode = await authServices.LoginAsync(command);
 
-            return statusCode == StatusCodes.Status401Unauthorized
-                ? Unauthorized()
-                : NoContent();
+            return statusCode switch
+            {
+                StatusCodes.Status401Unauthorized => Unauthorized(),
+                StatusCodes.Status423Locked => StatusCode(StatusCodes.Status423Locked), 
+                _ => NoContent()
+            };
         }
 
         [EndpointSummary("Logout user (Login Step 2)")]

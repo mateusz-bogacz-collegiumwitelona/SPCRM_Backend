@@ -14,7 +14,7 @@
             {
                 options.AddPolicy(PolicyName, policy =>
                 {
-                    policy.WithOrigins(frontendUrl)
+                    policy.WithOrigins(frontendUrl , "http://localhost:8080", "http://localhost:3000")
                           .AllowAnyHeader()
                           .AllowAnyMethod()
                           .AllowCredentials();

@@ -242,7 +242,7 @@ namespace Services.Services
                 _logger.LogWarning("Attempt to add a product with an existing name: {ProductName}", trimName);
                 return Result.Failure(
                     message: "Product with the same name already exists.",
-                    statusCode: StatusCodes.Status400BadRequest,
+                    statusCode: StatusCodes.Status409Conflict,
                     errorCode: ErrorCodes.ProductAlreadyExists
                 );
             }
@@ -549,7 +549,7 @@ namespace Services.Services
                     _logger.LogWarning("Attempt to edit product {ProductId} with an existing name: {ProductName}", command.ProductId, trimName);
                     return Result.Failure(
                         message: "Another product with the same name already exists.",
-                        statusCode: StatusCodes.Status400BadRequest,
+                        statusCode: StatusCodes.Status409Conflict,
                         errorCode: ErrorCodes.ProductAlreadyExists
                     );
                 }

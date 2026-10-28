@@ -59,6 +59,7 @@ namespace Api.Controllers
         [EndpointSummary("Add new user")]
         [EndpointDescription("Add new user with role")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost("create")]
         [Authorize(Roles = "Admin")]
         [EnableRateLimiting("expensive")]
@@ -169,6 +170,7 @@ namespace Api.Controllers
         [EndpointSummary("Initiate email change")]
         [EndpointDescription("Admin initiates an email change process for a user. Sends confirmation link to new email and alert to old email.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost("change-email")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeUserEmailAsync(
