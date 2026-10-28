@@ -178,7 +178,8 @@ namespace Api.Controllers
 
         [EndpointSummary("Add a product to a deal")]
         [EndpointDescription("Adds a product to a specific deal.")]
-        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPut("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         [InvalidateCache(nameof(CacheTags.DealAll), nameof(CacheTags.ProductAll), nameof(CacheTags.AnalyticsAll))]
@@ -210,6 +211,7 @@ namespace Api.Controllers
         [EndpointSummary("Update a product in a deal")]
         [EndpointDescription("Updates a specific product in a deal.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch("{dealId:guid}/products")]
         [Authorize(Roles = "User,Manager")]
         [InvalidateCache(nameof(CacheTags.DealAll), nameof(CacheTags.ProductAll), nameof(CacheTags.AnalyticsAll))]

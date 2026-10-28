@@ -579,7 +579,7 @@ namespace Services.Services
                 return Result.Failure(
                     message: "Product already exists in the deal.",
                     errorCode: ErrorCodes.InvalidOperation,
-                    statusCode: StatusCodes.Status400BadRequest
+                    statusCode: StatusCodes.Status409Conflict
                 );
             }
 
@@ -618,7 +618,7 @@ namespace Services.Services
 
             return Result.Success(
                 message: "Product added to deal successfully.",
-                statusCode: StatusCodes.Status200OK
+                statusCode: StatusCodes.Status201Created
             );
         }
 
@@ -739,7 +739,7 @@ namespace Services.Services
                     return Result.Failure(
                         message: "Another product with the same ProductId already exists in the deal.",
                         errorCode: ErrorCodes.InvalidOperation,
-                        statusCode: StatusCodes.Status400BadRequest
+                        statusCode: StatusCodes.Status409Conflict
                     );
                 }
             }

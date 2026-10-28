@@ -95,7 +95,8 @@ namespace Services.Services
             {
                 return Result<List<NoteResponse>>.Failure(
                     message: "Task for this note not found",
-                    statusCode: StatusCodes.Status404NotFound
+                    statusCode: StatusCodes.Status404NotFound,
+                    errorCode: ErrorCodes.TaskNotFound
                 );
             }
 

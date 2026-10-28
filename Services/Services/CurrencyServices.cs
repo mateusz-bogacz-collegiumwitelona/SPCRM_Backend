@@ -97,7 +97,7 @@ namespace Services.Services
                 _logger.LogWarning("Currency with code {Code} or name {Name} already exists.", command.Code, command.Name);
                 return Result.Failure(
                     message: "Currency already exists.",
-                    statusCode: StatusCodes.Status400BadRequest,
+                    statusCode: StatusCodes.Status409Conflict,
                     errorCode: ErrorCodes.CurrencyAlreadyExists
                 );
             }

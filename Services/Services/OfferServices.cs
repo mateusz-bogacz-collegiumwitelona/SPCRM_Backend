@@ -378,6 +378,16 @@ namespace Services.Services
                 );
             }
 
+            var hasDuplicateProductIds = command.Items.GroupBy(i => i.ProductId).Any(g => g.Count() > 1);
+            if (hasDuplicateProductIds)
+            {
+                return Result.Failure(
+                    message: "Duplicate products are not allowed in the offer.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    errorCode: ErrorCodes.InvalidOperation
+                );
+            }
+
             var requestedProductIds = command.Items.Select(i => i.ProductId).Distinct().ToList();
 
             var existingProducts = await _context.Products

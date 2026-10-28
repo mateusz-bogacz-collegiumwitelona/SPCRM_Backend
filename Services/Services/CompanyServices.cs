@@ -222,7 +222,7 @@ namespace Services.Services
 
                 return Result<Guid>.Failure(
                     message: "Company with the same name or NIP already exists.",
-                    statusCode: StatusCodes.Status400BadRequest,
+                    statusCode: StatusCodes.Status409Conflict,
                     errorCode: ErrorCodes.CompanyAlreadyExists
                 );
             }
@@ -267,7 +267,7 @@ namespace Services.Services
                 );
                 return Result<Guid>.Failure(
                     message: "Cannot add duplicate addresses for the same company.",
-                    statusCode: StatusCodes.Status400BadRequest,
+                    statusCode: StatusCodes.Status409Conflict,
                     errorCode: ErrorCodes.AddressAlreadyExists
                 );
             }
@@ -334,7 +334,7 @@ namespace Services.Services
                     _logger.LogInformation("Company with name: {CompanyName} already exists.", trimmedName);
                     return Result.Failure(
                         message: "Company with the same name already exists.",
-                        statusCode: StatusCodes.Status400BadRequest,
+                        statusCode: StatusCodes.Status409Conflict,
                         errorCode: ErrorCodes.CompanyAlreadyExists
                     );
                 }
@@ -518,7 +518,7 @@ namespace Services.Services
                 _logger.LogWarning("Address already exists for company {CompanyId}.", companyId);
                 return Result<Guid>.Failure(
                     message: "This address already exists for this company.",
-                    statusCode: StatusCodes.Status400BadRequest,
+                    statusCode: StatusCodes.Status409Conflict,
                     errorCode: ErrorCodes.AddressAlreadyExists
                 );
             }

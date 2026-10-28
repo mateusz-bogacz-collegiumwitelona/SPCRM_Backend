@@ -158,7 +158,7 @@ namespace Api.Controllers
         [EndpointSummary("Change assigned user")]
         [EndpointDescription("Change the assigned user of a specific task.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
-        [HttpPut("{taskId:guid}/change-assigned-user/{assigneeId}")]
+        [HttpPut("{taskId:guid}/change-assigned-user/{assigneeId:guid}")]
         [Authorize(Roles = "Manager")]
         [InvalidateCache(nameof(CacheTags.TaskAll), nameof(CacheTags.AnalyticsAll))]
         public async Task<IActionResult> ChangeAssignedToUserAsync(

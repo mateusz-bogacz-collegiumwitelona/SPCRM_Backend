@@ -1205,7 +1205,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddCompanyAsync_WhenCompanyWithSameNameOrNipExists_ReturnsBadRequest()
+        public async Task AddCompanyAsync_WhenCompanyWithSameNameOrNipExists_Returns409Conflict()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1276,11 +1276,11 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(resultName.IsSuccess).IsFalse();
-            await Assert.That(resultName.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(resultName.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(resultName.Message).IsEqualTo("Company with the same name or NIP already exists.");
 
             await Assert.That(resultNip.IsSuccess).IsFalse();
-            await Assert.That(resultNip.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(resultNip.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(resultNip.Message).IsEqualTo("Company with the same name or NIP already exists.");
         }
 
@@ -1388,7 +1388,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddCompanyAsync_WhenCompanyContainsDuplicateAddresses_ReturnsBadRequest()
+        public async Task AddCompanyAsync_WhenCompanyContainsDuplicateAddresses_Returns409Conflict()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -1443,7 +1443,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.Message).IsEqualTo("Cannot add duplicate addresses for the same company.");
         }
 
@@ -1703,7 +1703,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.Message).IsEqualTo("Company with the same name already exists.");
         }
 
@@ -2340,7 +2340,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddCompanyAddressAsync_WhenDuplicateAddressProvidedForSameCompany_Returns400BadRequest()
+        public async Task AddCompanyAddressAsync_WhenDuplicateAddressProvidedForSameCompany_Returns409Conflict()
         {
             // Arrange
             var uniqueSuffix = Guid.NewGuid().ToString("N");
@@ -2394,7 +2394,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.Message).IsEqualTo("This address already exists for this company.");
         }
 

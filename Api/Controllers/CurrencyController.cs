@@ -47,6 +47,7 @@ namespace Api.Controllers
         [EndpointSummary("Add currency")]
         [EndpointDescription("Add a new currency.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [InvalidateCache(nameof(CacheTags.CurrencyAll), CacheTags.AnalyticsAdminMetrics)]

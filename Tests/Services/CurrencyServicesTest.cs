@@ -421,7 +421,7 @@ namespace Tests.Services
         }
 
         [Test]
-        public async Task AddCurrencyAsync_WhenCurrencyCodeAlreadyExists_ReturnsBadRequestAndConflictErrorCode()
+        public async Task AddCurrencyAsync_WhenCurrencyCodeAlreadyExists_Returns409ConflictAndConflictErrorCode()
         {
             // Arrange
             var existingCurrency = new Currency
@@ -446,12 +446,12 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyAlreadyExists);
         }
 
         [Test]
-        public async Task AddCurrencyAsync_WhenCurrencyNameAlreadyExistsCaseInsensitive_ReturnsBadRequest()
+        public async Task AddCurrencyAsync_WhenCurrencyNameAlreadyExistsCaseInsensitive_Returns409Conflict()
         {
             // Arrange
             var existingCurrency = new Currency
@@ -476,7 +476,7 @@ namespace Tests.Services
 
             // Assert
             await Assert.That(result.IsSuccess).IsFalse();
-            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+            await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status409Conflict);
             await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.CurrencyAlreadyExists);
         }
 

@@ -540,7 +540,7 @@ namespace Services.Services
                     _logger.LogWarning("Currency with ID {CurrencyId} not found.", currencyId.Value);
                     return Result.Failure(
                         message: "Currency not found.",
-                        statusCode: StatusCodes.Status400BadRequest,
+                        statusCode: StatusCodes.Status404NotFound,
                         errorCode: ErrorCodes.CurrencyNotFound
                     );
                 }
@@ -554,7 +554,7 @@ namespace Services.Services
                     _logger.LogWarning("Contact with ID {ContactId} not found.", contactId.Value);
                     return Result.Failure(
                         message: "Contact not found.",
-                        statusCode: StatusCodes.Status400BadRequest,
+                        statusCode: StatusCodes.Status404NotFound,
                         errorCode: ErrorCodes.ContactNotFound
                     );
                 }

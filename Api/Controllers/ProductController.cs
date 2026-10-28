@@ -81,6 +81,7 @@ namespace Api.Controllers
         [EndpointSummary("Add product")]
         [EndpointDescription("Add a new product.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [InvalidateCache(nameof(CacheTags.ProductAll))]
@@ -97,13 +98,13 @@ namespace Api.Controllers
         [EndpointSummary("Update product")]
         [EndpointDescription("Update an existing product.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPut("{productId:guid}")]
         [Authorize(Roles = "Admin")]
         [InvalidateCache(nameof(CacheTags.ProductAll), nameof(CacheTags.OffersAll), nameof(CacheTags.PromotionAll))]
         public async Task<IActionResult> UpdateProductAsync(
             [FromServices] IProductSevices product,
             [FromServices] ProductMapper mapper,
-            [FromRoute] Guid productId,
             [FromBody] EditProductRequest request
             )
         {
@@ -197,7 +198,6 @@ namespace Api.Controllers
         [HttpGet("{productId:guid}/invoices")]
         [Authorize]
         [OutputCache(PolicyName = "GlobalAuthPolicy", Tags = new string[] { CacheTags.ProductInvoices })]
-        [ProducesResponseType(typeof(Result<PagedResult<ProductInvoiceItemResponse>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetProductInvoicesAsync(
             [FromServices] IInvoiceService invoice,
             [FromServices] ApiMapper mapper,

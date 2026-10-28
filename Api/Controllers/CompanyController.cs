@@ -174,6 +174,7 @@ namespace Api.Controllers
         [EndpointSummary("Add a new company")]
         [EndpointDescription("Add a new company with its details.")]
         [ProducesResponseType(typeof(Result<Guid>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost]
         [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList,
             CacheTags.CompaniesMap, CacheTags.UserDetails)]
@@ -191,6 +192,7 @@ namespace Api.Controllers
         [EndpointSummary("Edit an existing company")]
         [EndpointDescription("Edit an existing company with its details.")]
         [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPatch]
         [InvalidateCache(CacheTags.CompaniesList, CacheTags.CompaniesSimpleList,
             CacheTags.CompanyDetails, CacheTags.CompaniesMap,
@@ -227,6 +229,7 @@ namespace Api.Controllers
         [EndpointSummary("Add a new company address")]
         [EndpointDescription("Add a new company address with its details.")]
         [ProducesResponseType(typeof(Result<Guid>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPost("address/{companyId:guid}")]
         [Authorize(Roles = "Manager,User")]
         [InvalidateCache(CacheTags.CompanyAddresses, CacheTags.CompaniesMap, CacheTags.CompaniesList)]

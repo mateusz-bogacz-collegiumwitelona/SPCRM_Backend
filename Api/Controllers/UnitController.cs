@@ -62,7 +62,7 @@ namespace Api.Controllers
 
         [EndpointSummary("Edit existing unit of mesure")]
         [EndpointDescription("Edit existing unit of mesure.")]
-        [ProducesResponseType(typeof(Result), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result), StatusCodes.Status409Conflict)]
         [HttpPut]
         [Authorize(Roles = "Admin")]
