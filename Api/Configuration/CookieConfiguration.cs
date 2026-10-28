@@ -17,7 +17,7 @@ namespace Api.Configuration
             services.ConfigureApplicationCookie(options =>
             {
                 options.Cookie.HttpOnly = true;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Strict;
 
                 options.ExpireTimeSpan = TimeSpan.FromDays(30); 
