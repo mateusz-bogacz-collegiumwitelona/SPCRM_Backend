@@ -36,7 +36,7 @@ namespace Api.Controllers
             return statusCode switch
             {
                 StatusCodes.Status401Unauthorized => Unauthorized(),
-                StatusCodes.Status423Locked => StatusCode(StatusCodes.Status423Locked), 
+                StatusCodes.Status423Locked => StatusCode(StatusCodes.Status423Locked),
                 _ => NoContent()
             };
         }

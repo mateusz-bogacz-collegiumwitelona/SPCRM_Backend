@@ -1,12 +1,9 @@
-﻿namespace Api.Request.Invoice
+﻿using Api.Request.List;
+
+namespace Api.Request.Invoice
 {
-    public record InvoiceListRequest
+    public record InvoiceListRequest : BasicListRequest
     {
-        public int? PageNumber { get; init; }
-        public int? PageSize { get; init; }
-        public string? SortBy { get; init; }
-        public bool SortDescending { get; init; } = false;
-        public string? SearchTerm { get; init; }
         public string? CompanyName { get; init; }
         public string? CompanyNip { get; init; }
         public DateTime? IssueDateFrom { get; init; }

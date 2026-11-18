@@ -1,11 +1,9 @@
-﻿namespace Services.Command.Note
+﻿using Services.Command.List;
+
+namespace Services.Command.Note
 {
-    public record NoteListCommand
+    public record NoteListCommand : SimpleListCommand
     {
         public required Guid SearchId { get; init; }
-        public int? PageNumber { get; init; }
-        public int? PageSize { get; init; }
-        public string? SearchTerm { get; init; }
-
     }
 }

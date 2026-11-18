@@ -1,12 +1,9 @@
-﻿namespace Services.Command.Deal
+﻿using Services.Command.List;
+
+namespace Services.Command.Deal
 {
-    public record DealListCommand
+    public record DealListCommand : BasicListCommand
     {
-        public int? PageNumber { get; init; }
-        public int? PageSize { get; init; }
-        public string? SortBy { get; init; }
-        public bool SortDescending { get; init; } = false;
-        public string? SearchTerm { get; init; }
         public string? CompanyName { get; init; }
         public decimal? Value { get; init; }
         public DateTime? DateFrom { get; init; }

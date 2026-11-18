@@ -1,15 +1,12 @@
-﻿namespace Services.Command.Company
+﻿using Services.Command.List;
+
+namespace Services.Command.Company
 {
-    public record CompanyListCommand
+    public record CompanyListCommand : BasicListCommand
     {
         public required Guid UserId { get; init; }
-        public int? PageNumber { get; init; }
-        public int? PageSize { get; init; }
         public bool? IsYour { get; init; }
         public DateTime? CreatedAtFrom { get; init; }
         public DateTime? CreatedAtTo { get; init; }
-        public string? SortBy { get; init; }
-        public bool SortDescending { get; init; } = false;
-        public string? SearchTerm { get; init; }
     }
 }

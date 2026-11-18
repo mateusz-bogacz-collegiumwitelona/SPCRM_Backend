@@ -302,7 +302,7 @@ namespace Tests.Services
             {
                 Name = "remember_true@test.pl",
                 Password = "GoodPassword123!",
-                RememberMe = true 
+                RememberMe = true
             };
 
             // Act
@@ -479,7 +479,7 @@ namespace Tests.Services
         public override Task<SignInResult> PasswordSignInAsync(
                 string userName, string password, bool isPersistent, bool lockoutOnFailure)
         {
-            LastIsPersistent = isPersistent; 
+            LastIsPersistent = isPersistent;
             return Task.FromResult(SignInResult.Success);
         }
 

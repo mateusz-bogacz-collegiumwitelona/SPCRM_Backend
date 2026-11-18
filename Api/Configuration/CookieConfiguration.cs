@@ -20,7 +20,7 @@ namespace Api.Configuration
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Strict;
 
-                options.ExpireTimeSpan = TimeSpan.FromDays(30); 
+                options.ExpireTimeSpan = TimeSpan.FromDays(30);
                 options.SlidingExpiration = true;
 
                 options.Events.OnRedirectToLogin = context =>
@@ -58,7 +58,7 @@ namespace Api.Configuration
                     var isValidUser = await db.Users.AnyAsync(u =>
                         u.Id == userId &&
                         !u.IsDeleted &&
-                        (u.LockoutEnd == null || u.LockoutEnd <= now) 
+                        (u.LockoutEnd == null || u.LockoutEnd <= now)
                     );
 
                     if (!isValidUser)
