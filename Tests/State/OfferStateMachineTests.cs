@@ -76,6 +76,10 @@ namespace Tests.State
         [Arguments(OfferStatusEnum.Expired, OfferTriggerEnum.Accept, false)]
         [Arguments(OfferStatusEnum.Expired, OfferTriggerEnum.Reject, false)]
         [Arguments(OfferStatusEnum.Expired, OfferTriggerEnum.Expire, false)]
+        [Arguments(OfferStatusEnum.Sent, OfferTriggerEnum.ExtendValidity, true)]
+        [Arguments(OfferStatusEnum.Expired, OfferTriggerEnum.ExtendValidity, true)]
+        [Arguments(OfferStatusEnum.Accepted, OfferTriggerEnum.ExtendValidity, false)]
+        [Arguments(OfferStatusEnum.Rejected, OfferTriggerEnum.ExtendValidity, false)]
         public async Task CanFire_ReturnsExpectedValue(
             OfferStatusEnum status, OfferTriggerEnum trigger, bool expected)
         {
@@ -95,6 +99,14 @@ namespace Tests.State
             await Assert.That(machine.CanFire(trigger)).IsFalse();
         }
 
+        [Test]
+        public async Task CanFire_SentButExpired_ExtendValidity_ReturnsTrue()
+        {
+            var machine = CreateMachine(OfferStatusEnum.Sent, out _, expired: true);
+
+            await Assert.That(machine.CanFire(OfferTriggerEnum.ExtendValidity)).IsTrue();
+        }
+
         #endregion
 
         #region Fire
@@ -103,6 +115,7 @@ namespace Tests.State
         [Arguments(OfferTriggerEnum.Accept, OfferStatusEnum.Accepted)]
         [Arguments(OfferTriggerEnum.Reject, OfferStatusEnum.Rejected)]
         [Arguments(OfferTriggerEnum.Expire, OfferStatusEnum.Expired)]
+        [Arguments(OfferTriggerEnum.ExtendValidity, OfferStatusEnum.Sent)]
         public async Task Fire_ValidTransition_ChangesStatusAndReturnsSuccess(
             OfferTriggerEnum trigger, OfferStatusEnum expected)
         {
@@ -129,6 +142,8 @@ namespace Tests.State
         [Arguments(OfferStatusEnum.Expired, OfferTriggerEnum.Accept)]
         [Arguments(OfferStatusEnum.Expired, OfferTriggerEnum.Reject)]
         [Arguments(OfferStatusEnum.Expired, OfferTriggerEnum.Expire)]
+        [Arguments(OfferStatusEnum.Accepted, OfferTriggerEnum.ExtendValidity)]
+        [Arguments(OfferStatusEnum.Rejected, OfferTriggerEnum.ExtendValidity)]
         public async Task Fire_InvalidTransition_ReturnsFailureAndKeepsStatus(
             OfferStatusEnum initial, OfferTriggerEnum trigger)
         {
@@ -176,6 +191,24 @@ namespace Tests.State
             {
                 await Assert.That(result.IsSuccess).IsFalse();
                 await Assert.That(offer.Status).IsEqualTo(OfferStatusEnum.Expired);
+            }
+        }
+
+        [Test]
+        [Arguments(OfferStatusEnum.Expired, false)]
+        [Arguments(OfferStatusEnum.Sent, true)] 
+        public async Task Fire_ExpiredOffer_ExtendValidity_TransitionsToSent(
+            OfferStatusEnum initialStatus, bool expired)
+        {
+            var machine = CreateMachine(initialStatus, out var offer, expired: expired);
+
+            var result = machine.Fire(OfferTriggerEnum.ExtendValidity);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.IsSuccess).IsTrue();
+                await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status200OK);
+                await Assert.That(offer.Status).IsEqualTo(OfferStatusEnum.Sent);
             }
         }
 
@@ -358,6 +391,45 @@ namespace Tests.State
                 await Assert.That(result.IsSuccess).IsFalse();
                 await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidDate);
             }
+        }
+
+        [Test]
+        public async Task CanExtendValidity_SentAndDateEarlierThanCurrentValidUntil_ReturnsInvalidDate()
+        {
+            var machine = CreateMachine(OfferStatusEnum.Sent, out _);
+
+            var result = machine.CanExtendValidity(DateTime.UtcNow.AddDays(3));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.IsSuccess).IsFalse();
+                await Assert.That(result.StatusCode).IsEqualTo(StatusCodes.Status400BadRequest);
+                await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidDate);
+            }
+        }
+
+        [Test]
+        public async Task CanExtendValidity_SentAndDateEqualToCurrentValidUntil_ReturnsInvalidDate()
+        {
+            var machine = CreateMachine(OfferStatusEnum.Sent, out var offer);
+
+            var result = machine.CanExtendValidity(offer.ValidUntil);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.IsSuccess).IsFalse();
+                await Assert.That(result.ErrorCode).IsEqualTo(ErrorCodes.InvalidDate);
+            }
+        }
+
+        [Test]
+        public async Task CanExtendValidity_SentButExpiredAndFutureDate_ReturnsSuccess()
+        {
+            var machine = CreateMachine(OfferStatusEnum.Sent, out _, expired: true);
+
+            var result = machine.CanExtendValidity(DateTime.UtcNow.AddDays(1));
+
+            await Assert.That(result.IsSuccess).IsTrue();
         }
 
         #endregion

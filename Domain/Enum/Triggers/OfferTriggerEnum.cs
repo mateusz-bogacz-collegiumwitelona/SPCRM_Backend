@@ -4,6 +4,7 @@
     {
         Accept,
         Reject,
-        Expire
+        Expire,
+        ExtendValidity
     }
 }

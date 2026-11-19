@@ -18,14 +18,13 @@ namespace Domain.State
         {
             _offer = offer;
 
-            EnsureFreshExpirationStatus();
-
             _machine = new StateMachine<OfferStatusEnum, OfferTriggerEnum>(
                 () => _offer.Status,
                 newStatus => _offer.Status = newStatus
             );
 
             Configure();
+            EnsureFreshExpirationStatus();
         }
 
         private void Configure()
@@ -35,21 +34,24 @@ namespace Domain.State
                     OfferTriggerEnum.Accept,
                     OfferStatusEnum.Accepted,
                     () => !_offer.IsExpired(),
-                    "Cannot accept an expired offer."
+                    "!IsExpired"
                 )
                 .Permit(OfferTriggerEnum.Reject, OfferStatusEnum.Rejected)
-                .Permit(OfferTriggerEnum.Expire, OfferStatusEnum.Expired);
+                .Permit(OfferTriggerEnum.Expire, OfferStatusEnum.Expired)
+                .PermitReentry(OfferTriggerEnum.ExtendValidity);
+
+            _machine.Configure(OfferStatusEnum.Expired)
+                .Permit(OfferTriggerEnum.ExtendValidity, OfferStatusEnum.Sent);
 
             _machine.Configure(OfferStatusEnum.Accepted);
             _machine.Configure(OfferStatusEnum.Rejected);
-            _machine.Configure(OfferStatusEnum.Expired);
         }
 
         public void EnsureFreshExpirationStatus()
         {
             if (_offer.Status == OfferStatusEnum.Sent && _offer.IsExpired())
             {
-                _offer.Status = OfferStatusEnum.Expired;
+                _machine.Fire(OfferTriggerEnum.Expire);
             }
         }
 
@@ -129,7 +131,9 @@ namespace Domain.State
 
         public Result CanExtendValidity(DateTime targetDate)
         {
-            if (_offer.Status == OfferStatusEnum.Accepted || _offer.Status == OfferStatusEnum.Rejected)
+            EnsureFreshExpirationStatus();
+
+            if (!_machine.CanFire(OfferTriggerEnum.ExtendValidity))
             {
                 return Result.Failure(
                     message: "Cannot extend validity of an accepted or rejected offer.",
@@ -142,6 +146,15 @@ namespace Domain.State
             {
                 return Result.Failure(
                     message: "New validity date must be in the future.",
+                    errorCode: ErrorCodes.InvalidDate,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
+            }
+
+            if (_offer.Status == OfferStatusEnum.Sent && targetDate <= _offer.ValidUntil)
+            {
+                return Result.Failure(
+                    message: "New validity date must be later than the current validity date.",
                     errorCode: ErrorCodes.InvalidDate,
                     statusCode: StatusCodes.Status400BadRequest
                 );

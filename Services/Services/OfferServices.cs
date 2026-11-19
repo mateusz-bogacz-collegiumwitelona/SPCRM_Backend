@@ -253,17 +253,21 @@ namespace Services.Services
                 ? DateTime.SpecifyKind(command.NewValidUntil.Value, DateTimeKind.Utc)
                 : DateTime.UtcNow.AddDays(BusinessConstants.DefaultMailingValidityDays);
 
-            var stateCheck = _state.Create(offer).CanExtendValidity(targetDate);
+            var stateMachine = _state.Create(offer);
+            var stateCheck = stateMachine.CanExtendValidity(targetDate);
             if (!stateCheck.IsSuccess)
             {
                 _logger.LogWarning("Cannot extend validity for offer {OfferId}: {Reason}", offer.Id, stateCheck.Message);
                 return stateCheck;
             }
 
+            var fireResult = stateMachine.Fire(OfferTriggerEnum.ExtendValidity);
+            if (!fireResult.IsSuccess)
+            {
+                return fireResult;
+            }
+
             offer.ValidUntil = targetDate;
-
-            if (offer.Status == OfferStatusEnum.Expired) offer.Status = OfferStatusEnum.Sent;
-
             offer.UpdateAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -635,7 +639,7 @@ namespace Services.Services
                 CanEdit = stateMachine.CanEditProducts().IsSuccess,
                 CanDelete = stateMachine.CanDelete().IsSuccess,
                 CanResendEmail = stateMachine.CanResendEmail().IsSuccess,
-                CanExtendValidity = stateMachine.CanExtendValidity(DateTime.UtcNow.AddDays(BusinessConstants.DefaultMailingValidityDays)).IsSuccess,
+                CanExtendValidity = stateMachine.CanFire(OfferTriggerEnum.ExtendValidity),
                 AllowedStatusTransitions = allowedTransitions
             };
 
@@ -718,6 +722,7 @@ namespace Services.Services
                 }
 
                 offer.UpdateAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
 
                 if (newStatus == OfferStatusEnum.Accepted)
                 {
